@@ -1,42 +1,9 @@
 import React from "react";
-import { arrivedIcon } from "../assets";
+import { departIcon, bitmoji, statsIcon } from "../assets";
 import { Link } from "react-router-dom";
+import { WifiIcon } from "lucide-react";
 
-function ClockInCard({ userInfo, clockInTime, paymentRequired, isError }) {
-  const renderContent = () => {
-    if (paymentRequired) {
-      return (
-        <div className="card-content payment">
-          <img src="/icons/payment.svg" alt="Payment Required" />
-          <p>Complete your outstanding payment of</p>
-          <h2>NGN5250</h2>
-          <p className="subtitle">to retain your space</p>
-          <button className="action-button black">Make Payment</button>
-        </div>
-      );
-    }
-
-    if (isError) {
-      return (
-        <div className="card-content error">
-          <div className="error-icon">!</div>
-          <p>You are unable to clock-in twice on the same day.</p>
-          <p className="subtitle">Contact Admin for more info</p>
-        </div>
-      );
-    }
-
-    return (
-      <div className="text-center justify-center flex flex-col items-center bg-gradient-to-b from-blue-100 to-stone-50 rounded-lg p-8">
-        <img src={arrivedIcon} alt="Clock In" className="w-10 h-10" />
-        <p className="text-xs mt-4">You arrived today at</p>
-        <h2 className="font-bold text-[25px] sm:text-[30px] lg:text-[40px]">
-          {clockInTime}
-        </h2>
-      </div>
-    );
-  };
-
+function ClockOutCard({ userInfo, clockOutTime, totalTimeSpent }) {
   return (
     <>
       <div className="bg-white flex flex-col lg:flex-row justify-around lg:w-[800px] p-4 lg:p-10 mx-auto">
@@ -62,7 +29,7 @@ function ClockInCard({ userInfo, clockInTime, paymentRequired, isError }) {
 
           {/* SUBSCRIPTION INFO */}
           <div className="text-xs gap-2 flex flex-col justify-between">
-            <div className="flex justify-between w-full lg:gap-4">
+            <div className="flex justify-between w-full lg:gap-4 gap-12">
               <p className="text-[#5C5C5B]">Subscription</p>
               <p
                 className={`text-[#000000] flex justify-start items-center w-full ${
@@ -78,10 +45,12 @@ function ClockInCard({ userInfo, clockInTime, paymentRequired, isError }) {
                 )}
               </p>
             </div>
-            <div className="flex justify-between w-full lg:gap-12">
+
+            <div className="flex justify-between w-full lg:gap-12 gap-20">
               <p className="text-[#5C5C5B]">Expiry:</p>
               <p className="text-[#000000]">{userInfo.expiryText}</p>
             </div>
+
             <div className="flex justify-between w-full lg:gap-[51px]">
               <p className="text-[#5C5C5B]">Space</p>
               <p className="text-[#000000]">{userInfo.space}</p>
@@ -89,16 +58,30 @@ function ClockInCard({ userInfo, clockInTime, paymentRequired, isError }) {
           </div>
         </div>
 
-        <div className="mt-6 lg:mt-0">{renderContent()}</div>
+        <div className="mt-6 lg:mt-0">
+          <div className="text-center justify-center flex flex-col items-center bg-gradient-to-b from-blue-100 to-stone-50 rounded-lg p-8">
+            <img src={departIcon} alt="Clock In" className="w-12 h-12" />
+            <p className="text-xs mt-4">Left the hub at</p>
+            <h2 className="font-bold text-[30px] sm:text-[35px] lg:text-[40px]">
+              {clockOutTime}
+            </h2>
+            <p className="bg-[#6BEBAD] px-4 font-extrabold py-2 border rounded-md text-[10px] flex items-center justify-center gap-1">
+              <img src={statsIcon} alt="This is a stats logo" width={15} />
+              {totalTimeSpent}
+            </p>
+          </div>
+        </div>
       </div>
 
-      <Link to={"/home"}>
-        <button className="px-4 py-3 lg:px-10 lg:py-4 bg-[#FEDC44] w-full md:w-full text-[#1F2127] text-[13px] font-semibold">
-          Great- Let's go
-        </button>
-      </Link>
+      <div className="flex justify-center gap-2 mt-6 items-center flex-col">
+        <img src={bitmoji} alt="bitmoji" className="w-9 h-9 mx-auto" />
+        <p className="text-[12px] text-[#1F2127] text-center">
+          Hey {userInfo.name}, We hope your day was productive. <br />
+          <b>See you tomorrow!</b>
+        </p>
+      </div>
     </>
   );
 }
 
-export default ClockInCard;
+export default ClockOutCard;
