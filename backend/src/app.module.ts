@@ -3,10 +3,10 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { AuditLogModule } from './audit-log/audit-log.module';
-import { ClockInModule } from './clock-in/clock-in.module';
+import { ClockinModule } from './clock-in/clock-in.module';
 
 @Module({
-  imports: [AuthModule, AuditLogModule, ClockInModule],
+  imports: [AuthModule, AuditLogModule, ClockinModule],
   controllers: [AppController],
   providers: [AppService],
 })
