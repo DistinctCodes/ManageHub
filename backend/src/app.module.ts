@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core'; // <-- Import APP_GUARD
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -7,6 +8,7 @@ import { ClockinModule } from './clock-in/clock-in.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { CacheModule } from '@nestjs/cache-manager';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { RolesGuard } from './common/guards/roles.guards'; // <-- Import RolesGuard
 
 @Module({
   imports: [
@@ -21,6 +23,12 @@ import { AnalyticsModule } from './analytics/analytics.module';
     AnalyticsModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
+    },
+  ],
 })
 export class AppModule {}
