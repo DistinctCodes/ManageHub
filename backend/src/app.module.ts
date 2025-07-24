@@ -3,10 +3,12 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { BadgesModule } from './badges/badges.module';
 import { InternetSpeedModule } from './internet-speed/internet-speed.module';
+import { LibraryService } from './library/library.service';
+import { LibraryModule } from './library/library-module.module';
 
 @Module({
-  imports: [BadgesModule, InternetSpeedModule],
+  imports: [BadgesModule, InternetSpeedModule, LibraryModule],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, LibraryService],
 })
 export class AppModule {}
