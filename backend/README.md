@@ -97,3 +97,34 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+
+# Biometric Sync System
+
+A new module simulates syncing biometric data to a central repository. It logs sync times and errors, and does not depend on biometric authentication or the user module.
+
+## Usage
+
+- **Endpoint:** `POST /biometric-sync/sync`
+- **Description:** Triggers a simulated biometric data sync. Returns success/failure, timestamp, and error message if any.
+
+### Example (using curl):
+
+```
+curl -X POST http://localhost:3000/biometric-sync/sync
+```
+
+### Response Example
+```
+{
+  "success": true,
+  "timestamp": "2024-06-07T12:34:56.789Z"
+}
+```
+Or on failure:
+```
+{
+  "success": false,
+  "timestamp": "2024-06-07T12:35:01.123Z",
+  "error": "Simulated sync failure"
+}
+```
