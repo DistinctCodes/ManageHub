@@ -4,6 +4,7 @@ import { MetricsService } from './metrics/metrics.service';
 import { ConfigService } from './config/config.service';
 import { QueryLogsDto } from './logging/dto/query-logs.dto';
 import { UpdateConfigDto } from './config/dto/update-config.dto';
+import { BiometricService } from './biometric/biometric.service';
 
 @Controller()
 export class AppController {
@@ -11,17 +12,19 @@ export class AppController {
     private readonly loggingService: LoggingService,
     private readonly metricsService: MetricsService,
     private readonly configService: ConfigService,
+    private readonly biometricService: BiometricService,
   ) {}
 
   @Post('simulation/start')
   startSimulation() {
-    // Stub: Start simulation
+    const config = this.configService.getConfig();
+    this.biometricService.startSimulation(config.deviceCount, config.syncFrequency);
     return { started: true };
   }
 
   @Post('simulation/stop')
   stopSimulation() {
-    // Stub: Stop simulation
+    this.biometricService.stopSimulation();
     return { stopped: true };
   }
 
