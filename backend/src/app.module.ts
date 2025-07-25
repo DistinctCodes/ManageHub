@@ -7,7 +7,7 @@ import { LibraryService } from './library/library.service';
 import { LibraryModule } from './library/library-module.module';
 
 @Module({
-  imports: [BadgesModule, InternetSpeedModule, LibraryModule],
+  imports: [BadgesModule, InternetSpeedModule, LibraryModule, PollsModule, LeaveModule],
   controllers: [AppController],
   providers: [AppService, LibraryService],
 })
