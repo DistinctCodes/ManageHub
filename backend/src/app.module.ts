@@ -15,6 +15,7 @@ import { LoggingModule } from './logging/logging.module';
 import { MetricsModule } from './metrics/metrics.module';
 import { ConfigModule } from './config/config.module';
 import { DatabaseModule } from './database/database.module';
+import { HeatmapModule } from './heatmap/heatmap.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { DatabaseModule } from './database/database.module';
     PollsModule,
     LeaveModule,
     BiometricSyncModule,
+    HeatmapModule,
   ],
   controllers: [AppController],
   providers: [AppService],
