@@ -1,11 +1,29 @@
 import { Injectable } from '@nestjs/common';
 import { BiometricDataEntity } from './biometric.entity';
 import { v4 as uuidv4 } from 'uuid';
+import { CreateBiometricDto } from './dto/create-biometric.dto';
 
 @Injectable()
 export class BiometricService {
+  private data: BiometricDataEntity[] = [];
+  private simulationActive = false;
+  private interval: NodeJS.Timeout | null = null;
+
+  startSimulation(deviceCount: number, frequency: number) {
+    if (this.simulationActive) return;
+    this.simulationActive = true;
+    this.interval = setInterval(() => {
+      this.generateBulkRecords(deviceCount, frequency);
+    }, 1000);
+  }
+
+  stopSimulation() {
+    this.simulationActive = false;
+    if (this.interval) clearInterval(this.interval);
+    this.interval = null;
+  }
+
   generateDummyRecord(): BiometricDataEntity {
-    // Stub: returns a dummy biometric record
     return {
       id: uuidv4(),
       deviceId: `device-${Math.floor(Math.random() * 1000)}`,
@@ -17,7 +35,28 @@ export class BiometricService {
   }
 
   generateBulkRecords(deviceCount: number, frequency: number): BiometricDataEntity[] {
-    // Stub: returns an array of dummy records
-    return Array.from({ length: deviceCount * frequency }, () => this.generateDummyRecord());
+    const records = Array.from({ length: deviceCount * frequency }, () => this.generateDummyRecord());
+    this.data.push(...records);
+    return records;
+  }
+
+  getUnsyncedData(): BiometricDataEntity[] {
+    // For now, return all data (stub for unsynced logic)
+    return this.data;
+  }
+
+  markDataAsSynced(ids: string[]) {
+    // Remove synced data from in-memory array
+    this.data = this.data.filter(d => !ids.includes(d.id));
+  }
+
+  create(dto: CreateBiometricDto): BiometricDataEntity {
+    const record: BiometricDataEntity = {
+      id: uuidv4(),
+      ...dto,
+      generatedAt: new Date(),
+    };
+    this.data.push(record);
+    return record;
   }
 } 
