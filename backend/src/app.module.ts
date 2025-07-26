@@ -5,36 +5,20 @@ import { BadgesModule } from './badges/badges.module';
 import { InternetSpeedModule } from './internet-speed/internet-speed.module';
 import { LibraryService } from './library/library.service';
 import { LibraryModule } from './library/library-module.module';
-import { BiometricSyncModule } from './biometric-sync/biometric-sync.module';
+import { BusinessesModule } from './businesses/businesses.module';
 import { PollsModule } from './polls/polls.module';
 import { LeaveModule } from './leave/leave.module';
-import { BiometricModule } from './biometric/biometric.module';
-import { SyncModule } from './sync/sync.module';
-import { ErrorSimulationModule } from './errors/error-simulator.module';
-import { LoggingModule } from './logging/logging.module';
-import { MetricsModule } from './metrics/metrics.module';
-import { ConfigModule } from './config/config.module';
-import { DatabaseModule } from './database/database.module';
-import { HeatmapModule } from './heatmap/heatmap.module';
 
 @Module({
   imports: [
-    DatabaseModule,
-    BiometricModule,
-    SyncModule,
-    ErrorSimulationModule,
-    LoggingModule,
-    MetricsModule,
-    ConfigModule,
     BadgesModule,
     InternetSpeedModule,
     LibraryModule,
+    BusinessesModule,
     PollsModule,
     LeaveModule,
-    BiometricSyncModule,
-    HeatmapModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, LibraryService],
 })
 export class AppModule {}
