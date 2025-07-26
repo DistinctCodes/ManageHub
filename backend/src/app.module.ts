@@ -8,6 +8,7 @@ import { LibraryModule } from './library/library-module.module';
 import { BusinessesModule } from './businesses/businesses.module';
 import { PollsModule } from './polls/polls.module';
 import { LeaveModule } from './leave/leave.module';
+import { InternalNotesModule } from './internal-notes/internal-notes.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { LeaveModule } from './leave/leave.module';
     BusinessesModule,
     PollsModule,
     LeaveModule,
+    InternalNotesModule,
   ],
   controllers: [AppController],
   providers: [AppService, LibraryService],
