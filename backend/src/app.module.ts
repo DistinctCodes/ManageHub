@@ -12,7 +12,7 @@ import { LeaveModule } from './leave/leave.module';
 import { InternalNotesModule } from './internal-notes/internal-notes.module';
 import { SystemStatsModule } from './system-stats/system-stats.module';
 import { BackupsModule } from './backups/backups.module';
-
+import { EnvironmentMonitorModule } from './environment-monitor/environment-monitor.module';
 
 @Module({
   imports: [
@@ -25,6 +25,7 @@ import { BackupsModule } from './backups/backups.module';
     InternalNotesModule,
     SystemStatsModule,
     BackupsModule,
+    EnvironmentMonitorModule,
   ],
   controllers: [AppController],
   providers: [AppService, LibraryService],
