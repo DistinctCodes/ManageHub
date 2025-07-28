@@ -11,7 +11,11 @@ import { LeaveModule } from './leave/leave.module';
 
 import { InternalNotesModule } from './internal-notes/internal-notes.module';
 import { SystemStatsModule } from './system-stats/system-stats.module';
+
 import { ServiceVendorVisitModule } from './service-vendor-visit/service-vendor-visit.module';
+
+import { BackupsModule } from './backups/backups.module';
+
 
 @Module({
   imports: [
@@ -24,6 +28,7 @@ import { ServiceVendorVisitModule } from './service-vendor-visit/service-vendor-
     InternalNotesModule,
     SystemStatsModule,
     ServiceVendorVisitModule,
+    BackupsModule,
   ],
   controllers: [AppController],
   providers: [AppService, LibraryService],
