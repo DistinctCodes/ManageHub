@@ -11,6 +11,8 @@ import { LeaveModule } from './leave/leave.module';
 
 import { InternalNotesModule } from './internal-notes/internal-notes.module';
 import { SystemStatsModule } from './system-stats/system-stats.module';
+import { BackupsModule } from './backups/backups.module';
+
 
 @Module({
   imports: [
@@ -22,6 +24,7 @@ import { SystemStatsModule } from './system-stats/system-stats.module';
     LeaveModule,
     InternalNotesModule,
     SystemStatsModule,
+    BackupsModule,
   ],
   controllers: [AppController],
   providers: [AppService, LibraryService],
