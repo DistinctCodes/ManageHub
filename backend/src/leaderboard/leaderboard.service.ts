@@ -15,14 +15,19 @@ export class LeaderboardService {
     { name: 'Eve', checkIns: 20 },
   ];
 
-  getLeaderboard(): { name: string; score: number }[] {
-    // Convert checkIns to a score (you can customize the scoring logic)
-    const leaderboard = this.mockData.map((attendee) => ({
-      name: attendee.name,
-      score: attendee.checkIns,
-    }));
+  getLeaderboard(): { rank: number; name: string; score: number }[] {
+    // Map check-ins to leaderboard scores
+    const leaderboard = this.mockData
+      .map((attendee) => ({
+        name: attendee.name,
+        score: attendee.checkIns,
+      }))
+      .sort((a, b) => b.score - a.score) // Sort by score descending
+      .map((attendee, index) => ({
+        rank: index + 1,
+        ...attendee,
+      }));
 
-    // Sort descending by score
-    return leaderboard.sort((a, b) => b.score - a.score);
+    return leaderboard;
   }
 }
