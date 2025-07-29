@@ -16,6 +16,7 @@ import { ServiceVendorVisitModule } from './service-vendor-visit/service-vendor-
 
 import { BackupsModule } from './backups/backups.module';
 import { EnvironmentMonitorModule } from './environment-monitor/environment-monitor.module';
+import { LeaderboardModule } from './leaderboard/leaderboard.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { EnvironmentMonitorModule } from './environment-monitor/environment-moni
     ServiceVendorVisitModule,
     BackupsModule,
     EnvironmentMonitorModule,
+    LeaderboardModule,
   ],
   controllers: [AppController],
   providers: [AppService, LibraryService],
