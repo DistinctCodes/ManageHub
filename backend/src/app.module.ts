@@ -11,6 +11,9 @@ import { LeaveModule } from './leave/leave.module';
 
 import { InternalNotesModule } from './internal-notes/internal-notes.module';
 import { SystemStatsModule } from './system-stats/system-stats.module';
+
+import { ServiceVendorVisitModule } from './service-vendor-visit/service-vendor-visit.module';
+
 import { BackupsModule } from './backups/backups.module';
 import { EnvironmentMonitorModule } from './environment-monitor/environment-monitor.module';
 
@@ -24,6 +27,7 @@ import { EnvironmentMonitorModule } from './environment-monitor/environment-moni
     LeaveModule,
     InternalNotesModule,
     SystemStatsModule,
+    ServiceVendorVisitModule,
     BackupsModule,
     EnvironmentMonitorModule,
   ],
