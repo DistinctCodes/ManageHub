@@ -14,8 +14,8 @@ import { SystemStatsModule } from './system-stats/system-stats.module';
 import { ServiceVendorVisitModule } from './service-vendor-visit/service-vendor-visit.module';
 import { BackupsModule } from './backups/backups.module';
 import { EnvironmentMonitorModule } from './environment-monitor/environment-monitor.module';
-import { BroadcastModule } from './broadcast/broadcast.module';
-
+import { LeaderboardModule } from './leaderboard/leaderboard.module';
+import { BroadcastModule } from './broadcast/broadcast.module'
 import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
@@ -33,6 +33,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     ServiceVendorVisitModule,
     BackupsModule,
     EnvironmentMonitorModule,
+    LeaderboardModule,
     BroadcastModule,
   ],
   controllers: [AppController],
