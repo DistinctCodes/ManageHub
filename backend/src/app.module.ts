@@ -15,8 +15,9 @@ import { ServiceVendorVisitModule } from './service-vendor-visit/service-vendor-
 import { BackupsModule } from './backups/backups.module';
 import { EnvironmentMonitorModule } from './environment-monitor/environment-monitor.module';
 import { LeaderboardModule } from './leaderboard/leaderboard.module';
-import { BroadcastModule } from './broadcast/broadcast.module'
+import { BroadcastModule } from './broadcast/broadcast.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { MonitoringModule } from './monitoring/monitoring.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     EnvironmentMonitorModule,
     LeaderboardModule,
     BroadcastModule,
+    MonitoringModule,
   ],
   controllers: [AppController],
   providers: [AppService, LibraryService],
