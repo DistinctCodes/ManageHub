@@ -18,6 +18,7 @@ import { LeaderboardModule } from './leaderboard/leaderboard.module';
 import { BroadcastModule } from './broadcast/broadcast.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { MonitoringModule } from './monitoring/monitoring.module';
+import { SettingsModule } from './settings/settings.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { MonitoringModule } from './monitoring/monitoring.module';
     LeaderboardModule,
     BroadcastModule,
     MonitoringModule,
+    SettingsModule,
   ],
   controllers: [AppController],
   providers: [AppService, LibraryService],
