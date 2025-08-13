@@ -128,3 +128,56 @@ Or on failure:
   "error": "Simulated sync failure"
 }
 ```
+
+# Parking Reservation System
+
+Simple standalone module for staff to reserve or release parking spaces. Uses its own SQLite DB (`parking.db`) via TypeORM and exposes REST endpoints under the `parking` prefix.
+
+## Endpoints
+
+- `POST /parking/slots` — Create a parking slot
+  - Body: `{ "name": "A1", "location": "Basement A" }`
+
+- `GET /parking/slots` — List all slots and their reservation status
+
+- `POST /parking/reserve` — Reserve a slot
+  - Body: `{ "slotId": "<uuid>", "staffId": "staff-123" }`
+
+- `POST /parking/release` — Release a previously reserved slot
+  - Body: `{ "slotId": "<uuid>" }`
+
+- `GET /parking/bookings?slotId=<uuid>&staffId=<id>` — List bookings (optional filters)
+
+## Quick start (Backend)
+
+```bash
+cd backend
+npm install
+npm run start:dev
+# Server runs on http://localhost:3000
+```
+
+## cURL examples
+
+```bash
+# Create slot
+curl -X POST http://localhost:3000/parking/slots \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"A1","location":"Basement A"}'
+
+# List slots
+curl http://localhost:3000/parking/slots
+
+# Reserve slot
+curl -X POST http://localhost:3000/parking/reserve \
+  -H 'Content-Type: application/json' \
+  -d '{"slotId":"<SLOT_UUID>","staffId":"staff-123"}'
+
+# Release slot
+curl -X POST http://localhost:3000/parking/release \
+  -H 'Content-Type: application/json' \
+  -d '{"slotId":"<SLOT_UUID>"}'
+
+# List bookings
+curl 'http://localhost:3000/parking/bookings?staffId=staff-123'
+```

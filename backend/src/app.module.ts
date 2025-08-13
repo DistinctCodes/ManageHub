@@ -19,6 +19,7 @@ import { BroadcastModule } from './broadcast/broadcast.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { MonitoringModule } from './monitoring/monitoring.module';
 import { SettingsModule } from './settings/settings.module';
+import { ParkingModule } from './parking/parking.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { SettingsModule } from './settings/settings.module';
     BroadcastModule,
     MonitoringModule,
     SettingsModule,
+    ParkingModule,
   ],
   controllers: [AppController],
   providers: [AppService, LibraryService],
