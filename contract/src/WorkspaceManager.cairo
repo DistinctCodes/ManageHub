@@ -35,6 +35,11 @@ struct Workspace {
     created_at: u64
 }
 
+// User roles: 0 = none, 1 = member, 2 = manager, 3 = admin (for workspace-level roles)
+@storage_var
+func user_roles(key: (u32, ContractAddress)) -> (role: u8):
+end
+
 @storage_var
 func workspaces(id: u32) -> (workspace: Workspace):
 end
@@ -69,6 +74,26 @@ end
 
 @event
 func AdminRemoved(admin: ContractAddress, timestamp: u64):
+end
+
+@event
+func WorkspaceNameUpdated(workspace_id: u32, new_name: felt252, timestamp: u64):
+end
+
+@event
+func WorkspaceCapacityUpdated(workspace_id: u32, new_capacity: u32, timestamp: u64):
+end
+
+@event
+func WorkspaceDeactivated(workspace_id: u32, timestamp: u64):
+end
+
+@event
+func WorkspaceActivated(workspace_id: u32, timestamp: u64):
+end
+
+@event
+func UserRoleSet(workspace_id: u32, user_address: ContractAddress, role: u8, timestamp: u64):
 end
 
 // Internal helper to restrict to admins only
@@ -126,6 +151,72 @@ func create_workspace{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_chec
     workspace_count.write(workspace_id + 1);
     WorkspaceCreated.emit(workspace_id, name, capacity, timestamp);
     return (workspace_id,);
+}
+
+// Update workspace name (admin only)
+@external
+func update_workspace_name{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(workspace_id: u32, new_name: felt252) {
+    _only_admin();
+    let (workspace) = workspaces.read(workspace_id);
+    let updated = Workspace(new_name, workspace.capacity, workspace.current_occupancy, workspace.is_active, workspace.created_at);
+    workspaces.write(workspace_id, updated);
+    let (timestamp) = get_block_timestamp();
+    WorkspaceNameUpdated.emit(workspace_id, new_name, timestamp);
+    return ();
+}
+
+// Update workspace capacity (admin only)
+@external
+func update_workspace_capacity{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(workspace_id: u32, new_capacity: u32) {
+    _only_admin();
+    let (workspace) = workspaces.read(workspace_id);
+    assert new_capacity >= workspace.current_occupancy, 'Capacity less than occupancy';
+    let updated = Workspace(workspace.name, new_capacity, workspace.current_occupancy, workspace.is_active, workspace.created_at);
+    workspaces.write(workspace_id, updated);
+    let (timestamp) = get_block_timestamp();
+    WorkspaceCapacityUpdated.emit(workspace_id, new_capacity, timestamp);
+    return ();
+}
+
+// Deactivate workspace (admin only)
+@external
+func deactivate_workspace{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(workspace_id: u32) {
+    _only_admin();
+    let (workspace) = workspaces.read(workspace_id);
+    let updated = Workspace(workspace.name, workspace.capacity, workspace.current_occupancy, 0, workspace.created_at);
+    workspaces.write(workspace_id, updated);
+    let (timestamp) = get_block_timestamp();
+    WorkspaceDeactivated.emit(workspace_id, timestamp);
+    return ();
+}
+
+// Activate workspace (admin only)
+@external
+func activate_workspace{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(workspace_id: u32) {
+    _only_admin();
+    let (workspace) = workspaces.read(workspace_id);
+    let updated = Workspace(workspace.name, workspace.capacity, workspace.current_occupancy, 1, workspace.created_at);
+    workspaces.write(workspace_id, updated);
+    let (timestamp) = get_block_timestamp();
+    WorkspaceActivated.emit(workspace_id, timestamp);
+    return ();
+}
+
+// Set user role in workspace (admin only)
+@external
+func set_user_role{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(workspace_id: u32, user_address: ContractAddress, role: u8) {
+    _only_admin();
+    user_roles.write((workspace_id, user_address), role);
+    let (timestamp) = get_block_timestamp();
+    UserRoleSet.emit(workspace_id, user_address, role, timestamp);
+    return ();
+}
+
+// Get user role in workspace
+@view
+func get_user_role{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(workspace_id: u32, user_address: ContractAddress) -> (role: u8) {
+    let (role) = user_roles.read((workspace_id, user_address));
+    return (role,);
 }
 
 // Assign user to workspace (admin oonly)
