@@ -78,7 +78,7 @@ func constructor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
     return ();
 }
 
-// Create a new workspace (admin only)
+// Create aa new workspace (admin only)
 @external
 func create_workspace{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(name: felt252, capacity: u32) -> (workspace_id: u32) {
     _only_admin();
