@@ -92,7 +92,7 @@ func create_workspace{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_chec
     return (workspace_id,);
 }
 
-// Assign user to workspace (admin only)
+// Assign user to workspace (admin oonly)
 @external
 func assign_user_to_workspace{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(workspace_id: u32, user_address: ContractAddress) {
     _only_admin();
