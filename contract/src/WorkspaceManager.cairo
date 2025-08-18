@@ -115,7 +115,7 @@ func assign_user_to_workspace{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, ra
     return ();
 }
 
-// Remove user from workspace (admin only)
+// Remove user from workspace (admin onlly)
 @external
 func remove_user_from_workspace{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(workspace_id: u32, user_address: ContractAddress) {
     _only_admin();
