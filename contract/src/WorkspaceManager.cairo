@@ -63,6 +63,14 @@ end
 func UserRemoved(workspace_id: u32, user_address: ContractAddress, timestamp: u64):
 end
 
+@event
+func AdminAdded(admin: ContractAddress, timestamp: u64):
+end
+
+@event
+func AdminRemoved(admin: ContractAddress, timestamp: u64):
+end
+
 // Internal helper to restrict to admins only
 func _only_admin() {
     let (caller) = get_caller_address();
@@ -71,10 +79,38 @@ func _only_admin() {
     return ();
 }
 
+// Internal helper to restrict to owner only
+func _only_owner() {
+    let (caller) = get_caller_address();
+    let (contract_owner) = owner.read();
+    assert caller == contract_owner, 'Not contract owner';
+    return ();
+}
+
 @constructor
 func constructor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(owner_: ContractAddress) {
     owner.write(owner_);
     admins.write(owner_, 1);
+    return ();
+}
+
+// Add a new admin (owner only)
+@external
+func add_admin{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(admin: ContractAddress) {
+    _only_owner();
+    admins.write(admin, 1);
+    let (timestamp) = get_block_timestamp();
+    AdminAdded.emit(admin, timestamp);
+    return ();
+}
+
+// Remove an admin (owner only)
+@external
+func remove_admin{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(admin: ContractAddress) {
+    _only_owner();
+    admins.write(admin, 0);
+    let (timestamp) = get_block_timestamp();
+    AdminRemoved.emit(admin, timestamp);
     return ();
 }
 
