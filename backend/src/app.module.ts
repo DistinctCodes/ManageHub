@@ -20,6 +20,8 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { MonitoringModule } from './monitoring/monitoring.module';
 import { SettingsModule } from './settings/settings.module';
 import { ParkingModule } from './parking/parking.module';
+import { SurveysModule } from './surveys/surveys.module';
+import { PartnersModule } from './partners/partners.module';
 
 @Module({
   imports: [
@@ -41,6 +43,8 @@ import { ParkingModule } from './parking/parking.module';
     MonitoringModule,
     SettingsModule,
     ParkingModule,
+    SurveysModule,
+    PartnersModule,
   ],
   controllers: [AppController],
   providers: [AppService, LibraryService],
