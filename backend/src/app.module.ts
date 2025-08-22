@@ -22,6 +22,7 @@ import { SettingsModule } from './settings/settings.module';
 import { ParkingModule } from './parking/parking.module';
 import { SurveysModule } from './surveys/surveys.module';
 import { PartnersModule } from './partners/partners.module';
+import { DonationsModule } from 'donations/donations.module';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { PartnersModule } from './partners/partners.module';
     ParkingModule,
     SurveysModule,
     PartnersModule,
+    DonationsModule
   ],
   controllers: [AppController],
   providers: [AppService, LibraryService],
