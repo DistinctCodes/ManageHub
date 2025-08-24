@@ -8,6 +8,11 @@ pub trait IHelloStarknet<TContractState> {
     fn get_balance(self: @TContractState) -> felt252;
 }
 
+// Expose ResourceBooking module and its interface/dispatchers to the crate root
+mod ResourceBooking;
+use ResourceBooking::IResourceBookingDispatcher;
+use ResourceBooking::IResourceBookingDispatcherTrait;
+
 /// Simple contract for managing balance.
 #[starknet::contract]
 mod HelloStarknet {
