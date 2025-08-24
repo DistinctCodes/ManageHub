@@ -1,4 +1,10 @@
-mport { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, Index } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 
 @Entity('energy_consumption')
 @Index(['workspaceId', 'date'], { unique: true })
