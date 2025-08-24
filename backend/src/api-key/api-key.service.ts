@@ -1,11 +1,19 @@
-import { Injectable, ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { ApiKey, ApiKeyStatus } from './api-key.entity';
 import { ApiKeyUsage } from './api-key-usage.entity';
 import { CreateApiKeyDto } from './dto/create-api-key.dto';
 import { UpdateApiKeyDto } from './dto/update-api-key.dto';
-import { CreateApiKeyResponseDto, ApiKeyResponseDto } from './dto/api-key-response.dto';
+import {
+  CreateApiKeyResponseDto,
+  ApiKeyResponseDto,
+} from './dto/api-key-response.dto';
 import { UsageStatsDto } from './dto/usage-stats.dto';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcrypt';
@@ -19,10 +27,12 @@ export class ApiKeyService {
     private readonly usageRepository: Repository<ApiKeyUsage>,
   ) {}
 
-  async createApiKey(createDto: CreateApiKeyDto): Promise<CreateApiKeyResponseDto> {
+  async createApiKey(
+    createDto: CreateApiKeyDto,
+  ): Promise<CreateApiKeyResponseDto> {
     // Check if app name already exists
     const existingKey = await this.apiKeyRepository.findOne({
-      where: { appName: createDto.appName }
+      where: { appName: createDto.appName },
     });
 
     if (existingKey) {
@@ -50,9 +60,9 @@ export class ApiKeyService {
 
   async findAll(): Promise<ApiKeyResponseDto[]> {
     const keys = await this.apiKeyRepository.find({
-      order: { createdAt: 'DESC' }
+      order: { createdAt: 'DESC' },
     });
-    return keys.map(key => this.mapToResponseDto(key));
+    return keys.map((key) => this.mapToResponseDto(key));
   }
 
   async findOne(id: string): Promise<ApiKeyResponseDto> {
@@ -63,7 +73,10 @@ export class ApiKeyService {
     return this.mapToResponseDto(apiKey);
   }
 
-  async update(id: string, updateDto: UpdateApiKeyDto): Promise<ApiKeyResponseDto> {
+  async update(
+    id: string,
+    updateDto: UpdateApiKeyDto,
+  ): Promise<ApiKeyResponseDto> {
     const apiKey = await this.apiKeyRepository.findOne({ where: { id } });
     if (!apiKey) {
       throw new NotFoundException('API key not found');
@@ -71,7 +84,9 @@ export class ApiKeyService {
 
     const updateData = {
       ...updateDto,
-      expiresAt: updateDto.expiresAt ? new Date(updateDto.expiresAt) : apiKey.expiresAt,
+      expiresAt: updateDto.expiresAt
+        ? new Date(updateDto.expiresAt)
+        : apiKey.expiresAt,
     };
 
     await this.apiKeyRepository.update(id, updateData);
@@ -80,10 +95,10 @@ export class ApiKeyService {
   }
 
   async revokeApiKey(id: string): Promise<void> {
-    const result = await this.apiKeyRepository.update(id, { 
-      status: ApiKeyStatus.REVOKED 
+    const result = await this.apiKeyRepository.update(id, {
+      status: ApiKeyStatus.REVOKED,
     });
-    
+
     if (result.affected === 0) {
       throw new NotFoundException('API key not found');
     }
@@ -91,7 +106,7 @@ export class ApiKeyService {
 
   async validateApiKey(apiKey: string): Promise<ApiKey | null> {
     const keys = await this.apiKeyRepository.find({
-      where: { status: ApiKeyStatus.ACTIVE }
+      where: { status: ApiKeyStatus.ACTIVE },
     });
 
     for (const key of keys) {
@@ -99,7 +114,9 @@ export class ApiKeyService {
       if (isValid) {
         // Check if expired
         if (key.expiresAt && new Date() > key.expiresAt) {
-          await this.apiKeyRepository.update(key.id, { status: ApiKeyStatus.EXPIRED });
+          await this.apiKeyRepository.update(key.id, {
+            status: ApiKeyStatus.EXPIRED,
+          });
           return null;
         }
         return key;
@@ -120,7 +137,7 @@ export class ApiKeyService {
     // Reset daily usage if it's a new day
     const today = new Date().toDateString();
     const lastUsage = apiKey.lastUsageDate?.toDateString();
-    
+
     if (lastUsage !== today) {
       apiKey.currentDayUsage = 0;
     }
@@ -172,9 +189,9 @@ export class ApiKeyService {
     const totalRequests = usage.length;
     const todayRequests = apiKey.currentDayUsage;
     const remainingToday = Math.max(0, apiKey.dailyLimit - todayRequests);
-    
+
     const avgResponseTime = usage
-      .filter(u => u.responseTime)
+      .filter((u) => u.responseTime)
       .reduce((acc, u, _, arr) => acc + u.responseTime / arr.length, 0);
 
     // Top endpoints

@@ -1,4 +1,12 @@
-import { Controller, Post, Body, Get, Param, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Get,
+  Param,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { InternalNotesService } from './internal-notes.service';
 import { CreateInternalNoteDto } from './dto/create-internal-note.dto';
 import { AuthGuard } from '@nestjs/passport';
@@ -19,7 +27,9 @@ export class InternalNotesController {
       id: note.id,
       content: note.content,
       createdAt: note.createdAt,
-      author: note.author ? { id: note.author.id, name: note.author.name } : null,
+      author: note.author
+        ? { id: note.author.id, name: note.author.name }
+        : null,
       userId: note.userId,
     };
   }
@@ -27,11 +37,13 @@ export class InternalNotesController {
   @Get(':userId')
   async getNotesForUser(@Param('userId') userId: number) {
     const notes = await this.internalNotesService.getNotesForUser(userId);
-    return notes.map(note => ({
+    return notes.map((note) => ({
       id: note.id,
       content: note.content,
       createdAt: note.createdAt,
-      author: note.author ? { id: note.author.id, name: note.author.name } : null,
+      author: note.author
+        ? { id: note.author.id, name: note.author.name }
+        : null,
       userId: note.userId,
     }));
   }

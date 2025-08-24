@@ -23,10 +23,10 @@ import { ParkingModule } from './parking/parking.module';
 import { SurveysModule } from './surveys/surveys.module';
 import { PartnersModule } from './partners/partners.module';
 import { DonationsModule } from 'donations/donations.module';
-import { ShiftsModule } from './shifts/shifts.module';
 import { StaffModule } from './staff/staff.module';
 import { LocationModule } from './location/location.module';
-import { WorkSpacePreferenceModule } from './work-space-preference/work-space-preference.module';
+import { WorkspacePreferencesModule } from './work-space-preference/work-space-preference.module';
+import { ShiftModule } from './shifts/shifts.module';
 
 @Module({
   imports: [
@@ -51,10 +51,10 @@ import { WorkSpacePreferenceModule } from './work-space-preference/work-space-pr
     SurveysModule,
     PartnersModule,
     DonationsModule,
-    ShiftsModule,
+    ShiftModule,
     StaffModule,
     LocationModule,
-    WorkSpacePreferenceModule
+    WorkspacePreferencesModule,
   ],
   controllers: [AppController],
   providers: [AppService, LibraryService],
