@@ -27,6 +27,7 @@ import { StaffModule } from './staff/staff.module';
 import { LocationModule } from './location/location.module';
 import { WorkspacePreferencesModule } from './work-space-preference/work-space-preference.module';
 import { ShiftModule } from './shifts/shifts.module';
+import { ContactModule } from './contact/contact.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { ShiftModule } from './shifts/shifts.module';
     StaffModule,
     LocationModule,
     WorkspacePreferencesModule,
+    ContactModule,
   ],
   controllers: [AppController],
   providers: [AppService, LibraryService],

@@ -1,5 +1,12 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
-import { User } from '../businesses/entities/business.entity'; // Adjust import if User entity is elsewhere
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
+import { User } from '../businesses/entities/business.entity';
 
 @Entity('internal_notes')
 export class InternalNote {
