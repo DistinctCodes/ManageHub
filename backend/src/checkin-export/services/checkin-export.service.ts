@@ -2,8 +2,14 @@ import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { BiometricDataService } from './biometric-data.service';
 import { CsvGeneratorService } from './csv-generator.service';
 import { ExportFiltersDto, ExportFormat } from '../dto/export-filters.dto';
-import { CheckinRecord, ExportResult } from '../interfaces/checkin-record.interface';
-import { BiometricReading, UserBiometricData } from '../interfaces/biometric-data.interface';
+import {
+  CheckinRecord,
+  ExportResult,
+} from '../interfaces/checkin-record.interface';
+import {
+  BiometricReading,
+  UserBiometricData,
+} from '../interfaces/biometric-data.interface';
 
 @Injectable()
 export class CheckinExportService {
@@ -15,7 +21,10 @@ export class CheckinExportService {
   ) {}
 
   async exportCheckinData(filters: ExportFiltersDto): Promise<ExportResult> {
-    this.logger.log('Starting check-in data export with filters:', JSON.stringify(filters));
+    this.logger.log(
+      'Starting check-in data export with filters:',
+      JSON.stringify(filters),
+    );
 
     try {
       // Validate date range
@@ -23,17 +32,25 @@ export class CheckinExportService {
 
       // Get filtered data
       const userData = this.getFilteredUserData(filters);
-      
+
       // Transform to check-in records
       const checkinRecords = this.transformToCheckinRecords(userData, filters);
-      
-      // Apply additional filters
-      const filteredRecords = this.applyAdditionalFilters(checkinRecords, filters);
 
-      this.logger.log(`Generated ${filteredRecords.length} check-in records for export`);
+      // Apply additional filters
+      const filteredRecords = this.applyAdditionalFilters(
+        checkinRecords,
+        filters,
+      );
+
+      this.logger.log(
+        `Generated ${filteredRecords.length} check-in records for export`,
+      );
 
       // Generate export file
-      const fileResult = await this.generateExportFile(filteredRecords, filters);
+      const fileResult = await this.generateExportFile(
+        filteredRecords,
+        filters,
+      );
 
       const exportResult: ExportResult = {
         fileName: fileResult.fileName,
@@ -43,9 +60,10 @@ export class CheckinExportService {
         fileSize: fileResult.fileSize,
       };
 
-      this.logger.log(`Export completed successfully: ${exportResult.fileName}`);
+      this.logger.log(
+        `Export completed successfully: ${exportResult.fileName}`,
+      );
       return exportResult;
-
     } catch (error) {
       this.logger.error(`Export failed: ${error.message}`, error.stack);
       throw error;
@@ -56,14 +74,14 @@ export class CheckinExportService {
     if (startDate && endDate) {
       const start = new Date(startDate);
       const end = new Date(endDate);
-      
+
       if (start > end) {
         throw new BadRequestException('Start date must be before end date');
       }
-      
+
       const diffTime = Math.abs(end.getTime() - start.getTime());
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      
+
       if (diffDays > 365) {
         throw new BadRequestException('Date range cannot exceed 365 days');
       }
@@ -77,19 +95,26 @@ export class CheckinExportService {
     if (filters.startDate && filters.endDate) {
       const startDate = new Date(filters.startDate);
       const endDate = new Date(filters.endDate);
-      userData = this.biometricDataService.getUsersByDateRange(startDate, endDate);
+      userData = this.biometricDataService.getUsersByDateRange(
+        startDate,
+        endDate,
+      );
     } else {
       userData = this.biometricDataService.getAllUsers();
     }
 
     // Filter by specific user IDs
     if (filters.userIds && filters.userIds.length > 0) {
-      userData = userData.filter(user => filters.userIds!.includes(user.userId));
+      userData = userData.filter((user) =>
+        filters.userIds!.includes(user.userId),
+      );
     }
 
     // Filter by departments
     if (filters.departments && filters.departments.length > 0) {
-      userData = userData.filter(user => filters.departments!.includes(user.department));
+      userData = userData.filter((user) =>
+        filters.departments!.includes(user.department),
+      );
     }
 
     return userData;
@@ -101,24 +126,34 @@ export class CheckinExportService {
   ): CheckinRecord[] {
     const records: CheckinRecord[] = [];
 
-    userData.forEach(user => {
-      user.readings.forEach(reading => {
+    userData.forEach((user) => {
+      user.readings.forEach((reading) => {
         const checkinRecord = this.createCheckinRecord(user, reading);
-        
+
         // Apply date filter to individual readings if needed
-        if (this.isWithinDateRange(reading.timestamp, filters.startDate, filters.endDate)) {
+        if (
+          this.isWithinDateRange(
+            reading.timestamp,
+            filters.startDate,
+            filters.endDate,
+          )
+        ) {
           records.push(checkinRecord);
         }
       });
     });
 
-    return records.sort((a, b) => 
-      new Date(b.checkInDate + 'T' + b.checkInTime).getTime() - 
-      new Date(a.checkInDate + 'T' + a.checkInTime).getTime()
+    return records.sort(
+      (a, b) =>
+        new Date(b.checkInDate + 'T' + b.checkInTime).getTime() -
+        new Date(a.checkInDate + 'T' + a.checkInTime).getTime(),
     );
   }
 
-  private createCheckinRecord(user: UserBiometricData, reading: BiometricReading): CheckinRecord {
+  private createCheckinRecord(
+    user: UserBiometricData,
+    reading: BiometricReading,
+  ): CheckinRecord {
     const checkInDate = reading.timestamp.toISOString().split('T')[0];
     const checkInTime = reading.timestamp.toTimeString().slice(0, 8);
     const bmi = this.calculateBMI(reading.weight, reading.height);
@@ -152,3 +187,4 @@ export class CheckinExportService {
     const bmi = weight / (heightInMeters * heightInMeters);
     return Math.round(bmi * 10) / 10;
   }
+}

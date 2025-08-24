@@ -23,6 +23,9 @@ import { ParkingModule } from './parking/parking.module';
 import { SurveysModule } from './surveys/surveys.module';
 import { PartnersModule } from './partners/partners.module';
 import { DonationsModule } from 'donations/donations.module';
+import { ShiftsModule } from './shifts/shifts.module';
+import { StaffModule } from './staff/staff.module';
+import { LocationModule } from './location/location.module';
 
 @Module({
   imports: [
@@ -46,7 +49,10 @@ import { DonationsModule } from 'donations/donations.module';
     ParkingModule,
     SurveysModule,
     PartnersModule,
-    DonationsModule
+    DonationsModule,
+    ShiftsModule,
+    StaffModule,
+    LocationModule
   ],
   controllers: [AppController],
   providers: [AppService, LibraryService],
