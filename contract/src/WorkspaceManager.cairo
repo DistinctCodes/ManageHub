@@ -75,62 +75,45 @@ mod WorkspaceManager {
         is_maintenance: bool,
     }
 
-// Internal helper to restrict to admins only
-func _only_admin() {
-    let (caller) = get_caller_address();
-    let (is_admin) = admins.read(caller);
-    assert is_admin == 1, 'Not an admin';
-    return ();
-}
+    fn only_owner(self: @ContractState) {
+        let caller = get_caller_address();
+        let stored_owner = self.owner.read();
+        assert(caller == stored_owner, 'Not contract owner');
+    }
 
-// Internal helper to restrict to owner only
-func _only_owner() {
-    let (caller) = get_caller_address();
-    let (contract_owner) = owner.read();
-    assert caller == contract_owner, 'Not contract owner';
-    return ();
-}
+    #[constructor]
+    fn constructor(ref self: ContractState, owner: ContractAddress) {
+        self.owner.write(owner);
+    }
 
-@constructor
-func constructor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(owner_: ContractAddress) {
-    owner.write(owner_);
-    admins.write(owner_, 1);
-    return ();
-}
+    #[abi(embed_v0)]
+    impl WorkspaceManagerImpl of super::IWorkspaceManager<ContractState> {
+        fn create_workspace(ref self: ContractState, name: felt252, capacity: u32, workspace_type: u8) {
+            self.only_owner();
 
-// Add a new admin (owner only)
-@external
-func add_admin{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(admin: ContractAddress) {
-    _only_owner();
-    admins.write(admin, 1);
-    let (timestamp) = get_block_timestamp();
-    AdminAdded.emit(admin, timestamp);
-    return ();
-}
+            let workspace_id = self.workspace_count.read();
+            let timestamp = get_block_timestamp();
 
-// Remove an admin (owner only)
-@external
-func remove_admin{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(admin: ContractAddress) {
-    _only_owner();
-    admins.write(admin, 0);
-    let (timestamp) = get_block_timestamp();
-    AdminRemoved.emit(admin, timestamp);
-    return ();
-}
+            let workspace = Workspace {
+                name,
+                capacity,
+                current_occupancy: 0,
+                workspace_type,
+                is_maintenance: false,
+                is_active: true,
+                created_at: timestamp,
+            };
 
-// Create aa new workspace (admin only)
-@external
-func create_workspace{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(name: felt252, capacity: u32) -> (workspace_id: u32) {
-    _only_admin();
-    let (count) = workspace_count.read();
-    let workspace_id = count;
-    let (timestamp) = get_block_timestamp();
-    let workspace = Workspace(name, capacity, 0, 1, timestamp);
-    workspaces.write(workspace_id, workspace);
-    workspace_count.write(workspace_id + 1);
-    WorkspaceCreated.emit(workspace_id, name, capacity, timestamp);
-    return (workspace_id,);
-}
+            self.workspaces.write(workspace_id, workspace);
+            self.workspace_count.write(workspace_id + 1);
+
+            self.emit(Event::WorkspaceCreated(WorkspaceCreated {
+                workspace_id,
+                name,
+                capacity,
+                workspace_type,
+            }));
+        }
 
 // Update workspace name (admin only)
 @external
