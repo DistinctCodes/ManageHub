@@ -1,3 +1,5 @@
+"use client";
+
 import {
   spaceImageOne,
   spaceImageTwo,
@@ -22,15 +24,14 @@ import {
 import { CheckIcon } from "@heroicons/react/24/outline";
 import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import "../../index.css";
 import CustomToast from "../../components/CustomToast";
 
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 
 const Spaces = () => {
   const [open, setOpen] = useState(false);
   const [isActive, setIsActive] = useState(false);
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const toggleNewSpaceVisibility = () => {
     setOpen((prev) => !prev);
@@ -41,7 +42,7 @@ const Spaces = () => {
     // toast.success("Space created successfully");
     toast(<CustomToast message="Space created Successfully" />);
     setOpen((prev) => !prev);
-    navigate("/spaces");
+    router.push("/spaces");
   };
 
   const spacesData = [
@@ -183,6 +184,7 @@ const Spaces = () => {
                 return (
                   <SpacesCard
                     key={id}
+                    spaceId={id}
                     spaceImage={image}
                     spaceTitle={title}
                     spaceDescription={description}
