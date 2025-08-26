@@ -130,7 +130,7 @@ mod ResourceBooking {
     }
 
     #[abi(embed_v0)]
-    impl ResourceBookingImpl of super::IResourceBooking<ContractState> {
+    impl ResourceBookingImpl of super::super::interface::IResourceBooking<ContractState> {
         fn create_resource(ref self: ContractState, name: felt252, resource_type: u8) -> u32 {
             self.only_owner();
 

@@ -94,7 +94,7 @@ mod TimeTracker {
     }
 
     #[abi(embed_v0)]
-    impl TimeTrackerImpl of super::super::ITimeTracker<ContractState> {
+    impl TimeTrackerImpl of super::super::interface::ITimeTracker<ContractState> {
         fn clock_in(ref self: ContractState, user_address: ContractAddress, workspace_id: u32, biometric_hash: felt252) {
             let timestamp = get_block_timestamp();
             

@@ -87,7 +87,7 @@ mod WorkspaceManager {
     }
 
     #[abi(embed_v0)]
-    impl WorkspaceManagerImpl of super::IWorkspaceManager<ContractState> {
+    impl WorkspaceManagerImpl of super::super::interface::IWorkspaceManager<ContractState> {
         fn create_workspace(ref self: ContractState, name: felt252, capacity: u32, workspace_type: u8) {
             self.only_owner();
 

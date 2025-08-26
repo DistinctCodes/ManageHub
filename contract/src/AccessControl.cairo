@@ -101,7 +101,7 @@ mod AccessControl {
     }
 
     #[abi(embed_v0)]
-    impl AccessControlImpl of super::super::IAccessControl<ContractState> {
+    impl AccessControlImpl of super::super::interface::IAccessControl<ContractState> {
         fn grant_access(ref self: ContractState, user_address: ContractAddress, resource_id: u32, access_level: u8) {
             self.only_admin_access(resource_id);
             

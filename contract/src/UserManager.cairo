@@ -86,7 +86,7 @@ mod UserManager {
     }
 
     #[abi(embed_v0)]
-    impl UserManagerImpl of super::super::IUserManager<ContractState> {
+    impl UserManagerImpl of super::super::interface::IUserManager<ContractState> {
         fn register_user(ref self: ContractState, user_address: ContractAddress, name: felt252, role: u8, biometric_hash: felt252) {
             self.only_admin_or_owner();
             

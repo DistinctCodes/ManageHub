@@ -40,10 +40,13 @@ trait IAccessControl<TContractState> {
 
 #[starknet::interface]
 trait IResourceBooking<TContractState> {
-    fn book_resource(ref self: TContractState, user_address: ContractAddress, resource_id: u32, start_time: u64, end_time: u64);
+    fn create_resource(ref self: TContractState, name: felt252, resource_type: u8) -> u32;
+    fn get_resource_info(self: @TContractState, resource_id: u32) -> (name: felt252, resource_type: u8, is_available: bool);
+    fn book_resource(ref self: TContractState, user: ContractAddress, resource_id: u32, start_time: u64, end_time: u64) -> u32;
     fn cancel_booking(ref self: TContractState, booking_id: u32);
     fn get_resource_availability(self: @TContractState, resource_id: u32, date: u64) -> Array<(u64, u64)>;
-    fn create_recurring_booking(ref self: TContractState, user_address: ContractAddress, resource_id: u32, pattern: u8, duration: u64);
+    fn create_recurring_booking(ref self: TContractState, user: ContractAddress, resource_id: u32, pattern: u8, duration: u64);
+    fn get_booking_info(self: @TContractState, booking_id: u32) -> (booker: ContractAddress, resource_id: u32, start_time: u64, end_time: u64, is_active: bool);
 }
 
 #[starknet::interface]

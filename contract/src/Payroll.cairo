@@ -106,7 +106,7 @@ mod Payroll {
     }
 
     #[abi(embed_v0)]
-    impl PayrollImpl of super::super::IPayroll<ContractState> {
+    impl PayrollImpl of super::super::interface::IPayroll<ContractState> {
         fn set_hourly_rate(ref self: ContractState, user_address: ContractAddress, rate: u256) {
             self.only_owner();
             
@@ -282,6 +282,33 @@ mod Payroll {
 
         fn get_adjustment(self: @ContractState, adjustment_id: u32) -> Adjustment {
             self.adjustments.read(adjustment_id)
+        }
+
+        fn get_user_total_adjustments(self: @ContractState, user_address: ContractAddress, period_start: u64, period_end: u64) -> (u256, u256) {
+            let mut total_bonuses: u256 = 0;
+            let mut total_deductions: u256 = 0;
+
+            let adjustment_count = self.user_adjustment_count.read(user_address);
+            let mut i: u32 = 0;
+
+            loop {
+                if i >= adjustment_count { break; }
+
+                let adjustment_id = self.user_adjustments.read((user_address, i));
+                let adjustment = self.adjustments.read(adjustment_id);
+
+                if adjustment.timestamp >= period_start && adjustment.timestamp <= period_end {
+                    if adjustment.adjustment_type == 1 {
+                        total_bonuses += adjustment.amount;
+                    } else {
+                        total_deductions += adjustment.amount;
+                    }
+                }
+
+                i += 1;
+            };
+
+            (total_bonuses, total_deductions)
         }
     }
 }
