@@ -115,126 +115,102 @@ mod WorkspaceManager {
             }));
         }
 
-// Update workspace name (admin only)
-@external
-func update_workspace_name{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(workspace_id: u32, new_name: felt252) {
-    _only_admin();
-    let (workspace) = workspaces.read(workspace_id);
-    let updated = Workspace(new_name, workspace.capacity, workspace.current_occupancy, workspace.is_active, workspace.created_at);
-    workspaces.write(workspace_id, updated);
-    let (timestamp) = get_block_timestamp();
-    WorkspaceNameUpdated.emit(workspace_id, new_name, timestamp);
-    return ();
-}
+        fn allocate_workspace(ref self: ContractState, user_address: ContractAddress, workspace_id: u32) {
+            self.only_owner();
 
-// Update workspace capacity (admin only)
-@external
-func update_workspace_capacity{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(workspace_id: u32, new_capacity: u32) {
-    _only_admin();
-    let (workspace) = workspaces.read(workspace_id);
-    assert new_capacity >= workspace.current_occupancy, 'Capacity less than occupancy';
-    let updated = Workspace(workspace.name, new_capacity, workspace.current_occupancy, workspace.is_active, workspace.created_at);
-    workspaces.write(workspace_id, updated);
-    let (timestamp) = get_block_timestamp();
-    WorkspaceCapacityUpdated.emit(workspace_id, new_capacity, timestamp);
-    return ();
-}
+            let workspace = self.workspaces.read(workspace_id);
+            assert(workspace.is_active, 'Workspace not active');
+            assert(!workspace.is_maintenance, 'Workspace under maintenance');
 
-// Deactivate workspace (admin only)
-@external
-func deactivate_workspace{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(workspace_id: u32) {
-    _only_admin();
-    let (workspace) = workspaces.read(workspace_id);
-    let updated = Workspace(workspace.name, workspace.capacity, workspace.current_occupancy, 0, workspace.created_at);
-    workspaces.write(workspace_id, updated);
-    let (timestamp) = get_block_timestamp();
-    WorkspaceDeactivated.emit(workspace_id, timestamp);
-    return ();
-}
+            let is_assigned = self.workspace_users.read((workspace_id, user_address));
+            assert(!is_assigned, 'User already assigned');
+            assert(workspace.current_occupancy < workspace.capacity, 'Workspace full');
 
-// Activate workspace (admin only)
-@external
-func activate_workspace{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(workspace_id: u32) {
-    _only_admin();
-    let (workspace) = workspaces.read(workspace_id);
-    let updated = Workspace(workspace.name, workspace.capacity, workspace.current_occupancy, 1, workspace.created_at);
-    workspaces.write(workspace_id, updated);
-    let (timestamp) = get_block_timestamp();
-    WorkspaceActivated.emit(workspace_id, timestamp);
-    return ();
-}
+            // Update workspace occupancy
+            let updated_workspace = Workspace {
+                name: workspace.name,
+                capacity: workspace.capacity,
+                current_occupancy: workspace.current_occupancy + 1,
+                workspace_type: workspace.workspace_type,
+                is_maintenance: workspace.is_maintenance,
+                is_active: workspace.is_active,
+                created_at: workspace.created_at,
+            };
 
-// Set user role in workspace (admin only)
-@external
-func set_user_role{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(workspace_id: u32, user_address: ContractAddress, role: u8) {
-    _only_admin();
-    user_roles.write((workspace_id, user_address), role);
-    let (timestamp) = get_block_timestamp();
-    UserRoleSet.emit(workspace_id, user_address, role, timestamp);
-    return ();
-}
+            self.workspaces.write(workspace_id, updated_workspace);
+            self.workspace_users.write((workspace_id, user_address), true);
 
-// Get user role in workspace
-@view
-func get_user_role{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(workspace_id: u32, user_address: ContractAddress) -> (role: u8) {
-    let (role) = user_roles.read((workspace_id, user_address));
-    return (role,);
-}
+            // Update user workspace count
+            let user_count = self.user_workspace_count.read(user_address);
+            self.user_workspace_count.write(user_address, user_count + 1);
 
-// Assign user to workspace (admin oonly)
-@external
-func assign_user_to_workspace{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(workspace_id: u32, user_address: ContractAddress) {
-    _only_admin();
-    let (workspace) = workspaces.read(workspace_id);
-    assert workspace.is_active == 1, 'Workspace not active';
-    let (assigned) = workspace_users.read((workspace_id, user_address));
-    assert assigned == 0, 'User already assigned';
-    assert workspace.current_occupancy < workspace.capacity, 'Workspace full';
-    // Update occupancy
-    let new_occupancy = workspace.current_occupancy + 1;
-    let updated = Workspace(workspace.name, workspace.capacity, new_occupancy, workspace.is_active, workspace.created_at);
-    workspaces.write(workspace_id, updated);
-    workspace_users.write((workspace_id, user_address), 1);
-    // Add workspace to user's list
-    let (arr_len, arr) = user_workspaces.read(user_address);
-    array_append(arr, workspace_id);
-    user_workspaces.write(user_address, arr_len + 1, arr);
-    let (timestamp) = get_block_timestamp();
-    UserAssigned.emit(workspace_id, user_address, timestamp);
-    return ();
-}
+            self.emit(Event::WorkspaceAllocated(WorkspaceAllocated {
+                workspace_id,
+                user_address,
+            }));
+        }
 
-// Remove user from workspace (admin onlly)
-@external
-func remove_user_from_workspace{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(workspace_id: u32, user_address: ContractAddress) {
-    _only_admin();
-    let (workspace) = workspaces.read(workspace_id);
-    let (assigned) = workspace_users.read((workspace_id, user_address));
-    assert assigned == 1, 'User not assigned';
-    // Update occupancy
-    let new_occupancy = workspace.current_occupancy - 1;
-    let updated = Workspace(workspace.name, workspace.capacity, new_occupancy, workspace.is_active, workspace.created_at);
-    workspaces.write(workspace_id, updated);
-    workspace_users.write((workspace_id, user_address), 0);
-    // Remove workspace from user's list (not efficient, for demo)
-    let (arr_len, arr) = user_workspaces.read(user_address);
-    // TODO: Remove workspace_id from arr
-    user_workspaces.write(user_address, arr_len - 1, arr);
-    let (timestamp) = get_block_timestamp();
-    UserRemoved.emit(workspace_id, user_address, timestamp);
-    return ();
-}
+        fn deallocate_workspace(ref self: ContractState, user_address: ContractAddress, workspace_id: u32) {
+            self.only_owner();
 
-// Get workspace info
-@view
-func get_workspace_info{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(workspace_id: u32) -> (name: felt252, capacity: u32, occupancy: u32) {
-    let (workspace) = workspaces.read(workspace_id);
-    return (workspace.name, workspace.capacity, workspace.current_occupancy);
-}
+            let workspace = self.workspaces.read(workspace_id);
+            let is_assigned = self.workspace_users.read((workspace_id, user_address));
+            assert(is_assigned, 'User not assigned');
 
-// Check if user is in workspace
-@view
-func is_user_in_workspace{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(workspace_id: u32, user_address: ContractAddress) -> (assigned: felt252) {
-    let (assigned) = workspace_users.read((workspace_id, user_address));
-    return (assigned,);
+            // Update workspace occupancy
+            let updated_workspace = Workspace {
+                name: workspace.name,
+                capacity: workspace.capacity,
+                current_occupancy: workspace.current_occupancy - 1,
+                workspace_type: workspace.workspace_type,
+                is_maintenance: workspace.is_maintenance,
+                is_active: workspace.is_active,
+                created_at: workspace.created_at,
+            };
+
+            self.workspaces.write(workspace_id, updated_workspace);
+            self.workspace_users.write((workspace_id, user_address), false);
+
+            // Update user workspace count
+            let user_count = self.user_workspace_count.read(user_address);
+            self.user_workspace_count.write(user_address, user_count - 1);
+
+            self.emit(Event::WorkspaceDeallocated(WorkspaceDeallocated {
+                workspace_id,
+                user_address,
+            }));
+        }
+
+        fn get_workspace_occupancy(self: @ContractState, workspace_id: u32) -> u32 {
+            let workspace = self.workspaces.read(workspace_id);
+            workspace.current_occupancy
+        }
+
+        fn is_workspace_available(self: @ContractState, workspace_id: u32) -> bool {
+            let workspace = self.workspaces.read(workspace_id);
+            workspace.is_active && !workspace.is_maintenance && workspace.current_occupancy < workspace.capacity
+        }
+
+        fn set_workspace_maintenance(ref self: ContractState, workspace_id: u32, is_maintenance: bool) {
+            self.only_owner();
+
+            let workspace = self.workspaces.read(workspace_id);
+            let updated_workspace = Workspace {
+                name: workspace.name,
+                capacity: workspace.capacity,
+                current_occupancy: workspace.current_occupancy,
+                workspace_type: workspace.workspace_type,
+                is_maintenance,
+                is_active: workspace.is_active,
+                created_at: workspace.created_at,
+            };
+
+            self.workspaces.write(workspace_id, updated_workspace);
+
+            self.emit(Event::MaintenanceStatusChanged(MaintenanceStatusChanged {
+                workspace_id,
+                is_maintenance,
+            }));
+        }
+    }
 }
