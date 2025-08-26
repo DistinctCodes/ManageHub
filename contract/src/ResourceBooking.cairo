@@ -14,6 +14,15 @@ pub trait IResourceBooking<TContractState> {
     /// Returns unique booking_id.
     fn book_resource(ref self: TContractState, user: starknet::ContractAddress, resource_id: u32, start_time: u64, end_time: u64) -> u32;
 
+    /// Cancel a booking by booking_id.
+    fn cancel_booking(ref self: TContractState, booking_id: u32);
+
+    /// Get resource availability for a specific date.
+    fn get_resource_availability(self: @TContractState, resource_id: u32, date: u64) -> Array<(u64, u64)>;
+
+    /// Create a recurring booking with specified pattern.
+    fn create_recurring_booking(ref self: TContractState, user: starknet::ContractAddress, resource_id: u32, pattern: u8, duration: u64);
+
     /// Get booking info by booking_id.
     fn get_booking_info(self: @TContractState, booking_id: u32) -> (booker: starknet::ContractAddress, resource_id: u32, start_time: u64, end_time: u64, is_active: bool);
 }
