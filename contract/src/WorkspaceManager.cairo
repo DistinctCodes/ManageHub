@@ -1,100 +1,79 @@
-// SPDX-License-Identifier: MIT
-// WorkspaceManager.cairo
-// Cairo 2.6+ contract for managing workspaces in a tech hub environment
+/// WorkspaceManager.cairo
+/// Cairo 2 contract for managing workspaces in a tech hub environment
 
-%lang starknet
+use starknet::ContractAddress;
+use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
 
-from starkware.cairo.common.cairo_builtins import HashBuiltin
-from starkware.starknet.common.syscalls import get_block_timestamp
-from starkware.starknet.common.storage import Storage
-from starkware.starknet.common.syscalls import get_caller_address
-from starkware.starknet.common.syscalls import get_contract_address
-from starkware.cairo.common.uint256 import Uint256, uint256_add, uint256_sub
-from starkware.starknet.common.syscalls import get_block_number
-from starkware.starknet.common.syscalls import get_block_timestamp
-from starkware.starknet.common.syscalls import get_caller_address
-from starkware.starknet.common.syscalls import get_contract_address
-from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.array import Array, array_new, array_append, array_len, array_at
-from starkware.cairo.common.legacy_map import LegacyMap
-from starkware.starknet.common.syscalls import ContractAddress
-
-@storage_var
-func owner() -> (owner: ContractAddress):
-end
-
-@storage_var
-func admins(addr: ContractAddress) -> (is_admin: felt252):
-end
-
+#[derive(Drop, Serde, starknet::Store)]
 struct Workspace {
     name: felt252,
     capacity: u32,
     current_occupancy: u32,
-    is_active: felt252, // bool as felt252 (0/1)
-    created_at: u64
+    workspace_type: u8,
+    is_maintenance: bool,
+    is_active: bool,
+    created_at: u64,
 }
 
-// User roles: 0 = none, 1 = member, 2 = manager, 3 = admin (for workspace-level roles)
-@storage_var
-func user_roles(key: (u32, ContractAddress)) -> (role: u8):
-end
+#[starknet::interface]
+pub trait IWorkspaceManager<TContractState> {
+    fn create_workspace(ref self: TContractState, name: felt252, capacity: u32, workspace_type: u8);
+    fn allocate_workspace(ref self: TContractState, user_address: ContractAddress, workspace_id: u32);
+    fn deallocate_workspace(ref self: TContractState, user_address: ContractAddress, workspace_id: u32);
+    fn get_workspace_occupancy(self: @TContractState, workspace_id: u32) -> u32;
+    fn is_workspace_available(self: @TContractState, workspace_id: u32) -> bool;
+    fn set_workspace_maintenance(ref self: TContractState, workspace_id: u32, is_maintenance: bool);
+}
 
-@storage_var
-func workspaces(id: u32) -> (workspace: Workspace):
-end
+#[starknet::contract]
+mod WorkspaceManager {
+    use super::{Workspace, ContractAddress};
+    use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess, Map};
+    use starknet::{get_caller_address, get_block_timestamp};
 
-@storage_var
-func workspace_count() -> (count: u32):
-end
+    #[storage]
+    struct Storage {
+        owner: ContractAddress,
+        workspace_count: u32,
+        workspaces: Map<u32, Workspace>,
+        workspace_users: Map<(u32, ContractAddress), bool>,
+        user_workspace_count: Map<ContractAddress, u32>,
+    }
 
-@storage_var
-func workspace_users(key: (u32, ContractAddress)) -> (assigned: felt252):
-end
+    #[event]
+    #[derive(Drop, starknet::Event)]
+    enum Event {
+        WorkspaceCreated: WorkspaceCreated,
+        WorkspaceAllocated: WorkspaceAllocated,
+        WorkspaceDeallocated: WorkspaceDeallocated,
+        MaintenanceStatusChanged: MaintenanceStatusChanged,
+    }
 
-@storage_var
-func user_workspaces(addr: ContractAddress) -> (arr_len: u32, arr: Array<u32>):
-end
+    #[derive(Drop, starknet::Event)]
+    struct WorkspaceCreated {
+        workspace_id: u32,
+        name: felt252,
+        capacity: u32,
+        workspace_type: u8,
+    }
 
-@event
-func WorkspaceCreated(workspace_id: u32, name: felt252, capacity: u32, timestamp: u64):
-end
+    #[derive(Drop, starknet::Event)]
+    struct WorkspaceAllocated {
+        workspace_id: u32,
+        user_address: ContractAddress,
+    }
 
-@event
-func UserAssigned(workspace_id: u32, user_address: ContractAddress, timestamp: u64):
-end
+    #[derive(Drop, starknet::Event)]
+    struct WorkspaceDeallocated {
+        workspace_id: u32,
+        user_address: ContractAddress,
+    }
 
-@event
-func UserRemoved(workspace_id: u32, user_address: ContractAddress, timestamp: u64):
-end
-
-@event
-func AdminAdded(admin: ContractAddress, timestamp: u64):
-end
-
-@event
-func AdminRemoved(admin: ContractAddress, timestamp: u64):
-end
-
-@event
-func WorkspaceNameUpdated(workspace_id: u32, new_name: felt252, timestamp: u64):
-end
-
-@event
-func WorkspaceCapacityUpdated(workspace_id: u32, new_capacity: u32, timestamp: u64):
-end
-
-@event
-func WorkspaceDeactivated(workspace_id: u32, timestamp: u64):
-end
-
-@event
-func WorkspaceActivated(workspace_id: u32, timestamp: u64):
-end
-
-@event
-func UserRoleSet(workspace_id: u32, user_address: ContractAddress, role: u8, timestamp: u64):
-end
+    #[derive(Drop, starknet::Event)]
+    struct MaintenanceStatusChanged {
+        workspace_id: u32,
+        is_maintenance: bool,
+    }
 
 // Internal helper to restrict to admins only
 func _only_admin() {
