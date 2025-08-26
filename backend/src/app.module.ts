@@ -26,6 +26,7 @@ import { DonationsModule } from 'donations/donations.module';
 import { ShiftsModule } from './shifts/shifts.module';
 import { StaffModule } from './staff/staff.module';
 import { LocationModule } from './location/location.module';
+import { WorkSpacePreferenceModule } from './work-space-preference/work-space-preference.module';
 
 @Module({
   imports: [
@@ -52,7 +53,8 @@ import { LocationModule } from './location/location.module';
     DonationsModule,
     ShiftsModule,
     StaffModule,
-    LocationModule
+    LocationModule,
+    WorkSpacePreferenceModule
   ],
   controllers: [AppController],
   providers: [AppService, LibraryService],
