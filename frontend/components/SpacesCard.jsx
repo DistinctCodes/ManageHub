@@ -1,7 +1,9 @@
 import React from "react";
+import Link from "next/link";
 
 const SpacesCard = (props) => {
   const {
+    spaceId = 1, // Default ID for demo purposes
     spaceImage,
     spaceTitle,
     spaceDescription,
@@ -11,7 +13,8 @@ const SpacesCard = (props) => {
     yearly,
   } = props;
   return (
-    <div className="bg-[#F7F7F7] rounded-lg w-full flex flex-col gap-2 border-[1px] border-[#efefef]">
+    <Link href={`/spaces/${spaceId}`} className="block">
+      <div className="bg-[#F7F7F7] rounded-lg w-full flex flex-col gap-2 border-[1px] border-[#efefef] hover:shadow-lg transition-shadow duration-200 cursor-pointer">
       {/* image section */}
       <div className="bg-yellow-400 flex flex-col rounded-t-lg overflow-hidden">
         <div
@@ -57,6 +60,7 @@ const SpacesCard = (props) => {
         </div>
       </div>
     </div>
+    </Link>
   );
 };
 

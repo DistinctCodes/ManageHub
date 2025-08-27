@@ -1,3 +1,5 @@
+"use client";
+
 import {
     addHubUserIcon,
     addStaffIcon,
@@ -32,21 +34,19 @@ import {
   import H3 from "../../components/H3";
   import RecentActivities from "../../components/RecentActivities";
   import BarChart from "../../components/BarChart";
-  import { Link } from "react-router-dom";
-  import { useState } from "react";
-  import { useNavigate } from "react-router-dom";
+  import Link from "next/link";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
   import { toast } from "react-toastify";
-  import "react-toastify/dist/ReactToastify.css";
-  import "../../index.css";
-  import CustomToast from "../../components/CustomToast";
-  import CustomInput from "../../components/CustomInput";
-  import CustomDropdown from "../../components/CustomDropdown";
+import "react-toastify/dist/ReactToastify.css";
+import CustomToast from "../../components/CustomToast";
+import CustomInput from "../../components/CustomInput";
   import { Form, Formik } from "formik";
   import { Schemas, initialValues } from "../../utils/validationShema";
   import { useAdmin } from "../../context/AdminContext";
   
   const AdminHome = () => {
-    const navigate = useNavigate();
+    const router = useRouter();
     const { user } = useAdmin();
     const [addNewHubUser, setAddNewHubUser] = useState(false);
     const [addNewStaff, setAddNewStaff] = useState(false);
@@ -93,11 +93,11 @@ import {
     };
   
     const handleStaffVerificationFormSubmission = (e) => {
-      e.preventDefault();
-      setVerifyStaffIdentity((prev) => !prev);
-      toast(<CustomToast message="New Staff created Successfully" />);
-      navigate("/dashboard");
-    };
+    e.preventDefault();
+    setVerifyStaffIdentity((prev) => !prev);
+    toast(<CustomToast message="New Staff created Successfully" />);
+    router.push("/admin");
+  };
   
     const handleTeamFormSubmit = () => {
       setAddNewHubUser((prev) => !prev);
@@ -121,7 +121,7 @@ import {
             <p className="font-semibold text-[13px]">Quick Actions</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-1">
               {/* first action box */}
-              <Link to={"/spaces"}>
+              <Link href="/spaces">
                 <div className="w-full rounded-md bg-[#f2f2f2] flex justify-between items-center px-4 py-5 shadow-sm cursor-pointer hover:scale-105 transition-transform">
                   <div className="flex items-center gap-2">
                     <img
