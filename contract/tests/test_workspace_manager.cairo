@@ -1,55 +1,141 @@
-# WorkspaceManager Contract Tests
-# Test basic admin, workspace, and user role management
+use starknet::ContractAddress;
+use starknet::contract_address_const;
+use snforge_std::{declare, ContractClassTrait, DeclareResultTrait, start_cheat_caller_address, stop_cheat_caller_address};
 
-from starkware.starknet.testing.starknet import Starknet
-import asyncio
-import pytest
+use credenza_contract::WorkspaceManager::IWorkspaceManagerDispatcher;
+use credenza_contract::WorkspaceManager::IWorkspaceManagerDispatcherTrait;
 
-OWNER = 0x1
-ADMIN = 0x2
-USER = 0x3
-USER2 = 0x4
+fn deploy_workspace_manager() -> (ContractAddress, IWorkspaceManagerDispatcher) {
+    let owner = contract_address_const::<'owner'>();
+    let contract = declare("WorkspaceManager").unwrap().contract_class();
+    let constructor_args = array![owner.into()];
+    let (contract_address, _) = contract.deploy(@constructor_args).unwrap();
+    let dispatcher = IWorkspaceManagerDispatcher { contract_address };
+    (contract_address, dispatcher)
+}
 
-@pytest.mark.asyncio
-async def test_workspace_manager():
-    starknet = await Starknet.empty()
-    contract = await starknet.deploy(
-        source="src/WorkspaceManager.cairo",
-        constructor_calldata=[OWNER]
-    )
+#[test]
+fn test_create_workspace() {
+    let owner = contract_address_const::<'owner'>();
+    let (contract_address, dispatcher) = deploy_workspace_manager();
 
-    # Only owner can add admin
-    await contract.add_admin(ADMIN).invoke(caller_address=OWNER)
-    res = await contract.admins(ADMIN).call()
-    assert res.result.is_admin == 1
+    start_cheat_caller_address(contract_address, owner);
 
-    # Only owner can remove admin
-    await contract.remove_admin(ADMIN).invoke(caller_address=OWNER)
-    res = await contract.admins(ADMIN).call()
-    assert res.result.is_admin == 0
+    dispatcher.create_workspace('Dev Space', 10, 1);
 
-    # Add admin again for further tests
-    await contract.add_admin(ADMIN).invoke(caller_address=OWNER)
+    let occupancy = dispatcher.get_workspace_occupancy(0);
+    assert(occupancy == 0, 'Initial occupancy should be 0');
 
-    # Admin creates workspace
-    tx = await contract.create_workspace(12345, 5).invoke(caller_address=ADMIN)
-    workspace_id = tx.result.workspace_id
-    info = await contract.get_workspace_info(workspace_id).call()
-    assert info.result.name == 12345
-    assert info.result.capacity == 5
-    assert info.result.occupancy == 0
+    let is_available = dispatcher.is_workspace_available(0);
+    assert(is_available, 'Workspace should be available');
 
-    # Admin updates workspace name
-    await contract.update_workspace_name(workspace_id, 54321).invoke(caller_address=ADMIN)
-    info = await contract.get_workspace_info(workspace_id).call()
-    assert info.result.name == 54321
+    stop_cheat_caller_address(contract_address);
+}
 
-    # Admin updates capacity
-    await contract.update_workspace_capacity(workspace_id, 10).invoke(caller_address=ADMIN)
-    info = await contract.get_workspace_info(workspace_id).call()
-    assert info.result.capacity == 10
+#[test]
+fn test_allocate_workspace() {
+    let owner = contract_address_const::<'owner'>();
+    let user = contract_address_const::<'user1'>();
+    let (contract_address, dispatcher) = deploy_workspace_manager();
 
-    # Admin deactivates and activates workspace
+    start_cheat_caller_address(contract_address, owner);
+
+    // Create workspace
+    dispatcher.create_workspace('Dev Space', 10, 1);
+
+    // Allocate to user
+    dispatcher.allocate_workspace(user, 0);
+
+    let occupancy = dispatcher.get_workspace_occupancy(0);
+    assert(occupancy == 1, 'Occupancy should be 1');
+
+    stop_cheat_caller_address(contract_address);
+}
+
+#[test]
+fn test_deallocate_workspace() {
+    let owner = contract_address_const::<'owner'>();
+    let user = contract_address_const::<'user1'>();
+    let (contract_address, dispatcher) = deploy_workspace_manager();
+
+    start_cheat_caller_address(contract_address, owner);
+
+    // Create and allocate workspace
+    dispatcher.create_workspace('Dev Space', 10, 1);
+    dispatcher.allocate_workspace(user, 0);
+
+    // Deallocate
+    dispatcher.deallocate_workspace(user, 0);
+
+    let occupancy = dispatcher.get_workspace_occupancy(0);
+    assert(occupancy == 0, 'Occupancy should be 0');
+
+    stop_cheat_caller_address(contract_address);
+}
+
+#[test]
+fn test_workspace_maintenance() {
+    let owner = contract_address_const::<'owner'>();
+    let (contract_address, dispatcher) = deploy_workspace_manager();
+
+    start_cheat_caller_address(contract_address, owner);
+
+    // Create workspace
+    dispatcher.create_workspace('Dev Space', 10, 1);
+
+    // Set maintenance mode
+    dispatcher.set_workspace_maintenance(0, true);
+
+    // Workspace should not be available during maintenance
+    let is_available = dispatcher.is_workspace_available(0);
+    assert(!is_available, 'Workspace should not be available during maintenance');
+
+    // Remove maintenance mode
+    dispatcher.set_workspace_maintenance(0, false);
+
+    let is_available_after = dispatcher.is_workspace_available(0);
+    assert(is_available_after, 'Workspace should be available after maintenance');
+
+    stop_cheat_caller_address(contract_address);
+}
+
+#[test]
+#[should_panic(expected: ('User already assigned',))]
+fn test_double_allocation() {
+    let owner = contract_address_const::<'owner'>();
+    let user = contract_address_const::<'user1'>();
+    let (contract_address, dispatcher) = deploy_workspace_manager();
+
+    start_cheat_caller_address(contract_address, owner);
+
+    dispatcher.create_workspace('Dev Space', 10, 1);
+    dispatcher.allocate_workspace(user, 0);
+    dispatcher.allocate_workspace(user, 0); // Should panic
+
+    stop_cheat_caller_address(contract_address);
+}
+
+#[test]
+#[should_panic(expected: ('Workspace full',))]
+fn test_workspace_capacity_limit() {
+    let owner = contract_address_const::<'owner'>();
+    let user1 = contract_address_const::<'user1'>();
+    let user2 = contract_address_const::<'user2'>();
+    let (contract_address, dispatcher) = deploy_workspace_manager();
+
+    start_cheat_caller_address(contract_address, owner);
+
+    // Create workspace with capacity 1
+    dispatcher.create_workspace('Small Space', 1, 1);
+
+    // Allocate to first user
+    dispatcher.allocate_workspace(user1, 0);
+
+    // Try to allocate to second user (should fail)
+    dispatcher.allocate_workspace(user2, 0); // Should panic
+
+    stop_cheat_caller_address(contract_address);
+}
     await contract.deactivate_workspace(workspace_id).invoke(caller_address=ADMIN)
     # Try to assign user to inactive workspace (should fail)
     with pytest.raises(Exception):

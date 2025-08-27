@@ -1,278 +1,216 @@
-// SPDX-License-Identifier: MIT
-// WorkspaceManager.cairo
-// Cairo 2.6+ contract for managing workspaces in a tech hub environment
+/// WorkspaceManager.cairo
+/// Cairo 2 contract for managing workspaces in a tech hub environment
 
-%lang starknet
+use starknet::ContractAddress;
+use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess};
 
-from starkware.cairo.common.cairo_builtins import HashBuiltin
-from starkware.starknet.common.syscalls import get_block_timestamp
-from starkware.starknet.common.storage import Storage
-from starkware.starknet.common.syscalls import get_caller_address
-from starkware.starknet.common.syscalls import get_contract_address
-from starkware.cairo.common.uint256 import Uint256, uint256_add, uint256_sub
-from starkware.starknet.common.syscalls import get_block_number
-from starkware.starknet.common.syscalls import get_block_timestamp
-from starkware.starknet.common.syscalls import get_caller_address
-from starkware.starknet.common.syscalls import get_contract_address
-from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.array import Array, array_new, array_append, array_len, array_at
-from starkware.cairo.common.legacy_map import LegacyMap
-from starkware.starknet.common.syscalls import ContractAddress
-
-@storage_var
-func owner() -> (owner: ContractAddress):
-end
-
-@storage_var
-func admins(addr: ContractAddress) -> (is_admin: felt252):
-end
-
+#[derive(Drop, Serde, starknet::Store)]
 struct Workspace {
     name: felt252,
     capacity: u32,
     current_occupancy: u32,
-    is_active: felt252, // bool as felt252 (0/1)
-    created_at: u64
+    workspace_type: u8,
+    is_maintenance: bool,
+    is_active: bool,
+    created_at: u64,
 }
 
-// User roles: 0 = none, 1 = member, 2 = manager, 3 = admin (for workspace-level roles)
-@storage_var
-func user_roles(key: (u32, ContractAddress)) -> (role: u8):
-end
-
-@storage_var
-func workspaces(id: u32) -> (workspace: Workspace):
-end
-
-@storage_var
-func workspace_count() -> (count: u32):
-end
-
-@storage_var
-func workspace_users(key: (u32, ContractAddress)) -> (assigned: felt252):
-end
-
-@storage_var
-func user_workspaces(addr: ContractAddress) -> (arr_len: u32, arr: Array<u32>):
-end
-
-@event
-func WorkspaceCreated(workspace_id: u32, name: felt252, capacity: u32, timestamp: u64):
-end
-
-@event
-func UserAssigned(workspace_id: u32, user_address: ContractAddress, timestamp: u64):
-end
-
-@event
-func UserRemoved(workspace_id: u32, user_address: ContractAddress, timestamp: u64):
-end
-
-@event
-func AdminAdded(admin: ContractAddress, timestamp: u64):
-end
-
-@event
-func AdminRemoved(admin: ContractAddress, timestamp: u64):
-end
-
-@event
-func WorkspaceNameUpdated(workspace_id: u32, new_name: felt252, timestamp: u64):
-end
-
-@event
-func WorkspaceCapacityUpdated(workspace_id: u32, new_capacity: u32, timestamp: u64):
-end
-
-@event
-func WorkspaceDeactivated(workspace_id: u32, timestamp: u64):
-end
-
-@event
-func WorkspaceActivated(workspace_id: u32, timestamp: u64):
-end
-
-@event
-func UserRoleSet(workspace_id: u32, user_address: ContractAddress, role: u8, timestamp: u64):
-end
-
-// Internal helper to restrict to admins only
-func _only_admin() {
-    let (caller) = get_caller_address();
-    let (is_admin) = admins.read(caller);
-    assert is_admin == 1, 'Not an admin';
-    return ();
+#[starknet::interface]
+pub trait IWorkspaceManager<TContractState> {
+    fn create_workspace(ref self: TContractState, name: felt252, capacity: u32, workspace_type: u8);
+    fn allocate_workspace(ref self: TContractState, user_address: ContractAddress, workspace_id: u32);
+    fn deallocate_workspace(ref self: TContractState, user_address: ContractAddress, workspace_id: u32);
+    fn get_workspace_occupancy(self: @TContractState, workspace_id: u32) -> u32;
+    fn is_workspace_available(self: @TContractState, workspace_id: u32) -> bool;
+    fn set_workspace_maintenance(ref self: TContractState, workspace_id: u32, is_maintenance: bool);
 }
 
-// Internal helper to restrict to owner only
-func _only_owner() {
-    let (caller) = get_caller_address();
-    let (contract_owner) = owner.read();
-    assert caller == contract_owner, 'Not contract owner';
-    return ();
-}
+#[starknet::contract]
+mod WorkspaceManager {
+    use super::{Workspace, ContractAddress};
+    use starknet::storage::{StoragePointerReadAccess, StoragePointerWriteAccess, Map};
+    use starknet::{get_caller_address, get_block_timestamp};
 
-@constructor
-func constructor{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(owner_: ContractAddress) {
-    owner.write(owner_);
-    admins.write(owner_, 1);
-    return ();
-}
+    #[storage]
+    struct Storage {
+        owner: ContractAddress,
+        workspace_count: u32,
+        workspaces: Map<u32, Workspace>,
+        workspace_users: Map<(u32, ContractAddress), bool>,
+        user_workspace_count: Map<ContractAddress, u32>,
+    }
 
-// Add a new admin (owner only)
-@external
-func add_admin{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(admin: ContractAddress) {
-    _only_owner();
-    admins.write(admin, 1);
-    let (timestamp) = get_block_timestamp();
-    AdminAdded.emit(admin, timestamp);
-    return ();
-}
+    #[event]
+    #[derive(Drop, starknet::Event)]
+    enum Event {
+        WorkspaceCreated: WorkspaceCreated,
+        WorkspaceAllocated: WorkspaceAllocated,
+        WorkspaceDeallocated: WorkspaceDeallocated,
+        MaintenanceStatusChanged: MaintenanceStatusChanged,
+    }
 
-// Remove an admin (owner only)
-@external
-func remove_admin{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(admin: ContractAddress) {
-    _only_owner();
-    admins.write(admin, 0);
-    let (timestamp) = get_block_timestamp();
-    AdminRemoved.emit(admin, timestamp);
-    return ();
-}
+    #[derive(Drop, starknet::Event)]
+    struct WorkspaceCreated {
+        workspace_id: u32,
+        name: felt252,
+        capacity: u32,
+        workspace_type: u8,
+    }
 
-// Create aa new workspace (admin only)
-@external
-func create_workspace{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(name: felt252, capacity: u32) -> (workspace_id: u32) {
-    _only_admin();
-    let (count) = workspace_count.read();
-    let workspace_id = count;
-    let (timestamp) = get_block_timestamp();
-    let workspace = Workspace(name, capacity, 0, 1, timestamp);
-    workspaces.write(workspace_id, workspace);
-    workspace_count.write(workspace_id + 1);
-    WorkspaceCreated.emit(workspace_id, name, capacity, timestamp);
-    return (workspace_id,);
-}
+    #[derive(Drop, starknet::Event)]
+    struct WorkspaceAllocated {
+        workspace_id: u32,
+        user_address: ContractAddress,
+    }
 
-// Update workspace name (admin only)
-@external
-func update_workspace_name{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(workspace_id: u32, new_name: felt252) {
-    _only_admin();
-    let (workspace) = workspaces.read(workspace_id);
-    let updated = Workspace(new_name, workspace.capacity, workspace.current_occupancy, workspace.is_active, workspace.created_at);
-    workspaces.write(workspace_id, updated);
-    let (timestamp) = get_block_timestamp();
-    WorkspaceNameUpdated.emit(workspace_id, new_name, timestamp);
-    return ();
-}
+    #[derive(Drop, starknet::Event)]
+    struct WorkspaceDeallocated {
+        workspace_id: u32,
+        user_address: ContractAddress,
+    }
 
-// Update workspace capacity (admin only)
-@external
-func update_workspace_capacity{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(workspace_id: u32, new_capacity: u32) {
-    _only_admin();
-    let (workspace) = workspaces.read(workspace_id);
-    assert new_capacity >= workspace.current_occupancy, 'Capacity less than occupancy';
-    let updated = Workspace(workspace.name, new_capacity, workspace.current_occupancy, workspace.is_active, workspace.created_at);
-    workspaces.write(workspace_id, updated);
-    let (timestamp) = get_block_timestamp();
-    WorkspaceCapacityUpdated.emit(workspace_id, new_capacity, timestamp);
-    return ();
-}
+    #[derive(Drop, starknet::Event)]
+    struct MaintenanceStatusChanged {
+        workspace_id: u32,
+        is_maintenance: bool,
+    }
 
-// Deactivate workspace (admin only)
-@external
-func deactivate_workspace{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(workspace_id: u32) {
-    _only_admin();
-    let (workspace) = workspaces.read(workspace_id);
-    let updated = Workspace(workspace.name, workspace.capacity, workspace.current_occupancy, 0, workspace.created_at);
-    workspaces.write(workspace_id, updated);
-    let (timestamp) = get_block_timestamp();
-    WorkspaceDeactivated.emit(workspace_id, timestamp);
-    return ();
-}
+    fn only_owner(self: @ContractState) {
+        let caller = get_caller_address();
+        let stored_owner = self.owner.read();
+        assert(caller == stored_owner, 'Not contract owner');
+    }
 
-// Activate workspace (admin only)
-@external
-func activate_workspace{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(workspace_id: u32) {
-    _only_admin();
-    let (workspace) = workspaces.read(workspace_id);
-    let updated = Workspace(workspace.name, workspace.capacity, workspace.current_occupancy, 1, workspace.created_at);
-    workspaces.write(workspace_id, updated);
-    let (timestamp) = get_block_timestamp();
-    WorkspaceActivated.emit(workspace_id, timestamp);
-    return ();
-}
+    #[constructor]
+    fn constructor(ref self: ContractState, owner: ContractAddress) {
+        self.owner.write(owner);
+    }
 
-// Set user role in workspace (admin only)
-@external
-func set_user_role{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(workspace_id: u32, user_address: ContractAddress, role: u8) {
-    _only_admin();
-    user_roles.write((workspace_id, user_address), role);
-    let (timestamp) = get_block_timestamp();
-    UserRoleSet.emit(workspace_id, user_address, role, timestamp);
-    return ();
-}
+    #[abi(embed_v0)]
+    impl WorkspaceManagerImpl of super::super::interface::IWorkspaceManager<ContractState> {
+        fn create_workspace(ref self: ContractState, name: felt252, capacity: u32, workspace_type: u8) {
+            self.only_owner();
 
-// Get user role in workspace
-@view
-func get_user_role{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(workspace_id: u32, user_address: ContractAddress) -> (role: u8) {
-    let (role) = user_roles.read((workspace_id, user_address));
-    return (role,);
-}
+            let workspace_id = self.workspace_count.read();
+            let timestamp = get_block_timestamp();
 
-// Assign user to workspace (admin oonly)
-@external
-func assign_user_to_workspace{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(workspace_id: u32, user_address: ContractAddress) {
-    _only_admin();
-    let (workspace) = workspaces.read(workspace_id);
-    assert workspace.is_active == 1, 'Workspace not active';
-    let (assigned) = workspace_users.read((workspace_id, user_address));
-    assert assigned == 0, 'User already assigned';
-    assert workspace.current_occupancy < workspace.capacity, 'Workspace full';
-    // Update occupancy
-    let new_occupancy = workspace.current_occupancy + 1;
-    let updated = Workspace(workspace.name, workspace.capacity, new_occupancy, workspace.is_active, workspace.created_at);
-    workspaces.write(workspace_id, updated);
-    workspace_users.write((workspace_id, user_address), 1);
-    // Add workspace to user's list
-    let (arr_len, arr) = user_workspaces.read(user_address);
-    array_append(arr, workspace_id);
-    user_workspaces.write(user_address, arr_len + 1, arr);
-    let (timestamp) = get_block_timestamp();
-    UserAssigned.emit(workspace_id, user_address, timestamp);
-    return ();
-}
+            let workspace = Workspace {
+                name,
+                capacity,
+                current_occupancy: 0,
+                workspace_type,
+                is_maintenance: false,
+                is_active: true,
+                created_at: timestamp,
+            };
 
-// Remove user from workspace (admin onlly)
-@external
-func remove_user_from_workspace{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(workspace_id: u32, user_address: ContractAddress) {
-    _only_admin();
-    let (workspace) = workspaces.read(workspace_id);
-    let (assigned) = workspace_users.read((workspace_id, user_address));
-    assert assigned == 1, 'User not assigned';
-    // Update occupancy
-    let new_occupancy = workspace.current_occupancy - 1;
-    let updated = Workspace(workspace.name, workspace.capacity, new_occupancy, workspace.is_active, workspace.created_at);
-    workspaces.write(workspace_id, updated);
-    workspace_users.write((workspace_id, user_address), 0);
-    // Remove workspace from user's list (not efficient, for demo)
-    let (arr_len, arr) = user_workspaces.read(user_address);
-    // TODO: Remove workspace_id from arr
-    user_workspaces.write(user_address, arr_len - 1, arr);
-    let (timestamp) = get_block_timestamp();
-    UserRemoved.emit(workspace_id, user_address, timestamp);
-    return ();
-}
+            self.workspaces.write(workspace_id, workspace);
+            self.workspace_count.write(workspace_id + 1);
 
-// Get workspace info
-@view
-func get_workspace_info{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(workspace_id: u32) -> (name: felt252, capacity: u32, occupancy: u32) {
-    let (workspace) = workspaces.read(workspace_id);
-    return (workspace.name, workspace.capacity, workspace.current_occupancy);
-}
+            self.emit(Event::WorkspaceCreated(WorkspaceCreated {
+                workspace_id,
+                name,
+                capacity,
+                workspace_type,
+            }));
+        }
 
-// Check if user is in workspace
-@view
-func is_user_in_workspace{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(workspace_id: u32, user_address: ContractAddress) -> (assigned: felt252) {
-    let (assigned) = workspace_users.read((workspace_id, user_address));
-    return (assigned,);
+        fn allocate_workspace(ref self: ContractState, user_address: ContractAddress, workspace_id: u32) {
+            self.only_owner();
+
+            let workspace = self.workspaces.read(workspace_id);
+            assert(workspace.is_active, 'Workspace not active');
+            assert(!workspace.is_maintenance, 'Workspace under maintenance');
+
+            let is_assigned = self.workspace_users.read((workspace_id, user_address));
+            assert(!is_assigned, 'User already assigned');
+            assert(workspace.current_occupancy < workspace.capacity, 'Workspace full');
+
+            // Update workspace occupancy
+            let updated_workspace = Workspace {
+                name: workspace.name,
+                capacity: workspace.capacity,
+                current_occupancy: workspace.current_occupancy + 1,
+                workspace_type: workspace.workspace_type,
+                is_maintenance: workspace.is_maintenance,
+                is_active: workspace.is_active,
+                created_at: workspace.created_at,
+            };
+
+            self.workspaces.write(workspace_id, updated_workspace);
+            self.workspace_users.write((workspace_id, user_address), true);
+
+            // Update user workspace count
+            let user_count = self.user_workspace_count.read(user_address);
+            self.user_workspace_count.write(user_address, user_count + 1);
+
+            self.emit(Event::WorkspaceAllocated(WorkspaceAllocated {
+                workspace_id,
+                user_address,
+            }));
+        }
+
+        fn deallocate_workspace(ref self: ContractState, user_address: ContractAddress, workspace_id: u32) {
+            self.only_owner();
+
+            let workspace = self.workspaces.read(workspace_id);
+            let is_assigned = self.workspace_users.read((workspace_id, user_address));
+            assert(is_assigned, 'User not assigned');
+
+            // Update workspace occupancy
+            let updated_workspace = Workspace {
+                name: workspace.name,
+                capacity: workspace.capacity,
+                current_occupancy: workspace.current_occupancy - 1,
+                workspace_type: workspace.workspace_type,
+                is_maintenance: workspace.is_maintenance,
+                is_active: workspace.is_active,
+                created_at: workspace.created_at,
+            };
+
+            self.workspaces.write(workspace_id, updated_workspace);
+            self.workspace_users.write((workspace_id, user_address), false);
+
+            // Update user workspace count
+            let user_count = self.user_workspace_count.read(user_address);
+            self.user_workspace_count.write(user_address, user_count - 1);
+
+            self.emit(Event::WorkspaceDeallocated(WorkspaceDeallocated {
+                workspace_id,
+                user_address,
+            }));
+        }
+
+        fn get_workspace_occupancy(self: @ContractState, workspace_id: u32) -> u32 {
+            let workspace = self.workspaces.read(workspace_id);
+            workspace.current_occupancy
+        }
+
+        fn is_workspace_available(self: @ContractState, workspace_id: u32) -> bool {
+            let workspace = self.workspaces.read(workspace_id);
+            workspace.is_active && !workspace.is_maintenance && workspace.current_occupancy < workspace.capacity
+        }
+
+        fn set_workspace_maintenance(ref self: ContractState, workspace_id: u32, is_maintenance: bool) {
+            self.only_owner();
+
+            let workspace = self.workspaces.read(workspace_id);
+            let updated_workspace = Workspace {
+                name: workspace.name,
+                capacity: workspace.capacity,
+                current_occupancy: workspace.current_occupancy,
+                workspace_type: workspace.workspace_type,
+                is_maintenance,
+                is_active: workspace.is_active,
+                created_at: workspace.created_at,
+            };
+
+            self.workspaces.write(workspace_id, updated_workspace);
+
+            self.emit(Event::MaintenanceStatusChanged(MaintenanceStatusChanged {
+                workspace_id,
+                is_maintenance,
+            }));
+        }
+    }
 }
