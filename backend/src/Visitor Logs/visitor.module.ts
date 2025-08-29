@@ -8,6 +8,6 @@ import { Visitor } from "./visitor.entity";
   imports: [TypeOrmModule.forFeature([Visitor])],
   controllers: [VisitorController],
   providers: [VisitorService],
-  exports: [VisitorService], // Export if needed by other modules
+  exports: [VisitorService], 
 })
 export class VisitorModule {}
