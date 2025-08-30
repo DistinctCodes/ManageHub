@@ -27,6 +27,8 @@ import { ShiftsModule } from './shifts/shifts.module';
 import { StaffModule } from './staff/staff.module';
 import { LocationModule } from './location/location.module';
 import { WorkSpacePreferenceModule } from './work-space-preference/work-space-preference.module';
+import { WorkLogModule } from './remote-work-log/work-log.module';
+
 
 @Module({
   imports: [
@@ -54,7 +56,8 @@ import { WorkSpacePreferenceModule } from './work-space-preference/work-space-pr
     ShiftsModule,
     StaffModule,
     LocationModule,
-    WorkSpacePreferenceModule
+    WorkSpacePreferenceModule,
+    WorkLogModule,
   ],
   controllers: [AppController],
   providers: [AppService, LibraryService],
