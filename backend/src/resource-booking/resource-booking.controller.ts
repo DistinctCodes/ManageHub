@@ -26,4 +26,12 @@ export class ResourceBookingController {
   listBookings(@Query('resourceId') resourceId?: string) {
     return this.service.listBookings(resourceId);
   }
+
+  @Get('bookings.ics')
+  async exportICS(@Query('resourceId') resourceId: string, @Res() res: Response) {
+    const ics = await this.service.exportICS(resourceId);
+    res.setHeader('Content-Type', 'text/calendar');
+    res.setHeader('Content-Disposition', 'attachment; filename="bookings.ics"');
+    res.send(ics);
+  }
 }
