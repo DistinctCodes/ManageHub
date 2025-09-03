@@ -1,3 +1,44 @@
+  describe('advanced features', () => {
+    it('should soft-delete a visit', async () => {
+      const visit = { id: 'id', deleted: false };
+      jest.spyOn(service, 'findOne').mockResolvedValue(visit as any);
+      mockRepo.save.mockResolvedValue({ ...visit, deleted: true });
+      await service.remove('id');
+      expect(mockRepo.save).toHaveBeenCalledWith({ ...visit, deleted: true });
+    });
+
+    it('should restore a soft-deleted visit', async () => {
+      const visit = { id: 'id', deleted: true };
+      jest.spyOn(service, 'findOne').mockResolvedValue(visit as any);
+      mockRepo.save.mockResolvedValue({ ...visit, deleted: false });
+      const result = await service.restore('id');
+      expect(mockRepo.save).toHaveBeenCalledWith({ ...visit, deleted: false });
+      expect(result).toEqual({ ...visit, deleted: false });
+    });
+
+    it('should update status', async () => {
+      const visit = { id: 'id', status: 'Scheduled' };
+      jest.spyOn(service, 'findOne').mockResolvedValue(visit as any);
+      mockRepo.save.mockResolvedValue({ ...visit, status: 'Completed' });
+      const result = await service.update('id', { status: 'Completed' } as any);
+      expect(result).toEqual({ ...visit, status: 'Completed' });
+    });
+
+    it('should filter by status and showDeleted in findAll', async () => {
+      const qb: any = {
+        andWhere: jest.fn().mockReturnThis(),
+        skip: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        getManyAndCount: jest.fn().mockResolvedValue([[{ id: 'id' }], 1]),
+      };
+      mockRepo.createQueryBuilder.mockReturnValue(qb);
+      const result = await service.findAll({ page: 1, limit: 10, status: 'Completed', showDeleted: true } as any);
+      expect(qb.andWhere).toHaveBeenCalledWith('visit.deleted = false');
+      expect(qb.andWhere).toHaveBeenCalledWith('visit.status = :status', { status: 'Completed' });
+      expect(result.data).toEqual([{ id: 'id' }]);
+    });
+  });
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { ServiceVendorVisitService } from './service-vendor-visit.service';

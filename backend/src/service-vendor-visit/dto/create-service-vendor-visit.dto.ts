@@ -61,6 +61,10 @@ export class UpdateServiceVendorVisitDto {
   @IsOptional()
   @IsEmail()
   contactEmail?: string;
+
+  @IsOptional()
+  @IsString()
+  status?: 'Scheduled' | 'Completed' | 'Cancelled';
 }
 
 export class ServiceVendorVisitQueryDto {
@@ -87,4 +91,11 @@ export class ServiceVendorVisitQueryDto {
   @IsOptional()
   @Type(() => Number)
   limit?: number = 10;
+
+  @IsOptional()
+  @IsString()
+  status?: 'Scheduled' | 'Completed' | 'Cancelled';
+
+  @IsOptional()
+  showDeleted?: boolean;
 }

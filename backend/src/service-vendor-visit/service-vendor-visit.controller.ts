@@ -1,3 +1,20 @@
+  @Patch(':id/status')
+  async updateStatus(@Param('id') id: string, @Body('status') status: 'Scheduled' | 'Completed' | 'Cancelled') {
+    return {
+      status: 'success',
+      message: 'Service vendor visit status updated successfully',
+      data: await this.serviceVendorVisitService.update(id, { status }),
+    };
+  }
+
+  @Patch(':id/restore')
+  async restore(@Param('id') id: string) {
+    return {
+      status: 'success',
+      message: 'Service vendor visit restored successfully',
+      data: await this.serviceVendorVisitService.restore(id),
+    };
+  }
 import {
   Controller,
   Get,
@@ -73,6 +90,7 @@ export class ServiceVendorVisitController {
     };
   }
 
+
   @Patch(':id')
   @ApiOperation({ summary: 'Update a service vendor visit record' })
   @ApiResponse({ status: 200, description: 'Visit updated successfully' })
@@ -82,6 +100,33 @@ export class ServiceVendorVisitController {
       status: 'success',
       message: 'Service vendor visit updated successfully',
       data: await this.serviceVendorVisitService.update(id, updateDto),
+    };
+  }
+
+  @Patch(':id/status')
+  @ApiOperation({ summary: 'Update the status of a service vendor visit' })
+  @ApiResponse({ status: 200, description: 'Status updated successfully' })
+  @ApiResponse({ status: 404, description: 'Visit not found' })
+  async updateStatus(
+    @Param('id') id: string,
+    @Body('status') status: 'Scheduled' | 'Completed' | 'Cancelled',
+  ) {
+    return {
+      status: 'success',
+      message: 'Service vendor visit status updated successfully',
+      data: await this.serviceVendorVisitService.update(id, { status }),
+    };
+  }
+
+  @Patch(':id/restore')
+  @ApiOperation({ summary: 'Restore a soft-deleted service vendor visit' })
+  @ApiResponse({ status: 200, description: 'Visit restored successfully' })
+  @ApiResponse({ status: 404, description: 'Visit not found' })
+  async restore(@Param('id') id: string) {
+    return {
+      status: 'success',
+      message: 'Service vendor visit restored successfully',
+      data: await this.serviceVendorVisitService.restore(id),
     };
   }
 
