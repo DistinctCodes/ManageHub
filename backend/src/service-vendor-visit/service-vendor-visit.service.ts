@@ -15,28 +15,33 @@ export class ServiceVendorVisitService {
     const visit = this.serviceVendorVisitRepository.create({
       ...createDto,
       visitTime: new Date(createDto.visitTime),
+      status: 'Scheduled',
+      deleted: false,
     });
-
     return await this.serviceVendorVisitRepository.save(visit);
   }
 
-  async findAll(queryDto: ServiceVendorVisitQueryDto) {
-    const { companyName, service, fromDate, toDate, page, limit } = queryDto;
+  async findAll(queryDto: ServiceVendorVisitQueryDto & { showDeleted?: boolean; status?: string }) {
+    const { companyName, service, fromDate, toDate, page, limit, showDeleted, status } = queryDto;
     const query = this.serviceVendorVisitRepository.createQueryBuilder('visit');
 
-    // Apply filters
+    // Only non-deleted by default
+    if (!showDeleted) {
+      query.andWhere('visit.deleted = false');
+    }
+    if (status) {
+      query.andWhere('visit.status = :status', { status });
+    }
     if (companyName) {
       query.andWhere('visit.companyName ILIKE :companyName', { 
         companyName: `%${companyName}%` 
       });
     }
-
     if (service) {
       query.andWhere('visit.service ILIKE :service', { 
         service: `%${service}%` 
       });
     }
-
     if (fromDate && toDate) {
       query.andWhere('visit.visitTime BETWEEN :fromDate AND :toDate', {
         fromDate: new Date(fromDate),
@@ -51,16 +56,12 @@ export class ServiceVendorVisitService {
         toDate: new Date(toDate),
       });
     }
-
     // Apply pagination
     const skip = (page - 1) * limit;
     query.skip(skip).take(limit);
-
     // Order by visit time (most recent first)
     query.orderBy('visit.visitTime', 'DESC');
-
     const [visits, total] = await query.getManyAndCount();
-
     return {
       data: visits,
       total,
@@ -82,21 +83,27 @@ export class ServiceVendorVisitService {
     return visit;
   }
 
-  async update(id: string, updateDto: UpdateServiceVendorVisitDto): Promise<ServiceVendorVisit> {
+  async update(id: string, updateDto: UpdateServiceVendorVisitDto & { status?: string }): Promise<ServiceVendorVisit> {
     const visit = await this.findOne(id);
-
     const updateData = {
       ...updateDto,
       ...(updateDto.visitTime && { visitTime: new Date(updateDto.visitTime) }),
+      ...(updateDto.status && { status: updateDto.status }),
     };
-
     Object.assign(visit, updateData);
     return await this.serviceVendorVisitRepository.save(visit);
   }
 
   async remove(id: string): Promise<void> {
     const visit = await this.findOne(id);
-    await this.serviceVendorVisitRepository.remove(visit);
+    visit.deleted = true;
+    await this.serviceVendorVisitRepository.save(visit);
+  }
+
+  async restore(id: string): Promise<ServiceVendorVisit> {
+    const visit = await this.findOne(id);
+    visit.deleted = false;
+    return await this.serviceVendorVisitRepository.save(visit);
   }
 
   async getVisitStats() {

@@ -26,6 +26,12 @@ export class ServiceVendorVisit {
   @Column({ type: 'varchar', length: 255, nullable: true })
   contactEmail?: string;
 
+  @Column({ type: 'varchar', length: 20, default: 'Scheduled' })
+  status: 'Scheduled' | 'Completed' | 'Cancelled';
+
+  @Column({ type: 'boolean', default: false })
+  deleted: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
 
