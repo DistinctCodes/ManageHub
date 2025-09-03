@@ -29,6 +29,8 @@ import { LocationModule } from './location/location.module';
 import { WorkSpacePreferenceModule } from './work-space-preference/work-space-preference.module';
 import { WorkLogModule } from './remote-work-log/work-log.module';
 
+import { SafetyTipsModule } from './safety-tips/safety-tips.module';
+
 
 @Module({
   imports: [
@@ -58,6 +60,7 @@ import { WorkLogModule } from './remote-work-log/work-log.module';
     LocationModule,
     WorkSpacePreferenceModule,
     WorkLogModule,
+  SafetyTipsModule,
   ],
   controllers: [AppController],
   providers: [AppService, LibraryService],
