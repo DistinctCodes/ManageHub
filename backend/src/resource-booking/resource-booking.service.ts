@@ -37,6 +37,10 @@ export class ResourceBookingService {
     });
     if (overlap) throw new BadRequestException('Resource already booked for this time');
     const booking = this.bookingRepo.create({ ...dto, startTime: new Date(dto.startTime), endTime: new Date(dto.endTime) });
+    // Send notification (placeholder: email = bookedBy)
+    if (dto.bookedBy.includes('@')) {
+      await sendBookingNotification(dto.bookedBy, `Your booking for resource ${resource.name} is confirmed from ${dto.startTime} to ${dto.endTime}.`);
+    }
     return this.bookingRepo.save(booking);
   }
 
@@ -45,5 +49,9 @@ export class ResourceBookingService {
       return this.bookingRepo.find({ where: { resourceId }, relations: ['resource'] });
     }
     return this.bookingRepo.find({ relations: ['resource'] });
+  }
+  async exportICS(resourceId?: string) {
+    const bookings = await this.listBookings(resourceId);
+    return generateICS(bookings);
   }
 }
