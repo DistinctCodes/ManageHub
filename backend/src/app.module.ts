@@ -29,7 +29,9 @@ import { LocationModule } from './location/location.module';
 import { WorkSpacePreferenceModule } from './work-space-preference/work-space-preference.module';
 import { WorkLogModule } from './remote-work-log/work-log.module';
 
+
 import { SafetyTipsModule } from './safety-tips/safety-tips.module';
+import { EquipmentQueueModule } from './equipment-queue/equipment-queue.module';
 
 
 @Module({
@@ -61,6 +63,7 @@ import { SafetyTipsModule } from './safety-tips/safety-tips.module';
     WorkSpacePreferenceModule,
     WorkLogModule,
   SafetyTipsModule,
+  EquipmentQueueModule,
   ],
   controllers: [AppController],
   providers: [AppService, LibraryService],
