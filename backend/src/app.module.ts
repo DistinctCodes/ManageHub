@@ -30,6 +30,10 @@ import { WorkSpacePreferenceModule } from './work-space-preference/work-space-pr
 import { WorkLogModule } from './remote-work-log/work-log.module';
 
 
+import { SafetyTipsModule } from './safety-tips/safety-tips.module';
+import { EquipmentQueueModule } from './equipment-queue/equipment-queue.module';
+
+
 @Module({
   imports: [
     ScheduleModule.forRoot(),
@@ -58,6 +62,8 @@ import { WorkLogModule } from './remote-work-log/work-log.module';
     LocationModule,
     WorkSpacePreferenceModule,
     WorkLogModule,
+  SafetyTipsModule,
+  EquipmentQueueModule,
   ],
   controllers: [AppController],
   providers: [AppService, LibraryService],
