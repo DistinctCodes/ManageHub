@@ -231,6 +231,12 @@ export class AlertConfigDto {
   @Max(30000)
   responseTimeThresholdMs?: number;
 
+  @IsNumber()
+  @IsOptional()
+  @Min(50)
+  @Max(100)
+  uptimeThreshold?: number;
+
   @IsArray()
   @IsString({ each: true })
   @IsOptional()
@@ -239,6 +245,10 @@ export class AlertConfigDto {
   @IsString()
   @IsOptional()
   slackWebhook?: string;
+
+  @IsString()
+  @IsOptional()
+  webhookUrl?: string;
 
   @IsBoolean()
   @IsOptional()
