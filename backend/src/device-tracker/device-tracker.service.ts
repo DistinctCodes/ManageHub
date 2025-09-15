@@ -26,8 +26,45 @@ export class DeviceTrackerService {
 
   async create(createDeviceTrackerDto: CreateDeviceTrackerDto): Promise<DeviceTracker> {
     try {
-      const deviceTracker = this.deviceTrackerRepository.create(createDeviceTrackerDto);
-      return await this.deviceTrackerRepository.save(deviceTracker);
+      // Enhance with geolocation data if IP address provided
+      let enhancedData = { ...createDeviceTrackerDto };
+      if (createDeviceTrackerDto.ipAddress) {
+        enhancedData = await this.geolocationService.updateDeviceGeolocation(enhancedData);
+      }
+
+      // Perform risk assessment
+      const existingDevices = createDeviceTrackerDto.userId 
+        ? await this.findByUserId(createDeviceTrackerDto.userId)
+        : [];
+      
+      const securityFlags = this.riskAssessmentService.assessSecurityFlags(
+        enhancedData,
+        existingDevices,
+      );
+      
+      const riskAssessment = this.riskAssessmentService.calculateRiskScore(
+        enhancedData,
+        securityFlags,
+        existingDevices,
+      );
+      
+      // Apply risk assessment results
+      enhancedData.riskScore = riskAssessment.riskScore;
+      enhancedData.riskLevel = riskAssessment.riskLevel;
+      enhancedData.status = riskAssessment.shouldBlock ? DeviceStatus.BLOCKED : DeviceStatus.ACTIVE;
+      
+      const deviceTracker = this.deviceTrackerRepository.create(enhancedData);
+      const savedDevice = await this.deviceTrackerRepository.save(deviceTracker);
+      
+      // Trigger anomaly detection for new device
+      if (createDeviceTrackerDto.userId) {
+        await this.anomalyDetectionService.detectUserAnomalies(
+          createDeviceTrackerDto.userId,
+          [savedDevice, ...existingDevices],
+        );
+      }
+      
+      return savedDevice;
     } catch (error) {
       throw new BadRequestException('Failed to create device tracker entry');
     }
@@ -219,5 +256,232 @@ export class DeviceTrackerService {
       .execute();
 
     return result.affected || 0;
+  }
+
+  // Enhanced methods with security features
+  async getSecurityDashboard(): Promise<{
+    overview: {
+      totalDevices: number;
+      activeDevices: number;
+      blockedDevices: number;
+      suspiciousDevices: number;
+      highRiskDevices: number;
+    };
+    riskDistribution: Record<string, number>;
+    locationAnalysis: {
+      topCountries: Array<{ country: string; count: number }>;
+      vpnUsage: number;
+      torUsage: number;
+      proxyUsage: number;
+    };
+    recentActivity: DeviceTracker[];
+    anomalies: any[];
+  }> {
+    const now = new Date();
+    const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    
+    // Overview statistics
+    const totalDevices = await this.deviceTrackerRepository.count();
+    const activeDevices = await this.deviceTrackerRepository.count({
+      where: { lastSeenAt: Between(dayAgo, now) },
+    });
+    const blockedDevices = await this.deviceTrackerRepository.count({
+      where: { status: DeviceStatus.BLOCKED },
+    });
+    const suspiciousDevices = await this.deviceTrackerRepository.count({
+      where: { status: DeviceStatus.SUSPICIOUS },
+    });
+    const highRiskDevices = await this.deviceTrackerRepository.count({
+      where: { riskLevel: RiskLevel.HIGH },
+    });
+    
+    // Risk distribution
+    const riskDistribution: Record<string, number> = {};
+    for (const level of Object.values(RiskLevel)) {
+      riskDistribution[level] = await this.deviceTrackerRepository.count({
+        where: { riskLevel: level },
+      });
+    }
+    
+    // Location analysis
+    const countryStats = await this.deviceTrackerRepository
+      .createQueryBuilder('device')
+      .select('device.countryName', 'country')
+      .addSelect('COUNT(*)', 'count')
+      .where('device.countryName IS NOT NULL')
+      .groupBy('device.countryName')
+      .orderBy('count', 'DESC')
+      .limit(10)
+      .getRawMany();
+    
+    const vpnUsage = await this.deviceTrackerRepository.count({ where: { isVpn: true } });
+    const torUsage = await this.deviceTrackerRepository.count({ where: { isTor: true } });
+    const proxyUsage = await this.deviceTrackerRepository.count({ where: { isProxy: true } });
+    
+    // Recent activity
+    const recentActivity = await this.deviceTrackerRepository.find({
+      where: { lastSeenAt: Between(dayAgo, now) },
+      order: { lastSeenAt: 'DESC' },
+      take: 20,
+    });
+    
+    // Get recent anomalies
+    const anomalies = await this.anomalyDetectionService.getAllAnomalies();
+    const recentAnomalies = anomalies.slice(0, 10);
+    
+    return {
+      overview: {
+        totalDevices,
+        activeDevices,
+        blockedDevices,
+        suspiciousDevices,
+        highRiskDevices,
+      },
+      riskDistribution,
+      locationAnalysis: {
+        topCountries: countryStats.map(stat => ({
+          country: stat.country,
+          count: parseInt(stat.count, 10),
+        })),
+        vpnUsage,
+        torUsage,
+        proxyUsage,
+      },
+      recentActivity,
+      anomalies: recentAnomalies,
+    };
+  }
+
+  async performSecurityScan(deviceId: string): Promise<{
+    device: DeviceTracker;
+    riskAssessment: any;
+    anomalies: any[];
+    recommendations: string[];
+  }> {
+    const device = await this.findOne(deviceId);
+    
+    // Get user's other devices for context
+    const otherDevices = device.userId 
+      ? await this.findByUserId(device.userId)
+      : [];
+    
+    // Perform risk assessment
+    const securityFlags = this.riskAssessmentService.assessSecurityFlags(
+      device,
+      otherDevices,
+    );
+    
+    const riskAssessment = this.riskAssessmentService.calculateRiskScore(
+      device,
+      securityFlags,
+      otherDevices,
+    );
+    
+    // Get device anomalies
+    const anomalies = await this.anomalyDetectionService.getDeviceAnomalies(deviceId);
+    
+    // Generate recommendations
+    const recommendations = [...riskAssessment.recommendations];
+    
+    if (device.riskLevel === RiskLevel.HIGH || device.riskLevel === RiskLevel.CRITICAL) {
+      recommendations.push('Consider blocking this device');
+    }
+    
+    if (anomalies.length > 0) {
+      recommendations.push('Review detected anomalies');
+    }
+    
+    return {
+      device,
+      riskAssessment,
+      anomalies,
+      recommendations,
+    };
+  }
+
+  async blockDevice(deviceId: string, reason: string, blockedBy?: string): Promise<DeviceTracker> {
+    const device = await this.findOne(deviceId);
+    
+    device.status = DeviceStatus.BLOCKED;
+    device.blockedAt = new Date();
+    device.blockedReason = reason;
+    device.blockedBy = blockedBy;
+    device.riskLevel = RiskLevel.CRITICAL;
+    
+    return await this.deviceTrackerRepository.save(device);
+  }
+
+  async unblockDevice(deviceId: string): Promise<DeviceTracker> {
+    const device = await this.findOne(deviceId);
+    
+    device.status = DeviceStatus.ACTIVE;
+    device.blockedAt = undefined;
+    device.blockedReason = undefined;
+    device.blockedBy = undefined;
+    device.riskLevel = RiskLevel.LOW;
+    device.riskScore = 0;
+    
+    return await this.deviceTrackerRepository.save(device);
+  }
+
+  async getDevicesByRiskLevel(riskLevel: RiskLevel): Promise<DeviceTracker[]> {
+    return await this.deviceTrackerRepository.find({
+      where: { riskLevel },
+      order: { riskScore: 'DESC' },
+    });
+  }
+
+  async getDevicesByLocation(countryCode: string): Promise<DeviceTracker[]> {
+    return await this.deviceTrackerRepository.find({
+      where: { countryCode },
+      order: { lastSeenAt: 'DESC' },
+    });
+  }
+
+  async getSuspiciousDevices(): Promise<DeviceTracker[]> {
+    return await this.deviceTrackerRepository.find({
+      where: [
+        { status: DeviceStatus.SUSPICIOUS },
+        { riskLevel: RiskLevel.HIGH },
+        { riskLevel: RiskLevel.CRITICAL },
+        { isVpn: true },
+        { isTor: true },
+      ],
+      order: { riskScore: 'DESC' },
+    });
+  }
+
+  async recordFailedAttempt(deviceId: string): Promise<void> {
+    await this.deviceTrackerRepository.increment(
+      { id: deviceId },
+      'failedAttempts',
+      1,
+    );
+    
+    // Check if device should be blocked due to too many failed attempts
+    const device = await this.findOne(deviceId);
+    if (device.failedAttempts >= 10) {
+      await this.blockDevice(
+        deviceId,
+        `Automatic block due to ${device.failedAttempts} failed attempts`,
+        'system',
+      );
+    }
+  }
+
+  async recordSuccessfulLogin(deviceId: string): Promise<void> {
+    await this.deviceTrackerRepository.update(
+      { id: deviceId },
+      {
+        lastLoginAt: new Date(),
+        failedAttempts: 0, // Reset failed attempts on successful login
+      },
+    );
+    
+    await this.deviceTrackerRepository.increment(
+      { id: deviceId },
+      'loginCount',
+      1,
+    );
   }
 }
