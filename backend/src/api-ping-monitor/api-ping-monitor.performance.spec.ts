@@ -158,7 +158,7 @@ describe('API Ping Monitor Performance Tests', () => {
         pingResults.push(
           pingResultRepository.create({
             endpointId: endpoint.id,
-            status: i % 10 === 0 ? 'timeout' : 'success', // 10% failure rate
+            status: i % 10 === 0 ? PingStatus.TIMEOUT : PingStatus.SUCCESS, // 10% failure rate
             httpStatusCode: i % 10 === 0 ? null : 200,
             responseTimeMs: i % 10 === 0 ? null : 100 + (i % 500),
             isSuccess: i % 10 !== 0,
@@ -220,7 +220,7 @@ describe('API Ping Monitor Performance Tests', () => {
           pingResults.push(
             pingResultRepository.create({
               endpointId: endpoint.id,
-              status: j % 15 === 0 ? 'timeout' : 'success', // ~6.7% failure rate
+              status: j % 15 === 0 ? PingStatus.TIMEOUT : PingStatus.SUCCESS, // ~6.7% failure rate
               httpStatusCode: j % 15 === 0 ? null : 200,
               responseTimeMs: j % 15 === 0 ? null : 150 + (j % 300),
               isSuccess: j % 15 !== 0,
@@ -292,7 +292,7 @@ describe('API Ping Monitor Performance Tests', () => {
         pingResults.push(
           pingResultRepository.create({
             endpointId: endpoint.id,
-            status: i % 20 === 0 ? 'timeout' : 'success',
+            status: i % 20 === 0 ? PingStatus.TIMEOUT : PingStatus.SUCCESS,
             httpStatusCode: i % 20 === 0 ? null : 200,
             responseTimeMs: i % 20 === 0 ? null : 100 + (i % 400),
             isSuccess: i % 20 !== 0,

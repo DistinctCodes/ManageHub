@@ -483,6 +483,7 @@ describe('ApiPingMonitorController', () => {
           total: 1,
           page: 1,
           limit: 10,
+          totalPages: 1,
         };
 
         monitorService.getPingResults.mockResolvedValue(paginatedResults);
@@ -522,6 +523,7 @@ describe('ApiPingMonitorController', () => {
           total: 1,
           page: 1,
           limit: 10,
+          totalPages: 1,
         };
 
         monitorService.getEndpointPingResults.mockResolvedValue(endpointResults);
@@ -683,8 +685,14 @@ describe('ApiPingMonitorController', () => {
             totalIncidents: 5,
             totalDowntime: 25,
             incidentsByType: {
+              [PingStatus.SUCCESS]: 0,
               [PingStatus.TIMEOUT]: 3,
               [PingStatus.CONNECTION_ERROR]: 2,
+              [PingStatus.DNS_ERROR]: 0,
+              [PingStatus.SSL_ERROR]: 0,
+              [PingStatus.HTTP_ERROR]: 0,
+              [PingStatus.VALIDATION_ERROR]: 0,
+              [PingStatus.UNKNOWN_ERROR]: 0,
             },
             incidentsByDay: [
               { date: '2023-01-01', count: 1, downtime: 5 },
