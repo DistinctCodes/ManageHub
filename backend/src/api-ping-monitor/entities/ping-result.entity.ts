@@ -6,6 +6,7 @@ import {
   ManyToOne,
   JoinColumn,
   Index,
+  type
 } from 'typeorm';
 import { ApiEndpoint } from './api-endpoint.entity';
 
@@ -108,7 +109,7 @@ export class PingResult {
   @CreateDateColumn()
   createdAt: Date;
 
-  @ManyToOne(() => ApiEndpoint, (endpoint) => endpoint.pingResults, {
+  @ManyToOne(() => 'ApiEndpoint', (endpoint) => endpoint.pingResults, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'endpointId' })
