@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { DeviceTracker, RiskLevel, DeviceStatus } from '../entities/device-tracker.entity';
+import { DeviceTracker, RiskLevel } from '../entities/device-tracker.entity';
 
 export interface RiskAssessmentResult {
   riskScore: number;
@@ -49,7 +49,7 @@ export class DeviceRiskAssessmentService {
   ];
 
   private readonly HIGH_RISK_COUNTRIES = [
-    'CN', 'RU', 'IR', 'KP', 'BY', // Add country codes as needed
+    'CN', 'RU', 'IR', 'KP', 'BY',
   ];
 
   calculateRiskScore(
@@ -61,91 +61,166 @@ export class DeviceRiskAssessmentService {
     const riskFactors: string[] = [];
     const recommendations: string[] = [];
 
-    // Check VPN usage
     if (securityFlags.isVpn) {
       riskScore += this.RISK_WEIGHTS.VPN_USAGE;
       riskFactors.push('VPN usage detected');
-      recommendations.push('Consider requiring additional verification for VPN users');
     }
 
-    // Check proxy usage
     if (securityFlags.isProxy) {
       riskScore += this.RISK_WEIGHTS.PROXY_USAGE;
       riskFactors.push('Proxy usage detected');
-      recommendations.push('Monitor proxy traffic closely');
     }
 
-    // Check Tor usage
     if (securityFlags.isTor) {
       riskScore += this.RISK_WEIGHTS.TOR_USAGE;
       riskFactors.push('Tor network usage detected');
-      recommendations.push('Consider blocking Tor traffic or requiring manual approval');
     }
 
-    // Check hosting IP
     if (securityFlags.isHosting) {
       riskScore += this.RISK_WEIGHTS.HOSTING_IP;
       riskFactors.push('Request from hosting/datacenter IP');
-      recommendations.push('Verify legitimate business use of hosting IP');
     }
 
-    // Check new location
     if (securityFlags.isNewLocation) {
       riskScore += this.RISK_WEIGHTS.NEW_LOCATION;
       riskFactors.push('New geographic location');
-      recommendations.push('Send location change notification to user');
     }
 
-    // Check new device
     if (securityFlags.isNewDevice) {
       riskScore += this.RISK_WEIGHTS.NEW_DEVICE;
       riskFactors.push('New device detected');
-      recommendations.push('Require device verification');
     }
 
-    // Check failed attempts
     if (securityFlags.hasHighFailedAttempts) {
       riskScore += this.RISK_WEIGHTS.HIGH_FAILED_ATTEMPTS;
       riskFactors.push('High number of failed login attempts');
-      recommendations.push('Implement account lockout or CAPTCHA');
     }
 
-    // Check suspicious user agent
     if (securityFlags.isSuspiciousUserAgent) {
       riskScore += this.RISK_WEIGHTS.SUSPICIOUS_USER_AGENT;
       riskFactors.push('Suspicious user agent detected');
-      recommendations.push('Block automated/bot traffic');
     }
 
-    // Check if device is untrusted
     if (device.isTrusted === false) {
       riskScore += this.RISK_WEIGHTS.UNTRUSTED_DEVICE;
       riskFactors.push('Device not marked as trusted');
-      recommendations.push('Require manual device approval');
     }
 
-    // Check high-risk countries
     if (device.countryCode && this.HIGH_RISK_COUNTRIES.includes(device.countryCode)) {
       riskScore += this.RISK_WEIGHTS.BLOCKED_COUNTRY;
       riskFactors.push(`Access from high-risk country: ${device.countryCode}`);
-      recommendations.push('Apply enhanced security measures for high-risk regions');
-    }
-
-    // Check for multiple users from same IP
-    if (existingDevices && this.checkMultipleUsersFromSameIP(device, existingDevices)) {
-      riskScore += this.RISK_WEIGHTS.MULTIPLE_USERS_SAME_IP;
-      riskFactors.push('Multiple users accessing from same IP address');
-      recommendations.push('Investigate potential shared or compromised network');
-    }
-
-    // Check for rapid location changes
-    if (existingDevices && this.checkRapidLocationChange(device, existingDevices)) {
-      riskScore += this.RISK_WEIGHTS.RAPID_LOCATION_CHANGE;
-      riskFactors.push('Rapid geographic location changes detected');
-      recommendations.push('Verify user identity due to impossible travel');
     }
 
     const riskLevel = this.determineRiskLevel(riskScore);
     const shouldBlock = riskLevel === RiskLevel.CRITICAL || riskScore >= 80;
 
-    return {\n      riskScore: Math.min(riskScore, 100), // Cap at 100\n      riskLevel,\n      riskFactors,\n      recommendations,\n      shouldBlock,\n    };\n  }\n\n  assessSecurityFlags(\n    device: Partial<DeviceTracker>,\n    existingDevices?: DeviceTracker[],\n  ): SecurityFlags {\n    return {\n      isVpn: device.isVpn || false,\n      isProxy: device.isProxy || false,\n      isTor: device.isTor || false,\n      isHosting: device.isHosting || false,\n      isNewLocation: this.isNewLocation(device, existingDevices),\n      isNewDevice: this.isNewDevice(device, existingDevices),\n      hasHighFailedAttempts: (device.failedAttempts || 0) >= 5,\n      isSuspiciousUserAgent: this.isSuspiciousUserAgent(device.userAgent),\n    };\n  }\n\n  private determineRiskLevel(score: number): RiskLevel {\n    if (score >= 70) return RiskLevel.CRITICAL;\n    if (score >= 45) return RiskLevel.HIGH;\n    if (score >= 20) return RiskLevel.MEDIUM;\n    return RiskLevel.LOW;\n  }\n\n  private isNewLocation(\n    device: Partial<DeviceTracker>,\n    existingDevices?: DeviceTracker[],\n  ): boolean {\n    if (!existingDevices || !device.userId || !device.countryCode) return false;\n\n    const userDevices = existingDevices.filter(d => d.userId === device.userId);\n    return !userDevices.some(d => d.countryCode === device.countryCode);\n  }\n\n  private isNewDevice(\n    device: Partial<DeviceTracker>,\n    existingDevices?: DeviceTracker[],\n  ): boolean {\n    if (!existingDevices || !device.deviceFingerprint) return true;\n\n    return !existingDevices.some(d => d.deviceFingerprint === device.deviceFingerprint);\n  }\n\n  private isSuspiciousUserAgent(userAgent?: string): boolean {\n    if (!userAgent) return true;\n\n    const lowerAgent = userAgent.toLowerCase();\n    return this.SUSPICIOUS_USER_AGENTS.some(suspicious =>\n      lowerAgent.includes(suspicious)\n    );\n  }\n\n  private checkMultipleUsersFromSameIP(\n    device: Partial<DeviceTracker>,\n    existingDevices: DeviceTracker[],\n  ): boolean {\n    if (!device.ipAddress || !device.userId) return false;\n\n    const sameIpDevices = existingDevices.filter(d => d.ipAddress === device.ipAddress);\n    const uniqueUsers = new Set(sameIpDevices.map(d => d.userId).filter(Boolean));\n\n    return uniqueUsers.size > 3; // More than 3 users from same IP is suspicious\n  }\n\n  private checkRapidLocationChange(\n    device: Partial<DeviceTracker>,\n    existingDevices: DeviceTracker[],\n  ): boolean {\n    if (!device.userId || !device.latitude || !device.longitude) return false;\n\n    const userDevices = existingDevices\n      .filter(d => d.userId === device.userId && d.latitude && d.longitude)\n      .sort((a, b) => b.lastSeenAt.getTime() - a.lastSeenAt.getTime());\n\n    if (userDevices.length === 0) return false;\n\n    const lastDevice = userDevices[0];\n    const distance = this.calculateDistance(\n      device.latitude,\n      device.longitude,\n      lastDevice.latitude!,\n      lastDevice.longitude!,\n    );\n\n    const timeDiffHours = \n      (Date.now() - lastDevice.lastSeenAt.getTime()) / (1000 * 60 * 60);\n\n    // If distance > 1000km and time < 2 hours, it's suspicious\n    return distance > 1000 && timeDiffHours < 2;\n  }\n\n  private calculateDistance(\n    lat1: number,\n    lon1: number,\n    lat2: number,\n    lon2: number,\n  ): number {\n    const R = 6371; // Earth's radius in kilometers\n    const dLat = this.toRadians(lat2 - lat1);\n    const dLon = this.toRadians(lon2 - lon1);\n    const a =\n      Math.sin(dLat / 2) * Math.sin(dLat / 2) +\n      Math.cos(this.toRadians(lat1)) *\n        Math.cos(this.toRadians(lat2)) *\n        Math.sin(dLon / 2) *\n        Math.sin(dLon / 2);\n    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));\n    return R * c;\n  }\n\n  private toRadians(degrees: number): number {\n    return degrees * (Math.PI / 180);\n  }\n}
+    return {
+      riskScore: Math.min(riskScore, 100),
+      riskLevel,
+      riskFactors,
+      recommendations,
+      shouldBlock,
+    };
+  }
+
+  assessSecurityFlags(
+    device: Partial<DeviceTracker>,
+    existingDevices?: DeviceTracker[],
+  ): SecurityFlags {
+    return {
+      isVpn: device.isVpn || false,
+      isProxy: device.isProxy || false,
+      isTor: device.isTor || false,
+      isHosting: device.isHosting || false,
+      isNewLocation: this.isNewLocation(device, existingDevices),
+      isNewDevice: this.isNewDevice(device, existingDevices),
+      hasHighFailedAttempts: (device.failedAttempts || 0) >= 5,
+      isSuspiciousUserAgent: this.isSuspiciousUserAgent(device.userAgent),
+    };
+  }
+
+  private determineRiskLevel(score: number): RiskLevel {
+    if (score >= 70) return RiskLevel.CRITICAL;
+    if (score >= 45) return RiskLevel.HIGH;
+    if (score >= 20) return RiskLevel.MEDIUM;
+    return RiskLevel.LOW;
+  }
+
+  private isNewLocation(
+    device: Partial<DeviceTracker>,
+    existingDevices?: DeviceTracker[],
+  ): boolean {
+    if (!existingDevices || !device.userId || !device.countryCode) return false;
+    const userDevices = existingDevices.filter(d => d.userId === device.userId);
+    return !userDevices.some(d => d.countryCode === device.countryCode);
+  }
+
+  private isNewDevice(
+    device: Partial<DeviceTracker>,
+    existingDevices?: DeviceTracker[],
+  ): boolean {
+    if (!existingDevices || !device.deviceFingerprint) return true;
+    return !existingDevices.some(d => d.deviceFingerprint === device.deviceFingerprint);
+  }
+
+  private isSuspiciousUserAgent(userAgent?: string): boolean {
+    if (!userAgent) return true;
+    const lowerAgent = userAgent.toLowerCase();
+    return this.SUSPICIOUS_USER_AGENTS.some(suspicious =>
+      lowerAgent.includes(suspicious)
+    );
+  }
+
+  private checkMultipleUsersFromSameIP(
+    device: Partial<DeviceTracker>,
+    existingDevices: DeviceTracker[],
+  ): boolean {
+    if (!device.ipAddress || !device.userId) return false;
+    const sameIpDevices = existingDevices.filter(d => d.ipAddress === device.ipAddress);
+    const uniqueUsers = new Set(sameIpDevices.map(d => d.userId).filter(Boolean));
+    return uniqueUsers.size > 3;
+  }
+
+  private checkRapidLocationChange(
+    device: Partial<DeviceTracker>,
+    existingDevices: DeviceTracker[],
+  ): boolean {
+    if (!device.userId || !device.latitude || !device.longitude) return false;
+    const userDevices = existingDevices
+      .filter(d => d.userId === device.userId && d.latitude && d.longitude)
+      .sort((a, b) => b.lastSeenAt.getTime() - a.lastSeenAt.getTime());
+    if (userDevices.length === 0) return false;
+    const lastDevice = userDevices[0];
+    const distance = this.calculateDistance(
+      device.latitude,
+      device.longitude,
+      lastDevice.latitude!,
+      lastDevice.longitude!,
+    );
+    const timeDiffHours = (Date.now() - lastDevice.lastSeenAt.getTime()) / (1000 * 60 * 60);
+    return distance > 1000 && timeDiffHours < 2;
+  }
+
+  private calculateDistance(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+  ): number {
+    const R = 6371;
+    const dLat = this.toRadians(lat2 - lat1);
+    const dLon = this.toRadians(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(this.toRadians(lat1)) *
+        Math.cos(this.toRadians(lat2)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  private toRadians(degrees: number): number {
+    return degrees * (Math.PI / 180);
+  }
+}

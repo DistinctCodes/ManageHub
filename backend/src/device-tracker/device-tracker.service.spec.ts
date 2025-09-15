@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DeviceTrackerService } from './device-tracker.service';
-import { DeviceTracker } from './entities/device-tracker.entity';
+import { DeviceTracker, DeviceType } from './entities/device-tracker.entity';
 import { CreateDeviceTrackerDto } from './dto/create-device-tracker.dto';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 
@@ -46,7 +46,7 @@ describe('DeviceTrackerService', () => {
   describe('create', () => {
     it('should create a device tracker entry', async () => {
       const createDto: CreateDeviceTrackerDto = {
-        deviceType: 'Desktop',
+        deviceType: DeviceType.DESKTOP,
         ipAddress: '192.168.1.1',
         location: 'New York, USA',
         userId: 'user123',
@@ -71,7 +71,7 @@ describe('DeviceTrackerService', () => {
 
     it('should throw BadRequestException when creation fails', async () => {
       const createDto: CreateDeviceTrackerDto = {
-        deviceType: 'Desktop',
+        deviceType: DeviceType.DESKTOP,
         ipAddress: '192.168.1.1',
       };
 
