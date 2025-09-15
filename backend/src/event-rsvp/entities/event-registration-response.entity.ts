@@ -7,10 +7,10 @@ import {
   ManyToOne,
   JoinColumn,
   Index,
+  type,
 } from 'typeorm';
 import { Event } from './event.entity';
 import { EventRsvp } from './event-rsvp.entity';
-import { EventRegistrationForm } from './event-registration-form.entity';
 
 export enum ResponseStatus {
   DRAFT = 'draft',
@@ -95,7 +95,7 @@ export class EventRegistrationResponse {
   @JoinColumn({ name: 'eventId' })
   event: Event;
 
-  @ManyToOne(() => EventRegistrationForm)
+  @ManyToOne(() => 'EventRegistrationForm')
   @JoinColumn({ name: 'formId' })
   form: EventRegistrationForm;
 

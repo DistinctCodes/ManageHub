@@ -8,9 +8,9 @@ import {
   OneToMany,
   JoinColumn,
   Index,
+  type,
 } from 'typeorm';
 import { Event } from './event.entity';
-import { EventRegistrationResponse } from './event-registration-response.entity';
 
 export enum FieldType {
   TEXT = 'text',
@@ -95,7 +95,7 @@ export class EventRegistrationForm {
   event: Event;
 
   @OneToMany(
-    () => EventRegistrationResponse,
+    () => 'EventRegistrationResponse',
     (response: EventRegistrationResponse) => response.form,
   )
   responses: EventRegistrationResponse[];

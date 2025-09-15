@@ -6,7 +6,7 @@ import {
   ManyToOne,
   JoinColumn,
   Index,
-  type
+  type,
 } from 'typeorm';
 import { ApiEndpoint } from './api-endpoint.entity';
 

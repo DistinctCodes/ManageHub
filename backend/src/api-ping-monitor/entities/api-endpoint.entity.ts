@@ -6,7 +6,7 @@ import {
   UpdateDateColumn,
   OneToMany,
   Index,
-  type
+  type,
 } from 'typeorm';
 import { PingResult } from './ping-result.entity';
 
@@ -147,7 +147,10 @@ export class ApiEndpoint {
   @Column({ type: 'datetime', nullable: true })
   nextPingAt: Date;
 
-  @OneToMany(() => 'PingResult', (pingResult: PingResult) => pingResult.endpoint)
+  @OneToMany(
+    () => 'PingResult',
+    (pingResult: PingResult) => pingResult.endpoint,
+  )
   pingResults: PingResult[];
 
   // Computed properties
