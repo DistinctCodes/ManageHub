@@ -48,9 +48,7 @@ export class DeviceRiskAssessmentService {
     'postman',
   ];
 
-  private readonly HIGH_RISK_COUNTRIES = [
-    'CN', 'RU', 'IR', 'KP', 'BY',
-  ];
+  private readonly HIGH_RISK_COUNTRIES = ['CN', 'RU', 'IR', 'KP', 'BY'];
 
   calculateRiskScore(
     device: Partial<DeviceTracker>,
@@ -106,7 +104,10 @@ export class DeviceRiskAssessmentService {
       riskFactors.push('Device not marked as trusted');
     }
 
-    if (device.countryCode && this.HIGH_RISK_COUNTRIES.includes(device.countryCode)) {
+    if (
+      device.countryCode &&
+      this.HIGH_RISK_COUNTRIES.includes(device.countryCode)
+    ) {
       riskScore += this.RISK_WEIGHTS.BLOCKED_COUNTRY;
       riskFactors.push(`Access from high-risk country: ${device.countryCode}`);
     }
@@ -151,8 +152,10 @@ export class DeviceRiskAssessmentService {
     existingDevices?: DeviceTracker[],
   ): boolean {
     if (!existingDevices || !device.userId || !device.countryCode) return false;
-    const userDevices = existingDevices.filter(d => d.userId === device.userId);
-    return !userDevices.some(d => d.countryCode === device.countryCode);
+    const userDevices = existingDevices.filter(
+      (d) => d.userId === device.userId,
+    );
+    return !userDevices.some((d) => d.countryCode === device.countryCode);
   }
 
   private isNewDevice(
@@ -160,14 +163,16 @@ export class DeviceRiskAssessmentService {
     existingDevices?: DeviceTracker[],
   ): boolean {
     if (!existingDevices || !device.deviceFingerprint) return true;
-    return !existingDevices.some(d => d.deviceFingerprint === device.deviceFingerprint);
+    return !existingDevices.some(
+      (d) => d.deviceFingerprint === device.deviceFingerprint,
+    );
   }
 
   private isSuspiciousUserAgent(userAgent?: string): boolean {
     if (!userAgent) return true;
     const lowerAgent = userAgent.toLowerCase();
-    return this.SUSPICIOUS_USER_AGENTS.some(suspicious =>
-      lowerAgent.includes(suspicious)
+    return this.SUSPICIOUS_USER_AGENTS.some((suspicious) =>
+      lowerAgent.includes(suspicious),
     );
   }
 
@@ -176,8 +181,12 @@ export class DeviceRiskAssessmentService {
     existingDevices: DeviceTracker[],
   ): boolean {
     if (!device.ipAddress || !device.userId) return false;
-    const sameIpDevices = existingDevices.filter(d => d.ipAddress === device.ipAddress);
-    const uniqueUsers = new Set(sameIpDevices.map(d => d.userId).filter(Boolean));
+    const sameIpDevices = existingDevices.filter(
+      (d) => d.ipAddress === device.ipAddress,
+    );
+    const uniqueUsers = new Set(
+      sameIpDevices.map((d) => d.userId).filter(Boolean),
+    );
     return uniqueUsers.size > 3;
   }
 
@@ -187,7 +196,7 @@ export class DeviceRiskAssessmentService {
   ): boolean {
     if (!device.userId || !device.latitude || !device.longitude) return false;
     const userDevices = existingDevices
-      .filter(d => d.userId === device.userId && d.latitude && d.longitude)
+      .filter((d) => d.userId === device.userId && d.latitude && d.longitude)
       .sort((a, b) => b.lastSeenAt.getTime() - a.lastSeenAt.getTime());
     if (userDevices.length === 0) return false;
     const lastDevice = userDevices[0];
@@ -197,7 +206,8 @@ export class DeviceRiskAssessmentService {
       lastDevice.latitude!,
       lastDevice.longitude!,
     );
-    const timeDiffHours = (Date.now() - lastDevice.lastSeenAt.getTime()) / (1000 * 60 * 60);
+    const timeDiffHours =
+      (Date.now() - lastDevice.lastSeenAt.getTime()) / (1000 * 60 * 60);
     return distance > 1000 && timeDiffHours < 2;
   }
 

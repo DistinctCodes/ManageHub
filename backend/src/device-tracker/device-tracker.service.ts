@@ -36,8 +36,9 @@ export class DeviceTrackerService {
       // Enhance with geolocation data if IP address provided
       let enhancedData = { ...createDeviceTrackerDto };
       if (createDeviceTrackerDto.ipAddress) {
-        enhancedData =
-          await this.geolocationService.updateDeviceGeolocation(enhancedData);
+        enhancedData = (await this.geolocationService.updateDeviceGeolocation(
+          enhancedData,
+        )) as CreateDeviceTrackerDto;
       }
 
       // Perform risk assessment
@@ -63,7 +64,9 @@ export class DeviceTrackerService {
         ? DeviceStatus.BLOCKED
         : DeviceStatus.ACTIVE;
 
-      const deviceTracker = this.deviceTrackerRepository.create(enhancedData);
+      const deviceTracker = this.deviceTrackerRepository.create(
+        enhancedData as any,
+      );
       const savedDevice =
         await this.deviceTrackerRepository.save(deviceTracker);
 

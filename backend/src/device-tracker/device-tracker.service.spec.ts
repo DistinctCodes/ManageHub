@@ -32,7 +32,9 @@ describe('DeviceTrackerService', () => {
     }).compile();
 
     service = module.get<DeviceTrackerService>(DeviceTrackerService);
-    repository = module.get<Repository<DeviceTracker>>(getRepositoryToken(DeviceTracker));
+    repository = module.get<Repository<DeviceTracker>>(
+      getRepositoryToken(DeviceTracker),
+    );
   });
 
   afterEach(() => {
@@ -78,7 +80,9 @@ describe('DeviceTrackerService', () => {
       mockRepository.create.mockReturnValue(createDto);
       mockRepository.save.mockRejectedValue(new Error('Database error'));
 
-      await expect(service.create(createDto)).rejects.toThrow(BadRequestException);
+      await expect(service.create(createDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -103,7 +107,9 @@ describe('DeviceTrackerService', () => {
     it('should throw NotFoundException when device tracker not found', async () => {
       mockRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.findOne('non-existent-id')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('non-existent-id')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
