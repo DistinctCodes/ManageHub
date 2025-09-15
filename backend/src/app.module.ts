@@ -32,6 +32,7 @@ import { WorkLogModule } from './remote-work-log/work-log.module';
 import { SafetyTipsModule } from './safety-tips/safety-tips.module';
 import { EquipmentQueueModule } from './equipment-queue/equipment-queue.module';
 import { DeviceTrackerModule } from './device-tracker/device-tracker.module';
+import { EventRsvpModule } from './event-rsvp/event-rsvp.module';
 
 @Module({
   imports: [
@@ -64,6 +65,7 @@ import { DeviceTrackerModule } from './device-tracker/device-tracker.module';
     SafetyTipsModule,
     EquipmentQueueModule,
     DeviceTrackerModule,
+    EventRsvpModule,
   ],
   controllers: [AppController],
   providers: [AppService, LibraryService],

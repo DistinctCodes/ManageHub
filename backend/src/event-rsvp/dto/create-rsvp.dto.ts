@@ -25,7 +25,6 @@ export class CreateRsvpDto {
 
   @IsString()
   @IsOptional()
-  @Length(0, 20)
   attendeePhone?: string;
 
   @IsString()
