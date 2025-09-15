@@ -118,8 +118,10 @@ export class ApiEndpoint {
   alertConfig: {
     consecutiveFailures?: number;
     responseTimeThresholdMs?: number;
+    uptimeThreshold?: number;
     emailNotifications?: string[];
     slackWebhook?: string;
+    webhookUrl?: string;
     notifyOnRecovery?: boolean;
   };
 
