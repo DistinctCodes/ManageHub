@@ -100,8 +100,12 @@ export class DeviceTrackerController {
   @HttpCode(HttpStatus.OK)
   async cleanupOldEntries(@Param('days') days: string) {
     const daysToKeep = parseInt(days, 10);
-    const deletedCount = await this.deviceTrackerService.cleanupOldEntries(daysToKeep);
-    return { deletedCount, message: `Cleaned up ${deletedCount} old device tracker entries` };
+    const deletedCount =
+      await this.deviceTrackerService.cleanupOldEntries(daysToKeep);
+    return {
+      deletedCount,
+      message: `Cleaned up ${deletedCount} old device tracker entries`,
+    };
   }
 
   // Enhanced Security Endpoints
@@ -121,7 +125,11 @@ export class DeviceTrackerController {
     @Param('id') id: string,
     @Body() blockData: { reason: string; blockedBy?: string },
   ) {
-    return await this.deviceTrackerService.blockDevice(id, blockData.reason, blockData.blockedBy);
+    return await this.deviceTrackerService.blockDevice(
+      id,
+      blockData.reason,
+      blockData.blockedBy,
+    );
   }
 
   @Post(':id/unblock')
@@ -164,7 +172,8 @@ export class DeviceTrackerController {
   @Post('sessions')
   @HttpCode(HttpStatus.CREATED)
   async createSession(
-    @Body() sessionData: {
+    @Body()
+    sessionData: {
       deviceId: string;
       userId?: string;
       ipAddress?: string;
@@ -207,7 +216,8 @@ export class DeviceTrackerController {
   @Delete('sessions/device/:deviceId')
   @HttpCode(HttpStatus.OK)
   async terminateDeviceSessions(@Param('deviceId') deviceId: string) {
-    const count = await this.sessionService.terminateAllSessionsForDevice(deviceId);
+    const count =
+      await this.sessionService.terminateAllSessionsForDevice(deviceId);
     return { terminatedSessions: count };
   }
 
@@ -249,5 +259,114 @@ export class DeviceTrackerController {
   async triggerAnomalyDetection() {
     await this.anomalyDetectionService.runAnomalyDetection();
     return { message: 'Anomaly detection scan triggered' };
+  }
+
+  // Notification Endpoints
+  @Get('notifications')
+  async getNotifications(
+    @Query('userId') userId?: string,
+    @Query('unreadOnly') unreadOnly?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return await this.notificationService.getNotifications(
+      userId,
+      unreadOnly === 'true',
+      limit ? parseInt(limit, 10) : 50,
+    );
+  }
+
+  @Post('notifications/:id/read')
+  @HttpCode(HttpStatus.OK)
+  async markNotificationAsRead(@Param('id') id: string) {
+    await this.notificationService.markAsRead(id);
+    return { message: 'Notification marked as read' };
+  }
+
+  @Post('notifications/:id/acknowledge')
+  @HttpCode(HttpStatus.OK)
+  async acknowledgeNotification(@Param('id') id: string) {
+    await this.notificationService.markAsAcknowledged(id);
+    return { message: 'Notification acknowledged' };
+  }
+
+  @Get('notifications/statistics')
+  async getNotificationStatistics() {
+    return await this.notificationService.getNotificationStatistics();
+  }
+
+  // Audit and Compliance Endpoints
+  @Get('audit/logs')
+  async getAuditLogs(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('eventTypes') eventTypes?: string,
+    @Query('severities') severities?: string,
+    @Query('userId') userId?: string,
+    @Query('deviceId') deviceId?: string,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    const options = {
+      startDate: startDate ? new Date(startDate) : undefined,
+      endDate: endDate ? new Date(endDate) : undefined,
+      eventTypes: eventTypes ? (eventTypes.split(',') as any[]) : undefined,
+      severities: severities ? severities.split(',') : undefined,
+      userId,
+      deviceId,
+      limit: limit ? parseInt(limit, 10) : undefined,
+      offset: offset ? parseInt(offset, 10) : undefined,
+    };
+
+    return await this.auditService.queryAuditLogs(options);
+  }
+
+  @Get('audit/statistics')
+  async getAuditStatistics(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const timeRange = {
+      start: startDate
+        ? new Date(startDate)
+        : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+      end: endDate ? new Date(endDate) : new Date(),
+    };
+
+    return await this.auditService.getAuditStatistics(timeRange);
+  }
+
+  @Get('audit/export')
+  async exportAuditLogs(
+    @Query('format') format: 'json' | 'csv' = 'json',
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const options = {
+      startDate: startDate ? new Date(startDate) : undefined,
+      endDate: endDate ? new Date(endDate) : undefined,
+    };
+
+    const exportData = await this.auditService.exportAuditLogs(options, format);
+
+    return {
+      data: exportData,
+      format,
+      exportedAt: new Date().toISOString(),
+    };
+  }
+
+  @Get('audit/compliance-report')
+  async getComplianceReport(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const timeRange = {
+      start: startDate
+        ? new Date(startDate)
+        : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+      end: endDate ? new Date(endDate) : new Date(),
+    };
+
+    return await this.auditService.getComplianceReport(timeRange);
   }
 }

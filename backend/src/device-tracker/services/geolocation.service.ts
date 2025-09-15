@@ -33,29 +33,43 @@ export interface IPAnalysisResult {
 @Injectable()
 export class GeolocationService {
   private readonly logger = new Logger(GeolocationService.name);
-  
+
   // Mock database of known VPN/Proxy/Tor IPs
   private readonly vpnRanges: string[] = [
     // Add known VPN IP ranges
     '185.220.', // Example Tor range
     '192.42.116.', // Example VPN range
   ];
-  
+
   private readonly hostingProviders: string[] = [
-    'amazon', 'google', 'microsoft', 'digitalocean', 'linode',
-    'vultr', 'ovh', 'hetzner', 'cloudflare',
+    'amazon',
+    'google',
+    'microsoft',
+    'digitalocean',
+    'linode',
+    'vultr',
+    'ovh',
+    'hetzner',
+    'cloudflare',
   ];
-  
+
   private readonly suspiciousISPs: string[] = [
-    'tor', 'vpn', 'proxy', 'anonymous', 'privacy',
+    'tor',
+    'vpn',
+    'proxy',
+    'anonymous',
+    'privacy',
   ];
 
   async analyzeIP(ipAddress: string): Promise<IPAnalysisResult> {
     try {
       const geolocation = await this.getGeolocationData(ipAddress);
       const securityFlags = this.analyzeSecurityFlags(ipAddress, geolocation);
-      const recommendations = this.generateRecommendations(geolocation, securityFlags);
-      
+      const recommendations = this.generateRecommendations(
+        geolocation,
+        securityFlags,
+      );
+
       return {
         geolocation,
         securityFlags,
@@ -73,12 +87,14 @@ export class GeolocationService {
     // - IP2Location
     // - ipapi.co
     // - ipgeolocation.io
-    
+
     // For demo purposes, we'll simulate the response
     return this.simulateGeolocationAPI(ipAddress);
   }
 
-  async updateDeviceGeolocation(device: Partial<DeviceTracker>): Promise<Partial<DeviceTracker>> {
+  async updateDeviceGeolocation(
+    device: Partial<DeviceTracker>,
+  ): Promise<Partial<DeviceTracker>> {
     if (!device.ipAddress) {
       return device;
     }
@@ -86,7 +102,7 @@ export class GeolocationService {
     try {
       const analysis = await this.analyzeIP(device.ipAddress);
       const { geolocation } = analysis;
-      
+
       return {
         ...device,
         countryCode: geolocation.countryCode,
@@ -104,7 +120,10 @@ export class GeolocationService {
         isHosting: geolocation.isHosting,
       };
     } catch (error) {
-      this.logger.error(`Failed to update geolocation for IP ${device.ipAddress}:`, error);
+      this.logger.error(
+        `Failed to update geolocation for IP ${device.ipAddress}:`,
+        error,
+      );
       return device;
     }
   }
@@ -139,13 +158,13 @@ export class GeolocationService {
       location2.latitude,
       location2.longitude,
     );
-    
-    const timeDiffHours = Math.abs(
-      location2.timestamp.getTime() - location1.timestamp.getTime()
-    ) / (1000 * 60 * 60);
-    
+
+    const timeDiffHours =
+      Math.abs(location2.timestamp.getTime() - location1.timestamp.getTime()) /
+      (1000 * 60 * 60);
+
     const requiredSpeed = distance / timeDiffHours;
-    
+
     return requiredSpeed > maxSpeedKmh;
   }
 
@@ -164,11 +183,15 @@ export class GeolocationService {
   }> {
     const reasons: string[] = [];
     let riskScore = 0;
-    
+
     if (recentLocations.length === 0) {
-      return { isAnomalous: false, reasons: ['No previous location data'], riskScore: 0 };
+      return {
+        isAnomalous: false,
+        reasons: ['No previous location data'],
+        riskScore: 0,
+      };
     }
-    
+
     // Check for impossible travel
     const recentLocation = recentLocations[0];
     const isImpossible = this.isImpossibleTravel(
@@ -183,26 +206,30 @@ export class GeolocationService {
         timestamp: new Date(),
       },
     );
-    
+
     if (isImpossible) {
       reasons.push('Impossible travel detected');
       riskScore += 40;
     }
-    
+
     // Check for unusual distance from typical locations
-    const avgDistance = this.calculateAverageDistance(currentLocation, recentLocations);
-    if (avgDistance > 500) { // More than 500km from usual locations
+    const avgDistance = this.calculateAverageDistance(
+      currentLocation,
+      recentLocations,
+    );
+    if (avgDistance > 500) {
+      // More than 500km from usual locations
       reasons.push('Unusual distance from typical locations');
       riskScore += 20;
     }
-    
+
     // Check for rapid location changes
     const rapidChanges = this.detectRapidLocationChanges(recentLocations);
     if (rapidChanges > 3) {
       reasons.push('Multiple rapid location changes detected');
       riskScore += 15;
     }
-    
+
     return {
       isAnomalous: riskScore > 25,
       reasons,
@@ -214,7 +241,7 @@ export class GeolocationService {
     // Simulate different IP patterns for demo
     const isPrivate = this.isPrivateIP(ipAddress);
     const isLocalhost = ipAddress === '127.0.0.1' || ipAddress === '::1';
-    
+
     if (isPrivate || isLocalhost) {
       return {
         ip: ipAddress,
@@ -229,27 +256,56 @@ export class GeolocationService {
         threatLevel: 'low',
       };
     }
-    
+
     // Simulate based on IP patterns
-    const isVpn = this.vpnRanges.some(range => ipAddress.startsWith(range));
+    const isVpn = this.vpnRanges.some((range) => ipAddress.startsWith(range));
     const isTor = ipAddress.startsWith('185.220.'); // Known Tor range
     const isHosting = Math.random() < 0.1; // 10% chance for hosting
-    
+
     // Mock geolocation data
     const mockLocations = [
-      { country: 'US', countryName: 'United States', region: 'California', city: 'San Francisco', lat: 37.7749, lon: -122.4194 },
-      { country: 'GB', countryName: 'United Kingdom', region: 'England', city: 'London', lat: 51.5074, lon: -0.1278 },
-      { country: 'DE', countryName: 'Germany', region: 'Berlin', city: 'Berlin', lat: 52.5200, lon: 13.4050 },
-      { country: 'JP', countryName: 'Japan', region: 'Tokyo', city: 'Tokyo', lat: 35.6762, lon: 139.6503 },
+      {
+        country: 'US',
+        countryName: 'United States',
+        region: 'California',
+        city: 'San Francisco',
+        lat: 37.7749,
+        lon: -122.4194,
+      },
+      {
+        country: 'GB',
+        countryName: 'United Kingdom',
+        region: 'England',
+        city: 'London',
+        lat: 51.5074,
+        lon: -0.1278,
+      },
+      {
+        country: 'DE',
+        countryName: 'Germany',
+        region: 'Berlin',
+        city: 'Berlin',
+        lat: 52.52,
+        lon: 13.405,
+      },
+      {
+        country: 'JP',
+        countryName: 'Japan',
+        region: 'Tokyo',
+        city: 'Tokyo',
+        lat: 35.6762,
+        lon: 139.6503,
+      },
     ];
-    
-    const location = mockLocations[Math.floor(Math.random() * mockLocations.length)];
-    
+
+    const location =
+      mockLocations[Math.floor(Math.random() * mockLocations.length)];
+
     let threatLevel: 'low' | 'medium' | 'high' | 'critical' = 'low';
     if (isTor) threatLevel = 'critical';
     else if (isVpn) threatLevel = 'high';
     else if (isHosting) threatLevel = 'medium';
-    
+
     return {
       ip: ipAddress,
       countryCode: location.country,
@@ -281,15 +337,16 @@ export class GeolocationService {
     const isPrivateIP = this.isPrivateIP(ipAddress);
     const isLocalhost = ipAddress === '127.0.0.1' || ipAddress === '::1';
     const isReserved = this.isReservedIP(ipAddress);
-    
-    const isSuspicious = 
+
+    const isSuspicious =
       geolocation.isVpn ||
       geolocation.isProxy ||
       geolocation.isTor ||
-      (geolocation.isp && this.suspiciousISPs.some(sus => 
-        geolocation.isp!.toLowerCase().includes(sus)
-      ));
-    
+      (geolocation.isp &&
+        this.suspiciousISPs.some((sus) =>
+          geolocation.isp!.toLowerCase().includes(sus),
+        ));
+
     return {
       isPrivateIP,
       isLocalhost,
@@ -300,30 +357,35 @@ export class GeolocationService {
 
   private generateRecommendations(
     geolocation: GeolocationData,
-    securityFlags: { isPrivateIP: boolean; isLocalhost: boolean; isReserved: boolean; isSuspicious: boolean },
+    securityFlags: {
+      isPrivateIP: boolean;
+      isLocalhost: boolean;
+      isReserved: boolean;
+      isSuspicious: boolean;
+    },
   ): string[] {
     const recommendations: string[] = [];
-    
+
     if (geolocation.isTor) {
       recommendations.push('Block Tor traffic or require manual approval');
     }
-    
+
     if (geolocation.isVpn) {
       recommendations.push('Apply additional verification for VPN users');
     }
-    
+
     if (geolocation.isHosting) {
       recommendations.push('Monitor traffic from hosting providers closely');
     }
-    
+
     if (securityFlags.isSuspicious) {
       recommendations.push('Apply enhanced security measures');
     }
-    
+
     if (geolocation.threatLevel === 'critical') {
       recommendations.push('Consider blocking this IP immediately');
     }
-    
+
     return recommendations;
   }
 
@@ -343,7 +405,9 @@ export class GeolocationService {
         isReserved: this.isReservedIP(ipAddress),
         isSuspicious: false,
       },
-      recommendations: ['Unable to analyze IP - apply default security measures'],
+      recommendations: [
+        'Unable to analyze IP - apply default security measures',
+      ],
     };
   }
 
@@ -357,19 +421,14 @@ export class GeolocationService {
       /^fc00:/i,
       /^fe80:/i,
     ];
-    
-    return privateRanges.some(range => range.test(ip));
+
+    return privateRanges.some((range) => range.test(ip));
   }
 
   private isReservedIP(ip: string): boolean {
-    const reservedRanges = [
-      /^0\\./,
-      /^224\\./,
-      /^240\\./,
-      /^255\\./,
-    ];
-    
-    return reservedRanges.some(range => range.test(ip));
+    const reservedRanges = [/^0\\./, /^224\\./, /^240\\./, /^255\\./];
+
+    return reservedRanges.some((range) => range.test(ip));
   }
 
   private toRadians(degrees: number): number {
@@ -381,16 +440,19 @@ export class GeolocationService {
     locations: Array<{ latitude: number; longitude: number }>,
   ): number {
     if (locations.length === 0) return 0;
-    
+
     const totalDistance = locations.reduce((sum, location) => {
-      return sum + this.calculateDistance(
-        currentLocation.latitude,
-        currentLocation.longitude,
-        location.latitude,
-        location.longitude,
+      return (
+        sum +
+        this.calculateDistance(
+          currentLocation.latitude,
+          currentLocation.longitude,
+          location.latitude,
+          location.longitude,
+        )
       );
     }, 0);
-    
+
     return totalDistance / locations.length;
   }
 
@@ -398,27 +460,30 @@ export class GeolocationService {
     locations: Array<{ latitude: number; longitude: number; timestamp: Date }>,
   ): number {
     if (locations.length < 2) return 0;
-    
+
     let rapidChanges = 0;
-    
+
     for (let i = 1; i < locations.length; i++) {
       const distance = this.calculateDistance(
-        locations[i-1].latitude,
-        locations[i-1].longitude,
+        locations[i - 1].latitude,
+        locations[i - 1].longitude,
         locations[i].latitude,
         locations[i].longitude,
       );
-      
-      const timeDiffHours = Math.abs(
-        locations[i].timestamp.getTime() - locations[i-1].timestamp.getTime()
-      ) / (1000 * 60 * 60);
-      
+
+      const timeDiffHours =
+        Math.abs(
+          locations[i].timestamp.getTime() -
+            locations[i - 1].timestamp.getTime(),
+        ) /
+        (1000 * 60 * 60);
+
       // If moved more than 100km in less than 1 hour
       if (distance > 100 && timeDiffHours < 1) {
         rapidChanges++;
       }
     }
-    
+
     return rapidChanges;
   }
 }

@@ -1,8 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { DeviceTracker, RiskLevel, DeviceStatus } from '../entities/device-tracker.entity';
-import { AnomalyDetectionResult, AnomalyType } from './device-anomaly-detection.service';
+import {
+  DeviceTracker,
+  RiskLevel,
+  DeviceStatus,
+} from '../entities/device-tracker.entity';
+import {
+  AnomalyDetectionResult,
+  AnomalyType,
+} from './device-anomaly-detection.service';
 
 export interface NotificationEvent {
   id: string;
@@ -52,7 +59,7 @@ export class DeviceNotificationService {
   private readonly logger = new Logger(DeviceNotificationService.name);
   private readonly notifications: Map<string, NotificationEvent> = new Map();
   private readonly lastNotificationTime: Map<string, number> = new Map();
-  
+
   private readonly defaultRules: NotificationRule[] = [
     {
       id: 'device-blocked',
@@ -70,9 +77,7 @@ export class DeviceNotificationService {
       type: NotificationType.HIGH_RISK_DEVICE,
       enabled: true,
       conditions: { riskLevel: RiskLevel.HIGH, riskScore: 70 },
-      actions: [
-        { type: 'internal', target: 'security-team' },
-      ],
+      actions: [{ type: 'internal', target: 'security-team' }],
       cooldown: 60, // 1 hour cooldown
     },
     {
@@ -103,9 +108,7 @@ export class DeviceNotificationService {
       type: NotificationType.VPN_TOR_DETECTED,
       enabled: true,
       conditions: { vpnTorUsage: true },
-      actions: [
-        { type: 'internal', target: 'security-team' },
-      ],
+      actions: [{ type: 'internal', target: 'security-team' }],
       cooldown: 120, // 2 hours cooldown
     },
   ];
@@ -115,7 +118,10 @@ export class DeviceNotificationService {
     private deviceTrackerRepository: Repository<DeviceTracker>,
   ) {}
 
-  async notifyDeviceBlocked(device: DeviceTracker, reason: string): Promise<void> {
+  async notifyDeviceBlocked(
+    device: DeviceTracker,
+    reason: string,
+  ): Promise<void> {
     const notification: NotificationEvent = {
       id: this.generateId(),
       type: NotificationType.DEVICE_BLOCKED,
@@ -302,11 +308,11 @@ export class DeviceNotificationService {
     let notifications = Array.from(this.notifications.values());
 
     if (userId) {
-      notifications = notifications.filter(n => n.userId === userId);
+      notifications = notifications.filter((n) => n.userId === userId);
     }
 
     if (unreadOnly) {
-      notifications = notifications.filter(n => !n.read);
+      notifications = notifications.filter((n) => !n.read);
     }
 
     return notifications
@@ -336,16 +342,17 @@ export class DeviceNotificationService {
     recent: NotificationEvent[];
   }> {
     const notifications = Array.from(this.notifications.values());
-    
+
     const byType: Record<string, number> = {};
     const bySeverity: Record<string, number> = {};
     let unread = 0;
 
-    notifications.forEach(notification => {
+    notifications.forEach((notification) => {
       if (!notification.read) unread++;
-      
+
       byType[notification.type] = (byType[notification.type] || 0) + 1;
-      bySeverity[notification.severity] = (bySeverity[notification.severity] || 0) + 1;
+      bySeverity[notification.severity] =
+        (bySeverity[notification.severity] || 0) + 1;
     });
 
     const recent = notifications
@@ -361,12 +368,16 @@ export class DeviceNotificationService {
     };
   }
 
-  private async processNotification(notification: NotificationEvent): Promise<void> {
+  private async processNotification(
+    notification: NotificationEvent,
+  ): Promise<void> {
     // Store notification
     this.notifications.set(notification.id, notification);
 
     // Find applicable rules
-    const rule = this.defaultRules.find(r => r.type === notification.type && r.enabled);
+    const rule = this.defaultRules.find(
+      (r) => r.type === notification.type && r.enabled,
+    );
     if (rule) {
       await this.executeNotificationActions(notification, rule.actions);
     }
@@ -463,7 +474,7 @@ export class DeviceNotificationService {
 
   // Cleanup old notifications (run periodically)
   async cleanupOldNotifications(daysToKeep: number = 30): Promise<number> {
-    const cutoffTime = Date.now() - (daysToKeep * 24 * 60 * 60 * 1000);
+    const cutoffTime = Date.now() - daysToKeep * 24 * 60 * 60 * 1000;
     let deletedCount = 0;
 
     for (const [id, notification] of this.notifications.entries()) {

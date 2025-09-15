@@ -59,10 +59,20 @@ export class DeviceTracker {
   @Column({ name: 'is_trusted', default: false })
   isTrusted: boolean;
 
-  @Column({ name: 'status', type: 'enum', enum: DeviceStatus, default: DeviceStatus.ACTIVE })
+  @Column({
+    name: 'status',
+    type: 'enum',
+    enum: DeviceStatus,
+    default: DeviceStatus.ACTIVE,
+  })
   status: DeviceStatus;
 
-  @Column({ name: 'risk_level', type: 'enum', enum: RiskLevel, default: RiskLevel.LOW })
+  @Column({
+    name: 'risk_level',
+    type: 'enum',
+    enum: RiskLevel,
+    default: RiskLevel.LOW,
+  })
   riskLevel: RiskLevel;
 
   @Column({ name: 'risk_score', type: 'int', default: 0 })
@@ -77,7 +87,11 @@ export class DeviceTracker {
   @Column({ name: 'last_login_at', type: 'timestamp', nullable: true })
   lastLoginAt?: Date;
 
-  @Column({ name: 'last_seen_at', type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({
+    name: 'last_seen_at',
+    type: 'timestamp',
+    default: () => 'CURRENT_TIMESTAMP',
+  })
   lastSeenAt: Date;
 
   // Geolocation fields
@@ -93,10 +107,22 @@ export class DeviceTracker {
   @Column({ name: 'city', nullable: true })
   city?: string;
 
-  @Column({ name: 'latitude', type: 'decimal', precision: 10, scale: 8, nullable: true })
+  @Column({
+    name: 'latitude',
+    type: 'decimal',
+    precision: 10,
+    scale: 8,
+    nullable: true,
+  })
   latitude?: number;
 
-  @Column({ name: 'longitude', type: 'decimal', precision: 11, scale: 8, nullable: true })
+  @Column({
+    name: 'longitude',
+    type: 'decimal',
+    precision: 11,
+    scale: 8,
+    nullable: true,
+  })
   longitude?: number;
 
   @Column({ name: 'timezone', nullable: true })

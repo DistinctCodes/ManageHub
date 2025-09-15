@@ -2,7 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, MoreThan } from 'typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { DeviceTracker, RiskLevel, DeviceStatus } from '../entities/device-tracker.entity';
+import {
+  DeviceTracker,
+  RiskLevel,
+  DeviceStatus,
+} from '../entities/device-tracker.entity';
 import { GeolocationService } from './geolocation.service';
 
 export interface AnomalyDetectionResult {
@@ -43,7 +47,7 @@ export interface AnomalyRule {
 export class DeviceAnomalyDetectionService {
   private readonly logger = new Logger(DeviceAnomalyDetectionService.name);
   private readonly anomalies: Map<string, AnomalyDetectionResult[]> = new Map();
-  
+
   private readonly defaultRules: AnomalyRule[] = [
     {
       id: 'impossible-travel',
@@ -116,24 +120,24 @@ export class DeviceAnomalyDetectionService {
   @Cron(CronExpression.EVERY_5_MINUTES)
   async runAnomalyDetection(): Promise<void> {
     this.logger.log('Starting scheduled anomaly detection scan');
-    
+
     try {
       // Get recent device activities (last 24 hours)
       const yesterday = new Date();
       yesterday.setHours(yesterday.getHours() - 24);
-      
+
       const recentDevices = await this.deviceTrackerRepository.find({
         where: {
           lastSeenAt: MoreThan(yesterday),
         },
         order: { lastSeenAt: 'DESC' },
       });
-      
+
       const anomalies: AnomalyDetectionResult[] = [];
-      
+
       // Group devices by user
       const devicesByUser = new Map<string, DeviceTracker[]>();
-      recentDevices.forEach(device => {
+      recentDevices.forEach((device) => {
         if (device.userId) {
           if (!devicesByUser.has(device.userId)) {
             devicesByUser.set(device.userId, []);
@@ -141,21 +145,26 @@ export class DeviceAnomalyDetectionService {
           devicesByUser.get(device.userId)!.push(device);
         }
       });
-      
+
       // Run detection rules for each user's devices
       for (const [userId, userDevices] of devicesByUser) {
-        const userAnomalies = await this.detectUserAnomalies(userId, userDevices);
+        const userAnomalies = await this.detectUserAnomalies(
+          userId,
+          userDevices,
+        );
         anomalies.push(...userAnomalies);
       }
-      
+
       // Run global detection rules
       const globalAnomalies = await this.detectGlobalAnomalies(recentDevices);
       anomalies.push(...globalAnomalies);
-      
+
       // Process detected anomalies
       await this.processAnomalies(anomalies);
-      
-      this.logger.log(`Anomaly detection completed. Found ${anomalies.length} anomalies.`);
+
+      this.logger.log(
+        `Anomaly detection completed. Found ${anomalies.length} anomalies.`,
+      );
     } catch (error) {
       this.logger.error('Error during anomaly detection:', error);
     }
@@ -166,24 +175,24 @@ export class DeviceAnomalyDetectionService {
     userDevices: DeviceTracker[],
   ): Promise<AnomalyDetectionResult[]> {
     const anomalies: AnomalyDetectionResult[] = [];
-    
+
     // Sort devices by last seen time
     const sortedDevices = userDevices.sort(
       (a, b) => b.lastSeenAt.getTime() - a.lastSeenAt.getTime(),
     );
-    
+
     // Check for impossible travel
     const travelAnomalies = await this.checkImpossibleTravel(sortedDevices);
     anomalies.push(...travelAnomalies);
-    
+
     // Check for rapid device switching
     const switchingAnomalies = this.checkRapidDeviceSwitching(sortedDevices);
     anomalies.push(...switchingAnomalies);
-    
+
     // Check for concurrent sessions from different locations
     const concurrentAnomalies = this.checkConcurrentSessions(sortedDevices);
     anomalies.push(...concurrentAnomalies);
-    
+
     return anomalies;
   }
 
@@ -191,15 +200,15 @@ export class DeviceAnomalyDetectionService {
     devices: DeviceTracker[],
   ): Promise<AnomalyDetectionResult[]> {
     const anomalies: AnomalyDetectionResult[] = [];
-    
+
     // Check for suspicious locations
     const locationAnomalies = this.checkSuspiciousLocations(devices);
     anomalies.push(...locationAnomalies);
-    
+
     // Check for multiple failed attempts
     const failedAttemptsAnomalies = this.checkMultipleFailedAttempts(devices);
     anomalies.push(...failedAttemptsAnomalies);
-    
+
     return anomalies;
   }
 
@@ -207,18 +216,25 @@ export class DeviceAnomalyDetectionService {
     devices: DeviceTracker[],
   ): Promise<AnomalyDetectionResult[]> {
     const anomalies: AnomalyDetectionResult[] = [];
-    const rule = this.defaultRules.find(r => r.type === AnomalyType.IMPOSSIBLE_TRAVEL);
-    
+    const rule = this.defaultRules.find(
+      (r) => r.type === AnomalyType.IMPOSSIBLE_TRAVEL,
+    );
+
     if (!rule || !rule.enabled) return anomalies;
-    
+
     for (let i = 1; i < devices.length; i++) {
       const current = devices[i - 1];
       const previous = devices[i];
-      
-      if (!current.latitude || !current.longitude || !previous.latitude || !previous.longitude) {
+
+      if (
+        !current.latitude ||
+        !current.longitude ||
+        !previous.latitude ||
+        !previous.longitude
+      ) {
         continue;
       }
-      
+
       const isImpossible = this.geolocationService.isImpossibleTravel(
         {
           latitude: previous.latitude,
@@ -232,7 +248,7 @@ export class DeviceAnomalyDetectionService {
         },
         rule.threshold.maxSpeedKmh,
       );
-      
+
       if (isImpossible) {
         const distance = this.geolocationService.calculateDistance(
           previous.latitude,
@@ -240,13 +256,14 @@ export class DeviceAnomalyDetectionService {
           current.latitude,
           current.longitude,
         );
-        
+
         anomalies.push({
           deviceId: current.id,
           anomalyType: AnomalyType.IMPOSSIBLE_TRAVEL,
           severity: rule.severity as any,
           description: `Impossible travel detected: ${distance.toFixed(0)}km in ${(
-            (current.lastSeenAt.getTime() - previous.lastSeenAt.getTime()) / (1000 * 60 * 60)
+            (current.lastSeenAt.getTime() - previous.lastSeenAt.getTime()) /
+            (1000 * 60 * 60)
           ).toFixed(1)} hours`,
           riskScore: 90,
           recommendations: [
@@ -271,52 +288,63 @@ export class DeviceAnomalyDetectionService {
               country: current.countryName,
             },
             distance,
-            timeWindow: current.lastSeenAt.getTime() - previous.lastSeenAt.getTime(),
+            timeWindow:
+              current.lastSeenAt.getTime() - previous.lastSeenAt.getTime(),
           },
         });
       }
     }
-    
+
     return anomalies;
   }
 
-  private checkSuspiciousLocations(devices: DeviceTracker[]): AnomalyDetectionResult[] {
+  private checkSuspiciousLocations(
+    devices: DeviceTracker[],
+  ): AnomalyDetectionResult[] {
     const anomalies: AnomalyDetectionResult[] = [];
-    const rule = this.defaultRules.find(r => r.type === AnomalyType.SUSPICIOUS_LOCATION);
-    
+    const rule = this.defaultRules.find(
+      (r) => r.type === AnomalyType.SUSPICIOUS_LOCATION,
+    );
+
     if (!rule || !rule.enabled) return anomalies;
-    
+
     const highRiskCountries = ['CN', 'RU', 'IR', 'KP', 'BY'];
-    
-    devices.forEach(device => {
+
+    devices.forEach((device) => {
       let riskScore = 0;
       const riskFactors: string[] = [];
-      
-      if (device.countryCode && highRiskCountries.includes(device.countryCode)) {
+
+      if (
+        device.countryCode &&
+        highRiskCountries.includes(device.countryCode)
+      ) {
         riskScore += 30;
-        riskFactors.push(`Access from high-risk country: ${device.countryCode}`);
+        riskFactors.push(
+          `Access from high-risk country: ${device.countryCode}`,
+        );
       }
-      
+
       if (device.isVpn) {
         riskScore += 20;
         riskFactors.push('VPN usage detected');
       }
-      
+
       if (device.isTor) {
         riskScore += 40;
         riskFactors.push('Tor network usage detected');
       }
-      
+
       if (device.isProxy) {
         riskScore += 25;
         riskFactors.push('Proxy usage detected');
       }
-      
+
       if (riskScore > 30) {
         anomalies.push({
           deviceId: device.id,
           anomalyType: AnomalyType.SUSPICIOUS_LOCATION,
-          severity: riskScore > 60 ? 'critical' : riskScore > 40 ? 'high' : 'medium',
+          severity:
+            riskScore > 60 ? 'critical' : riskScore > 40 ? 'high' : 'medium',
           description: `Suspicious location access: ${riskFactors.join(', ')}`,
           riskScore,
           recommendations: [
@@ -339,32 +367,36 @@ export class DeviceAnomalyDetectionService {
         });
       }
     });
-    
+
     return anomalies;
   }
 
-  private checkRapidDeviceSwitching(devices: DeviceTracker[]): AnomalyDetectionResult[] {
+  private checkRapidDeviceSwitching(
+    devices: DeviceTracker[],
+  ): AnomalyDetectionResult[] {
     const anomalies: AnomalyDetectionResult[] = [];
-    const rule = this.defaultRules.find(r => r.type === AnomalyType.RAPID_DEVICE_SWITCHING);
-    
+    const rule = this.defaultRules.find(
+      (r) => r.type === AnomalyType.RAPID_DEVICE_SWITCHING,
+    );
+
     if (!rule || !rule.enabled) return anomalies;
-    
+
     const timeWindowMs = rule.threshold.timeWindowHours * 60 * 60 * 1000;
     const now = new Date().getTime();
-    
+
     const recentDevices = devices.filter(
-      device => now - device.lastSeenAt.getTime() <= timeWindowMs,
+      (device) => now - device.lastSeenAt.getTime() <= timeWindowMs,
     );
-    
+
     if (recentDevices.length > rule.threshold.maxDeviceSwitches) {
       const primaryDevice = recentDevices[0];
-      
+
       anomalies.push({
         deviceId: primaryDevice.id,
         anomalyType: AnomalyType.RAPID_DEVICE_SWITCHING,
         severity: rule.severity as any,
         description: `Rapid device switching: ${recentDevices.length} devices used in ${rule.threshold.timeWindowHours} hours`,
-        riskScore: Math.min(30 + (recentDevices.length * 5), 80),
+        riskScore: Math.min(30 + recentDevices.length * 5, 80),
         recommendations: [
           'Verify user identity',
           'Check for shared account usage',
@@ -374,7 +406,7 @@ export class DeviceAnomalyDetectionService {
         evidence: {
           deviceCount: recentDevices.length,
           timeWindow: timeWindowMs,
-          devices: recentDevices.map(d => ({
+          devices: recentDevices.map((d) => ({
             deviceId: d.id,
             deviceType: d.deviceType,
             lastSeen: d.lastSeenAt,
@@ -383,29 +415,38 @@ export class DeviceAnomalyDetectionService {
         },
       });
     }
-    
+
     return anomalies;
   }
 
-  private checkConcurrentSessions(devices: DeviceTracker[]): AnomalyDetectionResult[] {
+  private checkConcurrentSessions(
+    devices: DeviceTracker[],
+  ): AnomalyDetectionResult[] {
     const anomalies: AnomalyDetectionResult[] = [];
-    const rule = this.defaultRules.find(r => r.type === AnomalyType.CONCURRENT_SESSIONS);
-    
+    const rule = this.defaultRules.find(
+      (r) => r.type === AnomalyType.CONCURRENT_SESSIONS,
+    );
+
     if (!rule || !rule.enabled) return anomalies;
-    
+
     const now = new Date();
     const activeThreshold = 30 * 60 * 1000; // 30 minutes
-    
+
     const activeSessions = devices.filter(
-      device => now.getTime() - device.lastSeenAt.getTime() <= activeThreshold,
+      (device) =>
+        now.getTime() - device.lastSeenAt.getTime() <= activeThreshold,
     );
-    
+
     if (activeSessions.length >= rule.threshold.maxConcurrentSessions) {
       // Check if sessions are from different locations
       const locations = activeSessions
-        .filter(d => d.latitude && d.longitude)
-        .map(d => ({ latitude: d.latitude!, longitude: d.longitude!, device: d }));
-      
+        .filter((d) => d.latitude && d.longitude)
+        .map((d) => ({
+          latitude: d.latitude!,
+          longitude: d.longitude!,
+          device: d,
+        }));
+
       let maxDistance = 0;
       for (let i = 0; i < locations.length; i++) {
         for (let j = i + 1; j < locations.length; j++) {
@@ -418,16 +459,16 @@ export class DeviceAnomalyDetectionService {
           maxDistance = Math.max(maxDistance, distance);
         }
       }
-      
+
       if (maxDistance >= rule.threshold.minDistanceKm) {
         const primaryDevice = activeSessions[0];
-        
+
         anomalies.push({
           deviceId: primaryDevice.id,
           anomalyType: AnomalyType.CONCURRENT_SESSIONS,
           severity: rule.severity as any,
           description: `Concurrent sessions from different locations: ${activeSessions.length} active sessions, max distance ${maxDistance.toFixed(0)}km`,
-          riskScore: Math.min(40 + (activeSessions.length * 10), 90),
+          riskScore: Math.min(40 + activeSessions.length * 10, 90),
           recommendations: [
             'Terminate suspicious sessions',
             'Require re-authentication',
@@ -437,7 +478,7 @@ export class DeviceAnomalyDetectionService {
           evidence: {
             sessionCount: activeSessions.length,
             maxDistance,
-            sessions: activeSessions.map(d => ({
+            sessions: activeSessions.map((d) => ({
               deviceId: d.id,
               location: `${d.city}, ${d.countryName}`,
               ipAddress: d.ipAddress,
@@ -447,24 +488,28 @@ export class DeviceAnomalyDetectionService {
         });
       }
     }
-    
+
     return anomalies;
   }
 
-  private checkMultipleFailedAttempts(devices: DeviceTracker[]): AnomalyDetectionResult[] {
+  private checkMultipleFailedAttempts(
+    devices: DeviceTracker[],
+  ): AnomalyDetectionResult[] {
     const anomalies: AnomalyDetectionResult[] = [];
-    const rule = this.defaultRules.find(r => r.type === AnomalyType.MULTIPLE_FAILED_ATTEMPTS);
-    
+    const rule = this.defaultRules.find(
+      (r) => r.type === AnomalyType.MULTIPLE_FAILED_ATTEMPTS,
+    );
+
     if (!rule || !rule.enabled) return anomalies;
-    
-    devices.forEach(device => {
+
+    devices.forEach((device) => {
       if (device.failedAttempts >= rule.threshold.maxFailedAttempts) {
         anomalies.push({
           deviceId: device.id,
           anomalyType: AnomalyType.MULTIPLE_FAILED_ATTEMPTS,
           severity: rule.severity as any,
           description: `Multiple failed attempts: ${device.failedAttempts} failed attempts detected`,
-          riskScore: Math.min(20 + (device.failedAttempts * 5), 70),
+          riskScore: Math.min(20 + device.failedAttempts * 5, 70),
           recommendations: [
             'Implement account lockout',
             'Enable CAPTCHA protection',
@@ -482,23 +527,27 @@ export class DeviceAnomalyDetectionService {
         });
       }
     });
-    
+
     return anomalies;
   }
 
-  private async processAnomalies(anomalies: AnomalyDetectionResult[]): Promise<void> {
+  private async processAnomalies(
+    anomalies: AnomalyDetectionResult[],
+  ): Promise<void> {
     for (const anomaly of anomalies) {
       // Store anomaly
       const deviceAnomalies = this.anomalies.get(anomaly.deviceId) || [];
       deviceAnomalies.push(anomaly);
       this.anomalies.set(anomaly.deviceId, deviceAnomalies);
-      
+
       // Apply rule actions
-      const rule = this.defaultRules.find(r => r.type === anomaly.anomalyType);
+      const rule = this.defaultRules.find(
+        (r) => r.type === anomaly.anomalyType,
+      );
       if (rule) {
         await this.applyRuleAction(anomaly, rule);
       }
-      
+
       // Log anomaly
       this.logger.warn(
         `Anomaly detected: ${anomaly.anomalyType} - ${anomaly.description}`,
@@ -529,35 +578,46 @@ export class DeviceAnomalyDetectionService {
             },
           );
           break;
-          
+
         case 'flag':
           await this.deviceTrackerRepository.update(
             { id: anomaly.deviceId },
             {
               status: DeviceStatus.SUSPICIOUS,
-              riskLevel: anomaly.severity === 'critical' ? RiskLevel.CRITICAL : 
-                        anomaly.severity === 'high' ? RiskLevel.HIGH : RiskLevel.MEDIUM,
+              riskLevel:
+                anomaly.severity === 'critical'
+                  ? RiskLevel.CRITICAL
+                  : anomaly.severity === 'high'
+                    ? RiskLevel.HIGH
+                    : RiskLevel.MEDIUM,
               riskScore: anomaly.riskScore,
             },
           );
           break;
-          
+
         case 'notify':
           // In a real implementation, you would send notifications here
-          this.logger.warn(`Notification required for anomaly: ${anomaly.description}`);
+          this.logger.warn(
+            `Notification required for anomaly: ${anomaly.description}`,
+          );
           break;
-          
+
         case 'log':
         default:
           // Already logged above
           break;
       }
     } catch (error) {
-      this.logger.error(`Failed to apply rule action for anomaly ${anomaly.deviceId}:`, error);
+      this.logger.error(
+        `Failed to apply rule action for anomaly ${anomaly.deviceId}:`,
+        error,
+      );
     }
   }
 
-  async getDeviceAnomalies(deviceId: string): Promise<AnomalyDetectionResult[]> {
+  async getDeviceAnomalies(
+    deviceId: string,
+  ): Promise<AnomalyDetectionResult[]> {
     return this.anomalies.get(deviceId) || [];
   }
 
@@ -566,7 +626,9 @@ export class DeviceAnomalyDetectionService {
     for (const deviceAnomalies of this.anomalies.values()) {
       allAnomalies.push(...deviceAnomalies);
     }
-    return allAnomalies.sort((a, b) => b.detectedAt.getTime() - a.detectedAt.getTime());
+    return allAnomalies.sort(
+      (a, b) => b.detectedAt.getTime() - a.detectedAt.getTime(),
+    );
   }
 
   async getAnomalyStatistics(): Promise<{
@@ -576,22 +638,24 @@ export class DeviceAnomalyDetectionService {
     recentAnomalies: AnomalyDetectionResult[];
   }> {
     const allAnomalies = await this.getAllAnomalies();
-    
+
     const anomaliesByType: Record<string, number> = {};
     const anomaliesBySeverity: Record<string, number> = {};
-    
-    allAnomalies.forEach(anomaly => {
-      anomaliesByType[anomaly.anomalyType] = (anomaliesByType[anomaly.anomalyType] || 0) + 1;
-      anomaliesBySeverity[anomaly.severity] = (anomaliesBySeverity[anomaly.severity] || 0) + 1;
+
+    allAnomalies.forEach((anomaly) => {
+      anomaliesByType[anomaly.anomalyType] =
+        (anomaliesByType[anomaly.anomalyType] || 0) + 1;
+      anomaliesBySeverity[anomaly.severity] =
+        (anomaliesBySeverity[anomaly.severity] || 0) + 1;
     });
-    
+
     const oneDayAgo = new Date();
     oneDayAgo.setHours(oneDayAgo.getHours() - 24);
-    
+
     const recentAnomalies = allAnomalies.filter(
-      anomaly => anomaly.detectedAt > oneDayAgo,
+      (anomaly) => anomaly.detectedAt > oneDayAgo,
     );
-    
+
     return {
       totalAnomalies: allAnomalies.length,
       anomaliesByType,

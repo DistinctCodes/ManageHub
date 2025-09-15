@@ -23,17 +23,15 @@ import { ParkingModule } from './parking/parking.module';
 import { SurveysModule } from './surveys/surveys.module';
 import { PartnersModule } from './partners/partners.module';
 import { DonationsModule } from 'donations/donations.module';
-import { ShiftsModule } from './shifts/shifts.module';
+import { ShiftModule } from './shifts/shifts.module';
 import { StaffModule } from './staff/staff.module';
 import { LocationModule } from './location/location.module';
-import { WorkSpacePreferenceModule } from './work-space-preference/work-space-preference.module';
+import { WorkspacePreferencesModule } from './work-space-preference/work-space-preference.module';
 import { WorkLogModule } from './remote-work-log/work-log.module';
-
 
 import { SafetyTipsModule } from './safety-tips/safety-tips.module';
 import { EquipmentQueueModule } from './equipment-queue/equipment-queue.module';
 import { DeviceTrackerModule } from './device-tracker/device-tracker.module';
-
 
 @Module({
   imports: [
@@ -58,14 +56,14 @@ import { DeviceTrackerModule } from './device-tracker/device-tracker.module';
     SurveysModule,
     PartnersModule,
     DonationsModule,
-    ShiftsModule,
+    ShiftModule,
     StaffModule,
     LocationModule,
-    WorkSpacePreferenceModule,
+    WorkspacePreferencesModule,
     WorkLogModule,
-  SafetyTipsModule,
-  EquipmentQueueModule,
-  DeviceTrackerModule,
+    SafetyTipsModule,
+    EquipmentQueueModule,
+    DeviceTrackerModule,
   ],
   controllers: [AppController],
   providers: [AppService, LibraryService],

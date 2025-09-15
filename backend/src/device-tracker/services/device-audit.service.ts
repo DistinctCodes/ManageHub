@@ -1,5 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { DeviceTracker, DeviceStatus, RiskLevel } from '../entities/device-tracker.entity';
+import {
+  DeviceTracker,
+  DeviceStatus,
+  RiskLevel,
+} from '../entities/device-tracker.entity';
 import { AnomalyDetectionResult } from './device-anomaly-detection.service';
 import { DeviceSession } from './device-session.service';
 
@@ -103,10 +107,13 @@ export class DeviceAuditService {
         geolocation: {
           country: device.countryName,
           city: device.city,
-          coordinates: device.latitude && device.longitude ? {
-            lat: device.latitude,
-            lon: device.longitude,
-          } : undefined,
+          coordinates:
+            device.latitude && device.longitude
+              ? {
+                  lat: device.latitude,
+                  lon: device.longitude,
+                }
+              : undefined,
         },
         securityFlags: {
           isVpn: device.isVpn,
@@ -121,10 +128,13 @@ export class DeviceAuditService {
       location: {
         country: device.countryName,
         city: device.city,
-        coordinates: device.latitude && device.longitude ? {
-          lat: device.latitude,
-          lon: device.longitude,
-        } : undefined,
+        coordinates:
+          device.latitude && device.longitude
+            ? {
+                lat: device.latitude,
+                lon: device.longitude,
+              }
+            : undefined,
       },
     };
 
@@ -148,7 +158,7 @@ export class DeviceAuditService {
       ipAddress: device.ipAddress,
       userAgent: device.userAgent,
       action: success ? 'authenticate_success' : 'authenticate_failure',
-      description: success 
+      description: success
         ? `Device authentication successful`
         : `Device authentication failed: ${reason}`,
       details: {
@@ -180,7 +190,10 @@ export class DeviceAuditService {
     const entry: AuditLogEntry = {
       id: this.generateId(),
       timestamp: new Date(),
-      eventType: eventType === 'created' ? AuditEventType.SESSION_CREATED : AuditEventType.SESSION_TERMINATED,
+      eventType:
+        eventType === 'created'
+          ? AuditEventType.SESSION_CREATED
+          : AuditEventType.SESSION_TERMINATED,
       severity: 'info',
       source: 'session-manager',
       userId: session.userId,
@@ -277,17 +290,15 @@ export class DeviceAuditService {
     await this.storeAuditLog(entry);
   }
 
-  async logSecurityViolation(
-    violation: {
-      type: string;
-      description: string;
-      severity: 'warning' | 'error' | 'critical';
-      deviceId?: string;
-      userId?: string;
-      ipAddress?: string;
-      details?: Record<string, any>;
-    },
-  ): Promise<void> {
+  async logSecurityViolation(violation: {
+    type: string;
+    description: string;
+    severity: 'warning' | 'error' | 'critical';
+    deviceId?: string;
+    userId?: string;
+    ipAddress?: string;
+    details?: Record<string, any>;
+  }): Promise<void> {
     const entry: AuditLogEntry = {
       id: this.generateId(),
       timestamp: new Date(),
@@ -320,7 +331,8 @@ export class DeviceAuditService {
       id: this.generateId(),
       timestamp: new Date(),
       eventType: AuditEventType.RISK_ASSESSMENT,
-      severity: newRiskScore > 70 ? 'error' : newRiskScore > 40 ? 'warning' : 'info',
+      severity:
+        newRiskScore > 70 ? 'error' : newRiskScore > 40 ? 'warning' : 'info',
       source: 'risk-assessor',
       userId: device.userId,
       deviceId: device.id,
@@ -392,35 +404,35 @@ export class DeviceAuditService {
 
     // Apply filters
     if (options.startDate) {
-      logs = logs.filter(log => log.timestamp >= options.startDate!);
+      logs = logs.filter((log) => log.timestamp >= options.startDate!);
     }
 
     if (options.endDate) {
-      logs = logs.filter(log => log.timestamp <= options.endDate!);
+      logs = logs.filter((log) => log.timestamp <= options.endDate!);
     }
 
     if (options.eventTypes?.length) {
-      logs = logs.filter(log => options.eventTypes!.includes(log.eventType));
+      logs = logs.filter((log) => options.eventTypes!.includes(log.eventType));
     }
 
     if (options.severities?.length) {
-      logs = logs.filter(log => options.severities!.includes(log.severity));
+      logs = logs.filter((log) => options.severities!.includes(log.severity));
     }
 
     if (options.userId) {
-      logs = logs.filter(log => log.userId === options.userId);
+      logs = logs.filter((log) => log.userId === options.userId);
     }
 
     if (options.deviceId) {
-      logs = logs.filter(log => log.deviceId === options.deviceId);
+      logs = logs.filter((log) => log.deviceId === options.deviceId);
     }
 
     if (options.ipAddress) {
-      logs = logs.filter(log => log.ipAddress === options.ipAddress);
+      logs = logs.filter((log) => log.ipAddress === options.ipAddress);
     }
 
     if (options.outcome) {
-      logs = logs.filter(log => log.outcome === options.outcome);
+      logs = logs.filter((log) => log.outcome === options.outcome);
     }
 
     // Sort by timestamp (newest first)
@@ -429,7 +441,7 @@ export class DeviceAuditService {
     const total = logs.length;
     const offset = options.offset || 0;
     const limit = options.limit || 100;
-    
+
     const paginatedLogs = logs.slice(offset, offset + limit);
     const hasMore = offset + limit < total;
 
@@ -446,8 +458,10 @@ export class DeviceAuditService {
       end: new Date(),
     },
   ): Promise<AuditStatistics> {
-    const logs = Array.from(this.auditLogs.values())
-      .filter(log => log.timestamp >= timeRange.start && log.timestamp <= timeRange.end);
+    const logs = Array.from(this.auditLogs.values()).filter(
+      (log) =>
+        log.timestamp >= timeRange.start && log.timestamp <= timeRange.end,
+    );
 
     const eventsByType: Record<string, number> = {};
     const eventsBySeverity: Record<string, number> = {};
@@ -456,12 +470,13 @@ export class DeviceAuditService {
     const deviceCounts: Record<string, number> = {};
     const ipCounts: Record<string, number> = {};
 
-    logs.forEach(log => {
+    logs.forEach((log) => {
       // Count by type
       eventsByType[log.eventType] = (eventsByType[log.eventType] || 0) + 1;
 
       // Count by severity
-      eventsBySeverity[log.severity] = (eventsBySeverity[log.severity] || 0) + 1;
+      eventsBySeverity[log.severity] =
+        (eventsBySeverity[log.severity] || 0) + 1;
 
       // Count by outcome
       eventsByOutcome[log.outcome] = (eventsByOutcome[log.outcome] || 0) + 1;
@@ -500,12 +515,16 @@ export class DeviceAuditService {
 
     // Get recent critical events
     const recentCriticalEvents = logs
-      .filter(log => log.severity === 'critical')
+      .filter((log) => log.severity === 'critical')
       .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
       .slice(0, 10);
 
     // Generate timeline (daily counts)
-    const timeline = this.generateTimeline(logs, timeRange.start, timeRange.end);
+    const timeline = this.generateTimeline(
+      logs,
+      timeRange.start,
+      timeRange.end,
+    );
 
     return {
       totalEvents: logs.length,
@@ -579,21 +598,25 @@ export class DeviceAuditService {
   ): Array<{ date: string; count: number }> {
     const timeline: Array<{ date: string; count: number }> = [];
     const dayMs = 24 * 60 * 60 * 1000;
-    
-    for (let date = new Date(startDate); date <= endDate; date.setTime(date.getTime() + dayMs)) {
+
+    for (
+      let date = new Date(startDate);
+      date <= endDate;
+      date.setTime(date.getTime() + dayMs)
+    ) {
       const dayStart = new Date(date);
       const dayEnd = new Date(date.getTime() + dayMs - 1);
-      
+
       const dayLogs = logs.filter(
-        log => log.timestamp >= dayStart && log.timestamp <= dayEnd,
+        (log) => log.timestamp >= dayStart && log.timestamp <= dayEnd,
       );
-      
+
       timeline.push({
         date: dayStart.toISOString().split('T')[0],
         count: dayLogs.length,
       });
     }
-    
+
     return timeline;
   }
 
@@ -613,7 +636,7 @@ export class DeviceAuditService {
       'Risk Score',
     ];
 
-    const rows = logs.map(log => [
+    const rows = logs.map((log) => [
       log.id,
       log.timestamp.toISOString(),
       log.eventType,
@@ -629,7 +652,7 @@ export class DeviceAuditService {
     ]);
 
     return [headers, ...rows]
-      .map(row => row.map(cell => `\"${cell}\"`).join(','))
+      .map((row) => row.map((cell) => `\"${cell}\"`).join(','))
       .join('\n');
   }
 
@@ -638,9 +661,7 @@ export class DeviceAuditService {
   }
 
   // Method to get audit trail for compliance
-  async getComplianceReport(
-    timeRange: { start: Date; end: Date },
-  ): Promise<{
+  async getComplianceReport(timeRange: { start: Date; end: Date }): Promise<{
     summary: {
       totalEvents: number;
       criticalEvents: number;
@@ -656,13 +677,22 @@ export class DeviceAuditService {
       endDate: timeRange.end,
     });
 
-    const criticalEvents = logs.filter(log => log.severity === 'critical').length;
-    const securityViolations = logs.filter(log => log.eventType === AuditEventType.SECURITY_VIOLATION).length;
-    const blockedDevices = logs.filter(log => log.eventType === AuditEventType.DEVICE_BLOCKED).length;
+    const criticalEvents = logs.filter(
+      (log) => log.severity === 'critical',
+    ).length;
+    const securityViolations = logs.filter(
+      (log) => log.eventType === AuditEventType.SECURITY_VIOLATION,
+    ).length;
+    const blockedDevices = logs.filter(
+      (log) => log.eventType === AuditEventType.DEVICE_BLOCKED,
+    ).length;
 
     // Calculate compliance score (0-100)
     const totalRiskEvents = criticalEvents + securityViolations;
-    const complianceScore = Math.max(0, 100 - (totalRiskEvents / logs.length) * 100);
+    const complianceScore = Math.max(
+      0,
+      100 - (totalRiskEvents / logs.length) * 100,
+    );
 
     const recommendations: string[] = [];
     if (criticalEvents > 10) {
@@ -683,10 +713,11 @@ export class DeviceAuditService {
         blockedDevices,
         complianceScore: Math.round(complianceScore),
       },
-      detailedLogs: logs.filter(log => 
-        log.severity === 'critical' || 
-        log.eventType === AuditEventType.SECURITY_VIOLATION ||
-        log.eventType === AuditEventType.DEVICE_BLOCKED
+      detailedLogs: logs.filter(
+        (log) =>
+          log.severity === 'critical' ||
+          log.eventType === AuditEventType.SECURITY_VIOLATION ||
+          log.eventType === AuditEventType.DEVICE_BLOCKED,
       ),
       recommendations,
     };

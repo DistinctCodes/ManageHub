@@ -1,4 +1,10 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Logger,
+} from '@nestjs/common';
 import { Request } from 'express';
 import { DeviceTrackerService } from '../device-tracker.service';
 import { RiskLevel, DeviceStatus } from '../entities/device-tracker.entity';
@@ -14,27 +20,41 @@ export class DeviceSecurityGuard implements CanActivate {
     const deviceContext = request.deviceContext;
 
     if (!deviceContext) {
-      this.logger.warn('No device context found - allowing request with warning');
+      this.logger.warn(
+        'No device context found - allowing request with warning',
+      );
       return true;
     }
 
     // Block high-risk devices
     if (deviceContext.riskLevel === RiskLevel.CRITICAL) {
-      this.logger.error(`Blocking critical risk device: ${deviceContext.deviceId}`);
-      throw new ForbiddenException('Device blocked due to critical security risk');
+      this.logger.error(
+        `Blocking critical risk device: ${deviceContext.deviceId}`,
+      );
+      throw new ForbiddenException(
+        'Device blocked due to critical security risk',
+      );
     }
 
     // Block if device is explicitly blocked
     if (deviceContext.deviceId) {
       try {
-        const device = await this.deviceTrackerService.findOne(deviceContext.deviceId);
+        const device = await this.deviceTrackerService.findOne(
+          deviceContext.deviceId,
+        );
         if (device.status === DeviceStatus.BLOCKED) {
-          this.logger.error(`Blocking explicitly blocked device: ${deviceContext.deviceId}`);
-          throw new ForbiddenException('Device has been blocked by administrator');
+          this.logger.error(
+            `Blocking explicitly blocked device: ${deviceContext.deviceId}`,
+          );
+          throw new ForbiddenException(
+            'Device has been blocked by administrator',
+          );
         }
       } catch (error) {
         // If device not found, log but allow (might be new device)
-        this.logger.warn(`Device ${deviceContext.deviceId} not found in database`);
+        this.logger.warn(
+          `Device ${deviceContext.deviceId} not found in database`,
+        );
       }
     }
 
@@ -42,9 +62,9 @@ export class DeviceSecurityGuard implements CanActivate {
     if (deviceContext.riskScore > 70) {
       this.logger.warn(
         `High-risk device access attempt: ` +
-        `Device ID: ${deviceContext.deviceId}, ` +
-        `Risk Score: ${deviceContext.riskScore}, ` +
-        `Risk Level: ${deviceContext.riskLevel}`,
+          `Device ID: ${deviceContext.deviceId}, ` +
+          `Risk Score: ${deviceContext.riskScore}, ` +
+          `Risk Level: ${deviceContext.riskLevel}`,
       );
     }
 

@@ -1,5 +1,19 @@
-import { IsString, IsOptional, IsBoolean, IsIP, IsEnum, IsNumber, IsDecimal, IsLatitude, IsLongitude } from 'class-validator';
-import { DeviceType, DeviceStatus, RiskLevel } from '../entities/device-tracker.entity';
+import {
+  IsString,
+  IsOptional,
+  IsBoolean,
+  IsIP,
+  IsEnum,
+  IsNumber,
+  IsDecimal,
+  IsLatitude,
+  IsLongitude,
+} from 'class-validator';
+import {
+  DeviceType,
+  DeviceStatus,
+  RiskLevel,
+} from '../entities/device-tracker.entity';
 
 export class CreateDeviceTrackerDto {
   @IsOptional()
