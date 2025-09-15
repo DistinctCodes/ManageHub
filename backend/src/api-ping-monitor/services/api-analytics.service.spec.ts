@@ -67,17 +67,31 @@ describe('ApiAnalyticsService', () => {
       status: PingStatus.SUCCESS,
       httpStatusCode: 200,
       responseTimeMs: 150,
+      dnsLookupTimeMs: 10,
+      tcpConnectionTimeMs: 20,
+      tlsHandshakeTimeMs: 30,
+      firstByteTimeMs: 40,
+      contentTransferTimeMs: 50,
       responseHeaders: '{}',
       responseBody: 'OK',
       responseSize: 2,
-      isSuccess: true,
-      isTimeout: false,
       errorMessage: null,
       errorDetails: null,
-      validationResults: null,
+      isSuccess: true,
+      isTimeout: false,
+      alertSent: false,
       attemptNumber: 1,
+      validationResults: null,
+      metadata: null,
       createdAt: new Date(Date.now() - 60 * 60 * 1000), // 1 hour ago
       endpoint: mockEndpoint,
+      get isHealthy() { return this.isSuccess; },
+      get performanceGrade() { return 'A' as const; },
+      get statusCategory() { return 'success' as const; },
+      getFormattedResponseTime: () => '150ms',
+      getErrorSummary: () => 'Success',
+      hasPerformanceIssue: () => false,
+      toSummary: () => ({ id: 'result-1', status: PingStatus.SUCCESS, isSuccess: true, responseTimeMs: 150, httpStatusCode: 200, errorMessage: 'Success', createdAt: new Date(), performanceGrade: 'A' }),
     },
     {
       id: 'result-2',
@@ -85,17 +99,31 @@ describe('ApiAnalyticsService', () => {
       status: PingStatus.SUCCESS,
       httpStatusCode: 200,
       responseTimeMs: 200,
+      dnsLookupTimeMs: 15,
+      tcpConnectionTimeMs: 25,
+      tlsHandshakeTimeMs: 35,
+      firstByteTimeMs: 45,
+      contentTransferTimeMs: 55,
       responseHeaders: '{}',
       responseBody: 'OK',
       responseSize: 2,
-      isSuccess: true,
-      isTimeout: false,
       errorMessage: null,
       errorDetails: null,
-      validationResults: null,
+      isSuccess: true,
+      isTimeout: false,
+      alertSent: false,
       attemptNumber: 1,
+      validationResults: null,
+      metadata: null,
       createdAt: new Date(Date.now() - 30 * 60 * 1000), // 30 minutes ago
       endpoint: mockEndpoint,
+      get isHealthy() { return this.isSuccess; },
+      get performanceGrade() { return 'A' as const; },
+      get statusCategory() { return 'success' as const; },
+      getFormattedResponseTime: () => '200ms',
+      getErrorSummary: () => 'Success',
+      hasPerformanceIssue: () => false,
+      toSummary: () => ({ id: 'result-2', status: PingStatus.SUCCESS, isSuccess: true, responseTimeMs: 200, httpStatusCode: 200, errorMessage: 'Success', createdAt: new Date(), performanceGrade: 'A' }),
     },
     {
       id: 'result-3',
@@ -103,17 +131,31 @@ describe('ApiAnalyticsService', () => {
       status: PingStatus.TIMEOUT,
       httpStatusCode: null,
       responseTimeMs: null,
+      dnsLookupTimeMs: null,
+      tcpConnectionTimeMs: null,
+      tlsHandshakeTimeMs: null,
+      firstByteTimeMs: null,
+      contentTransferTimeMs: null,
       responseHeaders: null,
       responseBody: null,
       responseSize: null,
-      isSuccess: false,
-      isTimeout: true,
       errorMessage: 'Request timeout',
       errorDetails: '{"code": "ECONNABORTED"}',
-      validationResults: null,
+      isSuccess: false,
+      isTimeout: true,
+      alertSent: false,
       attemptNumber: 1,
+      validationResults: null,
+      metadata: null,
       createdAt: new Date(Date.now() - 15 * 60 * 1000), // 15 minutes ago
       endpoint: mockEndpoint,
+      get isHealthy() { return false; },
+      get performanceGrade() { return 'F' as const; },
+      get statusCategory() { return 'network_error' as const; },
+      getFormattedResponseTime: () => 'N/A',
+      getErrorSummary: () => 'Request timeout',
+      hasPerformanceIssue: () => false,
+      toSummary: () => ({ id: 'result-3', status: PingStatus.TIMEOUT, isSuccess: false, responseTimeMs: 0, httpStatusCode: 0, errorMessage: 'Request timeout', createdAt: new Date(), performanceGrade: 'F' }),
     },
   ];
 
@@ -166,7 +208,7 @@ describe('ApiAnalyticsService', () => {
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         getMany: jest.fn().mockResolvedValue([endpointWithResults]),
-      };
+      } as any;
       
       endpointRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
 
@@ -192,7 +234,7 @@ describe('ApiAnalyticsService', () => {
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         getMany: jest.fn().mockResolvedValue([endpointWithResults]),
-      };
+      } as any;
       
       endpointRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
 
@@ -210,7 +252,7 @@ describe('ApiAnalyticsService', () => {
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         getMany: jest.fn().mockResolvedValue([]),
-      };
+      } as any;
       
       endpointRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
 
@@ -231,7 +273,7 @@ describe('ApiAnalyticsService', () => {
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         getMany: jest.fn().mockResolvedValue([endpointWithoutResults]),
-      };
+      } as any;
       
       endpointRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
 
@@ -255,7 +297,7 @@ describe('ApiAnalyticsService', () => {
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         getMany: jest.fn().mockResolvedValue(successfulResults),
-      };
+      } as any;
       
       pingResultRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
 
@@ -285,7 +327,7 @@ describe('ApiAnalyticsService', () => {
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         getMany: jest.fn().mockResolvedValue([]),
-      };
+      } as any;
       
       pingResultRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
 
@@ -302,7 +344,7 @@ describe('ApiAnalyticsService', () => {
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         getMany: jest.fn().mockResolvedValue([]),
-      };
+      } as any;
       
       pingResultRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
 
@@ -321,7 +363,7 @@ describe('ApiAnalyticsService', () => {
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         getMany: jest.fn().mockResolvedValue([endpointWithFailures]),
-      };
+      } as any;
       
       endpointRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
 
@@ -345,7 +387,7 @@ describe('ApiAnalyticsService', () => {
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         getMany: jest.fn().mockResolvedValue([]),
-      };
+      } as any;
       
       endpointRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
 
@@ -363,7 +405,7 @@ describe('ApiAnalyticsService', () => {
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         getMany: jest.fn().mockResolvedValue([endpointWithoutIncidents]),
-      };
+      } as any;
       
       endpointRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
 
@@ -394,7 +436,7 @@ describe('ApiAnalyticsService', () => {
         lastCheckTime: new Date(),
         meanTimeToRecovery: 5,
         meanTimeBetweenFailures: 1440,
-      };
+      } as any;
 
       const previousMetrics = {
         ...mockUptimeMetrics,
@@ -402,7 +444,7 @@ describe('ApiAnalyticsService', () => {
         averageResponseTime: 200,
         totalChecks: 50,
         failedChecks: 1,
-      };
+      } as any;
 
       jest.spyOn(service, 'getUptimeMetrics')
         .mockResolvedValueOnce([mockUptimeMetrics])
@@ -594,7 +636,7 @@ describe('ApiAnalyticsService', () => {
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         getMany: jest.fn().mockResolvedValue(mockPingResults),
-      };
+      } as any;
       
       pingResultRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
       jest.spyOn(service as any, 'processCustomReportData').mockReturnValue({
@@ -609,7 +651,7 @@ describe('ApiAnalyticsService', () => {
         endDate: new Date('2023-01-31'),
         includeMetrics: ['uptime', 'performance'] as any,
         groupBy: 'endpoint' as any,
-      };
+      } as any;
 
       const result = await service.generateCustomReport(options);
 
@@ -631,7 +673,7 @@ describe('ApiAnalyticsService', () => {
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         getMany: jest.fn().mockResolvedValue([]),
-      };
+      } as any;
       
       pingResultRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
       jest.spyOn(service as any, 'processCustomReportData').mockReturnValue({});
@@ -641,7 +683,7 @@ describe('ApiAnalyticsService', () => {
         endDate: new Date('2023-01-31'),
         includeMetrics: ['uptime'] as any,
         groupBy: 'day' as any,
-      };
+      } as any;
 
       await service.generateCustomReport(options);
 

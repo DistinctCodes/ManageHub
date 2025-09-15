@@ -61,17 +61,31 @@ describe('ApiNotificationService', () => {
     status: PingStatus.SUCCESS,
     httpStatusCode: 200,
     responseTimeMs: 150,
+    dnsLookupTimeMs: 10,
+    tcpConnectionTimeMs: 20,
+    tlsHandshakeTimeMs: 30,
+    firstByteTimeMs: 40,
+    contentTransferTimeMs: 50,
     responseHeaders: '{}',
     responseBody: 'OK',
     responseSize: 2,
-    isSuccess: true,
-    isTimeout: false,
     errorMessage: null,
     errorDetails: null,
-    validationResults: null,
+    isSuccess: true,
+    isTimeout: false,
+    alertSent: false,
     attemptNumber: 1,
+    validationResults: null,
+    metadata: null,
     createdAt: new Date(),
     endpoint: mockEndpoint,
+    get isHealthy() { return this.isSuccess; },
+    get performanceGrade() { return 'A' as const; },
+    get statusCategory() { return 'success' as const; },
+    getFormattedResponseTime: () => '150ms',
+    getErrorSummary: () => 'Success',
+    hasPerformanceIssue: () => false,
+    toSummary: () => ({ id: 'result-1', status: PingStatus.SUCCESS, isSuccess: true, responseTimeMs: 150, httpStatusCode: 200, errorMessage: 'Success', createdAt: new Date(), performanceGrade: 'A' }),
   };
 
   const mockFailedPingResult: PingResult = {
@@ -80,17 +94,31 @@ describe('ApiNotificationService', () => {
     status: PingStatus.TIMEOUT,
     httpStatusCode: null,
     responseTimeMs: null,
+    dnsLookupTimeMs: null,
+    tcpConnectionTimeMs: null,
+    tlsHandshakeTimeMs: null,
+    firstByteTimeMs: null,
+    contentTransferTimeMs: null,
     responseHeaders: null,
     responseBody: null,
     responseSize: null,
-    isSuccess: false,
-    isTimeout: true,
     errorMessage: 'Request timeout',
     errorDetails: '{"code": "ECONNABORTED"}',
-    validationResults: null,
+    isSuccess: false,
+    isTimeout: true,
+    alertSent: false,
     attemptNumber: 1,
+    validationResults: null,
+    metadata: null,
     createdAt: new Date(),
     endpoint: mockEndpoint,
+    get isHealthy() { return false; },
+    get performanceGrade() { return 'F' as const; },
+    get statusCategory() { return 'network_error' as const; },
+    getFormattedResponseTime: () => 'N/A',
+    getErrorSummary: () => 'Request timeout',
+    hasPerformanceIssue: () => false,
+    toSummary: () => ({ id: 'result-2', status: PingStatus.TIMEOUT, isSuccess: false, responseTimeMs: 0, httpStatusCode: 0, errorMessage: 'Request timeout', createdAt: new Date(), performanceGrade: 'F' }),
   };
 
   beforeEach(async () => {
@@ -195,7 +223,7 @@ describe('ApiNotificationService', () => {
     });
 
     it('should check for slow response times', async () => {
-      const slowPingResult = {
+      const slowPingResult: PingResult = {
         ...mockSuccessfulPingResult,
         responseTimeMs: 6000, // Exceeds threshold of 5000ms
       };
@@ -224,7 +252,7 @@ describe('ApiNotificationService', () => {
 
   describe('checkSlowResponse', () => {
     it('should send slow response notification when threshold is exceeded', async () => {
-      const slowPingResult = {
+      const slowPingResult: PingResult = {
         ...mockSuccessfulPingResult,
         responseTimeMs: 6000,
       };
@@ -245,7 +273,7 @@ describe('ApiNotificationService', () => {
     });
 
     it('should not send notification if response time is within threshold', async () => {
-      const fastPingResult = {
+      const fastPingResult: PingResult = {
         ...mockSuccessfulPingResult,
         responseTimeMs: 1000, // Below threshold
       };
@@ -391,7 +419,7 @@ describe('ApiNotificationService', () => {
       pingResultRepository.findOne.mockResolvedValue({
         ...mockSuccessfulPingResult,
         createdAt: lastSuccessTime,
-      });
+      } as PingResult);
       
       const result = await service['getLastSuccessTime'](mockEndpoint.id);
       
