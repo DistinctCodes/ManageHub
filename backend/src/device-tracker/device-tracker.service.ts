@@ -1,0 +1,217 @@
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, Between, Like } from 'typeorm';
+import { DeviceTracker } from './entities/device-tracker.entity';
+import { CreateDeviceTrackerDto } from './dto/create-device-tracker.dto';
+import { UpdateDeviceTrackerDto } from './dto/update-device-tracker.dto';
+import { DeviceTrackerQueryDto } from './dto/device-tracker-query.dto';
+
+@Injectable()
+export class DeviceTrackerService {
+  constructor(
+    @InjectRepository(DeviceTracker)
+    private deviceTrackerRepository: Repository<DeviceTracker>,
+  ) {}
+
+  async create(createDeviceTrackerDto: CreateDeviceTrackerDto): Promise<DeviceTracker> {
+    try {
+      const deviceTracker = this.deviceTrackerRepository.create(createDeviceTrackerDto);
+      return await this.deviceTrackerRepository.save(deviceTracker);
+    } catch (error) {
+      throw new BadRequestException('Failed to create device tracker entry');
+    }
+  }
+
+  async findAll(queryDto: DeviceTrackerQueryDto = {}): Promise<{
+    data: DeviceTracker[];
+    total: number;
+    limit: number;
+    offset: number;
+  }> {
+    const {
+      userId,
+      deviceType,
+      ipAddress,
+      isTrusted,
+      fromDate,
+      toDate,
+      limit = '50',
+      offset = '0',
+    } = queryDto;
+
+    const query = this.deviceTrackerRepository.createQueryBuilder('deviceTracker');
+
+    // Apply filters
+    if (userId) {
+      query.andWhere('deviceTracker.userId = :userId', { userId });
+    }
+
+    if (deviceType) {
+      query.andWhere('deviceTracker.deviceType LIKE :deviceType', {
+        deviceType: `%${deviceType}%`,
+      });
+    }
+
+    if (ipAddress) {
+      query.andWhere('deviceTracker.ipAddress = :ipAddress', { ipAddress });
+    }
+
+    if (isTrusted !== undefined) {
+      query.andWhere('deviceTracker.isTrusted = :isTrusted', { isTrusted });
+    }
+
+    if (fromDate && toDate) {
+      query.andWhere('deviceTracker.createdAt BETWEEN :fromDate AND :toDate', {
+        fromDate: new Date(fromDate),
+        toDate: new Date(toDate),
+      });
+    } else if (fromDate) {
+      query.andWhere('deviceTracker.createdAt >= :fromDate', {
+        fromDate: new Date(fromDate),
+      });
+    } else if (toDate) {
+      query.andWhere('deviceTracker.createdAt <= :toDate', {
+        toDate: new Date(toDate),
+      });
+    }
+
+    // Apply pagination
+    const limitNum = parseInt(limit, 10);
+    const offsetNum = parseInt(offset, 10);
+
+    if (limitNum > 100) {
+      throw new BadRequestException('Limit cannot exceed 100');
+    }
+
+    query.limit(limitNum).offset(offsetNum);
+    query.orderBy('deviceTracker.lastSeenAt', 'DESC');
+
+    const [data, total] = await query.getManyAndCount();
+
+    return {
+      data,
+      total,
+      limit: limitNum,
+      offset: offsetNum,
+    };
+  }
+
+  async findOne(id: string): Promise<DeviceTracker> {
+    const deviceTracker = await this.deviceTrackerRepository.findOne({
+      where: { id },
+    });
+
+    if (!deviceTracker) {
+      throw new NotFoundException('Device tracker entry not found');
+    }
+
+    return deviceTracker;
+  }
+
+  async findByUserId(userId: string): Promise<DeviceTracker[]> {
+    return await this.deviceTrackerRepository.find({
+      where: { userId },
+      order: { lastSeenAt: 'DESC' },
+    });
+  }
+
+  async findByIpAddress(ipAddress: string): Promise<DeviceTracker[]> {
+    return await this.deviceTrackerRepository.find({
+      where: { ipAddress },
+      order: { lastSeenAt: 'DESC' },
+    });
+  }
+
+  async update(id: string, updateDeviceTrackerDto: UpdateDeviceTrackerDto): Promise<DeviceTracker> {
+    const deviceTracker = await this.findOne(id);
+
+    Object.assign(deviceTracker, updateDeviceTrackerDto);
+    return await this.deviceTrackerRepository.save(deviceTracker);
+  }
+
+  async remove(id: string): Promise<void> {
+    const deviceTracker = await this.findOne(id);
+    await this.deviceTrackerRepository.remove(deviceTracker);
+  }
+
+  async updateLastSeen(id: string): Promise<DeviceTracker> {
+    const deviceTracker = await this.findOne(id);
+    deviceTracker.lastSeenAt = new Date();
+    return await this.deviceTrackerRepository.save(deviceTracker);
+  }
+
+  async markAsTrusted(id: string): Promise<DeviceTracker> {
+    const deviceTracker = await this.findOne(id);
+    deviceTracker.isTrusted = true;
+    return await this.deviceTrackerRepository.save(deviceTracker);
+  }
+
+  async markAsUntrusted(id: string): Promise<DeviceTracker> {
+    const deviceTracker = await this.findOne(id);
+    deviceTracker.isTrusted = false;
+    return await this.deviceTrackerRepository.save(deviceTracker);
+  }
+
+  async getDeviceStatistics(): Promise<{
+    totalDevices: number;
+    trustedDevices: number;
+    untrustedDevices: number;
+    deviceTypeBreakdown: Array<{ deviceType: string; count: number }>;
+    recentActivity: DeviceTracker[];
+  }> {
+    const totalDevices = await this.deviceTrackerRepository.count();
+    const trustedDevices = await this.deviceTrackerRepository.count({
+      where: { isTrusted: true },
+    });
+    const untrustedDevices = totalDevices - trustedDevices;
+
+    // Get device type breakdown
+    const deviceTypeBreakdown = await this.deviceTrackerRepository
+      .createQueryBuilder('deviceTracker')
+      .select('deviceTracker.deviceType', 'deviceType')
+      .addSelect('COUNT(*)', 'count')
+      .groupBy('deviceTracker.deviceType')
+      .getRawMany();
+
+    // Get recent activity (last 24 hours)
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const recentActivity = await this.deviceTrackerRepository.find({
+      where: {
+        lastSeenAt: Between(yesterday, new Date()),
+      },
+      order: { lastSeenAt: 'DESC' },
+      take: 10,
+    });
+
+    return {
+      totalDevices,
+      trustedDevices,
+      untrustedDevices,
+      deviceTypeBreakdown: deviceTypeBreakdown.map((item) => ({
+        deviceType: item.deviceType,
+        count: parseInt(item.count, 10),
+      })),
+      recentActivity,
+    };
+  }
+
+  async cleanupOldEntries(daysToKeep: number = 30): Promise<number> {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
+
+    const result = await this.deviceTrackerRepository
+      .createQueryBuilder()
+      .delete()
+      .where('lastSeenAt < :cutoffDate', { cutoffDate })
+      .execute();
+
+    return result.affected || 0;
+  }
+}
