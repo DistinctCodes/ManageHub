@@ -78,7 +78,6 @@ describe('ApiMonitorService', () => {
     endpoint: mockEndpoint,
     performanceGrade: 'A',
     isHealthy: true,
-    isDegraded: false,
     isDown: false,
   };
 
@@ -153,7 +152,7 @@ describe('ApiMonitorService', () => {
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         getMany: jest.fn().mockResolvedValue([mockEndpoint]),
-      };
+      } as any;
 
       endpointRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
       endpointRepository.update.mockResolvedValue({ affected: 1 } as any);
@@ -172,7 +171,7 @@ describe('ApiMonitorService', () => {
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         getMany: jest.fn().mockResolvedValue([]),
-      };
+      } as any;
 
       endpointRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
 
@@ -188,7 +187,7 @@ describe('ApiMonitorService', () => {
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         getMany: jest.fn().mockRejectedValue(new Error('Database error')),
-      };
+      } as any;
 
       endpointRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
 
@@ -527,7 +526,7 @@ describe('ApiMonitorService', () => {
         where: jest.fn().mockReturnThis(),
         andWhere: jest.fn().mockReturnThis(),
         getMany: jest.fn().mockResolvedValue([mockPingResult]),
-      };
+      } as any;
 
       pingResultRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
 

@@ -219,7 +219,16 @@ describe('ApiEndpointService', () => {
     };
 
     it('should update an endpoint successfully', async () => {
-      const updatedEndpoint = { ...mockEndpoint, ...updateDto };
+      const updatedEndpoint = { 
+        ...mockEndpoint, 
+        ...updateDto,
+        get isHealthy() { return true; },
+        get currentStatus() { return 'healthy' as const; },
+        get averageResponseTime() { return 100; },
+        get uptimePercentage() { return 99.5; },
+        getNextPingTime: jest.fn(),
+        shouldPing: jest.fn(),
+      };
       endpointRepository.findOne.mockResolvedValue(mockEndpoint);
       endpointRepository.save.mockResolvedValue(updatedEndpoint);
 
@@ -242,7 +251,16 @@ describe('ApiEndpointService', () => {
 
     it('should check for URL conflicts when updating URL', async () => {
       const updateWithUrl = { ...updateDto, url: 'https://new-url.com' };
-      const conflictingEndpoint = { ...mockEndpoint, id: 'different-id' };
+      const conflictingEndpoint = { 
+        ...mockEndpoint, 
+        id: 'different-id',
+        get isHealthy() { return true; },
+        get currentStatus() { return 'healthy' as const; },
+        get averageResponseTime() { return 100; },
+        get uptimePercentage() { return 99.5; },
+        getNextPingTime: jest.fn(),
+        shouldPing: jest.fn(),
+      };
 
       endpointRepository.findOne
         .mockResolvedValueOnce(mockEndpoint) // First call for the endpoint being updated
@@ -289,6 +307,12 @@ describe('ApiEndpointService', () => {
       endpointRepository.save.mockResolvedValue({
         ...mockEndpoint,
         status: EndpointStatus.PAUSED,
+        get isHealthy() { return true; },
+        get currentStatus() { return 'healthy' as const; },
+        get averageResponseTime() { return 100; },
+        get uptimePercentage() { return 99.5; },
+        getNextPingTime: jest.fn(),
+        shouldPing: jest.fn(),
       });
 
       const result = await service.bulkUpdate(bulkUpdateDto);
@@ -319,7 +343,16 @@ describe('ApiEndpointService', () => {
   describe('toggleStatus', () => {
     it('should toggle endpoint status successfully', async () => {
       const newStatus = EndpointStatus.PAUSED;
-      const updatedEndpoint = { ...mockEndpoint, status: newStatus };
+      const updatedEndpoint = { 
+        ...mockEndpoint, 
+        status: newStatus,
+        get isHealthy() { return true; },
+        get currentStatus() { return 'healthy' as const; },
+        get averageResponseTime() { return 100; },
+        get uptimePercentage() { return 99.5; },
+        getNextPingTime: jest.fn(),
+        shouldPing: jest.fn(),
+      };
 
       endpointRepository.findOne.mockResolvedValue(mockEndpoint);
       endpointRepository.save.mockResolvedValue(updatedEndpoint);
@@ -394,7 +427,7 @@ describe('ApiEndpointService', () => {
         andWhere: jest.fn().mockReturnThis(),
         orderBy: jest.fn().mockReturnThis(),
         getMany: jest.fn().mockResolvedValue(mockPingResults),
-      };
+      } as any;
 
       pingResultRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
 
@@ -459,7 +492,15 @@ describe('ApiEndpointService', () => {
 
   describe('getHealthyEndpoints', () => {
     it('should return only healthy endpoints', async () => {
-      const healthyEndpoint = { ...mockEndpoint, isHealthy: true };
+      const healthyEndpoint = { 
+        ...mockEndpoint, 
+        isHealthy: true,
+        get currentStatus() { return 'healthy' as const; },
+        get averageResponseTime() { return 100; },
+        get uptimePercentage() { return 99.5; },
+        getNextPingTime: jest.fn(),
+        shouldPing: jest.fn(),
+      };
       endpointRepository.find.mockResolvedValue([healthyEndpoint]);
 
       const result = await service.getHealthyEndpoints();
@@ -471,7 +512,15 @@ describe('ApiEndpointService', () => {
 
   describe('getUnhealthyEndpoints', () => {
     it('should return only unhealthy endpoints', async () => {
-      const unhealthyEndpoint = { ...mockEndpoint, isHealthy: false };
+      const unhealthyEndpoint = { 
+        ...mockEndpoint, 
+        isHealthy: false,
+        get currentStatus() { return 'down' as const; },
+        get averageResponseTime() { return 100; },
+        get uptimePercentage() { return 50.0; },
+        getNextPingTime: jest.fn(),
+        shouldPing: jest.fn(),
+      };
       endpointRepository.find.mockResolvedValue([unhealthyEndpoint]);
 
       const result = await service.getUnhealthyEndpoints();
