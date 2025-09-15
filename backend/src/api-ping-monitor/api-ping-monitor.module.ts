@@ -7,6 +7,7 @@ import { ApiPingMonitorController } from './api-ping-monitor.controller';
 import { ApiEndpointService } from './services/api-endpoint.service';
 import { ApiMonitorService } from './services/api-monitor.service';
 import { ApiNotificationService } from './services/api-notification.service';
+import { ApiAnalyticsService } from './services/api-analytics.service';
 
 @Module({
   imports: [
@@ -18,11 +19,13 @@ import { ApiNotificationService } from './services/api-notification.service';
     ApiEndpointService,
     ApiMonitorService,
     ApiNotificationService,
+    ApiAnalyticsService,
   ],
   exports: [
     ApiEndpointService,
     ApiMonitorService,
     ApiNotificationService,
+    ApiAnalyticsService,
   ],
 })
 export class ApiPingMonitorModule {}

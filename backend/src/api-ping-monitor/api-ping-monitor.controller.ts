@@ -18,6 +18,7 @@ import {
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { ApiEndpointService } from './services/api-endpoint.service';
 import { ApiMonitorService } from './services/api-monitor.service';
+import { ApiAnalyticsService } from './services/api-analytics.service';
 import { 
   CreateApiEndpointDto, 
   UpdateApiEndpointDto, 
@@ -44,6 +45,7 @@ export class ApiPingMonitorController {
   constructor(
     private readonly endpointService: ApiEndpointService,
     private readonly monitorService: ApiMonitorService,
+    private readonly analyticsService: ApiAnalyticsService,
   ) {}
 
   // Endpoint Management
@@ -235,13 +237,97 @@ export class ApiPingMonitorController {
     return this.endpointService.getEndpointStatistics();
   }
 
-  @Get('analytics')
-  @ApiOperation({ summary: 'Get detailed analytics and reports' })
-  @ApiResponse({ status: 200, description: 'Analytics retrieved successfully' })
-  async getAnalytics(
-    @Query(ValidationPipe) analyticsDto: PingResultAnalyticsDto,
+  @Get('analytics/uptime')
+  @ApiOperation({ summary: 'Get detailed uptime analytics' })
+  @ApiResponse({ status: 200, description: 'Uptime analytics retrieved successfully' })
+  @ApiQuery({ name: 'period', required: false, enum: ['1h', '24h', '7d', '30d'], description: 'Analysis period' })
+  @ApiQuery({ name: 'endpointId', required: false, type: String, description: 'Specific endpoint ID' })
+  async getUptimeAnalytics(
+    @Query('period') period: '1h' | '24h' | '7d' | '30d' = '24h',
+    @Query('endpointId') endpointId?: string,
   ) {
-    return this.monitorService.getAnalytics(analyticsDto);
+    return this.analyticsService.getUptimeMetrics(endpointId, period);
+  }
+
+  @Get('analytics/performance')
+  @ApiOperation({ summary: 'Get detailed performance analytics' })
+  @ApiResponse({ status: 200, description: 'Performance analytics retrieved successfully' })
+  @ApiQuery({ name: 'period', required: false, enum: ['1h', '24h', '7d', '30d'], description: 'Analysis period' })
+  @ApiQuery({ name: 'endpointId', required: false, type: String, description: 'Specific endpoint ID' })
+  async getPerformanceAnalytics(
+    @Query('period') period: '1h' | '24h' | '7d' | '30d' = '24h',
+    @Query('endpointId') endpointId?: string,
+  ) {
+    return this.analyticsService.getPerformanceMetrics(endpointId, period);
+  }
+
+  @Get('analytics/incidents')
+  @ApiOperation({ summary: 'Get detailed incident analytics' })
+  @ApiResponse({ status: 200, description: 'Incident analytics retrieved successfully' })
+  @ApiQuery({ name: 'period', required: false, enum: ['1h', '24h', '7d', '30d'], description: 'Analysis period' })
+  @ApiQuery({ name: 'endpointId', required: false, type: String, description: 'Specific endpoint ID' })
+  async getIncidentAnalytics(
+    @Query('period') period: '1h' | '24h' | '7d' | '30d' = '24h',
+    @Query('endpointId') endpointId?: string,
+  ) {
+    return this.analyticsService.getIncidentMetrics(endpointId, period);
+  }
+
+  @Get('analytics/comparison/:endpointId')
+  @ApiOperation({ summary: 'Get comparison analytics between two periods' })
+  @ApiResponse({ status: 200, description: 'Comparison analytics retrieved successfully' })
+  @ApiQuery({ name: 'current', required: false, enum: ['1h', '24h', '7d', '30d'], description: 'Current period' })
+  @ApiQuery({ name: 'previous', required: false, enum: ['1h', '24h', '7d', '30d'], description: 'Previous period' })
+  async getComparisonAnalytics(
+    @Param('endpointId', ParseUUIDPipe) endpointId: string,
+    @Query('current') current: '1h' | '24h' | '7d' | '30d' = '24h',
+    @Query('previous') previous: '1h' | '24h' | '7d' | '30d' = '24h',
+  ) {
+    return this.analyticsService.getComparisonMetrics(endpointId, current, previous);
+  }
+
+  @Get('analytics/global')
+  @ApiOperation({ summary: 'Get global system analytics and trends' })
+  @ApiResponse({ status: 200, description: 'Global analytics retrieved successfully' })
+  @ApiQuery({ name: 'period', required: false, enum: ['1h', '24h', '7d', '30d'], description: 'Analysis period' })
+  async getGlobalAnalytics(
+    @Query('period') period: '1h' | '24h' | '7d' | '30d' = '24h',
+  ) {
+    return this.analyticsService.getGlobalMetrics(period);
+  }
+
+  @Get('analytics/sla')
+  @ApiOperation({ summary: 'Generate SLA compliance report' })
+  @ApiResponse({ status: 200, description: 'SLA report generated successfully' })
+  @ApiQuery({ name: 'endpointId', required: false, type: String, description: 'Specific endpoint ID' })
+  @ApiQuery({ name: 'target', required: false, type: Number, description: 'SLA target percentage (default: 99.9)' })
+  @ApiQuery({ name: 'period', required: false, enum: ['30d', '90d'], description: 'Report period' })
+  async getSLAReport(
+    @Query('endpointId') endpointId?: string,
+    @Query('target') target: number = 99.9,
+    @Query('period') period: '30d' | '90d' = '30d',
+  ) {
+    return this.analyticsService.generateSLAReport(endpointId, target, period);
+  }
+
+  @Post('analytics/custom')
+  @ApiOperation({ summary: 'Generate custom analytics report' })
+  @ApiResponse({ status: 200, description: 'Custom report generated successfully' })
+  async getCustomAnalytics(
+    @Body() options: {
+      endpointIds?: string[];
+      providers?: string[];
+      startDate: string;
+      endDate: string;
+      includeMetrics: ('uptime' | 'performance' | 'incidents')[];
+      groupBy: 'endpoint' | 'provider' | 'day' | 'hour';
+    },
+  ) {
+    return this.analyticsService.generateCustomReport({
+      ...options,
+      startDate: new Date(options.startDate),
+      endDate: new Date(options.endDate),
+    });
   }
 
   @Get('health-overview')
