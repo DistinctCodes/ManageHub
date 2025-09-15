@@ -244,7 +244,16 @@ describe('ApiPingMonitorController', () => {
           name: 'Updated Endpoint',
           description: 'Updated description',
         };
-        const updatedEndpoint = { ...mockEndpoint, ...updateDto };
+        const updatedEndpoint = { 
+          ...mockEndpoint, 
+          ...updateDto,
+          get isHealthy() { return true; },
+          get currentStatus() { return 'healthy' as const; },
+          get averageResponseTime() { return 100; },
+          get uptimePercentage() { return 99.5; },
+          getNextPingTime: jest.fn(),
+          shouldPing: jest.fn(),
+        };
 
         endpointService.update.mockResolvedValue(updatedEndpoint);
 
@@ -317,7 +326,16 @@ describe('ApiPingMonitorController', () => {
     describe('toggleEndpointStatus', () => {
       it('should toggle endpoint status successfully', async () => {
         const newStatus = EndpointStatus.PAUSED;
-        const updatedEndpoint = { ...mockEndpoint, status: newStatus };
+        const updatedEndpoint = { 
+          ...mockEndpoint, 
+          status: newStatus,
+          get isHealthy() { return true; },
+          get currentStatus() { return 'healthy' as const; },
+          get averageResponseTime() { return 100; },
+          get uptimePercentage() { return 99.5; },
+          getNextPingTime: jest.fn(),
+          shouldPing: jest.fn(),
+        };
 
         endpointService.toggleStatus.mockResolvedValue(updatedEndpoint);
 
@@ -330,7 +348,16 @@ describe('ApiPingMonitorController', () => {
 
     describe('toggleEndpointActive', () => {
       it('should toggle endpoint active status successfully', async () => {
-        const updatedEndpoint = { ...mockEndpoint, isActive: false };
+        const updatedEndpoint = { 
+          ...mockEndpoint, 
+          isActive: false,
+          get isHealthy() { return true; },
+          get currentStatus() { return 'healthy' as const; },
+          get averageResponseTime() { return 100; },
+          get uptimePercentage() { return 99.5; },
+          getNextPingTime: jest.fn(),
+          shouldPing: jest.fn(),
+        };
 
         endpointService.toggleActive.mockResolvedValue(updatedEndpoint);
 
