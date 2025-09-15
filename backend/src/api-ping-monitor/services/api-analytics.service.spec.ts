@@ -18,6 +18,40 @@ describe('ApiAnalyticsService', () => {
   let endpointRepository: jest.Mocked<Repository<ApiEndpoint>>;
   let pingResultRepository: jest.Mocked<Repository<PingResult>>;
 
+  const createMockPingResult = (overrides: Partial<PingResult> = {}): PingResult => ({
+    id: 'result-1',
+    endpointId: 'test-endpoint-id',
+    status: PingStatus.SUCCESS,
+    httpStatusCode: 200,
+    responseTimeMs: 150,
+    dnsLookupTimeMs: 10,
+    tcpConnectionTimeMs: 20,
+    tlsHandshakeTimeMs: 30,
+    firstByteTimeMs: 40,
+    contentTransferTimeMs: 50,
+    responseHeaders: '{}',
+    responseBody: 'OK',
+    responseSize: 2,
+    errorMessage: null,
+    errorDetails: null,
+    isSuccess: true,
+    isTimeout: false,
+    alertSent: false,
+    attemptNumber: 1,
+    validationResults: null,
+    metadata: null,
+    createdAt: new Date(),
+    endpoint: null as any,
+    get isHealthy() { return this.isSuccess; },
+    get performanceGrade() { return 'A' as const; },
+    get statusCategory() { return 'success' as const; },
+    getFormattedResponseTime: () => '150ms',
+    getErrorSummary: () => 'Success',
+    hasPerformanceIssue: () => false,
+    toSummary: () => ({ id: 'result-1', status: PingStatus.SUCCESS, isSuccess: true, responseTimeMs: 150, httpStatusCode: 200, errorMessage: 'Success', createdAt: new Date(), performanceGrade: 'A' }),
+    ...overrides,
+  });
+
   const mockEndpoint: ApiEndpoint = {
     id: '123e4567-e89b-12d3-a456-426614174000',
     name: 'Test Endpoint',
@@ -764,9 +798,9 @@ describe('ApiAnalyticsService', () => {
     describe('groupResultsByEndpoint', () => {
       it('should group ping results by endpoint ID', () => {
         const results = [
-          { ...mockPingResults[0], endpointId: 'endpoint-1' },
-          { ...mockPingResults[1], endpointId: 'endpoint-1' },
-          { ...mockPingResults[2], endpointId: 'endpoint-2' },
+          createMockPingResult({ endpointId: 'endpoint-1' }),
+          createMockPingResult({ endpointId: 'endpoint-1' }),
+          createMockPingResult({ endpointId: 'endpoint-2' }),
         ];
 
         const grouped = service['groupResultsByEndpoint'](results);

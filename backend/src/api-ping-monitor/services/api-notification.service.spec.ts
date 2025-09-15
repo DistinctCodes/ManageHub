@@ -11,7 +11,7 @@ describe('ApiNotificationService', () => {
   let endpointRepository: jest.Mocked<Repository<ApiEndpoint>>;
   let pingResultRepository: jest.Mocked<Repository<PingResult>>;
 
-  const mockEndpoint: ApiEndpoint = {
+  const createMockEndpoint = (overrides: Partial<ApiEndpoint> = {}): ApiEndpoint => ({
     id: '123e4567-e89b-12d3-a456-426614174000',
     name: 'Test Endpoint',
     description: 'Test Description',
@@ -47,17 +47,18 @@ describe('ApiNotificationService', () => {
     lastPingAt: null,
     nextPingAt: new Date(),
     pingResults: [],
-    isHealthy: true,
-    currentStatus: 'healthy',
-    averageResponseTime: 100,
-    uptimePercentage: 99.5,
+    get isHealthy() { return true; },
+    get currentStatus() { return 'healthy' as const; },
+    get averageResponseTime() { return 100; },
+    get uptimePercentage() { return 99.5; },
     getNextPingTime: jest.fn(),
     shouldPing: jest.fn(),
-  };
+    ...overrides,
+  });
 
-  const mockSuccessfulPingResult: PingResult = {
+  const createMockPingResult = (overrides: Partial<PingResult> = {}): PingResult => ({
     id: 'result-1',
-    endpointId: mockEndpoint.id,
+    endpointId: 'test-endpoint-id',
     status: PingStatus.SUCCESS,
     httpStatusCode: 200,
     responseTimeMs: 150,
@@ -78,7 +79,7 @@ describe('ApiNotificationService', () => {
     validationResults: null,
     metadata: null,
     createdAt: new Date(),
-    endpoint: mockEndpoint,
+    endpoint: null as any,
     get isHealthy() { return this.isSuccess; },
     get performanceGrade() { return 'A' as const; },
     get statusCategory() { return 'success' as const; },
@@ -86,9 +87,12 @@ describe('ApiNotificationService', () => {
     getErrorSummary: () => 'Success',
     hasPerformanceIssue: () => false,
     toSummary: () => ({ id: 'result-1', status: PingStatus.SUCCESS, isSuccess: true, responseTimeMs: 150, httpStatusCode: 200, errorMessage: 'Success', createdAt: new Date(), performanceGrade: 'A' }),
-  };
+    ...overrides,
+  });
 
-  const mockFailedPingResult: PingResult = {
+  const mockEndpoint = createMockEndpoint();
+  const mockSuccessfulPingResult = createMockPingResult({ endpointId: mockEndpoint.id, endpoint: mockEndpoint });
+  const mockFailedPingResult = createMockPingResult({
     id: 'result-2',
     endpointId: mockEndpoint.id,
     status: PingStatus.TIMEOUT,
@@ -106,20 +110,14 @@ describe('ApiNotificationService', () => {
     errorDetails: '{"code": "ECONNABORTED"}',
     isSuccess: false,
     isTimeout: true,
-    alertSent: false,
-    attemptNumber: 1,
-    validationResults: null,
-    metadata: null,
-    createdAt: new Date(),
     endpoint: mockEndpoint,
     get isHealthy() { return false; },
     get performanceGrade() { return 'F' as const; },
     get statusCategory() { return 'network_error' as const; },
     getFormattedResponseTime: () => 'N/A',
     getErrorSummary: () => 'Request timeout',
-    hasPerformanceIssue: () => false,
     toSummary: () => ({ id: 'result-2', status: PingStatus.TIMEOUT, isSuccess: false, responseTimeMs: 0, httpStatusCode: 0, errorMessage: 'Request timeout', createdAt: new Date(), performanceGrade: 'F' }),
-  };
+  });
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -155,7 +153,7 @@ describe('ApiNotificationService', () => {
 
   describe('handlePingResult', () => {
     it('should handle successful ping result without alerts disabled', async () => {
-      const endpointWithoutAlerts = { ...mockEndpoint, enableAlerts: false };
+      const endpointWithoutAlerts = createMockEndpoint({ enableAlerts: false });
       
       await service.handlePingResult(mockSuccessfulPingResult, endpointWithoutAlerts);
       
@@ -223,10 +221,9 @@ describe('ApiNotificationService', () => {
     });
 
     it('should check for slow response times', async () => {
-      const slowPingResult: PingResult = {
-        ...mockSuccessfulPingResult,
+      const slowPingResult = createMockPingResult({
         responseTimeMs: 6000, // Exceeds threshold of 5000ms
-      };
+      });
       const checkSlowResponseSpy = jest.spyOn(service as any, 'checkSlowResponse').mockResolvedValue(undefined);
       
       await service.handlePingResult(slowPingResult, mockEndpoint);
@@ -243,7 +240,7 @@ describe('ApiNotificationService', () => {
     });
 
     it('should handle errors gracefully', async () => {
-      const errorEndpoint = { ...mockEndpoint, alertConfig: null };
+      const errorEndpoint = createMockEndpoint({ alertConfig: null });
       
       // Should not throw error
       await expect(service.handlePingResult(mockSuccessfulPingResult, errorEndpoint)).resolves.not.toThrow();
@@ -252,10 +249,9 @@ describe('ApiNotificationService', () => {
 
   describe('checkSlowResponse', () => {
     it('should send slow response notification when threshold is exceeded', async () => {
-      const slowPingResult: PingResult = {
-        ...mockSuccessfulPingResult,
+      const slowPingResult = createMockPingResult({
         responseTimeMs: 6000,
-      };
+      });
       
       // Mock cooldown as expired
       jest.spyOn(service as any, 'isCooldownExpired').mockReturnValue(true);
@@ -273,10 +269,9 @@ describe('ApiNotificationService', () => {
     });
 
     it('should not send notification if response time is within threshold', async () => {
-      const fastPingResult: PingResult = {
-        ...mockSuccessfulPingResult,
+      const fastPingResult = createMockPingResult({
         responseTimeMs: 1000, // Below threshold
-      };
+      });
       const sendNotificationSpy = jest.spyOn(service as any, 'sendNotification').mockResolvedValue(undefined);
       
       await service['checkSlowResponse'](mockEndpoint, fastPingResult);
@@ -285,10 +280,9 @@ describe('ApiNotificationService', () => {
     });
 
     it('should not send notification if no response time threshold is configured', async () => {
-      const endpointWithoutThreshold = {
-        ...mockEndpoint,
+      const endpointWithoutThreshold = createMockEndpoint({
         alertConfig: { ...mockEndpoint.alertConfig, responseTimeThresholdMs: undefined },
-      };
+      });
       const sendNotificationSpy = jest.spyOn(service as any, 'sendNotification').mockResolvedValue(undefined);
       
       await service['checkSlowResponse'](endpointWithoutThreshold, mockSuccessfulPingResult);
@@ -299,10 +293,9 @@ describe('ApiNotificationService', () => {
 
   describe('checkEndpointHealth', () => {
     it('should send downtime alert when uptime falls below threshold', async () => {
-      const unhealthyEndpoint = {
-        ...mockEndpoint,
-        uptimePercentage: 90, // Below threshold of 95%
-      };
+      const unhealthyEndpoint = createMockEndpoint({
+        get uptimePercentage() { return 90; }, // Below threshold of 95%
+      });
       
       jest.spyOn(service as any, 'isCooldownExpired').mockReturnValue(true);
       const sendNotificationSpy = jest.spyOn(service as any, 'sendNotification').mockResolvedValue(undefined);
@@ -319,10 +312,9 @@ describe('ApiNotificationService', () => {
     });
 
     it('should not send alert if uptime is above threshold', async () => {
-      const healthyEndpoint = {
-        ...mockEndpoint,
-        uptimePercentage: 99, // Above threshold
-      };
+      const healthyEndpoint = createMockEndpoint({
+        get uptimePercentage() { return 99; }, // Above threshold
+      });
       const sendNotificationSpy = jest.spyOn(service as any, 'sendNotification').mockResolvedValue(undefined);
       
       await service['checkEndpointHealth'](healthyEndpoint);
@@ -331,10 +323,9 @@ describe('ApiNotificationService', () => {
     });
 
     it('should not send alert if cooldown has not expired', async () => {
-      const unhealthyEndpoint = {
-        ...mockEndpoint,
-        uptimePercentage: 90,
-      };
+      const unhealthyEndpoint = createMockEndpoint({
+        get uptimePercentage() { return 90; },
+      });
       
       jest.spyOn(service as any, 'isCooldownExpired').mockReturnValue(false);
       const sendNotificationSpy = jest.spyOn(service as any, 'sendNotification').mockResolvedValue(undefined);
@@ -469,9 +460,9 @@ describe('ApiNotificationService', () => {
 
   describe('updateNotificationSettings', () => {
     it('should update notification settings for existing endpoint', async () => {
-      const updatedEndpoint = { ...mockEndpoint };
+      const updatedEndpoint = createMockEndpoint();
       endpointRepository.findOne.mockResolvedValue(mockEndpoint);
-      endpointRepository.save.mockResolvedValue(updatedEndpoint);
+      endpointRepository.save.mockResolvedValue(updatedEndpoint as any);
       
       const newSettings = {
         emailEnabled: false,
