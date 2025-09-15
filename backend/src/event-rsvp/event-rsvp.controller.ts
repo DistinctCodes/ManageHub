@@ -353,4 +353,91 @@ export class EventRsvpController {
       .orderBy('date', 'ASC')
       .getRawMany();
   }
+
+  // Event Templates Endpoints
+
+  @Post('templates')
+  @HttpCode(HttpStatus.CREATED)
+  async createTemplate(@Body(ValidationPipe) createTemplateDto: CreateEventTemplateDto) {
+    return await this.eventTemplateService.createTemplate(createTemplateDto);
+  }
+
+  @Get('templates')
+  async findAllTemplates(@Query('createdBy') createdBy?: string) {
+    return await this.eventTemplateService.findAllTemplates(createdBy);
+  }
+
+  @Get('templates/:id')
+  async findTemplate(@Param('id', ParseUUIDPipe) id: string) {
+    return await this.eventTemplateService.findTemplate(id);
+  }
+
+  @Patch('templates/:id')
+  async updateTemplate(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(ValidationPipe) updateData: Partial<CreateEventTemplateDto>,
+  ) {
+    return await this.eventTemplateService.updateTemplate(id, updateData);
+  }
+
+  @Delete('templates/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteTemplate(@Param('id', ParseUUIDPipe) id: string) {
+    await this.eventTemplateService.deleteTemplate(id);
+  }
+
+  @Post('templates/:id/create-event')
+  @HttpCode(HttpStatus.CREATED)
+  async createEventFromTemplate(
+    @Param('id', ParseUUIDPipe) templateId: string,
+    @Body(ValidationPipe) createFromTemplateDto: Omit<CreateEventFromTemplateDto, 'templateId'>,
+  ) {
+    return await this.eventTemplateService.createEventFromTemplate({
+      ...createFromTemplateDto,
+      templateId,
+    });
+  }
+
+  // Event Series (Recurring Events) Endpoints
+
+  @Post('series')
+  @HttpCode(HttpStatus.CREATED)
+  async createEventSeries(@Body(ValidationPipe) createSeriesDto: CreateEventSeriesDto) {
+    return await this.eventTemplateService.createEventSeries(createSeriesDto);
+  }
+
+  @Get('series')
+  async getEventSeries(@Query('createdBy') createdBy?: string) {
+    return await this.eventTemplateService.getSeriesList(createdBy);
+  }
+
+  @Get('series/:id')
+  async findEventSeries(@Param('id', ParseUUIDPipe) id: string) {
+    return await this.eventTemplateService.findSeries(id);
+  }
+
+  @Post('series/:id/pause')
+  @HttpCode(HttpStatus.OK)
+  async pauseEventSeries(@Param('id', ParseUUIDPipe) id: string) {
+    return await this.eventTemplateService.pauseSeries(id);
+  }
+
+  @Post('series/:id/resume')
+  @HttpCode(HttpStatus.OK)
+  async resumeEventSeries(@Param('id', ParseUUIDPipe) id: string) {
+    return await this.eventTemplateService.resumeSeries(id);
+  }
+
+  @Post('series/:id/cancel')
+  @HttpCode(HttpStatus.OK)
+  async cancelEventSeries(@Param('id', ParseUUIDPipe) id: string) {
+    return await this.eventTemplateService.cancelSeries(id);
+  }
+
+  @Post('series/process-recurring')
+  @HttpCode(HttpStatus.OK)
+  async processRecurringEvents() {
+    await this.eventTemplateService.processRecurringEvents();
+    return { message: 'Recurring events processed successfully' };
+  }
 }
