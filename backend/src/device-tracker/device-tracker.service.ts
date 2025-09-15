@@ -140,7 +140,7 @@ export class DeviceTrackerService {
 
     // Apply pagination
     const limitNum = parseInt(limit, 10);
-    
+
     const offsetNum = parseInt(offset, 10);
 
     if (limitNum > 100) {

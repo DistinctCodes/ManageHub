@@ -78,7 +78,6 @@ describe('ApiMonitorService', () => {
     endpoint: mockEndpoint,
     performanceGrade: 'A',
     isHealthy: true,
-    isDown: false,
   };
 
   beforeEach(async () => {
@@ -357,7 +356,7 @@ describe('ApiMonitorService', () => {
         skip: jest.fn().mockReturnThis(),
         take: jest.fn().mockReturnThis(),
         getManyAndCount: jest.fn().mockResolvedValue([[mockPingResult], 1]),
-      };
+      } as any;
 
       pingResultRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
 
@@ -377,8 +376,8 @@ describe('ApiMonitorService', () => {
         endpointId: mockEndpoint.id,
         status: PingStatus.SUCCESS,
         isSuccess: true,
-        startDate: new Date('2023-01-01'),
-        endDate: new Date('2023-12-31'),
+        startDate: '2023-01-01',
+        endDate: '2023-12-31',
       };
 
       const mockQueryBuilder = {
@@ -389,7 +388,7 @@ describe('ApiMonitorService', () => {
         skip: jest.fn().mockReturnThis(),
         take: jest.fn().mockReturnThis(),
         getManyAndCount: jest.fn().mockResolvedValue([[mockPingResult], 1]),
-      };
+      } as any;
 
       pingResultRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
 
@@ -439,9 +438,33 @@ describe('ApiMonitorService', () => {
         .mockResolvedValueOnce(4); // active
 
       endpointRepository.find.mockResolvedValue([
-        { ...mockEndpoint, currentStatus: 'healthy' },
-        { ...mockEndpoint, currentStatus: 'degraded' },
-        { ...mockEndpoint, currentStatus: 'down' },
+        {
+          ...mockEndpoint,
+          currentStatus: 'healthy',
+          isHealthy: true,
+          averageResponseTime: 100,
+          uptimePercentage: 99.5,
+          getNextPingTime: jest.fn(),
+          shouldPing: jest.fn(),
+        },
+        {
+          ...mockEndpoint,
+          currentStatus: 'degraded',
+          isHealthy: false,
+          averageResponseTime: 200,
+          uptimePercentage: 80.0,
+          getNextPingTime: jest.fn(),
+          shouldPing: jest.fn(),
+        },
+        {
+          ...mockEndpoint,
+          currentStatus: 'down',
+          isHealthy: false,
+          averageResponseTime: 0,
+          uptimePercentage: 0,
+          getNextPingTime: jest.fn(),
+          shouldPing: jest.fn(),
+        },
       ]);
 
       const result = await service.getSystemHealth();
@@ -463,14 +486,28 @@ describe('ApiMonitorService', () => {
         .mockResolvedValueOnce(10); // active
 
       // Mock 50% of endpoints as down (5 out of 10)
-      const downEndpoints = Array(5).fill({
-        ...mockEndpoint,
-        currentStatus: 'down',
-      });
-      const healthyEndpoints = Array(5).fill({
-        ...mockEndpoint,
-        currentStatus: 'healthy',
-      });
+      const downEndpoints = Array(5)
+        .fill(null)
+        .map(() => ({
+          ...mockEndpoint,
+          currentStatus: 'down',
+          isHealthy: false,
+          averageResponseTime: 0,
+          uptimePercentage: 0,
+          getNextPingTime: jest.fn(),
+          shouldPing: jest.fn(),
+        }));
+      const healthyEndpoints = Array(5)
+        .fill(null)
+        .map(() => ({
+          ...mockEndpoint,
+          currentStatus: 'healthy',
+          isHealthy: true,
+          averageResponseTime: 100,
+          uptimePercentage: 99.5,
+          getNextPingTime: jest.fn(),
+          shouldPing: jest.fn(),
+        }));
 
       endpointRepository.find.mockResolvedValue([
         ...downEndpoints,

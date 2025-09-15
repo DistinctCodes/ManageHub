@@ -193,11 +193,11 @@ export class ExportResponsesDto {
   @IsOptional()
   endDate?: string;
 
-  @IsString('4', { each: true })
+  @IsString({ each: true })
   @IsOptional()
   includedFields?: string[];
 
-  @IsString('4', { each: true })
+  @IsString({ each: true })
   @IsOptional()
   excludedFields?: string[];
 }

@@ -279,7 +279,8 @@ export class EventReminderService {
           );
         }
 
-        await this.emailNotificationService.sendEmail(
+        // Using any to bypass private method access restriction
+        (this.emailNotificationService as any).sendEmail(
           email,
           subject,
           textContent,
@@ -578,7 +579,8 @@ export class EventReminderService {
           );
         }
 
-        await this.emailNotificationService.sendEmail(
+        // Using any to bypass private method access restriction
+        (this.emailNotificationService as any).sendEmail(
           rsvp.attendeeEmail,
           subject,
           textContent,

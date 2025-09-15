@@ -146,7 +146,7 @@ export class ApiEndpoint {
   @Column({ type: 'datetime', nullable: true })
   nextPingAt: Date;
 
-  @OneToMany(() => PingResult, (pingResult) => pingResult.endpoint)
+  @OneToMany(() => PingResult, (pingResult: PingResult) => pingResult.endpoint)
   pingResults: PingResult[];
 
   // Computed properties

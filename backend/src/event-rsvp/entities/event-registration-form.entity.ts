@@ -94,7 +94,10 @@ export class EventRegistrationForm {
   @JoinColumn({ name: 'eventId' })
   event: Event;
 
-  @OneToMany(() => EventRegistrationResponse, (response) => response.form)
+  @OneToMany(
+    () => EventRegistrationResponse,
+    (response: EventRegistrationResponse) => response.form,
+  )
   responses: EventRegistrationResponse[];
 
   // Computed properties

@@ -219,13 +219,21 @@ describe('ApiEndpointService', () => {
     };
 
     it('should update an endpoint successfully', async () => {
-      const updatedEndpoint = { 
-        ...mockEndpoint, 
+      const updatedEndpoint = {
+        ...mockEndpoint,
         ...updateDto,
-        get isHealthy() { return true; },
-        get currentStatus() { return 'healthy' as const; },
-        get averageResponseTime() { return 100; },
-        get uptimePercentage() { return 99.5; },
+        get isHealthy() {
+          return true;
+        },
+        get currentStatus() {
+          return 'healthy' as const;
+        },
+        get averageResponseTime() {
+          return 100;
+        },
+        get uptimePercentage() {
+          return 99.5;
+        },
         getNextPingTime: jest.fn(),
         shouldPing: jest.fn(),
       };
@@ -251,13 +259,21 @@ describe('ApiEndpointService', () => {
 
     it('should check for URL conflicts when updating URL', async () => {
       const updateWithUrl = { ...updateDto, url: 'https://new-url.com' };
-      const conflictingEndpoint = { 
-        ...mockEndpoint, 
+      const conflictingEndpoint = {
+        ...mockEndpoint,
         id: 'different-id',
-        get isHealthy() { return true; },
-        get currentStatus() { return 'healthy' as const; },
-        get averageResponseTime() { return 100; },
-        get uptimePercentage() { return 99.5; },
+        get isHealthy() {
+          return true;
+        },
+        get currentStatus() {
+          return 'healthy' as const;
+        },
+        get averageResponseTime() {
+          return 100;
+        },
+        get uptimePercentage() {
+          return 99.5;
+        },
         getNextPingTime: jest.fn(),
         shouldPing: jest.fn(),
       };
@@ -307,10 +323,18 @@ describe('ApiEndpointService', () => {
       endpointRepository.save.mockResolvedValue({
         ...mockEndpoint,
         status: EndpointStatus.PAUSED,
-        get isHealthy() { return true; },
-        get currentStatus() { return 'healthy' as const; },
-        get averageResponseTime() { return 100; },
-        get uptimePercentage() { return 99.5; },
+        get isHealthy() {
+          return true;
+        },
+        get currentStatus() {
+          return 'healthy' as const;
+        },
+        get averageResponseTime() {
+          return 100;
+        },
+        get uptimePercentage() {
+          return 99.5;
+        },
         getNextPingTime: jest.fn(),
         shouldPing: jest.fn(),
       });
@@ -343,13 +367,21 @@ describe('ApiEndpointService', () => {
   describe('toggleStatus', () => {
     it('should toggle endpoint status successfully', async () => {
       const newStatus = EndpointStatus.PAUSED;
-      const updatedEndpoint = { 
-        ...mockEndpoint, 
+      const updatedEndpoint = {
+        ...mockEndpoint,
         status: newStatus,
-        get isHealthy() { return true; },
-        get currentStatus() { return 'healthy' as const; },
-        get averageResponseTime() { return 100; },
-        get uptimePercentage() { return 99.5; },
+        get isHealthy() {
+          return true;
+        },
+        get currentStatus() {
+          return 'healthy' as const;
+        },
+        get averageResponseTime() {
+          return 100;
+        },
+        get uptimePercentage() {
+          return 99.5;
+        },
         getNextPingTime: jest.fn(),
         shouldPing: jest.fn(),
       };
@@ -492,12 +524,18 @@ describe('ApiEndpointService', () => {
 
   describe('getHealthyEndpoints', () => {
     it('should return only healthy endpoints', async () => {
-      const healthyEndpoint = { 
-        ...mockEndpoint, 
+      const healthyEndpoint = {
+        ...mockEndpoint,
         isHealthy: true,
-        get currentStatus() { return 'healthy' as const; },
-        get averageResponseTime() { return 100; },
-        get uptimePercentage() { return 99.5; },
+        get currentStatus() {
+          return 'healthy' as const;
+        },
+        get averageResponseTime() {
+          return 100;
+        },
+        get uptimePercentage() {
+          return 99.5;
+        },
         getNextPingTime: jest.fn(),
         shouldPing: jest.fn(),
       };
@@ -512,12 +550,18 @@ describe('ApiEndpointService', () => {
 
   describe('getUnhealthyEndpoints', () => {
     it('should return only unhealthy endpoints', async () => {
-      const unhealthyEndpoint = { 
-        ...mockEndpoint, 
+      const unhealthyEndpoint = {
+        ...mockEndpoint,
         isHealthy: false,
-        get currentStatus() { return 'down' as const; },
-        get averageResponseTime() { return 100; },
-        get uptimePercentage() { return 50.0; },
+        get currentStatus() {
+          return 'down' as const;
+        },
+        get averageResponseTime() {
+          return 100;
+        },
+        get uptimePercentage() {
+          return 50.0;
+        },
         getNextPingTime: jest.fn(),
         shouldPing: jest.fn(),
       };
