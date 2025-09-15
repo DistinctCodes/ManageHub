@@ -12,7 +12,10 @@ import { EventRegistrationService } from './services/event-registration.service'
 import { EventReminderService } from './services/event-reminder.service';
 import { Event, EventStatus } from './entities/event.entity';
 import { EventRsvp, RsvpStatus } from './entities/event-rsvp.entity';
-import { EventFeedback, FeedbackStatus } from './entities/event-feedback.entity';
+import {
+  EventFeedback,
+  FeedbackStatus,
+} from './entities/event-feedback.entity';
 import { CreateEventDto } from './dto/create-event.dto';
 import { CreateRsvpDto } from './dto/create-rsvp.dto';
 import { CreateEventFeedbackDto } from './dto/create-event-feedback.dto';
@@ -175,9 +178,13 @@ describe('EventRsvpController (Integration)', () => {
 
     eventService = moduleFixture.get<EventService>(EventService);
     rsvpService = moduleFixture.get<RsvpService>(RsvpService);
-    feedbackService = moduleFixture.get<EventFeedbackService>(EventFeedbackService);
-    registrationService = moduleFixture.get<EventRegistrationService>(EventRegistrationService);
-    reminderService = moduleFixture.get<EventReminderService>(EventReminderService);
+    feedbackService =
+      moduleFixture.get<EventFeedbackService>(EventFeedbackService);
+    registrationService = moduleFixture.get<EventRegistrationService>(
+      EventRegistrationService,
+    );
+    reminderService =
+      moduleFixture.get<EventReminderService>(EventReminderService);
   });
 
   afterEach(async () => {
@@ -198,7 +205,9 @@ describe('EventRsvpController (Integration)', () => {
           organizerEmail: 'organizer@example.com',
         };
 
-        jest.spyOn(eventService, 'create').mockResolvedValue(mockEvent as Event);
+        jest
+          .spyOn(eventService, 'create')
+          .mockResolvedValue(mockEvent as Event);
 
         const response = await request(app.getHttpServer())
           .post('/event-rsvp/events')
@@ -223,7 +232,12 @@ describe('EventRsvpController (Integration)', () => {
 
     describe('GET /event-rsvp/events', () => {
       it('should return all events', async () => {
-        const mockEvents = { events: [mockEvent], total: 1, page: 1, limit: 10 } as any;
+        const mockEvents = {
+          events: [mockEvent],
+          total: 1,
+          page: 1,
+          limit: 10,
+        } as any;
         jest.spyOn(eventService, 'findAll').mockResolvedValue(mockEvents);
 
         const response = await request(app.getHttpServer())
@@ -234,7 +248,12 @@ describe('EventRsvpController (Integration)', () => {
       });
 
       it('should handle query parameters', async () => {
-        const mockEvents = { events: [mockEvent], total: 1, page: 1, limit: 5 } as any;
+        const mockEvents = {
+          events: [mockEvent],
+          total: 1,
+          page: 1,
+          limit: 5,
+        } as any;
         jest.spyOn(eventService, 'findAll').mockResolvedValue(mockEvents);
 
         await request(app.getHttpServer())
@@ -250,7 +269,9 @@ describe('EventRsvpController (Integration)', () => {
 
     describe('GET /event-rsvp/events/:id', () => {
       it('should return a specific event', async () => {
-        jest.spyOn(eventService, 'findOne').mockResolvedValue(mockEvent as Event);
+        jest
+          .spyOn(eventService, 'findOne')
+          .mockResolvedValue(mockEvent as Event);
 
         const response = await request(app.getHttpServer())
           .get(`/event-rsvp/events/${mockEvent.id}`)
@@ -269,7 +290,9 @@ describe('EventRsvpController (Integration)', () => {
     describe('POST /event-rsvp/events/:id/publish', () => {
       it('should publish an event', async () => {
         const publishedEvent = { ...mockEvent, status: EventStatus.PUBLISHED };
-        jest.spyOn(eventService, 'publishEvent').mockResolvedValue(publishedEvent as Event);
+        jest
+          .spyOn(eventService, 'publishEvent')
+          .mockResolvedValue(publishedEvent as Event);
 
         const response = await request(app.getHttpServer())
           .post(`/event-rsvp/events/${mockEvent.id}/publish`)
@@ -282,7 +305,9 @@ describe('EventRsvpController (Integration)', () => {
     describe('POST /event-rsvp/events/:id/cancel', () => {
       it('should cancel an event', async () => {
         const cancelledEvent = { ...mockEvent, status: EventStatus.CANCELLED };
-        jest.spyOn(eventService, 'cancelEvent').mockResolvedValue(cancelledEvent as Event);
+        jest
+          .spyOn(eventService, 'cancelEvent')
+          .mockResolvedValue(cancelledEvent as Event);
 
         const response = await request(app.getHttpServer())
           .post(`/event-rsvp/events/${mockEvent.id}/cancel`)
@@ -290,7 +315,10 @@ describe('EventRsvpController (Integration)', () => {
           .expect(200);
 
         expect(response.body).toEqual(cancelledEvent);
-        expect(eventService.cancelEvent).toHaveBeenCalledWith(mockEvent.id, 'Test cancellation');
+        expect(eventService.cancelEvent).toHaveBeenCalledWith(
+          mockEvent.id,
+          'Test cancellation',
+        );
       });
     });
   });
@@ -305,7 +333,9 @@ describe('EventRsvpController (Integration)', () => {
           specialRequests: 'Vegetarian meal',
         };
 
-        jest.spyOn(rsvpService, 'createRsvp').mockResolvedValue(mockRsvp as EventRsvp);
+        jest
+          .spyOn(rsvpService, 'createRsvp')
+          .mockResolvedValue(mockRsvp as EventRsvp);
 
         const response = await request(app.getHttpServer())
           .post(`/event-rsvp/events/${mockEvent.id}/rsvp`)
@@ -313,14 +343,19 @@ describe('EventRsvpController (Integration)', () => {
           .expect(201);
 
         expect(response.body).toEqual(mockRsvp);
-        expect(rsvpService.createRsvp).toHaveBeenCalledWith(mockEvent.id, createRsvpDto);
+        expect(rsvpService.createRsvp).toHaveBeenCalledWith(
+          mockEvent.id,
+          createRsvpDto,
+        );
       });
     });
 
     describe('GET /event-rsvp/events/:eventId/rsvps', () => {
       it('should return RSVPs for an event', async () => {
         const mockRsvps = [mockRsvp];
-        jest.spyOn(rsvpService, 'getEventRsvps').mockResolvedValue(mockRsvps as EventRsvp[]);
+        jest
+          .spyOn(rsvpService, 'getEventRsvps')
+          .mockResolvedValue(mockRsvps as EventRsvp[]);
 
         const response = await request(app.getHttpServer())
           .get(`/event-rsvp/events/${mockEvent.id}/rsvps`)
@@ -333,7 +368,9 @@ describe('EventRsvpController (Integration)', () => {
     describe('POST /event-rsvp/rsvps/:id/checkin', () => {
       it('should check in an attendee', async () => {
         const checkedInRsvp = { ...mockRsvp, hasAttended: true };
-        jest.spyOn(rsvpService, 'checkInAttendee').mockResolvedValue(checkedInRsvp as EventRsvp);
+        jest
+          .spyOn(rsvpService, 'checkInAttendee')
+          .mockResolvedValue(checkedInRsvp as EventRsvp);
 
         const response = await request(app.getHttpServer())
           .post(`/event-rsvp/rsvps/${mockRsvp.id}/checkin`)
@@ -361,7 +398,9 @@ describe('EventRsvpController (Integration)', () => {
           wouldAttendAgain: true,
         };
 
-        jest.spyOn(feedbackService, 'createFeedback').mockResolvedValue(mockFeedback as EventFeedback);
+        jest
+          .spyOn(feedbackService, 'createFeedback')
+          .mockResolvedValue(mockFeedback as EventFeedback);
 
         const response = await request(app.getHttpServer())
           .post(`/event-rsvp/events/${mockEvent.id}/feedback`)
@@ -381,7 +420,9 @@ describe('EventRsvpController (Integration)', () => {
           responseRate: 50,
           sentiment: 'positive',
         };
-        jest.spyOn(feedbackService, 'getEventFeedbackAnalytics').mockResolvedValue(mockAnalytics as any);
+        jest
+          .spyOn(feedbackService, 'getEventFeedbackAnalytics')
+          .mockResolvedValue(mockAnalytics as any);
 
         const response = await request(app.getHttpServer())
           .get(`/event-rsvp/events/${mockEvent.id}/feedback/analytics`)
@@ -401,7 +442,9 @@ describe('EventRsvpController (Integration)', () => {
             totalFeedbacks: 10,
           },
         ];
-        jest.spyOn(feedbackService, 'getTopRatedEvents').mockResolvedValue(mockTopEvents as any);
+        jest
+          .spyOn(feedbackService, 'getTopRatedEvents')
+          .mockResolvedValue(mockTopEvents as any);
 
         const response = await request(app.getHttpServer())
           .get('/event-rsvp/feedback/top-rated-events?limit=5')
@@ -437,7 +480,9 @@ describe('EventRsvpController (Integration)', () => {
           ...createFormDto,
         };
 
-        jest.spyOn(registrationService, 'createForm').mockResolvedValue(mockForm as any);
+        jest
+          .spyOn(registrationService, 'createForm')
+          .mockResolvedValue(mockForm as any);
 
         const response = await request(app.getHttpServer())
           .post(`/event-rsvp/events/${mockEvent.id}/registration-form`)
@@ -458,7 +503,9 @@ describe('EventRsvpController (Integration)', () => {
           responseRate: 80,
         };
 
-        jest.spyOn(registrationService, 'getFormAnalytics').mockResolvedValue(mockAnalytics as any);
+        jest
+          .spyOn(registrationService, 'getFormAnalytics')
+          .mockResolvedValue(mockAnalytics as any);
 
         const response = await request(app.getHttpServer())
           .get('/event-rsvp/registration-forms/form-id/analytics')
@@ -475,7 +522,7 @@ describe('EventRsvpController (Integration)', () => {
         const reminderData = {
           type: 'reminder',
           recipientEmails: ['john@example.com'],
-          customMessage: 'Don\'t forget about tomorrow\'s event!',
+          customMessage: "Don't forget about tomorrow's event!",
         };
 
         const mockResult = {
@@ -484,7 +531,9 @@ describe('EventRsvpController (Integration)', () => {
           errors: [],
         };
 
-        jest.spyOn(reminderService, 'sendCustomReminder').mockResolvedValue(mockResult);
+        jest
+          .spyOn(reminderService, 'sendCustomReminder')
+          .mockResolvedValue(mockResult);
 
         const response = await request(app.getHttpServer())
           .post(`/event-rsvp/events/${mockEvent.id}/reminders/send`)
@@ -508,7 +557,9 @@ describe('EventRsvpController (Integration)', () => {
           recentActivity: [],
         };
 
-        jest.spyOn(reminderService, 'getReminderStatistics').mockResolvedValue(mockStats as any);
+        jest
+          .spyOn(reminderService, 'getReminderStatistics')
+          .mockResolvedValue(mockStats as any);
 
         const response = await request(app.getHttpServer())
           .get('/event-rsvp/reminders/statistics')
@@ -521,7 +572,9 @@ describe('EventRsvpController (Integration)', () => {
 
   describe('Error Handling', () => {
     it('should handle service errors gracefully', async () => {
-      jest.spyOn(eventService, 'findOne').mockRejectedValue(new Error('Database error'));
+      jest
+        .spyOn(eventService, 'findOne')
+        .mockRejectedValue(new Error('Database error'));
 
       await request(app.getHttpServer())
         .get(`/event-rsvp/events/${mockEvent.id}`)
@@ -535,9 +588,7 @@ describe('EventRsvpController (Integration)', () => {
     });
 
     it('should handle missing request body', async () => {
-      await request(app.getHttpServer())
-        .post('/event-rsvp/events')
-        .expect(400);
+      await request(app.getHttpServer()).post('/event-rsvp/events').expect(400);
     });
   });
 });

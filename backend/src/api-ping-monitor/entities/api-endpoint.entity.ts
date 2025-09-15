@@ -146,7 +146,7 @@ export class ApiEndpoint {
   @Column({ type: 'datetime', nullable: true })
   nextPingAt: Date;
 
-  @OneToMany(() => PingResult, pingResult => pingResult.endpoint)
+  @OneToMany(() => PingResult, (pingResult) => pingResult.endpoint)
   pingResults: PingResult[];
 
   // Computed properties
@@ -159,7 +159,7 @@ export class ApiEndpoint {
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
       .slice(0, 5);
 
-    return recentResults.every(result => result.isSuccess);
+    return recentResults.every((result) => result.isSuccess);
   }
 
   get currentStatus(): 'healthy' | 'degraded' | 'down' | 'unknown' {
@@ -171,7 +171,9 @@ export class ApiEndpoint {
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
       .slice(0, 10);
 
-    const successCount = recentResults.filter(result => result.isSuccess).length;
+    const successCount = recentResults.filter(
+      (result) => result.isSuccess,
+    ).length;
     const successRate = successCount / recentResults.length;
 
     if (successRate >= 0.9) return 'healthy';
@@ -185,7 +187,7 @@ export class ApiEndpoint {
     }
 
     const recentSuccessfulResults = this.pingResults
-      .filter(result => result.isSuccess && result.responseTimeMs)
+      .filter((result) => result.isSuccess && result.responseTimeMs)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
       .slice(0, 50);
 
@@ -193,7 +195,7 @@ export class ApiEndpoint {
 
     const totalResponseTime = recentSuccessfulResults.reduce(
       (sum, result) => sum + result.responseTimeMs,
-      0
+      0,
     );
 
     return Math.round(totalResponseTime / recentSuccessfulResults.length);
@@ -208,18 +210,20 @@ export class ApiEndpoint {
     last24Hours.setHours(last24Hours.getHours() - 24);
 
     const recentResults = this.pingResults.filter(
-      result => result.createdAt > last24Hours
+      (result) => result.createdAt > last24Hours,
     );
 
     if (recentResults.length === 0) return 100;
 
-    const successCount = recentResults.filter(result => result.isSuccess).length;
+    const successCount = recentResults.filter(
+      (result) => result.isSuccess,
+    ).length;
     return Math.round((successCount / recentResults.length) * 100 * 100) / 100;
   }
 
   getNextPingTime(): Date {
     const now = new Date();
-    const nextPing = new Date(now.getTime() + (this.intervalSeconds * 1000));
+    const nextPing = new Date(now.getTime() + this.intervalSeconds * 1000);
     return nextPing;
   }
 

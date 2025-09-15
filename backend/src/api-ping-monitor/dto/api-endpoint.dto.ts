@@ -13,7 +13,11 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { HttpMethod, ApiProvider, EndpointStatus } from '../entities/api-endpoint.entity';
+import {
+  HttpMethod,
+  ApiProvider,
+  EndpointStatus,
+} from '../entities/api-endpoint.entity';
 
 export class CreateApiEndpointDto {
   @IsString()

@@ -8,12 +8,12 @@ import * as http from 'http';
 import { ApiEndpoint, EndpointStatus } from '../entities/api-endpoint.entity';
 import { PingResult, PingStatus } from '../entities/ping-result.entity';
 import { ApiNotificationService } from './api-notification.service';
-import { 
-  ManualPingDto, 
-  BulkPingDto, 
-  PingResultQueryDto, 
-  PingResultAnalyticsDto, 
-  ExportPingResultsDto 
+import {
+  ManualPingDto,
+  BulkPingDto,
+  PingResultQueryDto,
+  PingResultAnalyticsDto,
+  ExportPingResultsDto,
 } from '../dto/ping-result.dto';
 
 export interface PingOptions {
@@ -63,10 +63,12 @@ export class ApiMonitorService {
       const endpointsToCheck = await this.endpointRepository
         .createQueryBuilder('endpoint')
         .where('endpoint.isActive = :isActive', { isActive: true })
-        .andWhere('endpoint.status = :status', { status: EndpointStatus.ACTIVE })
+        .andWhere('endpoint.status = :status', {
+          status: EndpointStatus.ACTIVE,
+        })
         .andWhere(
           '(endpoint.nextPingAt IS NULL OR endpoint.nextPingAt <= :now)',
-          { now: new Date() }
+          { now: new Date() },
         )
         .getMany();
 
@@ -81,9 +83,9 @@ export class ApiMonitorService {
       const batchSize = 5;
       for (let i = 0; i < endpointsToCheck.length; i += batchSize) {
         const batch = endpointsToCheck.slice(i, i + batchSize);
-        
+
         await Promise.all(
-          batch.map(endpoint => this.performPingWithRetry(endpoint))
+          batch.map((endpoint) => this.performPingWithRetry(endpoint)),
         );
 
         // Small delay between batches
@@ -100,7 +102,7 @@ export class ApiMonitorService {
 
   async performManualPing(manualPingDto: ManualPingDto): Promise<PingResponse> {
     const endpoint = await this.endpointRepository.findOne({
-      where: { id: manualPingDto.endpointId }
+      where: { id: manualPingDto.endpointId },
     });
 
     if (!endpoint) {
@@ -115,20 +117,22 @@ export class ApiMonitorService {
   }
 
   async performBulkPing(bulkPingDto: BulkPingDto): Promise<PingResponse[]> {
-    const endpoints = await this.endpointRepository.findByIds(bulkPingDto.endpointIds);
+    const endpoints = await this.endpointRepository.findByIds(
+      bulkPingDto.endpointIds,
+    );
 
     if (endpoints.length === 0) {
       throw new Error('No valid endpoints found');
     }
 
     const results = await Promise.all(
-      endpoints.map(endpoint =>
+      endpoints.map((endpoint) =>
         this.pingEndpoint({
           endpoint,
           saveResult: bulkPingDto.saveResults ?? true,
           includeDetails: bulkPingDto.includeDetails ?? false,
-        })
-      )
+        }),
+      ),
     );
 
     return results;
@@ -156,7 +160,7 @@ export class ApiMonitorService {
       } catch (error) {
         lastError = error.message;
         this.logger.warn(
-          `Attempt ${attempt}/${endpoint.retryAttempts} failed for ${endpoint.name}: ${error.message}`
+          `Attempt ${attempt}/${endpoint.retryAttempts} failed for ${endpoint.name}: ${error.message}`,
         );
       }
 
@@ -174,14 +178,19 @@ export class ApiMonitorService {
 
     if (!success) {
       this.logger.warn(
-        `All retry attempts failed for ${endpoint.name}: ${lastError}`
+        `All retry attempts failed for ${endpoint.name}: ${lastError}`,
       );
     }
   }
 
   private async pingEndpoint(options: PingOptions): Promise<PingResponse> {
-    const { endpoint, saveResult = true, includeDetails = false, attemptNumber = 1 } = options;
-    
+    const {
+      endpoint,
+      saveResult = true,
+      includeDetails = false,
+      attemptNumber = 1,
+    } = options;
+
     const startTime = Date.now();
     let pingResult: Partial<PingResult> = {
       endpointId: endpoint.id,
@@ -229,10 +238,14 @@ export class ApiMonitorService {
         status: PingStatus.SUCCESS,
         httpStatusCode: response.status,
         responseTimeMs,
-        responseHeaders: includeDetails ? JSON.stringify(response.headers) : null,
-        responseBody: includeDetails ? this.truncateString(response.data, 1000) : null,
-        responseSize: response.headers['content-length'] 
-          ? parseInt(response.headers['content-length'], 10) 
+        responseHeaders: includeDetails
+          ? JSON.stringify(response.headers)
+          : null,
+        responseBody: includeDetails
+          ? this.truncateString(response.data, 1000)
+          : null,
+        responseSize: response.headers['content-length']
+          ? parseInt(response.headers['content-length'], 10)
           : null,
         isSuccess: this.isResponseSuccessful(response, endpoint),
         validationResults: this.validateResponse(response, endpoint),
@@ -243,7 +256,6 @@ export class ApiMonitorService {
         pingResult.status = PingStatus.VALIDATION_ERROR;
         pingResult.errorMessage = 'Response validation failed';
       }
-
     } catch (error) {
       const endTime = Date.now();
       const responseTimeMs = endTime - startTime;
@@ -253,11 +265,13 @@ export class ApiMonitorService {
         responseTimeMs,
         isSuccess: false,
         errorMessage: error.message,
-        errorDetails: includeDetails ? JSON.stringify({
-          name: error.name,
-          code: error.code,
-          stack: error.stack,
-        }) : null,
+        errorDetails: includeDetails
+          ? JSON.stringify({
+              name: error.name,
+              code: error.code,
+              stack: error.stack,
+            })
+          : null,
       };
 
       // Categorize the error
@@ -268,7 +282,10 @@ export class ApiMonitorService {
         pingResult.status = PingStatus.DNS_ERROR;
       } else if (error.code === 'ECONNREFUSED' || error.code === 'ECONNRESET') {
         pingResult.status = PingStatus.CONNECTION_ERROR;
-      } else if (error.message.includes('certificate') || error.message.includes('SSL')) {
+      } else if (
+        error.message.includes('certificate') ||
+        error.message.includes('SSL')
+      ) {
         pingResult.status = PingStatus.SSL_ERROR;
       } else if (error.response) {
         pingResult.status = PingStatus.HTTP_ERROR;
@@ -285,12 +302,15 @@ export class ApiMonitorService {
     if (saveResult) {
       try {
         savedResult = await this.pingResultRepository.save(
-          this.pingResultRepository.create(pingResult)
+          this.pingResultRepository.create(pingResult),
         );
-        
+
         // Send notifications if enabled
         if (endpoint.enableAlerts) {
-          await this.notificationService.handlePingResult(savedResult, endpoint);
+          await this.notificationService.handlePingResult(
+            savedResult,
+            endpoint,
+          );
         }
       } catch (error) {
         this.logger.error('Failed to save ping result:', error);
@@ -314,14 +334,17 @@ export class ApiMonitorService {
 
   private isResponseSuccessful(response: any, endpoint: ApiEndpoint): boolean {
     const expectedResponse = endpoint.expectedResponse;
-    
+
     // Default success criteria: 2xx status code
     if (!expectedResponse) {
       return response.status >= 200 && response.status < 300;
     }
 
     // Check expected status code
-    if (expectedResponse.statusCode && response.status !== expectedResponse.statusCode) {
+    if (
+      expectedResponse.statusCode &&
+      response.status !== expectedResponse.statusCode
+    ) {
       return false;
     }
 
@@ -335,9 +358,10 @@ export class ApiMonitorService {
 
     // Check body content
     if (expectedResponse.bodyContains) {
-      const responseBody = typeof response.data === 'string' 
-        ? response.data 
-        : JSON.stringify(response.data);
+      const responseBody =
+        typeof response.data === 'string'
+          ? response.data
+          : JSON.stringify(response.data);
       if (!responseBody.includes(expectedResponse.bodyContains)) {
         return false;
       }
@@ -359,9 +383,14 @@ export class ApiMonitorService {
     if (!expectedResponse) return results;
 
     // Validate status code
-    if (expectedResponse.statusCode && response.status !== expectedResponse.statusCode) {
+    if (
+      expectedResponse.statusCode &&
+      response.status !== expectedResponse.statusCode
+    ) {
       results.statusCodeValid = false;
-      results.details.push(`Expected status ${expectedResponse.statusCode}, got ${response.status}`);
+      results.details.push(
+        `Expected status ${expectedResponse.statusCode}, got ${response.status}`,
+      );
     }
 
     // Validate content type
@@ -369,18 +398,23 @@ export class ApiMonitorService {
       const contentType = response.headers['content-type'];
       if (!contentType || !contentType.includes(expectedResponse.contentType)) {
         results.contentTypeValid = false;
-        results.details.push(`Expected content type ${expectedResponse.contentType}, got ${contentType}`);
+        results.details.push(
+          `Expected content type ${expectedResponse.contentType}, got ${contentType}`,
+        );
       }
     }
 
     // Validate body content
     if (expectedResponse.bodyContains) {
-      const responseBody = typeof response.data === 'string' 
-        ? response.data 
-        : JSON.stringify(response.data);
+      const responseBody =
+        typeof response.data === 'string'
+          ? response.data
+          : JSON.stringify(response.data);
       if (!responseBody.includes(expectedResponse.bodyContains)) {
         results.bodyContainsValid = false;
-        results.details.push(`Response body does not contain "${expectedResponse.bodyContains}"`);
+        results.details.push(
+          `Response body does not contain "${expectedResponse.bodyContains}"`,
+        );
       }
     }
 
@@ -389,13 +423,13 @@ export class ApiMonitorService {
 
   private truncateString(str: any, maxLength: number): string {
     const stringified = typeof str === 'string' ? str : JSON.stringify(str);
-    return stringified.length > maxLength 
+    return stringified.length > maxLength
       ? stringified.substring(0, maxLength) + '...[truncated]'
       : stringified;
   }
 
   private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   // Health check methods
@@ -411,7 +445,7 @@ export class ApiMonitorService {
     const [total, active] = await Promise.all([
       this.endpointRepository.count(),
       this.endpointRepository.count({
-        where: { isActive: true, status: EndpointStatus.ACTIVE }
+        where: { isActive: true, status: EndpointStatus.ACTIVE },
       }),
     ]);
 
@@ -424,7 +458,7 @@ export class ApiMonitorService {
     let degraded = 0;
     let down = 0;
 
-    endpoints.forEach(endpoint => {
+    endpoints.forEach((endpoint) => {
       switch (endpoint.currentStatus) {
         case 'healthy':
           healthy++;
@@ -439,9 +473,11 @@ export class ApiMonitorService {
     });
 
     let systemStatus: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
-    if (down > active * 0.1) { // More than 10% down
+    if (down > active * 0.1) {
+      // More than 10% down
       systemStatus = 'unhealthy';
-    } else if (degraded > active * 0.2) { // More than 20% degraded
+    } else if (degraded > active * 0.2) {
+      // More than 20% degraded
       systemStatus = 'degraded';
     }
 
@@ -501,9 +537,12 @@ export class ApiMonitorService {
   }
 
   // Controller support methods
-  async pingSpecificEndpoint(endpointId: string, triggeredBy?: string): Promise<PingResponse> {
+  async pingSpecificEndpoint(
+    endpointId: string,
+    triggeredBy?: string,
+  ): Promise<PingResponse> {
     const endpoint = await this.endpointRepository.findOne({
-      where: { id: endpointId }
+      where: { id: endpointId },
     });
 
     if (!endpoint) {
@@ -517,7 +556,10 @@ export class ApiMonitorService {
     });
   }
 
-  async bulkPing(endpointIds: string[], triggeredBy?: string): Promise<PingResponse[]> {
+  async bulkPing(
+    endpointIds: string[],
+    triggeredBy?: string,
+  ): Promise<PingResponse[]> {
     const endpoints = await this.endpointRepository.findByIds(endpointIds);
 
     if (endpoints.length === 0) {
@@ -525,13 +567,13 @@ export class ApiMonitorService {
     }
 
     const results = await Promise.all(
-      endpoints.map(endpoint =>
+      endpoints.map((endpoint) =>
         this.pingEndpoint({
           endpoint,
           saveResult: true,
           includeDetails: false,
-        })
-      )
+        }),
+      ),
     );
 
     return results;
@@ -539,13 +581,16 @@ export class ApiMonitorService {
 
   async pingAllActiveEndpoints(triggeredBy?: string): Promise<PingResponse[]> {
     const activeEndpoints = await this.endpointRepository.find({
-      where: { 
-        isActive: true, 
-        status: EndpointStatus.ACTIVE 
-      }
+      where: {
+        isActive: true,
+        status: EndpointStatus.ACTIVE,
+      },
     });
 
-    return this.bulkPing(activeEndpoints.map(e => e.id), triggeredBy);
+    return this.bulkPing(
+      activeEndpoints.map((e) => e.id),
+      triggeredBy,
+    );
   }
 
   async getPingResults(queryDto: PingResultQueryDto): Promise<{
@@ -618,7 +663,10 @@ export class ApiMonitorService {
     return result;
   }
 
-  async getEndpointPingResults(endpointId: string, queryDto: PingResultQueryDto) {
+  async getEndpointPingResults(
+    endpointId: string,
+    queryDto: PingResultQueryDto,
+  ) {
     return this.getPingResults({ ...queryDto, endpointId });
   }
 
@@ -640,11 +688,15 @@ export class ApiMonitorService {
       .where('result.createdAt >= :startDate', { startDate });
 
     if (endpointIds?.length) {
-      queryBuilder.andWhere('result.endpointId IN (:...endpointIds)', { endpointIds });
+      queryBuilder.andWhere('result.endpointId IN (:...endpointIds)', {
+        endpointIds,
+      });
     }
 
     if (providers?.length) {
-      queryBuilder.andWhere('endpoint.provider IN (:...providers)', { providers });
+      queryBuilder.andWhere('endpoint.provider IN (:...providers)', {
+        providers,
+      });
     }
 
     const results = await queryBuilder.getMany();
@@ -661,7 +713,7 @@ export class ApiMonitorService {
     errors: string[];
   }> {
     const activeEndpoints = await this.endpointRepository.count({
-      where: { isActive: true, status: EndpointStatus.ACTIVE }
+      where: { isActive: true, status: EndpointStatus.ACTIVE },
     });
 
     const today = new Date();
@@ -670,7 +722,7 @@ export class ApiMonitorService {
     const totalPingsToday = await this.pingResultRepository.count({
       where: {
         createdAt: today,
-      }
+      },
     });
 
     return {
@@ -687,7 +739,7 @@ export class ApiMonitorService {
     // TODO: Implement actual start/stop monitoring logic
     return {
       message: 'Monitoring service started successfully',
-      status: 'started'
+      status: 'started',
     };
   }
 
@@ -695,7 +747,7 @@ export class ApiMonitorService {
     // TODO: Implement actual start/stop monitoring logic
     return {
       message: 'Monitoring service stopped successfully',
-      status: 'stopped'
+      status: 'stopped',
     };
   }
 
@@ -703,7 +755,7 @@ export class ApiMonitorService {
     // TODO: Implement actual restart monitoring logic
     return {
       message: 'Monitoring service restarted successfully',
-      status: 'restarted'
+      status: 'restarted',
     };
   }
 
@@ -747,14 +799,15 @@ export class ApiMonitorService {
       relations: ['pingResults'],
     });
 
-    const report = endpoints.map(endpoint => {
+    const report = endpoints.map((endpoint) => {
       const periodResults = endpoint.pingResults.filter(
-        result => result.createdAt >= startDate
+        (result) => result.createdAt >= startDate,
       );
 
       const totalPings = periodResults.length;
-      const successfulPings = periodResults.filter(r => r.isSuccess).length;
-      const uptime = totalPings > 0 ? (successfulPings / totalPings) * 100 : 100;
+      const successfulPings = periodResults.filter((r) => r.isSuccess).length;
+      const uptime =
+        totalPings > 0 ? (successfulPings / totalPings) * 100 : 100;
 
       return {
         endpointId: endpoint.id,
@@ -836,18 +889,26 @@ export class ApiMonitorService {
   // Helper methods
   private parsePeriod(period: string): number {
     switch (period) {
-      case '24h': return 24;
-      case '7d': return 24 * 7;
-      case '30d': return 24 * 30;
-      default: return 24;
+      case '24h':
+        return 24;
+      case '7d':
+        return 24 * 7;
+      case '30d':
+        return 24 * 30;
+      default:
+        return 24;
     }
   }
 
-  private processAnalyticsData(results: PingResult[], groupBy: string, periodHours: number): any {
+  private processAnalyticsData(
+    results: PingResult[],
+    groupBy: string,
+    periodHours: number,
+  ): any {
     // Group results by time period and calculate metrics
     const groupedData = {};
-    
-    results.forEach(result => {
+
+    results.forEach((result) => {
       const key = this.getTimeGroupKey(result.createdAt, groupBy);
       if (!groupedData[key]) {
         groupedData[key] = {
@@ -858,7 +919,7 @@ export class ApiMonitorService {
           responseTimes: [],
         };
       }
-      
+
       groupedData[key].totalPings++;
       if (result.isSuccess) {
         groupedData[key].successfulPings++;
@@ -871,7 +932,9 @@ export class ApiMonitorService {
     // Calculate averages
     Object.values(groupedData).forEach((group: any) => {
       if (group.responseTimes.length > 0) {
-        group.avgResponseTime = group.responseTimes.reduce((sum, time) => sum + time, 0) / group.responseTimes.length;
+        group.avgResponseTime =
+          group.responseTimes.reduce((sum, time) => sum + time, 0) /
+          group.responseTimes.length;
       }
       group.uptimePercentage = (group.successfulPings / group.totalPings) * 100;
       delete group.responseTimes; // Remove raw data
@@ -897,42 +960,52 @@ export class ApiMonitorService {
 
   private convertToCSV(data: any[]): string {
     if (data.length === 0) return '';
-    
+
     const headers = Object.keys(data[0]);
     const csvContent = [
       headers.join(','),
-      ...data.map(row => 
-        headers.map(header => {
-          const value = row[header];
-          return typeof value === 'string' && value.includes(',') 
-            ? `"${value}"` 
-            : value;
-        }).join(',')
-      )
+      ...data.map((row) =>
+        headers
+          .map((header) => {
+            const value = row[header];
+            return typeof value === 'string' && value.includes(',')
+              ? `"${value}"`
+              : value;
+          })
+          .join(','),
+      ),
     ].join('\n');
-    
+
     return csvContent;
   }
 
   private calculateAverageResponseTime(results: PingResult[]): number {
-    const successfulResults = results.filter(r => r.isSuccess && r.responseTimeMs);
+    const successfulResults = results.filter(
+      (r) => r.isSuccess && r.responseTimeMs,
+    );
     if (successfulResults.length === 0) return 0;
-    
-    const total = successfulResults.reduce((sum, r) => sum + r.responseTimeMs!, 0);
+
+    const total = successfulResults.reduce(
+      (sum, r) => sum + r.responseTimeMs!,
+      0,
+    );
     return Math.round(total / successfulResults.length);
   }
 
   private calculateOverallUptime(report: any[]): number {
     if (report.length === 0) return 100;
-    
-    const totalUptime = report.reduce((sum, endpoint) => sum + endpoint.uptimePercentage, 0);
+
+    const totalUptime = report.reduce(
+      (sum, endpoint) => sum + endpoint.uptimePercentage,
+      0,
+    );
     return Math.round((totalUptime / report.length) * 100) / 100;
   }
 
   private groupResultsByEndpoint(results: PingResult[]): any {
     const grouped = {};
-    
-    results.forEach(result => {
+
+    results.forEach((result) => {
       const endpointId = result.endpointId;
       if (!grouped[endpointId]) {
         grouped[endpointId] = {
@@ -941,7 +1014,7 @@ export class ApiMonitorService {
           responseTimes: [],
         };
       }
-      
+
       grouped[endpointId].totalRequests++;
       if (result.responseTimeMs) {
         grouped[endpointId].responseTimes.push(result.responseTimeMs);
@@ -951,7 +1024,9 @@ export class ApiMonitorService {
     // Calculate averages
     Object.values(grouped).forEach((endpoint: any) => {
       if (endpoint.responseTimes.length > 0) {
-        endpoint.averageResponseTime = this.calculateAverageResponseTime(endpoint.responseTimes);
+        endpoint.averageResponseTime = this.calculateAverageResponseTime(
+          endpoint.responseTimes,
+        );
         endpoint.minResponseTime = Math.min(...endpoint.responseTimes);
         endpoint.maxResponseTime = Math.max(...endpoint.responseTimes);
       }
@@ -963,8 +1038,8 @@ export class ApiMonitorService {
 
   private groupIncidentsByEndpoint(incidents: PingResult[]): any {
     const grouped = {};
-    
-    incidents.forEach(incident => {
+
+    incidents.forEach((incident) => {
       const endpointId = incident.endpointId;
       if (!grouped[endpointId]) {
         grouped[endpointId] = {
@@ -973,7 +1048,7 @@ export class ApiMonitorService {
           totalIncidents: 0,
         };
       }
-      
+
       grouped[endpointId].incidents.push({
         timestamp: incident.createdAt,
         status: incident.status,

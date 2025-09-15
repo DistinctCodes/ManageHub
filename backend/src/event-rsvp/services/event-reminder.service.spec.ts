@@ -74,8 +74,12 @@ describe('EventReminderService', () => {
 
     service = module.get<EventReminderService>(EventReminderService);
     eventRepository = module.get<Repository<Event>>(getRepositoryToken(Event));
-    rsvpRepository = module.get<Repository<EventRsvp>>(getRepositoryToken(EventRsvp));
-    emailNotificationService = module.get<EmailNotificationService>(EmailNotificationService);
+    rsvpRepository = module.get<Repository<EventRsvp>>(
+      getRepositoryToken(EventRsvp),
+    );
+    emailNotificationService = module.get<EmailNotificationService>(
+      EmailNotificationService,
+    );
   });
 
   it('should be defined', () => {
@@ -89,18 +93,22 @@ describe('EventReminderService', () => {
         ...mockEvent,
         rsvps: mockRsvps,
       } as any);
-      jest.spyOn(rsvpRepository, 'find').mockResolvedValue(mockRsvps as EventRsvp[]);
+      jest
+        .spyOn(rsvpRepository, 'find')
+        .mockResolvedValue(mockRsvps as EventRsvp[]);
 
       // Mock email sending to succeed
       const sendEmailSpy = jest.fn().mockResolvedValue(undefined);
       // We need to mock the private sendEmail method via the notification service
-      jest.spyOn(emailNotificationService, 'sendEventReminder').mockResolvedValue(undefined);
+      jest
+        .spyOn(emailNotificationService, 'sendEventReminder')
+        .mockResolvedValue(undefined);
 
       const result = await service.sendCustomReminder(
         mockEvent.id,
         ReminderType.REMINDER,
         ['john@example.com'],
-        'Custom reminder message'
+        'Custom reminder message',
       );
 
       expect(result.sent).toBe(1);
@@ -115,13 +123,14 @@ describe('EventReminderService', () => {
       } as any);
 
       // Mock email sending to fail
-      jest.spyOn(emailNotificationService, 'sendEventReminder')
+      jest
+        .spyOn(emailNotificationService, 'sendEventReminder')
         .mockRejectedValue(new Error('Email sending failed'));
 
       const result = await service.sendCustomReminder(
         mockEvent.id,
         ReminderType.REMINDER,
-        ['john@example.com']
+        ['john@example.com'],
       );
 
       expect(result.sent).toBe(0);
@@ -134,23 +143,23 @@ describe('EventReminderService', () => {
       jest.spyOn(eventRepository, 'findOne').mockResolvedValue(null);
 
       await expect(
-        service.sendCustomReminder(
-          'nonexistent',
-          ReminderType.REMINDER,
-          ['john@example.com']
-        )
+        service.sendCustomReminder('nonexistent', ReminderType.REMINDER, [
+          'john@example.com',
+        ]),
       ).rejects.toThrow('Event not found');
     });
 
     it('should throw error for unknown reminder type', async () => {
-      jest.spyOn(eventRepository, 'findOne').mockResolvedValue(mockEvent as Event);
+      jest
+        .spyOn(eventRepository, 'findOne')
+        .mockResolvedValue(mockEvent as Event);
 
       await expect(
         service.sendCustomReminder(
           mockEvent.id,
           'UNKNOWN_TYPE' as ReminderType,
-          ['john@example.com']
-        )
+          ['john@example.com'],
+        ),
       ).rejects.toThrow('Template not found for reminder type');
     });
   });
@@ -158,9 +167,10 @@ describe('EventReminderService', () => {
   describe('processReminders', () => {
     it('should process all reminder types without errors', async () => {
       // Mock repository calls for different reminder scenarios
-      jest.spyOn(eventRepository, 'find')
+      jest
+        .spyOn(eventRepository, 'find')
         .mockResolvedValueOnce([]) // Early reminders
-        .mockResolvedValueOnce([]) // Regular reminders  
+        .mockResolvedValueOnce([]) // Regular reminders
         .mockResolvedValueOnce([]) // Final reminders
         .mockResolvedValueOnce([]) // Thank you notifications
         .mockResolvedValueOnce([]) // Feedback requests
@@ -170,7 +180,8 @@ describe('EventReminderService', () => {
     });
 
     it('should handle errors during processing gracefully', async () => {
-      jest.spyOn(eventRepository, 'find')
+      jest
+        .spyOn(eventRepository, 'find')
         .mockRejectedValueOnce(new Error('Database error'));
 
       // Should not throw, should log error instead
@@ -187,13 +198,13 @@ describe('EventReminderService', () => {
       } as any);
 
       // Mock successful email sending
-      jest.spyOn(emailNotificationService, 'sendEventReminder').mockResolvedValue(undefined);
+      jest
+        .spyOn(emailNotificationService, 'sendEventReminder')
+        .mockResolvedValue(undefined);
 
-      await service.sendCustomReminder(
-        mockEvent.id,
-        ReminderType.REMINDER,
-        ['john@example.com']
-      );
+      await service.sendCustomReminder(mockEvent.id, ReminderType.REMINDER, [
+        'john@example.com',
+      ]);
 
       const logs = await service.getReminderLogs(mockEvent.id);
 
@@ -254,20 +265,18 @@ describe('EventReminderService', () => {
         rsvps: [mockRsvp],
       } as any);
 
-      jest.spyOn(emailNotificationService, 'sendEventReminder').mockImplementation(
-        async (rsvp: any, event: any, hours: number) => {
+      jest
+        .spyOn(emailNotificationService, 'sendEventReminder')
+        .mockImplementation(async (rsvp: any, event: any, hours: number) => {
           // Verify that the correct data is being passed
           expect(event.title).toBe(mockEvent.title);
           expect(rsvp.attendeeName).toBe(mockRsvp.attendeeName);
           return Promise.resolve();
-        }
-      );
+        });
 
-      await service.sendCustomReminder(
-        mockEvent.id,
-        ReminderType.REMINDER,
-        ['john@example.com']
-      );
+      await service.sendCustomReminder(mockEvent.id, ReminderType.REMINDER, [
+        'john@example.com',
+      ]);
     });
 
     it('should include feedback URL for feedback requests', async () => {
@@ -276,12 +285,14 @@ describe('EventReminderService', () => {
         rsvps: [mockRsvp],
       } as any);
 
-      jest.spyOn(emailNotificationService, 'sendEventReminder').mockResolvedValue(undefined);
+      jest
+        .spyOn(emailNotificationService, 'sendEventReminder')
+        .mockResolvedValue(undefined);
 
       await service.sendCustomReminder(
         mockEvent.id,
         ReminderType.POST_EVENT_FEEDBACK,
-        ['john@example.com']
+        ['john@example.com'],
       );
 
       // Should execute without errors and include feedback URL in variables
@@ -292,19 +303,27 @@ describe('EventReminderService', () => {
   describe('reminder type targeting', () => {
     it('should target confirmed RSVPs for pre-event reminders', async () => {
       const confirmedRsvp = { ...mockRsvp, status: RsvpStatus.CONFIRMED };
-      const cancelledRsvp = { ...mockRsvp, id: 'cancelled', status: RsvpStatus.CANCELLED };
-      
+      const cancelledRsvp = {
+        ...mockRsvp,
+        id: 'cancelled',
+        status: RsvpStatus.CANCELLED,
+      };
+
       jest.spyOn(eventRepository, 'findOne').mockResolvedValue({
         ...mockEvent,
         rsvps: [confirmedRsvp, cancelledRsvp],
       } as any);
 
-      jest.spyOn(rsvpRepository, 'find').mockResolvedValue([confirmedRsvp] as EventRsvp[]);
-      jest.spyOn(emailNotificationService, 'sendEventReminder').mockResolvedValue(undefined);
+      jest
+        .spyOn(rsvpRepository, 'find')
+        .mockResolvedValue([confirmedRsvp] as EventRsvp[]);
+      jest
+        .spyOn(emailNotificationService, 'sendEventReminder')
+        .mockResolvedValue(undefined);
 
       const result = await service.sendCustomReminder(
         mockEvent.id,
-        ReminderType.REMINDER
+        ReminderType.REMINDER,
       );
 
       // Should only send to confirmed RSVP
@@ -313,19 +332,27 @@ describe('EventReminderService', () => {
 
     it('should target attended RSVPs for post-event notifications', async () => {
       const attendedRsvp = { ...mockRsvp, status: RsvpStatus.ATTENDED };
-      const noShowRsvp = { ...mockRsvp, id: 'noshow', status: RsvpStatus.NO_SHOW };
-      
+      const noShowRsvp = {
+        ...mockRsvp,
+        id: 'noshow',
+        status: RsvpStatus.NO_SHOW,
+      };
+
       jest.spyOn(eventRepository, 'findOne').mockResolvedValue({
         ...mockPastEvent,
         rsvps: [attendedRsvp, noShowRsvp],
       } as any);
 
-      jest.spyOn(rsvpRepository, 'find').mockResolvedValue([attendedRsvp] as EventRsvp[]);
-      jest.spyOn(emailNotificationService, 'sendEventReminder').mockResolvedValue(undefined);
+      jest
+        .spyOn(rsvpRepository, 'find')
+        .mockResolvedValue([attendedRsvp] as EventRsvp[]);
+      jest
+        .spyOn(emailNotificationService, 'sendEventReminder')
+        .mockResolvedValue(undefined);
 
       const result = await service.sendCustomReminder(
         mockPastEvent.id,
-        ReminderType.POST_EVENT_THANK_YOU
+        ReminderType.POST_EVENT_THANK_YOU,
       );
 
       // Should only send to attended RSVP

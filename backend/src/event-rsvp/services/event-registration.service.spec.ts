@@ -4,12 +4,18 @@ import { Repository } from 'typeorm';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { EventRegistrationService } from './event-registration.service';
 import { EventRegistrationForm } from '../entities/event-registration-form.entity';
-import { EventRegistrationResponse, ResponseStatus } from '../entities/event-registration-response.entity';
+import {
+  EventRegistrationResponse,
+  ResponseStatus,
+} from '../entities/event-registration-response.entity';
 import { Event } from '../entities/event.entity';
 import { EventRsvp } from '../entities/event-rsvp.entity';
 import { CreateRegistrationFormDto } from '../dto/create-registration-form.dto';
 import { CreateRegistrationResponseDto } from '../dto/create-registration-response.dto';
-import { FieldType, ValidationRule } from '../entities/event-registration-form.entity';
+import {
+  FieldType,
+  ValidationRule,
+} from '../entities/event-registration-form.entity';
 
 describe('EventRegistrationService', () => {
   let service: EventRegistrationService;
@@ -35,9 +41,9 @@ describe('EventRegistrationService', () => {
       validation: [
         {
           rule: ValidationRule.REQUIRED,
-          message: 'First name is required'
-        }
-      ]
+          message: 'First name is required',
+        },
+      ],
     },
     {
       id: 'field2',
@@ -49,9 +55,9 @@ describe('EventRegistrationService', () => {
       validation: [
         {
           rule: ValidationRule.EMAIL,
-          message: 'Please enter a valid email'
-        }
-      ]
+          message: 'Please enter a valid email',
+        },
+      ],
     },
     {
       id: 'field3',
@@ -63,9 +69,9 @@ describe('EventRegistrationService', () => {
       options: [
         { value: 'none', label: 'No restrictions' },
         { value: 'vegetarian', label: 'Vegetarian' },
-        { value: 'vegan', label: 'Vegan' }
-      ]
-    }
+        { value: 'vegan', label: 'Vegan' },
+      ],
+    },
   ];
 
   const mockForm = {
@@ -90,7 +96,7 @@ describe('EventRegistrationService', () => {
     responses: {
       field1: 'John',
       field2: 'john@example.com',
-      field3: 'vegetarian'
+      field3: 'vegetarian',
     },
     attachments: [],
     status: ResponseStatus.SUBMITTED,
@@ -153,10 +159,16 @@ describe('EventRegistrationService', () => {
     }).compile();
 
     service = module.get<EventRegistrationService>(EventRegistrationService);
-    formRepository = module.get<Repository<EventRegistrationForm>>(getRepositoryToken(EventRegistrationForm));
-    responseRepository = module.get<Repository<EventRegistrationResponse>>(getRepositoryToken(EventRegistrationResponse));
+    formRepository = module.get<Repository<EventRegistrationForm>>(
+      getRepositoryToken(EventRegistrationForm),
+    );
+    responseRepository = module.get<Repository<EventRegistrationResponse>>(
+      getRepositoryToken(EventRegistrationResponse),
+    );
     eventRepository = module.get<Repository<Event>>(getRepositoryToken(Event));
-    rsvpRepository = module.get<Repository<EventRsvp>>(getRepositoryToken(EventRsvp));
+    rsvpRepository = module.get<Repository<EventRsvp>>(
+      getRepositoryToken(EventRsvp),
+    );
   });
 
   it('should be defined', () => {
@@ -173,9 +185,15 @@ describe('EventRegistrationService', () => {
     };
 
     it('should create a form successfully', async () => {
-      jest.spyOn(eventRepository, 'findOne').mockResolvedValue(mockEvent as Event);
-      jest.spyOn(formRepository, 'create').mockReturnValue(mockForm as EventRegistrationForm);
-      jest.spyOn(formRepository, 'save').mockResolvedValue(mockForm as EventRegistrationForm);
+      jest
+        .spyOn(eventRepository, 'findOne')
+        .mockResolvedValue(mockEvent as Event);
+      jest
+        .spyOn(formRepository, 'create')
+        .mockReturnValue(mockForm as EventRegistrationForm);
+      jest
+        .spyOn(formRepository, 'save')
+        .mockResolvedValue(mockForm as EventRegistrationForm);
 
       const result = await service.createForm(createFormDto);
 
@@ -189,29 +207,41 @@ describe('EventRegistrationService', () => {
     it('should throw NotFoundException when event not found', async () => {
       jest.spyOn(eventRepository, 'findOne').mockResolvedValue(null);
 
-      await expect(service.createForm(createFormDto)).rejects.toThrow(NotFoundException);
+      await expect(service.createForm(createFormDto)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should throw BadRequestException when no fields provided', async () => {
-      jest.spyOn(eventRepository, 'findOne').mockResolvedValue(mockEvent as Event);
+      jest
+        .spyOn(eventRepository, 'findOne')
+        .mockResolvedValue(mockEvent as Event);
       const invalidDto = { ...createFormDto, fields: [] };
 
-      await expect(service.createForm(invalidDto)).rejects.toThrow(BadRequestException);
+      await expect(service.createForm(invalidDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw BadRequestException for duplicate field IDs', async () => {
-      jest.spyOn(eventRepository, 'findOne').mockResolvedValue(mockEvent as Event);
+      jest
+        .spyOn(eventRepository, 'findOne')
+        .mockResolvedValue(mockEvent as Event);
       const duplicateFields = [
         { ...mockFormFields[0] },
-        { ...mockFormFields[0] } // Duplicate field
+        { ...mockFormFields[0] }, // Duplicate field
       ];
       const invalidDto = { ...createFormDto, fields: duplicateFields };
 
-      await expect(service.createForm(invalidDto)).rejects.toThrow(BadRequestException);
+      await expect(service.createForm(invalidDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw BadRequestException for select field without options', async () => {
-      jest.spyOn(eventRepository, 'findOne').mockResolvedValue(mockEvent as Event);
+      jest
+        .spyOn(eventRepository, 'findOne')
+        .mockResolvedValue(mockEvent as Event);
       const invalidSelectField = {
         id: 'field1',
         type: FieldType.SELECT,
@@ -219,11 +249,13 @@ describe('EventRegistrationService', () => {
         label: 'Select Field',
         required: true,
         order: 1,
-        options: [] // No options provided
+        options: [], // No options provided
       };
       const invalidDto = { ...createFormDto, fields: [invalidSelectField] };
 
-      await expect(service.createForm(invalidDto)).rejects.toThrow(BadRequestException);
+      await expect(service.createForm(invalidDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -236,15 +268,21 @@ describe('EventRegistrationService', () => {
       responses: {
         field1: 'John',
         field2: 'john@example.com',
-        field3: 'vegetarian'
+        field3: 'vegetarian',
       },
     };
 
     it('should submit response successfully', async () => {
-      jest.spyOn(formRepository, 'findOne').mockResolvedValue(mockForm as EventRegistrationForm);
+      jest
+        .spyOn(formRepository, 'findOne')
+        .mockResolvedValue(mockForm as EventRegistrationForm);
       jest.spyOn(responseRepository, 'findOne').mockResolvedValue(null); // No existing response
-      jest.spyOn(responseRepository, 'create').mockReturnValue(mockResponse as any);
-      jest.spyOn(responseRepository, 'save').mockResolvedValue(mockResponse as any);
+      jest
+        .spyOn(responseRepository, 'create')
+        .mockReturnValue(mockResponse as any);
+      jest
+        .spyOn(responseRepository, 'save')
+        .mockResolvedValue(mockResponse as any);
 
       const result = await service.submitResponse(submitResponseDto);
 
@@ -261,31 +299,41 @@ describe('EventRegistrationService', () => {
     it('should throw NotFoundException when form not found', async () => {
       jest.spyOn(formRepository, 'findOne').mockResolvedValue(null);
 
-      await expect(service.submitResponse(submitResponseDto)).rejects.toThrow(NotFoundException);
+      await expect(service.submitResponse(submitResponseDto)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should throw BadRequestException for duplicate response when not allowed', async () => {
-      const formWithoutMultiple = { 
-        ...mockForm, 
-        settings: { submission: { allowMultiple: false } }
+      const formWithoutMultiple = {
+        ...mockForm,
+        settings: { submission: { allowMultiple: false } },
       };
-      jest.spyOn(formRepository, 'findOne').mockResolvedValue(formWithoutMultiple as EventRegistrationForm);
-      jest.spyOn(responseRepository, 'findOne').mockResolvedValue(mockResponse as any);
+      jest
+        .spyOn(formRepository, 'findOne')
+        .mockResolvedValue(formWithoutMultiple as EventRegistrationForm);
+      jest
+        .spyOn(responseRepository, 'findOne')
+        .mockResolvedValue(mockResponse as any);
 
-      await expect(service.submitResponse(submitResponseDto)).rejects.toThrow(BadRequestException);
+      await expect(service.submitResponse(submitResponseDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should handle validation errors for required fields', async () => {
       const invalidResponses = {
         field1: '', // Required field is empty
         field2: 'john@example.com',
-        field3: 'vegetarian'
+        field3: 'vegetarian',
       };
       const invalidDto = { ...submitResponseDto, responses: invalidResponses };
 
-      jest.spyOn(formRepository, 'findOne').mockResolvedValue(mockForm as EventRegistrationForm);
+      jest
+        .spyOn(formRepository, 'findOne')
+        .mockResolvedValue(mockForm as EventRegistrationForm);
       jest.spyOn(responseRepository, 'findOne').mockResolvedValue(null);
-      
+
       const invalidResponse = {
         ...mockResponse,
         responses: invalidResponses,
@@ -298,13 +346,17 @@ describe('EventRegistrationService', () => {
             fieldName: 'firstName',
             rule: 'required',
             message: 'First Name is required',
-            value: ''
-          }
-        ]
+            value: '',
+          },
+        ],
       };
-      
-      jest.spyOn(responseRepository, 'create').mockReturnValue(invalidResponse as any);
-      jest.spyOn(responseRepository, 'save').mockResolvedValue(invalidResponse as any);
+
+      jest
+        .spyOn(responseRepository, 'create')
+        .mockReturnValue(invalidResponse as any);
+      jest
+        .spyOn(responseRepository, 'save')
+        .mockResolvedValue(invalidResponse as any);
 
       const result = await service.submitResponse(invalidDto);
 
@@ -317,13 +369,15 @@ describe('EventRegistrationService', () => {
       const invalidEmail = {
         field1: 'John',
         field2: 'invalid-email', // Invalid email format
-        field3: 'vegetarian'
+        field3: 'vegetarian',
       };
       const invalidDto = { ...submitResponseDto, responses: invalidEmail };
 
-      jest.spyOn(formRepository, 'findOne').mockResolvedValue(mockForm as EventRegistrationForm);
+      jest
+        .spyOn(formRepository, 'findOne')
+        .mockResolvedValue(mockForm as EventRegistrationForm);
       jest.spyOn(responseRepository, 'findOne').mockResolvedValue(null);
-      
+
       const invalidResponse = {
         ...mockResponse,
         responses: invalidEmail,
@@ -336,13 +390,17 @@ describe('EventRegistrationService', () => {
             fieldName: 'email',
             rule: 'email',
             message: 'Email Address must be a valid email address',
-            value: 'invalid-email'
-          }
-        ]
+            value: 'invalid-email',
+          },
+        ],
       };
-      
-      jest.spyOn(responseRepository, 'create').mockReturnValue(invalidResponse as any);
-      jest.spyOn(responseRepository, 'save').mockResolvedValue(invalidResponse as any);
+
+      jest
+        .spyOn(responseRepository, 'create')
+        .mockReturnValue(invalidResponse as any);
+      jest
+        .spyOn(responseRepository, 'save')
+        .mockResolvedValue(invalidResponse as any);
 
       const result = await service.submitResponse(invalidDto);
 
@@ -356,9 +414,17 @@ describe('EventRegistrationService', () => {
   describe('publishForm', () => {
     it('should publish form successfully', async () => {
       const draftForm = { ...mockForm, status: 'draft' };
-      jest.spyOn(service, 'getFormById').mockResolvedValue(draftForm as EventRegistrationForm);
-      const publishedForm = { ...draftForm, status: 'published', isActive: true };
-      jest.spyOn(formRepository, 'save').mockResolvedValue(publishedForm as EventRegistrationForm);
+      jest
+        .spyOn(service, 'getFormById')
+        .mockResolvedValue(draftForm as EventRegistrationForm);
+      const publishedForm = {
+        ...draftForm,
+        status: 'published',
+        isActive: true,
+      };
+      jest
+        .spyOn(formRepository, 'save')
+        .mockResolvedValue(publishedForm as EventRegistrationForm);
 
       const result = await service.publishForm(mockForm.id);
 
@@ -368,19 +434,27 @@ describe('EventRegistrationService', () => {
 
     it('should throw BadRequestException when publishing form without fields', async () => {
       const emptyForm = { ...mockForm, fields: [] };
-      jest.spyOn(service, 'getFormById').mockResolvedValue(emptyForm as EventRegistrationForm);
+      jest
+        .spyOn(service, 'getFormById')
+        .mockResolvedValue(emptyForm as EventRegistrationForm);
 
-      await expect(service.publishForm(mockForm.id)).rejects.toThrow(BadRequestException);
+      await expect(service.publishForm(mockForm.id)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw BadRequestException when publishing form without required fields', async () => {
-      const optionalOnlyForm = { 
-        ...mockForm, 
-        fields: [{ ...mockFormFields[2], required: false }] // Only optional field
+      const optionalOnlyForm = {
+        ...mockForm,
+        fields: [{ ...mockFormFields[2], required: false }], // Only optional field
       };
-      jest.spyOn(service, 'getFormById').mockResolvedValue(optionalOnlyForm as EventRegistrationForm);
+      jest
+        .spyOn(service, 'getFormById')
+        .mockResolvedValue(optionalOnlyForm as EventRegistrationForm);
 
-      await expect(service.publishForm(mockForm.id)).rejects.toThrow(BadRequestException);
+      await expect(service.publishForm(mockForm.id)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -392,8 +466,12 @@ describe('EventRegistrationService', () => {
         { ...mockResponse, status: ResponseStatus.REJECTED },
       ] as any[];
 
-      jest.spyOn(service, 'getFormById').mockResolvedValue(mockForm as EventRegistrationForm);
-      jest.spyOn(responseRepository, 'find').mockResolvedValue(mockResponses as EventRegistrationResponse[]);
+      jest
+        .spyOn(service, 'getFormById')
+        .mockResolvedValue(mockForm as EventRegistrationForm);
+      jest
+        .spyOn(responseRepository, 'find')
+        .mockResolvedValue(mockResponses as EventRegistrationResponse[]);
 
       const result = await service.getFormAnalytics(mockForm.id);
 
@@ -414,7 +492,8 @@ describe('EventRegistrationService', () => {
         reviewedBy: 'admin@example.com',
       };
 
-      jest.spyOn(service, 'updateResponse')
+      jest
+        .spyOn(service, 'updateResponse')
         .mockResolvedValueOnce(mockResponse as any)
         .mockResolvedValueOnce(mockResponse as any);
 
@@ -432,7 +511,8 @@ describe('EventRegistrationService', () => {
         reviewedBy: 'admin@example.com',
       };
 
-      jest.spyOn(service, 'updateResponse')
+      jest
+        .spyOn(service, 'updateResponse')
         .mockResolvedValueOnce(mockResponse as any)
         .mockRejectedValueOnce(new Error('Update failed'));
 

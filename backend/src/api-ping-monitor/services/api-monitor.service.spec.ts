@@ -4,7 +4,12 @@ import { Repository } from 'typeorm';
 
 import { ApiMonitorService } from './api-monitor.service';
 import { ApiNotificationService } from './api-notification.service';
-import { ApiEndpoint, EndpointStatus, HttpMethod, ApiProvider } from '../entities/api-endpoint.entity';
+import {
+  ApiEndpoint,
+  EndpointStatus,
+  HttpMethod,
+  ApiProvider,
+} from '../entities/api-endpoint.entity';
 import { PingResult, PingStatus } from '../entities/ping-result.entity';
 
 describe('ApiMonitorService', () => {
@@ -226,7 +231,7 @@ describe('ApiMonitorService', () => {
       endpointRepository.findOne.mockResolvedValue(null);
 
       await expect(service.performManualPing(manualPingDto)).rejects.toThrow(
-        'Endpoint not found'
+        'Endpoint not found',
       );
     });
   });
@@ -245,7 +250,9 @@ describe('ApiMonitorService', () => {
 
       const results = await service.performBulkPing(bulkPingDto);
 
-      expect(endpointRepository.findByIds).toHaveBeenCalledWith(bulkPingDto.endpointIds);
+      expect(endpointRepository.findByIds).toHaveBeenCalledWith(
+        bulkPingDto.endpointIds,
+      );
       expect(results).toHaveLength(1);
       expect(results[0]).toMatchObject({
         endpointId: mockEndpoint.id,
@@ -263,7 +270,7 @@ describe('ApiMonitorService', () => {
       endpointRepository.findByIds.mockResolvedValue([]);
 
       await expect(service.performBulkPing(bulkPingDto)).rejects.toThrow(
-        'No valid endpoints found'
+        'No valid endpoints found',
       );
     });
   });
@@ -288,9 +295,9 @@ describe('ApiMonitorService', () => {
     it('should throw error if endpoint not found', async () => {
       endpointRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.pingSpecificEndpoint('non-existent-id')).rejects.toThrow(
-        'Endpoint not found'
-      );
+      await expect(
+        service.pingSpecificEndpoint('non-existent-id'),
+      ).rejects.toThrow('Endpoint not found');
     });
   });
 
@@ -302,7 +309,9 @@ describe('ApiMonitorService', () => {
 
       const results = await service.bulkPing([mockEndpoint.id]);
 
-      expect(endpointRepository.findByIds).toHaveBeenCalledWith([mockEndpoint.id]);
+      expect(endpointRepository.findByIds).toHaveBeenCalledWith([
+        mockEndpoint.id,
+      ]);
       expect(results).toHaveLength(1);
     });
 
@@ -310,7 +319,7 @@ describe('ApiMonitorService', () => {
       endpointRepository.findByIds.mockResolvedValue([]);
 
       await expect(service.bulkPing(['non-existent-id'])).rejects.toThrow(
-        'No valid endpoints found'
+        'No valid endpoints found',
       );
     });
   });
@@ -325,9 +334,9 @@ describe('ApiMonitorService', () => {
       const results = await service.pingAllActiveEndpoints();
 
       expect(endpointRepository.find).toHaveBeenCalledWith({
-        where: { 
-          isActive: true, 
-          status: EndpointStatus.ACTIVE 
+        where: {
+          isActive: true,
+          status: EndpointStatus.ACTIVE,
         },
       });
       expect(results).toHaveLength(1);
@@ -389,15 +398,15 @@ describe('ApiMonitorService', () => {
 
       expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
         'result.endpointId = :endpointId',
-        { endpointId: queryDto.endpointId }
+        { endpointId: queryDto.endpointId },
       );
       expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
         'result.status = :status',
-        { status: queryDto.status }
+        { status: queryDto.status },
       );
       expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
         'result.isSuccess = :isSuccess',
-        { isSuccess: queryDto.isSuccess }
+        { isSuccess: queryDto.isSuccess },
       );
     });
   });
@@ -419,7 +428,7 @@ describe('ApiMonitorService', () => {
       pingResultRepository.findOne.mockResolvedValue(null);
 
       await expect(service.getPingResult('non-existent-id')).rejects.toThrow(
-        'Ping result not found'
+        'Ping result not found',
       );
     });
   });
@@ -429,7 +438,7 @@ describe('ApiMonitorService', () => {
       endpointRepository.count
         .mockResolvedValueOnce(5) // total
         .mockResolvedValueOnce(4); // active
-      
+
       endpointRepository.find.mockResolvedValue([
         { ...mockEndpoint, currentStatus: 'healthy' },
         { ...mockEndpoint, currentStatus: 'degraded' },
@@ -453,12 +462,21 @@ describe('ApiMonitorService', () => {
       endpointRepository.count
         .mockResolvedValueOnce(10) // total
         .mockResolvedValueOnce(10); // active
-      
+
       // Mock 50% of endpoints as down (5 out of 10)
-      const downEndpoints = Array(5).fill({ ...mockEndpoint, currentStatus: 'down' });
-      const healthyEndpoints = Array(5).fill({ ...mockEndpoint, currentStatus: 'healthy' });
-      
-      endpointRepository.find.mockResolvedValue([...downEndpoints, ...healthyEndpoints]);
+      const downEndpoints = Array(5).fill({
+        ...mockEndpoint,
+        currentStatus: 'down',
+      });
+      const healthyEndpoints = Array(5).fill({
+        ...mockEndpoint,
+        currentStatus: 'healthy',
+      });
+
+      endpointRepository.find.mockResolvedValue([
+        ...downEndpoints,
+        ...healthyEndpoints,
+      ]);
 
       const result = await service.getSystemHealth();
 
@@ -470,7 +488,7 @@ describe('ApiMonitorService', () => {
     it('should return endpoint health details', async () => {
       endpointRepository.findOne.mockResolvedValue(mockEndpoint);
       pingResultRepository.findOne.mockResolvedValue(mockPingResult);
-      
+
       const yesterday = new Date();
       yesterday.setHours(yesterday.getHours() - 24);
       pingResultRepository.count.mockResolvedValue(2);
@@ -490,9 +508,9 @@ describe('ApiMonitorService', () => {
     it('should throw error if endpoint not found', async () => {
       endpointRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.getEndpointHealth('non-existent-id')).rejects.toThrow(
-        'Endpoint not found'
-      );
+      await expect(
+        service.getEndpointHealth('non-existent-id'),
+      ).rejects.toThrow('Endpoint not found');
     });
   });
 
@@ -576,7 +594,9 @@ describe('ApiMonitorService', () => {
     });
 
     it('should return false when database connection fails', async () => {
-      endpointRepository.count.mockRejectedValue(new Error('Database connection error'));
+      endpointRepository.count.mockRejectedValue(
+        new Error('Database connection error'),
+      );
 
       const result = await service.isHealthy();
 

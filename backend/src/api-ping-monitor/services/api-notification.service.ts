@@ -23,7 +23,12 @@ export interface AlertCondition {
 }
 
 export interface NotificationEvent {
-  type: 'failure' | 'recovery' | 'slow_response' | 'high_error_rate' | 'downtime_alert';
+  type:
+    | 'failure'
+    | 'recovery'
+    | 'slow_response'
+    | 'high_error_rate'
+    | 'downtime_alert';
   severity: 'low' | 'medium' | 'high' | 'critical';
   endpointId: string;
   endpointName: string;
@@ -48,14 +53,17 @@ export class ApiNotificationService {
     private pingResultRepository: Repository<PingResult>,
   ) {}
 
-  async handlePingResult(pingResult: PingResult, endpoint: ApiEndpoint): Promise<void> {
+  async handlePingResult(
+    pingResult: PingResult,
+    endpoint: ApiEndpoint,
+  ): Promise<void> {
     try {
       if (!endpoint.enableAlerts || !endpoint.alertConfig) {
         return;
       }
 
       const endpointId = endpoint.id;
-      
+
       if (pingResult.isSuccess) {
         await this.handleSuccessfulPing(endpointId, endpoint, pingResult);
       } else {
@@ -69,24 +77,28 @@ export class ApiNotificationService {
 
       // Check overall endpoint health
       await this.checkEndpointHealth(endpoint);
-
     } catch (error) {
-      this.logger.error(`Error handling ping result notification: ${error.message}`, error.stack);
+      this.logger.error(
+        `Error handling ping result notification: ${error.message}`,
+        error.stack,
+      );
     }
   }
 
   private async handleSuccessfulPing(
-    endpointId: string, 
-    endpoint: ApiEndpoint, 
-    pingResult: PingResult
+    endpointId: string,
+    endpoint: ApiEndpoint,
+    pingResult: PingResult,
   ): Promise<void> {
     const previousFailureCount = this.failureCounters.get(endpointId) || 0;
-    
+
     // Reset failure counter on success
     this.failureCounters.set(endpointId, 0);
 
     // Send recovery notification if we were in a failure state
-    if (previousFailureCount >= (endpoint.alertConfig.consecutiveFailures || 3)) {
+    if (
+      previousFailureCount >= (endpoint.alertConfig.consecutiveFailures || 3)
+    ) {
       const recoveryEvent: NotificationEvent = {
         type: 'recovery',
         severity: 'medium',
@@ -105,24 +117,30 @@ export class ApiNotificationService {
       };
 
       await this.sendNotification(recoveryEvent);
-      this.logger.log(`Recovery notification sent for endpoint: ${endpoint.name}`);
+      this.logger.log(
+        `Recovery notification sent for endpoint: ${endpoint.name}`,
+      );
     }
   }
 
   private async handleFailedPing(
-    endpointId: string, 
-    endpoint: ApiEndpoint, 
-    pingResult: PingResult
+    endpointId: string,
+    endpoint: ApiEndpoint,
+    pingResult: PingResult,
   ): Promise<void> {
     const currentFailureCount = (this.failureCounters.get(endpointId) || 0) + 1;
     this.failureCounters.set(endpointId, currentFailureCount);
 
-    const thresholdReached = currentFailureCount >= (endpoint.alertConfig.consecutiveFailures || 3);
+    const thresholdReached =
+      currentFailureCount >= (endpoint.alertConfig.consecutiveFailures || 3);
     const cooldownExpired = this.isCooldownExpired(endpointId);
 
     if (thresholdReached && cooldownExpired) {
-      const severity = this.calculateSeverity(currentFailureCount, pingResult.status);
-      
+      const severity = this.calculateSeverity(
+        currentFailureCount,
+        pingResult.status,
+      );
+
       const failureEvent: NotificationEvent = {
         type: 'failure',
         severity,
@@ -145,14 +163,19 @@ export class ApiNotificationService {
 
       await this.sendNotification(failureEvent);
       this.updateLastNotificationTime(endpointId);
-      
-      this.logger.warn(`Failure notification sent for endpoint: ${endpoint.name} (${currentFailureCount} failures)`);
+
+      this.logger.warn(
+        `Failure notification sent for endpoint: ${endpoint.name} (${currentFailureCount} failures)`,
+      );
     }
   }
 
-  private async checkSlowResponse(endpoint: ApiEndpoint, pingResult: PingResult): Promise<void> {
+  private async checkSlowResponse(
+    endpoint: ApiEndpoint,
+    pingResult: PingResult,
+  ): Promise<void> {
     const responseTimeThreshold = endpoint.alertConfig?.responseTimeThresholdMs;
-    
+
     if (!responseTimeThreshold || !pingResult.responseTimeMs) {
       return;
     }
@@ -175,7 +198,8 @@ export class ApiNotificationService {
       };
 
       // Only send slow response alerts with longer cooldown to avoid spam
-      if (this.isCooldownExpired(endpoint.id, 30 * 60 * 1000)) { // 30 minutes
+      if (this.isCooldownExpired(endpoint.id, 30 * 60 * 1000)) {
+        // 30 minutes
         await this.sendNotification(slowResponseEvent);
         this.updateLastNotificationTime(endpoint.id);
       }
@@ -187,7 +211,10 @@ export class ApiNotificationService {
     const alertConfig = endpoint.alertConfig;
 
     // Check if uptime falls below threshold
-    if (alertConfig?.uptimeThreshold && uptimePercentage < alertConfig.uptimeThreshold) {
+    if (
+      alertConfig?.uptimeThreshold &&
+      uptimePercentage < alertConfig.uptimeThreshold
+    ) {
       const downtimeEvent: NotificationEvent = {
         type: 'downtime_alert',
         severity: 'high',
@@ -204,7 +231,8 @@ export class ApiNotificationService {
         alertConfig: endpoint.alertConfig,
       };
 
-      if (this.isCooldownExpired(endpoint.id, 60 * 60 * 1000)) { // 1 hour
+      if (this.isCooldownExpired(endpoint.id, 60 * 60 * 1000)) {
+        // 1 hour
         await this.sendNotification(downtimeEvent);
         this.updateLastNotificationTime(endpoint.id);
       }
@@ -237,7 +265,7 @@ export class ApiNotificationService {
     try {
       // TODO: Implement email sending logic (integrate with email service)
       this.logger.log(`📧 Email notification would be sent: ${event.message}`);
-      
+
       // Example implementation:
       // await this.emailService.sendAlert({
       //   to: event.alertConfig.emailNotifications,
@@ -245,7 +273,6 @@ export class ApiNotificationService {
       //   template: 'api-alert',
       //   context: event,
       // });
-      
     } catch (error) {
       this.logger.error(`Failed to send email notification: ${error.message}`);
     }
@@ -280,17 +307,20 @@ export class ApiNotificationService {
       };
 
       // TODO: Implement actual Slack webhook call
-      this.logger.log(`💬 Slack notification would be sent: ${JSON.stringify(slackPayload)}`);
-      
+      this.logger.log(
+        `💬 Slack notification would be sent: ${JSON.stringify(slackPayload)}`,
+      );
+
       // Example implementation:
       // await axios.post(event.alertConfig.slackWebhook, slackPayload);
-      
     } catch (error) {
       this.logger.error(`Failed to send Slack notification: ${error.message}`);
     }
   }
 
-  private async sendWebhookNotification(event: NotificationEvent): Promise<void> {
+  private async sendWebhookNotification(
+    event: NotificationEvent,
+  ): Promise<void> {
     try {
       const webhookPayload = {
         event: event.type,
@@ -306,52 +336,63 @@ export class ApiNotificationService {
       };
 
       // TODO: Implement actual webhook call
-      this.logger.log(`🔗 Webhook notification would be sent: ${JSON.stringify(webhookPayload)}`);
-      
+      this.logger.log(
+        `🔗 Webhook notification would be sent: ${JSON.stringify(webhookPayload)}`,
+      );
+
       // Example implementation:
       // await axios.post(event.alertConfig.webhookUrl, webhookPayload, {
       //   headers: { 'Content-Type': 'application/json' },
       //   timeout: 10000,
       // });
-      
     } catch (error) {
-      this.logger.error(`Failed to send webhook notification: ${error.message}`);
+      this.logger.error(
+        `Failed to send webhook notification: ${error.message}`,
+      );
     }
   }
 
   private calculateSeverity(
-    consecutiveFailures: number, 
-    errorType: PingStatus
+    consecutiveFailures: number,
+    errorType: PingStatus,
   ): 'low' | 'medium' | 'high' | 'critical' {
     // Critical errors
     if (errorType === PingStatus.DNS_ERROR || consecutiveFailures >= 10) {
       return 'critical';
     }
-    
+
     // High severity
     if (consecutiveFailures >= 5 || errorType === PingStatus.TIMEOUT) {
       return 'high';
     }
-    
+
     // Medium severity
     if (consecutiveFailures >= 3 || errorType === PingStatus.CONNECTION_ERROR) {
       return 'medium';
     }
-    
+
     return 'low';
   }
 
   private getSeverityColor(severity: string): string {
     switch (severity) {
-      case 'critical': return '#ff0000'; // Red
-      case 'high': return '#ff8800'; // Orange
-      case 'medium': return '#ffcc00'; // Yellow
-      case 'low': return '#88cc00'; // Light green
-      default: return '#cccccc'; // Gray
+      case 'critical':
+        return '#ff0000'; // Red
+      case 'high':
+        return '#ff8800'; // Orange
+      case 'medium':
+        return '#ffcc00'; // Yellow
+      case 'low':
+        return '#88cc00'; // Light green
+      default:
+        return '#cccccc'; // Gray
     }
   }
 
-  private isCooldownExpired(endpointId: string, customCooldown?: number): boolean {
+  private isCooldownExpired(
+    endpointId: string,
+    customCooldown?: number,
+  ): boolean {
     const lastNotification = this.lastNotificationTimes.get(endpointId);
     if (!lastNotification) {
       return true;
@@ -394,8 +435,13 @@ export class ApiNotificationService {
   }
 
   // Public methods for external use
-  async testNotification(endpointId: string, notificationType: string): Promise<void> {
-    const endpoint = await this.endpointRepository.findOne({ where: { id: endpointId } });
+  async testNotification(
+    endpointId: string,
+    notificationType: string,
+  ): Promise<void> {
+    const endpoint = await this.endpointRepository.findOne({
+      where: { id: endpointId },
+    });
     if (!endpoint) {
       throw new Error('Endpoint not found');
     }
@@ -419,7 +465,10 @@ export class ApiNotificationService {
     this.logger.log(`Test notification sent for endpoint: ${endpoint.name}`);
   }
 
-  async getNotificationHistory(endpointId?: string, limit: number = 100): Promise<any[]> {
+  async getNotificationHistory(
+    endpointId?: string,
+    limit: number = 100,
+  ): Promise<any[]> {
     // TODO: Implement notification history storage and retrieval
     // This would require a separate NotificationLog entity
     this.logger.log(`Retrieving notification history (limit: ${limit})`);
@@ -427,10 +476,12 @@ export class ApiNotificationService {
   }
 
   async updateNotificationSettings(
-    endpointId: string, 
-    settings: Partial<NotificationConfig>
+    endpointId: string,
+    settings: Partial<NotificationConfig>,
   ): Promise<void> {
-    const endpoint = await this.endpointRepository.findOne({ where: { id: endpointId } });
+    const endpoint = await this.endpointRepository.findOne({
+      where: { id: endpointId },
+    });
     if (!endpoint) {
       throw new Error('Endpoint not found');
     }
@@ -442,13 +493,15 @@ export class ApiNotificationService {
     };
 
     await this.endpointRepository.save(endpoint);
-    this.logger.log(`Updated notification settings for endpoint: ${endpoint.name}`);
+    this.logger.log(
+      `Updated notification settings for endpoint: ${endpoint.name}`,
+    );
   }
 
   // Cleanup method to prevent memory leaks
   cleanup(): void {
-    const cutoffTime = Date.now() - (24 * 60 * 60 * 1000); // 24 hours ago
-    
+    const cutoffTime = Date.now() - 24 * 60 * 60 * 1000; // 24 hours ago
+
     // Clean up old failure counters
     for (const [endpointId, time] of this.lastNotificationTimes.entries()) {
       if (time.getTime() < cutoffTime) {

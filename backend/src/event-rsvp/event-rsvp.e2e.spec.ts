@@ -7,10 +7,19 @@ import * as request from 'supertest';
 import { EventRsvpModule } from './event-rsvp.module';
 import { Event, EventStatus } from './entities/event.entity';
 import { EventRsvp, RsvpStatus } from './entities/event-rsvp.entity';
-import { EventFeedback, FeedbackStatus } from './entities/event-feedback.entity';
+import {
+  EventFeedback,
+  FeedbackStatus,
+} from './entities/event-feedback.entity';
 import { EventRegistrationForm } from './entities/event-registration-form.entity';
-import { EventRegistrationResponse, ResponseStatus } from './entities/event-registration-response.entity';
-import { FieldType, ValidationRule } from './entities/event-registration-form.entity';
+import {
+  EventRegistrationResponse,
+  ResponseStatus,
+} from './entities/event-registration-response.entity';
+import {
+  FieldType,
+  ValidationRule,
+} from './entities/event-registration-form.entity';
 
 describe('Event RSVP System E2E', () => {
   let app: INestApplication;
@@ -30,7 +39,13 @@ describe('Event RSVP System E2E', () => {
         TypeOrmModule.forRoot({
           type: 'sqlite',
           database: ':memory:',
-          entities: [Event, EventRsvp, EventFeedback, EventRegistrationForm, EventRegistrationResponse],
+          entities: [
+            Event,
+            EventRsvp,
+            EventFeedback,
+            EventRegistrationForm,
+            EventRegistrationResponse,
+          ],
           synchronize: true,
           logging: false,
         }),
@@ -43,11 +58,21 @@ describe('Event RSVP System E2E', () => {
     await app.init();
 
     // Get repositories for direct database operations
-    eventRepository = moduleFixture.get<Repository<Event>>(getRepositoryToken(Event));
-    rsvpRepository = moduleFixture.get<Repository<EventRsvp>>(getRepositoryToken(EventRsvp));
-    feedbackRepository = moduleFixture.get<Repository<EventFeedback>>(getRepositoryToken(EventFeedback));
-    formRepository = moduleFixture.get<Repository<EventRegistrationForm>>(getRepositoryToken(EventRegistrationForm));
-    responseRepository = moduleFixture.get<Repository<EventRegistrationResponse>>(getRepositoryToken(EventRegistrationResponse));
+    eventRepository = moduleFixture.get<Repository<Event>>(
+      getRepositoryToken(Event),
+    );
+    rsvpRepository = moduleFixture.get<Repository<EventRsvp>>(
+      getRepositoryToken(EventRsvp),
+    );
+    feedbackRepository = moduleFixture.get<Repository<EventFeedback>>(
+      getRepositoryToken(EventFeedback),
+    );
+    formRepository = moduleFixture.get<Repository<EventRegistrationForm>>(
+      getRepositoryToken(EventRegistrationForm),
+    );
+    responseRepository = moduleFixture.get<
+      Repository<EventRegistrationResponse>
+    >(getRepositoryToken(EventRegistrationResponse));
   });
 
   afterAll(async () => {
@@ -60,7 +85,9 @@ describe('Event RSVP System E2E', () => {
         title: 'Tech Conference 2024',
         description: 'Annual technology conference with industry experts',
         startDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
-        endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000 + 8 * 60 * 60 * 1000).toISOString(), // 8 hours later
+        endDate: new Date(
+          Date.now() + 7 * 24 * 60 * 60 * 1000 + 8 * 60 * 60 * 1000,
+        ).toISOString(), // 8 hours later
         location: 'Convention Center, Downtown',
         capacity: 100,
         organizerName: 'John Smith',
@@ -105,14 +132,14 @@ describe('Event RSVP System E2E', () => {
             validation: [
               {
                 rule: ValidationRule.REQUIRED,
-                message: 'First name is required'
+                message: 'First name is required',
               },
               {
                 rule: ValidationRule.MIN_LENGTH,
                 value: 2,
-                message: 'First name must be at least 2 characters'
-              }
-            ]
+                message: 'First name must be at least 2 characters',
+              },
+            ],
           },
           {
             id: 'lastName',
@@ -125,9 +152,9 @@ describe('Event RSVP System E2E', () => {
             validation: [
               {
                 rule: ValidationRule.REQUIRED,
-                message: 'Last name is required'
-              }
-            ]
+                message: 'Last name is required',
+              },
+            ],
           },
           {
             id: 'email',
@@ -140,9 +167,9 @@ describe('Event RSVP System E2E', () => {
             validation: [
               {
                 rule: ValidationRule.EMAIL,
-                message: 'Please enter a valid email address'
-              }
-            ]
+                message: 'Please enter a valid email address',
+              },
+            ],
           },
           {
             id: 'company',
@@ -151,7 +178,7 @@ describe('Event RSVP System E2E', () => {
             label: 'Company',
             placeholder: 'Enter your company name',
             required: false,
-            order: 4
+            order: 4,
           },
           {
             id: 'experience',
@@ -164,8 +191,8 @@ describe('Event RSVP System E2E', () => {
               { value: '0-2', label: '0-2 years' },
               { value: '3-5', label: '3-5 years' },
               { value: '6-10', label: '6-10 years' },
-              { value: '10+', label: '10+ years' }
-            ]
+              { value: '10+', label: '10+ years' },
+            ],
           },
           {
             id: 'dietary',
@@ -180,22 +207,22 @@ describe('Event RSVP System E2E', () => {
               { value: 'vegan', label: 'Vegan' },
               { value: 'gluten-free', label: 'Gluten-free' },
               { value: 'halal', label: 'Halal' },
-              { value: 'kosher', label: 'Kosher' }
-            ]
-          }
+              { value: 'kosher', label: 'Kosher' },
+            ],
+          },
         ],
         settings: {
           theme: {
             primaryColor: '#007bff',
-            backgroundColor: '#f8f9fa'
+            backgroundColor: '#f8f9fa',
           },
           submission: {
             allowMultiple: false,
             requireLogin: false,
-            captcha: false
-          }
+            captcha: false,
+          },
         },
-        createdBy: 'john.smith@example.com'
+        createdBy: 'john.smith@example.com',
       };
 
       const response = await request(app.getHttpServer())
@@ -211,21 +238,21 @@ describe('Event RSVP System E2E', () => {
           expect.objectContaining({
             id: 'firstName',
             type: FieldType.TEXT,
-            required: true
+            required: true,
           }),
           expect.objectContaining({
             id: 'email',
             type: FieldType.EMAIL,
-            required: true
+            required: true,
           }),
           expect.objectContaining({
             id: 'experience',
             type: FieldType.SELECT,
-            options: expect.any(Array)
-          })
+            options: expect.any(Array),
+          }),
         ]),
         status: 'draft',
-        isActive: true
+        isActive: true,
       });
 
       createdFormId = response.body.id;
@@ -261,8 +288,8 @@ describe('Event RSVP System E2E', () => {
           email: 'alice.johnson@example.com',
           company: 'Tech Corp Inc',
           experience: '3-5',
-          dietary: ['vegetarian', 'gluten-free']
-        }
+          dietary: ['vegetarian', 'gluten-free'],
+        },
       };
 
       const response = await request(app.getHttpServer())
@@ -276,7 +303,7 @@ describe('Event RSVP System E2E', () => {
         respondentName: 'Alice Johnson',
         respondentEmail: 'alice.johnson@example.com',
         status: ResponseStatus.SUBMITTED,
-        isValid: true
+        isValid: true,
       });
 
       expect(response.body.responses).toEqual(responseDto.responses);
@@ -321,10 +348,12 @@ describe('Event RSVP System E2E', () => {
       // Manually update the event to completed status for testing feedback
       await eventRepository.update(createdEventId, {
         status: EventStatus.COMPLETED,
-        endDate: new Date(Date.now() - 60 * 60 * 1000) // 1 hour ago
+        endDate: new Date(Date.now() - 60 * 60 * 1000), // 1 hour ago
       });
 
-      const event = await eventRepository.findOne({ where: { id: createdEventId } });
+      const event = await eventRepository.findOne({
+        where: { id: createdEventId },
+      });
       expect(event?.status).toBe(EventStatus.COMPLETED);
     });
 
@@ -338,7 +367,8 @@ describe('Event RSVP System E2E', () => {
         contentRating: 5,
         organizationRating: 4,
         venueRating: 4,
-        comments: 'Excellent conference! Very well organized and informative presentations.',
+        comments:
+          'Excellent conference! Very well organized and informative presentations.',
         suggestions: 'Maybe provide more networking time during breaks.',
         whatWorkedWell: 'Great speakers, good venue, excellent food',
         whatCouldImprove: 'Could use better WiFi and more power outlets',
@@ -455,7 +485,7 @@ describe('Event RSVP System E2E', () => {
           lastName: 'Smith',
           email: 'invalid-email', // Invalid email format
           experience: 'invalid-option', // Invalid select option
-        }
+        },
       };
 
       const response = await request(app.getHttpServer())
@@ -559,7 +589,7 @@ describe('Event RSVP System E2E', () => {
             lastName: 'Test',
             email: `user${i}@example.com`,
             experience: '3-5',
-          }
+          },
         };
 
         const response = await request(app.getHttpServer())

@@ -4,9 +4,17 @@ import { Repository } from 'typeorm';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 import { ApiEndpointService } from './api-endpoint.service';
-import { ApiEndpoint, EndpointStatus, HttpMethod, ApiProvider } from '../entities/api-endpoint.entity';
+import {
+  ApiEndpoint,
+  EndpointStatus,
+  HttpMethod,
+  ApiProvider,
+} from '../entities/api-endpoint.entity';
 import { PingResult } from '../entities/ping-result.entity';
-import { CreateApiEndpointDto, UpdateApiEndpointDto } from '../dto/api-endpoint.dto';
+import {
+  CreateApiEndpointDto,
+  UpdateApiEndpointDto,
+} from '../dto/api-endpoint.dto';
 
 describe('ApiEndpointService', () => {
   let service: ApiEndpointService;
@@ -139,7 +147,9 @@ describe('ApiEndpointService', () => {
       endpointRepository.findOne.mockResolvedValue(mockEndpoint);
 
       await expect(service.create(createEndpointDto)).rejects.toThrow(
-        new BadRequestException(`Endpoint with URL ${createEndpointDto.url} already exists`)
+        new BadRequestException(
+          `Endpoint with URL ${createEndpointDto.url} already exists`,
+        ),
       );
     });
 
@@ -148,7 +158,7 @@ describe('ApiEndpointService', () => {
       endpointRepository.findOne.mockResolvedValue(null);
 
       await expect(service.create(invalidDto)).rejects.toThrow(
-        new BadRequestException('Invalid URL format')
+        new BadRequestException('Invalid URL format'),
       );
     });
   });
@@ -197,7 +207,7 @@ describe('ApiEndpointService', () => {
       endpointRepository.findOne.mockResolvedValue(null);
 
       await expect(service.findOne('non-existent-id')).rejects.toThrow(
-        new NotFoundException('API endpoint with ID non-existent-id not found')
+        new NotFoundException('API endpoint with ID non-existent-id not found'),
       );
     });
   });
@@ -225,21 +235,25 @@ describe('ApiEndpointService', () => {
     it('should throw NotFoundException if endpoint not found', async () => {
       endpointRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.update('non-existent-id', updateDto)).rejects.toThrow(
-        NotFoundException
-      );
+      await expect(
+        service.update('non-existent-id', updateDto),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should check for URL conflicts when updating URL', async () => {
       const updateWithUrl = { ...updateDto, url: 'https://new-url.com' };
       const conflictingEndpoint = { ...mockEndpoint, id: 'different-id' };
-      
+
       endpointRepository.findOne
         .mockResolvedValueOnce(mockEndpoint) // First call for the endpoint being updated
         .mockResolvedValueOnce(conflictingEndpoint); // Second call for URL conflict check
 
-      await expect(service.update(mockEndpoint.id, updateWithUrl)).rejects.toThrow(
-        new BadRequestException(`Endpoint with URL ${updateWithUrl.url} already exists`)
+      await expect(
+        service.update(mockEndpoint.id, updateWithUrl),
+      ).rejects.toThrow(
+        new BadRequestException(
+          `Endpoint with URL ${updateWithUrl.url} already exists`,
+        ),
       );
     });
   });
@@ -258,7 +272,7 @@ describe('ApiEndpointService', () => {
       endpointRepository.findOne.mockResolvedValue(null);
 
       await expect(service.remove('non-existent-id')).rejects.toThrow(
-        NotFoundException
+        NotFoundException,
       );
     });
   });
@@ -272,7 +286,10 @@ describe('ApiEndpointService', () => {
       };
 
       endpointRepository.findOne.mockResolvedValue(mockEndpoint);
-      endpointRepository.save.mockResolvedValue({ ...mockEndpoint, status: EndpointStatus.PAUSED });
+      endpointRepository.save.mockResolvedValue({
+        ...mockEndpoint,
+        status: EndpointStatus.PAUSED,
+      });
 
       const result = await service.bulkUpdate(bulkUpdateDto);
 
@@ -293,7 +310,9 @@ describe('ApiEndpointService', () => {
 
       expect(result.updated).toBe(0);
       expect(result.errors).toHaveLength(1);
-      expect(result.errors[0]).toContain('Failed to update endpoint non-existent-id');
+      expect(result.errors[0]).toContain(
+        'Failed to update endpoint non-existent-id',
+      );
     });
   });
 
@@ -301,7 +320,7 @@ describe('ApiEndpointService', () => {
     it('should toggle endpoint status successfully', async () => {
       const newStatus = EndpointStatus.PAUSED;
       const updatedEndpoint = { ...mockEndpoint, status: newStatus };
-      
+
       endpointRepository.findOne.mockResolvedValue(mockEndpoint);
       endpointRepository.save.mockResolvedValue(updatedEndpoint);
 
@@ -312,7 +331,7 @@ describe('ApiEndpointService', () => {
 
     it('should set nextPingAt when status is set to ACTIVE', async () => {
       const newStatus = EndpointStatus.ACTIVE;
-      
+
       endpointRepository.findOne.mockResolvedValue(mockEndpoint);
       endpointRepository.save.mockResolvedValue(mockEndpoint);
 
@@ -322,7 +341,7 @@ describe('ApiEndpointService', () => {
         expect.objectContaining({
           status: newStatus,
           nextPingAt: expect.any(Date),
-        })
+        }),
       );
     });
   });
@@ -330,12 +349,12 @@ describe('ApiEndpointService', () => {
   describe('getEndpointStatistics', () => {
     it('should return comprehensive endpoint statistics', async () => {
       const mockEndpoints = [mockEndpoint];
-      
+
       endpointRepository.count
         .mockResolvedValueOnce(1) // total
         .mockResolvedValueOnce(1) // active
         .mockResolvedValueOnce(0); // inactive
-      
+
       endpointRepository.find.mockResolvedValue(mockEndpoints);
 
       const result = await service.getEndpointStatistics();
@@ -368,7 +387,7 @@ describe('ApiEndpointService', () => {
       ];
 
       endpointRepository.findOne.mockResolvedValue(mockEndpoint);
-      
+
       const mockQueryBuilder = {
         createQueryBuilder: jest.fn().mockReturnThis(),
         where: jest.fn().mockReturnThis(),
@@ -404,14 +423,17 @@ describe('ApiEndpointService', () => {
 
     it('should handle errors when creating preset endpoints', async () => {
       endpointRepository.findOne.mockResolvedValue(mockEndpoint); // Existing endpoint
-      
+
       const result = await service.createPresetEndpoints('stripe', 'test-user');
 
       expect(result).toHaveLength(0); // No endpoints created due to conflicts
     });
 
     it('should return empty array for unknown provider', async () => {
-      const result = await service.createPresetEndpoints('unknown-provider', 'test-user');
+      const result = await service.createPresetEndpoints(
+        'unknown-provider',
+        'test-user',
+      );
 
       expect(result).toHaveLength(0);
     });
@@ -424,9 +446,9 @@ describe('ApiEndpointService', () => {
       const result = await service.getActiveEndpoints();
 
       expect(endpointRepository.find).toHaveBeenCalledWith({
-        where: { 
-          isActive: true, 
-          status: EndpointStatus.ACTIVE 
+        where: {
+          isActive: true,
+          status: EndpointStatus.ACTIVE,
         },
         relations: ['pingResults'],
         order: { name: 'ASC' },

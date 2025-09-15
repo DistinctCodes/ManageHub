@@ -108,7 +108,7 @@ export class PingResult {
   @CreateDateColumn()
   createdAt: Date;
 
-  @ManyToOne(() => ApiEndpoint, endpoint => endpoint.pingResults, {
+  @ManyToOne(() => ApiEndpoint, (endpoint) => endpoint.pingResults, {
     onDelete: 'CASCADE',
   })
   @JoinColumn({ name: 'endpointId' })
@@ -116,12 +116,17 @@ export class PingResult {
 
   // Computed properties
   get isHealthy(): boolean {
-    return this.isSuccess && !this.isTimeout && this.httpStatusCode >= 200 && this.httpStatusCode < 400;
+    return (
+      this.isSuccess &&
+      !this.isTimeout &&
+      this.httpStatusCode >= 200 &&
+      this.httpStatusCode < 400
+    );
   }
 
   get performanceGrade(): 'A' | 'B' | 'C' | 'D' | 'F' {
     if (!this.isSuccess || !this.responseTimeMs) return 'F';
-    
+
     if (this.responseTimeMs <= 200) return 'A';
     if (this.responseTimeMs <= 500) return 'B';
     if (this.responseTimeMs <= 1000) return 'C';
@@ -129,45 +134,60 @@ export class PingResult {
     return 'F';
   }
 
-  get statusCategory(): 'success' | 'client_error' | 'server_error' | 'network_error' | 'unknown' {
-    if (this.isSuccess && this.httpStatusCode >= 200 && this.httpStatusCode < 300) {
+  get statusCategory():
+    | 'success'
+    | 'client_error'
+    | 'server_error'
+    | 'network_error'
+    | 'unknown' {
+    if (
+      this.isSuccess &&
+      this.httpStatusCode >= 200 &&
+      this.httpStatusCode < 300
+    ) {
       return 'success';
     }
-    
+
     if (this.httpStatusCode >= 400 && this.httpStatusCode < 500) {
       return 'client_error';
     }
-    
+
     if (this.httpStatusCode >= 500) {
       return 'server_error';
     }
-    
-    if ([PingStatus.TIMEOUT, PingStatus.CONNECTION_ERROR, PingStatus.DNS_ERROR].includes(this.status)) {
+
+    if (
+      [
+        PingStatus.TIMEOUT,
+        PingStatus.CONNECTION_ERROR,
+        PingStatus.DNS_ERROR,
+      ].includes(this.status)
+    ) {
       return 'network_error';
     }
-    
+
     return 'unknown';
   }
 
   getFormattedResponseTime(): string {
     if (!this.responseTimeMs) return 'N/A';
-    
+
     if (this.responseTimeMs < 1000) {
       return `${this.responseTimeMs}ms`;
     }
-    
+
     return `${(this.responseTimeMs / 1000).toFixed(2)}s`;
   }
 
   getErrorSummary(): string {
     if (this.isSuccess) return 'Success';
-    
+
     if (this.errorMessage) {
-      return this.errorMessage.length > 100 
+      return this.errorMessage.length > 100
         ? this.errorMessage.substring(0, 100) + '...'
         : this.errorMessage;
     }
-    
+
     switch (this.status) {
       case PingStatus.TIMEOUT:
         return 'Request timed out';
@@ -189,12 +209,16 @@ export class PingResult {
   hasPerformanceIssue(): boolean {
     const endpoint = this.endpoint;
     if (!endpoint || !endpoint.expectedResponse) return false;
-    
+
     const maxResponseTime = endpoint.expectedResponse.maxResponseTimeMs;
-    if (maxResponseTime && this.responseTimeMs && this.responseTimeMs > maxResponseTime) {
+    if (
+      maxResponseTime &&
+      this.responseTimeMs &&
+      this.responseTimeMs > maxResponseTime
+    ) {
       return true;
     }
-    
+
     return false;
   }
 

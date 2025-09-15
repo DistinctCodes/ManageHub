@@ -3,7 +3,10 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { EventFeedbackService } from './event-feedback.service';
-import { EventFeedback, FeedbackStatus } from '../entities/event-feedback.entity';
+import {
+  EventFeedback,
+  FeedbackStatus,
+} from '../entities/event-feedback.entity';
 import { Event } from '../entities/event.entity';
 import { EventRsvp } from '../entities/event-rsvp.entity';
 import { CreateEventFeedbackDto } from '../dto/create-event-feedback.dto';
@@ -78,9 +81,13 @@ describe('EventFeedbackService', () => {
     }).compile();
 
     service = module.get<EventFeedbackService>(EventFeedbackService);
-    feedbackRepository = module.get<Repository<EventFeedback>>(getRepositoryToken(EventFeedback));
+    feedbackRepository = module.get<Repository<EventFeedback>>(
+      getRepositoryToken(EventFeedback),
+    );
     eventRepository = module.get<Repository<Event>>(getRepositoryToken(Event));
-    rsvpRepository = module.get<Repository<EventRsvp>>(getRepositoryToken(EventRsvp));
+    rsvpRepository = module.get<Repository<EventRsvp>>(
+      getRepositoryToken(EventRsvp),
+    );
   });
 
   it('should be defined', () => {
@@ -103,11 +110,19 @@ describe('EventFeedbackService', () => {
     };
 
     it('should create feedback successfully', async () => {
-      jest.spyOn(eventRepository, 'findOne').mockResolvedValue(mockEvent as Event);
-      jest.spyOn(rsvpRepository, 'findOne').mockResolvedValue(mockRsvp as EventRsvp);
+      jest
+        .spyOn(eventRepository, 'findOne')
+        .mockResolvedValue(mockEvent as Event);
+      jest
+        .spyOn(rsvpRepository, 'findOne')
+        .mockResolvedValue(mockRsvp as EventRsvp);
       jest.spyOn(feedbackRepository, 'findOne').mockResolvedValue(null); // No existing feedback
-      jest.spyOn(feedbackRepository, 'create').mockReturnValue(mockFeedback as EventFeedback);
-      jest.spyOn(feedbackRepository, 'save').mockResolvedValue(mockFeedback as EventFeedback);
+      jest
+        .spyOn(feedbackRepository, 'create')
+        .mockReturnValue(mockFeedback as EventFeedback);
+      jest
+        .spyOn(feedbackRepository, 'save')
+        .mockResolvedValue(mockFeedback as EventFeedback);
 
       const result = await service.createFeedback(createFeedbackDto);
 
@@ -122,36 +137,57 @@ describe('EventFeedbackService', () => {
     it('should throw NotFoundException when event not found', async () => {
       jest.spyOn(eventRepository, 'findOne').mockResolvedValue(null);
 
-      await expect(service.createFeedback(createFeedbackDto)).rejects.toThrow(NotFoundException);
+      await expect(service.createFeedback(createFeedbackDto)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should throw BadRequestException when event has not ended', async () => {
-      const futureEvent = { ...mockEvent, endDate: new Date(Date.now() + 24 * 60 * 60 * 1000) };
-      jest.spyOn(eventRepository, 'findOne').mockResolvedValue(futureEvent as Event);
+      const futureEvent = {
+        ...mockEvent,
+        endDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      };
+      jest
+        .spyOn(eventRepository, 'findOne')
+        .mockResolvedValue(futureEvent as Event);
 
-      await expect(service.createFeedback(createFeedbackDto)).rejects.toThrow(BadRequestException);
+      await expect(service.createFeedback(createFeedbackDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw BadRequestException for duplicate feedback', async () => {
-      jest.spyOn(eventRepository, 'findOne').mockResolvedValue(mockEvent as Event);
-      jest.spyOn(feedbackRepository, 'findOne').mockResolvedValue(mockFeedback as EventFeedback);
+      jest
+        .spyOn(eventRepository, 'findOne')
+        .mockResolvedValue(mockEvent as Event);
+      jest
+        .spyOn(feedbackRepository, 'findOne')
+        .mockResolvedValue(mockFeedback as EventFeedback);
 
-      await expect(service.createFeedback(createFeedbackDto)).rejects.toThrow(BadRequestException);
+      await expect(service.createFeedback(createFeedbackDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw NotFoundException when RSVP not found', async () => {
-      jest.spyOn(eventRepository, 'findOne').mockResolvedValue(mockEvent as Event);
+      jest
+        .spyOn(eventRepository, 'findOne')
+        .mockResolvedValue(mockEvent as Event);
       jest.spyOn(rsvpRepository, 'findOne').mockResolvedValue(null);
       jest.spyOn(feedbackRepository, 'findOne').mockResolvedValue(null);
 
-      await expect(service.createFeedback(createFeedbackDto)).rejects.toThrow(NotFoundException);
+      await expect(service.createFeedback(createFeedbackDto)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
   describe('getFeedbacksByEvent', () => {
     it('should return feedbacks for an event', async () => {
       const mockFeedbacks = [mockFeedback];
-      jest.spyOn(feedbackRepository, 'find').mockResolvedValue(mockFeedbacks as EventFeedback[]);
+      jest
+        .spyOn(feedbackRepository, 'find')
+        .mockResolvedValue(mockFeedbacks as EventFeedback[]);
 
       const result = await service.getFeedbacksByEvent(mockEvent.id);
 
@@ -159,14 +195,16 @@ describe('EventFeedbackService', () => {
       expect(feedbackRepository.find).toHaveBeenCalledWith({
         where: { eventId: mockEvent.id },
         relations: ['event', 'rsvp'],
-        order: { submittedAt: 'DESC' }
+        order: { submittedAt: 'DESC' },
       });
     });
   });
 
   describe('getFeedbackById', () => {
     it('should return feedback when found', async () => {
-      jest.spyOn(feedbackRepository, 'findOne').mockResolvedValue(mockFeedback as EventFeedback);
+      jest
+        .spyOn(feedbackRepository, 'findOne')
+        .mockResolvedValue(mockFeedback as EventFeedback);
 
       const result = await service.getFeedbackById(mockFeedback.id);
 
@@ -176,27 +214,33 @@ describe('EventFeedbackService', () => {
     it('should throw NotFoundException when feedback not found', async () => {
       jest.spyOn(feedbackRepository, 'findOne').mockResolvedValue(null);
 
-      await expect(service.getFeedbackById('nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(service.getFeedbackById('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
   describe('updateFeedbackStatus', () => {
     it('should update feedback status to reviewed', async () => {
-      jest.spyOn(service, 'getFeedbackById').mockResolvedValue(mockFeedback as EventFeedback);
-      const updatedFeedback = { 
-        ...mockFeedback, 
+      jest
+        .spyOn(service, 'getFeedbackById')
+        .mockResolvedValue(mockFeedback as EventFeedback);
+      const updatedFeedback = {
+        ...mockFeedback,
         status: FeedbackStatus.REVIEWED,
         reviewedAt: new Date(),
         reviewedBy: 'admin@example.com',
-        reviewNotes: 'Reviewed and approved'
+        reviewNotes: 'Reviewed and approved',
       };
-      jest.spyOn(feedbackRepository, 'save').mockResolvedValue(updatedFeedback as EventFeedback);
+      jest
+        .spyOn(feedbackRepository, 'save')
+        .mockResolvedValue(updatedFeedback as EventFeedback);
 
       const result = await service.updateFeedbackStatus(
         mockFeedback.id,
         FeedbackStatus.REVIEWED,
         'admin@example.com',
-        'Reviewed and approved'
+        'Reviewed and approved',
       );
 
       expect(result.status).toBe(FeedbackStatus.REVIEWED);
@@ -213,7 +257,9 @@ describe('EventFeedbackService', () => {
         { ...mockFeedback, overallRating: 4, wouldRecommend: true },
         { ...mockFeedback, overallRating: 3, wouldRecommend: false },
       ];
-      jest.spyOn(feedbackRepository, 'find').mockResolvedValue(mockFeedbacks as EventFeedback[]);
+      jest
+        .spyOn(feedbackRepository, 'find')
+        .mockResolvedValue(mockFeedbacks as EventFeedback[]);
       jest.spyOn(rsvpRepository, 'count').mockResolvedValue(10);
 
       const result = await service.getEventFeedbackAnalytics(mockEvent.id);
@@ -239,7 +285,9 @@ describe('EventFeedbackService', () => {
 
   describe('deleteFeedback', () => {
     it('should delete feedback successfully', async () => {
-      jest.spyOn(feedbackRepository, 'delete').mockResolvedValue({ affected: 1, raw: {} });
+      jest
+        .spyOn(feedbackRepository, 'delete')
+        .mockResolvedValue({ affected: 1, raw: {} });
 
       await service.deleteFeedback(mockFeedback.id);
 
@@ -247,9 +295,13 @@ describe('EventFeedbackService', () => {
     });
 
     it('should throw NotFoundException when feedback not found', async () => {
-      jest.spyOn(feedbackRepository, 'delete').mockResolvedValue({ affected: 0, raw: {} });
+      jest
+        .spyOn(feedbackRepository, 'delete')
+        .mockResolvedValue({ affected: 0, raw: {} });
 
-      await expect(service.deleteFeedback('nonexistent')).rejects.toThrow(NotFoundException);
+      await expect(service.deleteFeedback('nonexistent')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
