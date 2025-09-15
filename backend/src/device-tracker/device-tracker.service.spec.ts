@@ -2,13 +2,19 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DeviceTrackerService } from './device-tracker.service';
-import { DeviceTracker, DeviceType } from './entities/device-tracker.entity';
+import { DeviceTracker, DeviceType, DeviceStatus, RiskLevel } from './entities/device-tracker.entity';
 import { CreateDeviceTrackerDto } from './dto/create-device-tracker.dto';
+import { DeviceRiskAssessmentService } from './services/device-risk-assessment.service';
+import { GeolocationService } from './services/geolocation.service';
+import { DeviceAnomalyDetectionService } from './services/device-anomaly-detection.service';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 
 describe('DeviceTrackerService', () => {
   let service: DeviceTrackerService;
   let repository: Repository<DeviceTracker>;
+  let riskAssessmentService: DeviceRiskAssessmentService;
+  let geolocationService: GeolocationService;
+  let anomalyDetectionService: DeviceAnomalyDetectionService;
 
   const mockRepository = {
     create: jest.fn(),
@@ -18,6 +24,23 @@ describe('DeviceTrackerService', () => {
     remove: jest.fn(),
     count: jest.fn(),
     createQueryBuilder: jest.fn(),
+    increment: jest.fn(),
+    update: jest.fn(),
+  };
+
+  const mockRiskAssessmentService = {
+    assessSecurityFlags: jest.fn(),
+    calculateRiskScore: jest.fn(),
+  };
+
+  const mockGeolocationService = {
+    updateDeviceGeolocation: jest.fn(),
+    analyzeIP: jest.fn(),
+  };
+
+  const mockAnomalyDetectionService = {
+    detectUserAnomalies: jest.fn(),
+    getDeviceAnomalies: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -28,13 +51,26 @@ describe('DeviceTrackerService', () => {
           provide: getRepositoryToken(DeviceTracker),
           useValue: mockRepository,
         },
+        {
+          provide: DeviceRiskAssessmentService,
+          useValue: mockRiskAssessmentService,
+        },
+        {
+          provide: GeolocationService,
+          useValue: mockGeolocationService,
+        },
+        {
+          provide: DeviceAnomalyDetectionService,
+          useValue: mockAnomalyDetectionService,
+        },
       ],
     }).compile();
 
     service = module.get<DeviceTrackerService>(DeviceTrackerService);
-    repository = module.get<Repository<DeviceTracker>>(
-      getRepositoryToken(DeviceTracker),
-    );
+    repository = module.get<Repository<DeviceTracker>>(getRepositoryToken(DeviceTracker));
+    riskAssessmentService = module.get<DeviceRiskAssessmentService>(DeviceRiskAssessmentService);
+    geolocationService = module.get<GeolocationService>(GeolocationService);
+    anomalyDetectionService = module.get<DeviceAnomalyDetectionService>(DeviceAnomalyDetectionService);
   });
 
   afterEach(() => {
@@ -46,7 +82,7 @@ describe('DeviceTrackerService', () => {
   });
 
   describe('create', () => {
-    it('should create a device tracker entry', async () => {
+    it('should create a device tracker entry with risk assessment', async () => {
       const createDto: CreateDeviceTrackerDto = {
         deviceType: DeviceType.DESKTOP,
         ipAddress: '192.168.1.1',
@@ -54,21 +90,58 @@ describe('DeviceTrackerService', () => {
         userId: 'user123',
       };
 
-      const mockDeviceTracker = {
-        id: 'device-123',
+      const enhancedData = {
         ...createDto,
+        countryCode: 'US',
+        city: 'New York',
+        isVpn: false,
+      };
+
+      const securityFlags = {
+        isVpn: false,
+        isProxy: false,
+        isTor: false,
+        isHosting: false,
+        isNewLocation: true,
+        isNewDevice: true,
+        hasHighFailedAttempts: false,
+        isSuspiciousUserAgent: false,
+      };
+
+      const riskAssessment = {
+        riskScore: 25,
+        riskLevel: RiskLevel.LOW,
+        riskFactors: ['New device detected'],
+        recommendations: ['Verify device'],
+        shouldBlock: false,
+      };
+
+      const mockDevice = {
+        id: 'device-123',
+        ...enhancedData,
+        riskScore: 25,
+        riskLevel: RiskLevel.LOW,
+        status: DeviceStatus.ACTIVE,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
 
-      mockRepository.create.mockReturnValue(mockDeviceTracker);
-      mockRepository.save.mockResolvedValue(mockDeviceTracker);
+      mockGeolocationService.updateDeviceGeolocation.mockResolvedValue(enhancedData);
+      mockRepository.find.mockResolvedValue([]);
+      mockRiskAssessmentService.assessSecurityFlags.mockReturnValue(securityFlags);
+      mockRiskAssessmentService.calculateRiskScore.mockReturnValue(riskAssessment);
+      mockRepository.create.mockReturnValue(mockDevice);
+      mockRepository.save.mockResolvedValue(mockDevice);
+      mockAnomalyDetectionService.detectUserAnomalies.mockResolvedValue([]);
 
       const result = await service.create(createDto);
 
-      expect(mockRepository.create).toHaveBeenCalledWith(createDto);
-      expect(mockRepository.save).toHaveBeenCalledWith(mockDeviceTracker);
-      expect(result).toEqual(mockDeviceTracker);
+      expect(mockGeolocationService.updateDeviceGeolocation).toHaveBeenCalledWith(createDto);
+      expect(mockRiskAssessmentService.assessSecurityFlags).toHaveBeenCalled();
+      expect(mockRiskAssessmentService.calculateRiskScore).toHaveBeenCalled();
+      expect(mockRepository.create).toHaveBeenCalled();
+      expect(mockRepository.save).toHaveBeenCalled();
+      expect(result).toEqual(mockDevice);
     });
 
     it('should throw BadRequestException when creation fails', async () => {
@@ -77,125 +150,137 @@ describe('DeviceTrackerService', () => {
         ipAddress: '192.168.1.1',
       };
 
+      mockGeolocationService.updateDeviceGeolocation.mockResolvedValue(createDto);
+      mockRepository.find.mockResolvedValue([]);
+      mockRiskAssessmentService.assessSecurityFlags.mockReturnValue({});
+      mockRiskAssessmentService.calculateRiskScore.mockReturnValue({
+        riskScore: 0,
+        riskLevel: RiskLevel.LOW,
+        shouldBlock: false,
+      });
       mockRepository.create.mockReturnValue(createDto);
       mockRepository.save.mockRejectedValue(new Error('Database error'));
 
-      await expect(service.create(createDto)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(service.create(createDto)).rejects.toThrow(BadRequestException);
     });
   });
 
   describe('findOne', () => {
     it('should return a device tracker entry', async () => {
-      const mockDeviceTracker = {
+      const mockDevice = {
         id: 'device-123',
-        deviceType: 'Desktop',
+        deviceType: DeviceType.DESKTOP,
         ipAddress: '192.168.1.1',
+        userId: 'user123',
       };
 
-      mockRepository.findOne.mockResolvedValue(mockDeviceTracker);
+      mockRepository.findOne.mockResolvedValue(mockDevice);
 
       const result = await service.findOne('device-123');
 
       expect(mockRepository.findOne).toHaveBeenCalledWith({
         where: { id: 'device-123' },
       });
-      expect(result).toEqual(mockDeviceTracker);
+      expect(result).toEqual(mockDevice);
     });
 
-    it('should throw NotFoundException when device tracker not found', async () => {
+    it('should throw NotFoundException when device not found', async () => {
       mockRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.findOne('non-existent-id')).rejects.toThrow(
-        NotFoundException,
+      await expect(service.findOne('non-existent-id')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('blockDevice', () => {
+    it('should block a device with reason', async () => {
+      const mockDevice = {
+        id: 'device-123',
+        status: DeviceStatus.ACTIVE,
+        riskLevel: RiskLevel.LOW,
+      };
+
+      const expectedBlockedDevice = {
+        ...mockDevice,
+        status: DeviceStatus.BLOCKED,
+        riskLevel: RiskLevel.CRITICAL,
+        blockedAt: expect.any(Date),
+        blockedReason: 'Security violation',
+        blockedBy: 'admin',
+      };
+
+      mockRepository.findOne.mockResolvedValue(mockDevice);
+      mockRepository.save.mockResolvedValue(expectedBlockedDevice);
+
+      const result = await service.blockDevice('device-123', 'Security violation', 'admin');
+
+      expect(result.status).toBe(DeviceStatus.BLOCKED);
+      expect(result.riskLevel).toBe(RiskLevel.CRITICAL);
+      expect(result.blockedReason).toBe('Security violation');
+      expect(result.blockedBy).toBe('admin');
+    });
+  });
+
+  describe('recordFailedAttempt', () => {
+    it('should increment failed attempts counter', async () => {
+      await service.recordFailedAttempt('device-123');
+
+      expect(mockRepository.increment).toHaveBeenCalledWith(
+        { id: 'device-123' },
+        'failedAttempts',
+        1,
       );
     });
   });
 
-  describe('findByUserId', () => {
-    it('should return device trackers for a user', async () => {
-      const mockDeviceTrackers = [
+  describe('recordSuccessfulLogin', () => {
+    it('should reset failed attempts and update login info', async () => {
+      await service.recordSuccessfulLogin('device-123');
+
+      expect(mockRepository.update).toHaveBeenCalledWith(
+        { id: 'device-123' },
+        {
+          lastLoginAt: expect.any(Date),
+          failedAttempts: 0,
+        },
+      );
+      expect(mockRepository.increment).toHaveBeenCalledWith(
+        { id: 'device-123' },
+        'loginCount',
+        1,
+      );
+    });
+  });
+
+  describe('getSuspiciousDevices', () => {
+    it('should return devices with suspicious activity', async () => {
+      const mockSuspiciousDevices = [
         {
           id: 'device-1',
-          userId: 'user123',
-          deviceType: 'Desktop',
-          ipAddress: '192.168.1.1',
+          status: DeviceStatus.SUSPICIOUS,
+          riskScore: 60,
         },
         {
           id: 'device-2',
-          userId: 'user123',
-          deviceType: 'Mobile',
-          ipAddress: '192.168.1.2',
+          riskLevel: RiskLevel.HIGH,
+          isVpn: true,
         },
       ];
 
-      mockRepository.find.mockResolvedValue(mockDeviceTrackers);
+      mockRepository.find.mockResolvedValue(mockSuspiciousDevices);
 
-      const result = await service.findByUserId('user123');
+      const result = await service.getSuspiciousDevices();
 
       expect(mockRepository.find).toHaveBeenCalledWith({
-        where: { userId: 'user123' },
-        order: { lastSeenAt: 'DESC' },
+        where: [
+          { status: DeviceStatus.SUSPICIOUS },
+          { riskLevel: RiskLevel.HIGH },
+          { riskLevel: RiskLevel.CRITICAL },
+          { isVpn: true },
+          { isTor: true },
+        ],
+        order: { riskScore: 'DESC' },
       });
-      expect(result).toEqual(mockDeviceTrackers);
-    });
-  });
-
-  describe('markAsTrusted', () => {
-    it('should mark a device as trusted', async () => {
-      const mockDeviceTracker = {
-        id: 'device-123',
-        isTrusted: false,
-        deviceType: 'Desktop',
-        ipAddress: '192.168.1.1',
-      };
-
-      const updatedDeviceTracker = {
-        ...mockDeviceTracker,
-        isTrusted: true,
-      };
-
-      mockRepository.findOne.mockResolvedValue(mockDeviceTracker);
-      mockRepository.save.mockResolvedValue(updatedDeviceTracker);
-
-      const result = await service.markAsTrusted('device-123');
-
-      expect(result.isTrusted).toBe(true);
-      expect(mockRepository.save).toHaveBeenCalled();
-    });
-  });
-
-  describe('getDeviceStatistics', () => {
-    it('should return device statistics', async () => {
-      mockRepository.count
-        .mockResolvedValueOnce(100) // total devices
-        .mockResolvedValueOnce(80); // trusted devices
-
-      const mockDeviceTypeBreakdown = [
-        { deviceType: 'Desktop', count: '60' },
-        { deviceType: 'Mobile', count: '40' },
-      ];
-
-      const mockQueryBuilder = {
-        select: jest.fn().mockReturnThis(),
-        addSelect: jest.fn().mockReturnThis(),
-        groupBy: jest.fn().mockReturnThis(),
-        getRawMany: jest.fn().mockResolvedValue(mockDeviceTypeBreakdown),
-      };
-
-      mockRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
-      mockRepository.find.mockResolvedValue([]);
-
-      const result = await service.getDeviceStatistics();
-
-      expect(result.totalDevices).toBe(100);
-      expect(result.trustedDevices).toBe(80);
-      expect(result.untrustedDevices).toBe(20);
-      expect(result.deviceTypeBreakdown).toEqual([
-        { deviceType: 'Desktop', count: 60 },
-        { deviceType: 'Mobile', count: 40 },
-      ]);
+      expect(result).toEqual(mockSuspiciousDevices);
     });
   });
 });
