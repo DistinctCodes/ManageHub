@@ -15,6 +15,7 @@ import {
 import { EventService } from './services/event.service';
 import { RsvpService } from './services/rsvp.service';
 import { EventTemplateService } from './services/event-template.service';
+import { EventFeedbackService } from './services/event-feedback.service';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { CreateRsvpDto } from './dto/create-rsvp.dto';
@@ -23,6 +24,8 @@ import { EventQueryDto } from './dto/event-query.dto';
 import { RsvpQueryDto } from './dto/rsvp-query.dto';
 import { CreateEventTemplateDto } from './dto/create-event-template.dto';
 import { CreateEventFromTemplateDto, CreateEventSeriesDto } from './dto/create-event-from-template.dto';
+import { CreateEventFeedbackDto } from './dto/create-event-feedback.dto';
+import { FeedbackStatus } from './entities/event-feedback.entity';
 
 @Controller('event-rsvp')
 export class EventRsvpController {
@@ -30,6 +33,7 @@ export class EventRsvpController {
     private readonly eventService: EventService,
     private readonly rsvpService: RsvpService,
     private readonly eventTemplateService: EventTemplateService,
+    private readonly eventFeedbackService: EventFeedbackService,
   ) {}
 
   // Event Management Endpoints
@@ -439,5 +443,76 @@ export class EventRsvpController {
   async processRecurringEvents() {
     await this.eventTemplateService.processRecurringEvents();
     return { message: 'Recurring events processed successfully' };
+  }
+
+  // Event Feedback Endpoints
+
+  @Post('events/:eventId/feedback')
+  @HttpCode(HttpStatus.CREATED)
+  async submitEventFeedback(
+    @Param('eventId', ParseUUIDPipe) eventId: string,
+    @Body(ValidationPipe) createFeedbackDto: CreateEventFeedbackDto,
+  ) {
+    createFeedbackDto.eventId = eventId;
+    return await this.eventFeedbackService.createFeedback(createFeedbackDto);
+  }
+
+  @Get('events/:eventId/feedback')
+  async getEventFeedbacks(@Param('eventId', ParseUUIDPipe) eventId: string) {
+    return await this.eventFeedbackService.getFeedbacksByEvent(eventId);
+  }
+
+  @Get('events/:eventId/feedback/analytics')
+  async getEventFeedbackAnalytics(@Param('eventId', ParseUUIDPipe) eventId: string) {
+    return await this.eventFeedbackService.getEventFeedbackAnalytics(eventId);
+  }
+
+  @Get('feedback/:id')
+  async getFeedbackById(@Param('id', ParseUUIDPipe) id: string) {
+    return await this.eventFeedbackService.getFeedbackById(id);
+  }
+
+  @Patch('feedback/:id/status')
+  async updateFeedbackStatus(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateData: {
+      status: FeedbackStatus;
+      reviewedBy?: string;
+      reviewNotes?: string;
+    },
+  ) {
+    return await this.eventFeedbackService.updateFeedbackStatus(
+      id,
+      updateData.status,
+      updateData.reviewedBy,
+      updateData.reviewNotes,
+    );
+  }
+
+  @Delete('feedback/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteFeedback(@Param('id', ParseUUIDPipe) id: string) {
+    await this.eventFeedbackService.deleteFeedback(id);
+  }
+
+  @Get('feedback/pending')
+  async getPendingFeedbacks() {
+    return await this.eventFeedbackService.getPendingFeedbacks();
+  }
+
+  @Get('feedback/summary')
+  async getFeedbackSummary(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // 30 days ago
+    const end = endDate ? new Date(endDate) : new Date();
+    return await this.eventFeedbackService.getFeedbackSummaryByDateRange(start, end);
+  }
+
+  @Get('feedback/top-rated-events')
+  async getTopRatedEvents(@Query('limit') limit?: string) {
+    const eventLimit = limit ? parseInt(limit, 10) : 10;
+    return await this.eventFeedbackService.getTopRatedEvents(eventLimit);
   }
 }
