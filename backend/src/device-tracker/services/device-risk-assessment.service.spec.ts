@@ -1,6 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { DeviceRiskAssessmentService, SecurityFlags, RiskAssessmentResult } from './device-risk-assessment.service';
-import { DeviceTracker, DeviceType, RiskLevel } from '../entities/device-tracker.entity';
+import {
+  DeviceRiskAssessmentService,
+  SecurityFlags,
+  RiskAssessmentResult,
+} from './device-risk-assessment.service';
+import {
+  DeviceTracker,
+  DeviceType,
+  RiskLevel,
+} from '../entities/device-tracker.entity';
 
 describe('DeviceRiskAssessmentService', () => {
   let service: DeviceRiskAssessmentService;
@@ -10,7 +18,9 @@ describe('DeviceRiskAssessmentService', () => {
       providers: [DeviceRiskAssessmentService],
     }).compile();
 
-    service = module.get<DeviceRiskAssessmentService>(DeviceRiskAssessmentService);
+    service = module.get<DeviceRiskAssessmentService>(
+      DeviceRiskAssessmentService,
+    );
   });
 
   it('should be defined', () => {
@@ -96,7 +106,7 @@ describe('DeviceRiskAssessmentService', () => {
       const result = service.calculateRiskScore(device, securityFlags);
 
       expect(result.riskScore).toBeGreaterThan(35);
-      expect(result.riskLevel).toBeOneOf([RiskLevel.HIGH, RiskLevel.CRITICAL]);
+      expect([RiskLevel.HIGH, RiskLevel.CRITICAL]).toContain(result.riskLevel);
       expect(result.riskFactors).toContain('Tor network usage detected');
     });
 
@@ -145,7 +155,9 @@ describe('DeviceRiskAssessmentService', () => {
 
       const result = service.calculateRiskScore(device, securityFlags);
 
-      expect(result.riskFactors).toContain('High number of failed login attempts');
+      expect(result.riskFactors).toContain(
+        'High number of failed login attempts',
+      );
       expect(result.riskScore).toBeGreaterThan(25);
     });
 
@@ -294,8 +306,13 @@ describe('DeviceRiskAssessmentService', () => {
         isNewDevice: true,
         isNewLocation: true,
       };
-      const mediumResult = service.calculateRiskScore(mediumRiskDevice, mediumFlags);
-      expect(mediumResult.riskLevel).toBeOneOf([RiskLevel.LOW, RiskLevel.MEDIUM]);
+      const mediumResult = service.calculateRiskScore(
+        mediumRiskDevice,
+        mediumFlags,
+      );
+      expect([RiskLevel.LOW, RiskLevel.MEDIUM]).toContain(
+        mediumResult.riskLevel,
+      );
 
       // Test high risk
       const highRiskDevice: Partial<DeviceTracker> = {
@@ -310,7 +327,9 @@ describe('DeviceRiskAssessmentService', () => {
         hasHighFailedAttempts: true,
       };
       const highResult = service.calculateRiskScore(highRiskDevice, highFlags);
-      expect(highResult.riskLevel).toBeOneOf([RiskLevel.HIGH, RiskLevel.CRITICAL]);
+      expect([RiskLevel.HIGH, RiskLevel.CRITICAL]).toContain(
+        highResult.riskLevel,
+      );
     });
   });
 
@@ -336,9 +355,7 @@ describe('DeviceRiskAssessmentService', () => {
       const result = service.calculateRiskScore(device, securityFlags);
 
       expect(result.recommendations).toEqual(
-        expect.arrayContaining([
-          expect.any(String),
-        ])
+        expect.arrayContaining([expect.any(String)]),
       );
       expect(result.riskFactors.length).toBeGreaterThan(0);
     });

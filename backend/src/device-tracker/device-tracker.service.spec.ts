@@ -2,7 +2,12 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DeviceTrackerService } from './device-tracker.service';
-import { DeviceTracker, DeviceType, DeviceStatus, RiskLevel } from './entities/device-tracker.entity';
+import {
+  DeviceTracker,
+  DeviceType,
+  DeviceStatus,
+  RiskLevel,
+} from './entities/device-tracker.entity';
 import { CreateDeviceTrackerDto } from './dto/create-device-tracker.dto';
 import { DeviceRiskAssessmentService } from './services/device-risk-assessment.service';
 import { GeolocationService } from './services/geolocation.service';
@@ -67,10 +72,16 @@ describe('DeviceTrackerService', () => {
     }).compile();
 
     service = module.get<DeviceTrackerService>(DeviceTrackerService);
-    repository = module.get<Repository<DeviceTracker>>(getRepositoryToken(DeviceTracker));
-    riskAssessmentService = module.get<DeviceRiskAssessmentService>(DeviceRiskAssessmentService);
+    repository = module.get<Repository<DeviceTracker>>(
+      getRepositoryToken(DeviceTracker),
+    );
+    riskAssessmentService = module.get<DeviceRiskAssessmentService>(
+      DeviceRiskAssessmentService,
+    );
     geolocationService = module.get<GeolocationService>(GeolocationService);
-    anomalyDetectionService = module.get<DeviceAnomalyDetectionService>(DeviceAnomalyDetectionService);
+    anomalyDetectionService = module.get<DeviceAnomalyDetectionService>(
+      DeviceAnomalyDetectionService,
+    );
   });
 
   afterEach(() => {
@@ -126,17 +137,25 @@ describe('DeviceTrackerService', () => {
         updatedAt: new Date(),
       };
 
-      mockGeolocationService.updateDeviceGeolocation.mockResolvedValue(enhancedData);
+      mockGeolocationService.updateDeviceGeolocation.mockResolvedValue(
+        enhancedData,
+      );
       mockRepository.find.mockResolvedValue([]);
-      mockRiskAssessmentService.assessSecurityFlags.mockReturnValue(securityFlags);
-      mockRiskAssessmentService.calculateRiskScore.mockReturnValue(riskAssessment);
+      mockRiskAssessmentService.assessSecurityFlags.mockReturnValue(
+        securityFlags,
+      );
+      mockRiskAssessmentService.calculateRiskScore.mockReturnValue(
+        riskAssessment,
+      );
       mockRepository.create.mockReturnValue(mockDevice);
       mockRepository.save.mockResolvedValue(mockDevice);
       mockAnomalyDetectionService.detectUserAnomalies.mockResolvedValue([]);
 
       const result = await service.create(createDto);
 
-      expect(mockGeolocationService.updateDeviceGeolocation).toHaveBeenCalledWith(createDto);
+      expect(
+        mockGeolocationService.updateDeviceGeolocation,
+      ).toHaveBeenCalledWith(createDto);
       expect(mockRiskAssessmentService.assessSecurityFlags).toHaveBeenCalled();
       expect(mockRiskAssessmentService.calculateRiskScore).toHaveBeenCalled();
       expect(mockRepository.create).toHaveBeenCalled();
@@ -150,7 +169,9 @@ describe('DeviceTrackerService', () => {
         ipAddress: '192.168.1.1',
       };
 
-      mockGeolocationService.updateDeviceGeolocation.mockResolvedValue(createDto);
+      mockGeolocationService.updateDeviceGeolocation.mockResolvedValue(
+        createDto,
+      );
       mockRepository.find.mockResolvedValue([]);
       mockRiskAssessmentService.assessSecurityFlags.mockReturnValue({});
       mockRiskAssessmentService.calculateRiskScore.mockReturnValue({
@@ -161,7 +182,9 @@ describe('DeviceTrackerService', () => {
       mockRepository.create.mockReturnValue(createDto);
       mockRepository.save.mockRejectedValue(new Error('Database error'));
 
-      await expect(service.create(createDto)).rejects.toThrow(BadRequestException);
+      await expect(service.create(createDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -187,7 +210,9 @@ describe('DeviceTrackerService', () => {
     it('should throw NotFoundException when device not found', async () => {
       mockRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.findOne('non-existent-id')).rejects.toThrow(NotFoundException);
+      await expect(service.findOne('non-existent-id')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
@@ -211,7 +236,11 @@ describe('DeviceTrackerService', () => {
       mockRepository.findOne.mockResolvedValue(mockDevice);
       mockRepository.save.mockResolvedValue(expectedBlockedDevice);
 
-      const result = await service.blockDevice('device-123', 'Security violation', 'admin');
+      const result = await service.blockDevice(
+        'device-123',
+        'Security violation',
+        'admin',
+      );
 
       expect(result.status).toBe(DeviceStatus.BLOCKED);
       expect(result.riskLevel).toBe(RiskLevel.CRITICAL);
