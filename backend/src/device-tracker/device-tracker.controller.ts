@@ -14,6 +14,8 @@ import {
 import { DeviceTrackerService } from './device-tracker.service';
 import { DeviceSessionService } from './services/device-session.service';
 import { DeviceAnomalyDetectionService } from './services/device-anomaly-detection.service';
+import { DeviceNotificationService } from './services/device-notification.service';
+import { DeviceAuditService } from './services/device-audit.service';
 import { CreateDeviceTrackerDto } from './dto/create-device-tracker.dto';
 import { UpdateDeviceTrackerDto } from './dto/update-device-tracker.dto';
 import { DeviceTrackerQueryDto } from './dto/device-tracker-query.dto';
@@ -27,6 +29,8 @@ export class DeviceTrackerController {
     private readonly deviceTrackerService: DeviceTrackerService,
     private readonly sessionService: DeviceSessionService,
     private readonly anomalyDetectionService: DeviceAnomalyDetectionService,
+    private readonly notificationService: DeviceNotificationService,
+    private readonly auditService: DeviceAuditService,
   ) {}
 
   @Post()

@@ -7,6 +7,8 @@ import { DeviceRiskAssessmentService } from './services/device-risk-assessment.s
 import { DeviceSessionService } from './services/device-session.service';
 import { GeolocationService } from './services/geolocation.service';
 import { DeviceAnomalyDetectionService } from './services/device-anomaly-detection.service';
+import { DeviceNotificationService } from './services/device-notification.service';
+import { DeviceAuditService } from './services/device-audit.service';
 import { DeviceTrackingMiddleware } from './middleware/device-tracking.middleware';
 import { DeviceSecurityGuard } from './guards/device-security.guard';
 
@@ -19,6 +21,8 @@ import { DeviceSecurityGuard } from './guards/device-security.guard';
     DeviceSessionService,
     GeolocationService,
     DeviceAnomalyDetectionService,
+    DeviceNotificationService,
+    DeviceAuditService,
     DeviceTrackingMiddleware,
     DeviceSecurityGuard,
   ],
@@ -28,6 +32,8 @@ import { DeviceSecurityGuard } from './guards/device-security.guard';
     DeviceSessionService,
     GeolocationService,
     DeviceAnomalyDetectionService,
+    DeviceNotificationService,
+    DeviceAuditService,
     DeviceTrackingMiddleware,
     DeviceSecurityGuard,
   ],
