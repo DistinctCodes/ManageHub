@@ -6,16 +6,22 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, Like } from 'typeorm';
-import { DeviceTracker } from './entities/device-tracker.entity';
+import { DeviceTracker, DeviceType, DeviceStatus, RiskLevel } from './entities/device-tracker.entity';
 import { CreateDeviceTrackerDto } from './dto/create-device-tracker.dto';
 import { UpdateDeviceTrackerDto } from './dto/update-device-tracker.dto';
 import { DeviceTrackerQueryDto } from './dto/device-tracker-query.dto';
+import { DeviceRiskAssessmentService } from './services/device-risk-assessment.service';
+import { GeolocationService } from './services/geolocation.service';
+import { DeviceAnomalyDetectionService } from './services/device-anomaly-detection.service';
 
 @Injectable()
 export class DeviceTrackerService {
   constructor(
     @InjectRepository(DeviceTracker)
     private deviceTrackerRepository: Repository<DeviceTracker>,
+    private riskAssessmentService: DeviceRiskAssessmentService,
+    private geolocationService: GeolocationService,
+    private anomalyDetectionService: DeviceAnomalyDetectionService,
   ) {}
 
   async create(createDeviceTrackerDto: CreateDeviceTrackerDto): Promise<DeviceTracker> {
