@@ -16,6 +16,11 @@ import { EventService } from './services/event.service';
 import { RsvpService } from './services/rsvp.service';
 import { EventTemplateService } from './services/event-template.service';
 import { EventFeedbackService } from './services/event-feedback.service';
+import { EventRegistrationService } from './services/event-registration.service';
+import {
+  EventReminderService,
+  ReminderType,
+} from './services/event-reminder.service';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { CreateRsvpDto } from './dto/create-rsvp.dto';
@@ -23,9 +28,23 @@ import { UpdateRsvpDto } from './dto/update-rsvp.dto';
 import { EventQueryDto } from './dto/event-query.dto';
 import { RsvpQueryDto } from './dto/rsvp-query.dto';
 import { CreateEventTemplateDto } from './dto/create-event-template.dto';
-import { CreateEventFromTemplateDto, CreateEventSeriesDto } from './dto/create-event-from-template.dto';
+import {
+  CreateEventFromTemplateDto,
+  CreateEventSeriesDto,
+} from './dto/create-event-from-template.dto';
 import { CreateEventFeedbackDto } from './dto/create-event-feedback.dto';
 import { FeedbackStatus } from './entities/event-feedback.entity';
+import {
+  CreateRegistrationFormDto,
+  UpdateRegistrationFormDto,
+  FormQueryDto,
+} from './dto/create-registration-form.dto';
+import {
+  CreateRegistrationResponseDto,
+  UpdateRegistrationResponseDto,
+  ResponseQueryDto,
+  BulkUpdateResponseDto,
+} from './dto/create-registration-response.dto';
 
 @Controller('event-rsvp')
 export class EventRsvpController {
@@ -34,6 +53,8 @@ export class EventRsvpController {
     private readonly rsvpService: RsvpService,
     private readonly eventTemplateService: EventTemplateService,
     private readonly eventFeedbackService: EventFeedbackService,
+    private readonly eventRegistrationService: EventRegistrationService,
+    private readonly eventReminderService: EventReminderService,
   ) {}
 
   // Event Management Endpoints
@@ -61,9 +82,7 @@ export class EventRsvpController {
   }
 
   @Get('events/organizer/:organizerId')
-  async getEventsByOrganizer(
-    @Param('organizerId') organizerId: string,
-  ) {
+  async getEventsByOrganizer(@Param('organizerId') organizerId: string) {
     return await this.eventService.getEventsByOrganizer(organizerId);
   }
 
@@ -179,7 +198,7 @@ export class EventRsvpController {
   @Get('events/:eventId/rsvps/confirmed')
   async getConfirmedRsvps(@Param('eventId', ParseUUIDPipe) eventId: string) {
     const rsvps = await this.rsvpService.getEventRsvps(eventId);
-    return rsvps.filter(rsvp => rsvp.isConfirmed);
+    return rsvps.filter((rsvp) => rsvp.isConfirmed);
   }
 
   @Get('events/:eventId/rsvps/waitlist')
@@ -190,21 +209,21 @@ export class EventRsvpController {
   @Get('events/:eventId/rsvps/attendees')
   async getEventAttendees(@Param('eventId', ParseUUIDPipe) eventId: string) {
     const rsvps = await this.rsvpService.getEventRsvps(eventId);
-    return rsvps.filter(rsvp => rsvp.hasAttended);
+    return rsvps.filter((rsvp) => rsvp.hasAttended);
   }
 
   @Get('events/:eventId/rsvps/summary')
   async getEventRsvpSummary(@Param('eventId', ParseUUIDPipe) eventId: string) {
     const rsvps = await this.rsvpService.getEventRsvps(eventId);
-    
+
     return {
       total: rsvps.length,
-      confirmed: rsvps.filter(r => r.isConfirmed).length,
-      waitlisted: rsvps.filter(r => r.isWaitlisted).length,
-      cancelled: rsvps.filter(r => r.isCancelled).length,
-      attended: rsvps.filter(r => r.hasAttended).length,
-      noShow: rsvps.filter(r => r.status === 'no_show').length,
-      vipCount: rsvps.filter(r => r.isVip).length,
+      confirmed: rsvps.filter((r) => r.isConfirmed).length,
+      waitlisted: rsvps.filter((r) => r.isWaitlisted).length,
+      cancelled: rsvps.filter((r) => r.isCancelled).length,
+      attended: rsvps.filter((r) => r.hasAttended).length,
+      noShow: rsvps.filter((r) => r.status === 'no_show').length,
+      vipCount: rsvps.filter((r) => r.isVip).length,
     };
   }
 
@@ -219,11 +238,12 @@ export class EventRsvpController {
   async getUserUpcomingRsvps(@Param('userId') userId: string) {
     const rsvps = await this.rsvpService.getUserRsvps(userId);
     const now = new Date();
-    
-    return rsvps.filter(rsvp => 
-      rsvp.event && 
-      rsvp.event.startDate > now && 
-      (rsvp.isConfirmed || rsvp.isWaitlisted)
+
+    return rsvps.filter(
+      (rsvp) =>
+        rsvp.event &&
+        rsvp.event.startDate > now &&
+        (rsvp.isConfirmed || rsvp.isWaitlisted),
     );
   }
 
@@ -231,11 +251,8 @@ export class EventRsvpController {
   async getUserRsvpHistory(@Param('userId') userId: string) {
     const rsvps = await this.rsvpService.getUserRsvps(userId);
     const now = new Date();
-    
-    return rsvps.filter(rsvp => 
-      rsvp.event && 
-      rsvp.event.endDate < now
-    );
+
+    return rsvps.filter((rsvp) => rsvp.event && rsvp.event.endDate < now);
   }
 
   // Bulk operations
@@ -267,7 +284,10 @@ export class EventRsvpController {
     const results = [];
     for (const rsvpId of cancelData.rsvpIds) {
       try {
-        const rsvp = await this.rsvpService.cancelRsvp(rsvpId, cancelData.reason);
+        const rsvp = await this.rsvpService.cancelRsvp(
+          rsvpId,
+          cancelData.reason,
+        );
         results.push({ rsvpId, success: true, rsvp });
       } catch (error) {
         results.push({ rsvpId, success: false, error: error.message });
@@ -291,18 +311,18 @@ export class EventRsvpController {
         'event.capacity',
         'event.confirmedRsvps',
         'event.startDate',
-        '(event.confirmedRsvps / event.capacity * 100) as utilizationPercentage'
+        '(event.confirmedRsvps / event.capacity * 100) as utilizationPercentage',
       ]);
 
     if (startDate) {
-      queryBuilder.andWhere('event.startDate >= :startDate', { 
-        startDate: new Date(startDate) 
+      queryBuilder.andWhere('event.startDate >= :startDate', {
+        startDate: new Date(startDate),
       });
     }
 
     if (endDate) {
-      queryBuilder.andWhere('event.startDate <= :endDate', { 
-        endDate: new Date(endDate) 
+      queryBuilder.andWhere('event.startDate <= :endDate', {
+        endDate: new Date(endDate),
       });
     }
 
@@ -314,7 +334,7 @@ export class EventRsvpController {
   @Get('analytics/popular-events')
   async getPopularEvents(@Query('limit') limit?: string) {
     const eventLimit = limit ? parseInt(limit, 10) : 10;
-    
+
     return await this.eventService['eventRepository']
       .createQueryBuilder('event')
       .select([
@@ -323,7 +343,7 @@ export class EventRsvpController {
         'event.eventType',
         'event.confirmedRsvps',
         'event.capacity',
-        'event.startDate'
+        'event.startDate',
       ])
       .orderBy('event.confirmedRsvps', 'DESC')
       .limit(eventLimit)
@@ -350,7 +370,7 @@ export class EventRsvpController {
         'DATE(rsvp.createdAt) as date',
         'COUNT(*) as rsvpCount',
         'COUNT(CASE WHEN rsvp.status = "confirmed" THEN 1 END) as confirmedCount',
-        'COUNT(CASE WHEN rsvp.status = "waitlisted" THEN 1 END) as waitlistedCount'
+        'COUNT(CASE WHEN rsvp.status = "waitlisted" THEN 1 END) as waitlistedCount',
       ])
       .where('rsvp.createdAt >= :startDate', { startDate })
       .groupBy('DATE(rsvp.createdAt)')
@@ -362,7 +382,9 @@ export class EventRsvpController {
 
   @Post('templates')
   @HttpCode(HttpStatus.CREATED)
-  async createTemplate(@Body(ValidationPipe) createTemplateDto: CreateEventTemplateDto) {
+  async createTemplate(
+    @Body(ValidationPipe) createTemplateDto: CreateEventTemplateDto,
+  ) {
     return await this.eventTemplateService.createTemplate(createTemplateDto);
   }
 
@@ -394,7 +416,8 @@ export class EventRsvpController {
   @HttpCode(HttpStatus.CREATED)
   async createEventFromTemplate(
     @Param('id', ParseUUIDPipe) templateId: string,
-    @Body(ValidationPipe) createFromTemplateDto: Omit<CreateEventFromTemplateDto, 'templateId'>,
+    @Body(ValidationPipe)
+    createFromTemplateDto: Omit<CreateEventFromTemplateDto, 'templateId'>,
   ) {
     return await this.eventTemplateService.createEventFromTemplate({
       ...createFromTemplateDto,
@@ -406,7 +429,9 @@ export class EventRsvpController {
 
   @Post('series')
   @HttpCode(HttpStatus.CREATED)
-  async createEventSeries(@Body(ValidationPipe) createSeriesDto: CreateEventSeriesDto) {
+  async createEventSeries(
+    @Body(ValidationPipe) createSeriesDto: CreateEventSeriesDto,
+  ) {
     return await this.eventTemplateService.createEventSeries(createSeriesDto);
   }
 
@@ -463,7 +488,9 @@ export class EventRsvpController {
   }
 
   @Get('events/:eventId/feedback/analytics')
-  async getEventFeedbackAnalytics(@Param('eventId', ParseUUIDPipe) eventId: string) {
+  async getEventFeedbackAnalytics(
+    @Param('eventId', ParseUUIDPipe) eventId: string,
+  ) {
     return await this.eventFeedbackService.getEventFeedbackAnalytics(eventId);
   }
 
@@ -475,7 +502,8 @@ export class EventRsvpController {
   @Patch('feedback/:id/status')
   async updateFeedbackStatus(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() updateData: {
+    @Body()
+    updateData: {
       status: FeedbackStatus;
       reviewedBy?: string;
       reviewNotes?: string;
@@ -505,14 +533,208 @@ export class EventRsvpController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
-    const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // 30 days ago
+    const start = startDate
+      ? new Date(startDate)
+      : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // 30 days ago
     const end = endDate ? new Date(endDate) : new Date();
-    return await this.eventFeedbackService.getFeedbackSummaryByDateRange(start, end);
+    return await this.eventFeedbackService.getFeedbackSummaryByDateRange(
+      start,
+      end,
+    );
   }
 
   @Get('feedback/top-rated-events')
   async getTopRatedEvents(@Query('limit') limit?: string) {
     const eventLimit = limit ? parseInt(limit, 10) : 10;
     return await this.eventFeedbackService.getTopRatedEvents(eventLimit);
+  }
+
+  // Event Registration Forms Endpoints
+
+  @Post('events/:eventId/registration-form')
+  @HttpCode(HttpStatus.CREATED)
+  async createRegistrationForm(
+    @Param('eventId', ParseUUIDPipe) eventId: string,
+    @Body(ValidationPipe) createFormDto: CreateRegistrationFormDto,
+  ) {
+    createFormDto.eventId = eventId;
+    return await this.eventRegistrationService.createForm(createFormDto);
+  }
+
+  @Get('events/:eventId/registration-forms')
+  async getEventRegistrationForms(
+    @Param('eventId', ParseUUIDPipe) eventId: string,
+  ) {
+    return await this.eventRegistrationService.getFormsByEvent(eventId);
+  }
+
+  @Get('registration-forms')
+  async getRegistrationForms(@Query(ValidationPipe) queryDto: FormQueryDto) {
+    return await this.eventRegistrationService.getForms(queryDto);
+  }
+
+  @Get('registration-forms/:id')
+  async getRegistrationFormById(@Param('id', ParseUUIDPipe) id: string) {
+    return await this.eventRegistrationService.getFormById(id);
+  }
+
+  @Patch('registration-forms/:id')
+  async updateRegistrationForm(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(ValidationPipe) updateFormDto: UpdateRegistrationFormDto,
+  ) {
+    return await this.eventRegistrationService.updateForm(id, updateFormDto);
+  }
+
+  @Post('registration-forms/:id/publish')
+  @HttpCode(HttpStatus.OK)
+  async publishRegistrationForm(@Param('id', ParseUUIDPipe) id: string) {
+    return await this.eventRegistrationService.publishForm(id);
+  }
+
+  @Post('registration-forms/:id/archive')
+  @HttpCode(HttpStatus.OK)
+  async archiveRegistrationForm(@Param('id', ParseUUIDPipe) id: string) {
+    return await this.eventRegistrationService.archiveForm(id);
+  }
+
+  @Delete('registration-forms/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteRegistrationForm(@Param('id', ParseUUIDPipe) id: string) {
+    await this.eventRegistrationService.deleteForm(id);
+  }
+
+  @Get('registration-forms/:id/analytics')
+  async getRegistrationFormAnalytics(@Param('id', ParseUUIDPipe) id: string) {
+    return await this.eventRegistrationService.getFormAnalytics(id);
+  }
+
+  // Registration Response Endpoints
+
+  @Post('registration-forms/:formId/responses')
+  @HttpCode(HttpStatus.CREATED)
+  async submitRegistrationResponse(
+    @Param('formId', ParseUUIDPipe) formId: string,
+    @Body(ValidationPipe) createResponseDto: CreateRegistrationResponseDto,
+  ) {
+    createResponseDto.formId = formId;
+    return await this.eventRegistrationService.submitResponse(
+      createResponseDto,
+    );
+  }
+
+  @Get('registration-responses')
+  async getRegistrationResponses(
+    @Query(ValidationPipe) queryDto: ResponseQueryDto,
+  ) {
+    return await this.eventRegistrationService.getResponses(queryDto);
+  }
+
+  @Get('registration-responses/:id')
+  async getRegistrationResponseById(@Param('id', ParseUUIDPipe) id: string) {
+    return await this.eventRegistrationService.getResponseById(id);
+  }
+
+  @Patch('registration-responses/:id')
+  async updateRegistrationResponse(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(ValidationPipe) updateResponseDto: UpdateRegistrationResponseDto,
+  ) {
+    return await this.eventRegistrationService.updateResponse(
+      id,
+      updateResponseDto,
+    );
+  }
+
+  @Post('registration-responses/bulk-update')
+  @HttpCode(HttpStatus.OK)
+  async bulkUpdateRegistrationResponses(
+    @Body(ValidationPipe) bulkUpdateDto: BulkUpdateResponseDto,
+  ) {
+    return await this.eventRegistrationService.bulkUpdateResponses(
+      bulkUpdateDto,
+    );
+  }
+
+  @Delete('registration-responses/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteRegistrationResponse(@Param('id', ParseUUIDPipe) id: string) {
+    await this.eventRegistrationService.deleteResponse(id);
+  }
+
+  @Get('events/:eventId/registration-responses')
+  async getEventRegistrationResponses(
+    @Param('eventId', ParseUUIDPipe) eventId: string,
+    @Query(ValidationPipe) queryDto: ResponseQueryDto,
+  ) {
+    queryDto.eventId = eventId;
+    return await this.eventRegistrationService.getResponses(queryDto);
+  }
+
+  @Get('registration-forms/:formId/responses')
+  async getFormRegistrationResponses(
+    @Param('formId', ParseUUIDPipe) formId: string,
+    @Query(ValidationPipe) queryDto: ResponseQueryDto,
+  ) {
+    queryDto.formId = formId;
+    return await this.eventRegistrationService.getResponses(queryDto);
+  }
+
+  // Event Reminder Endpoints
+
+  @Post('events/:eventId/reminders/send')
+  @HttpCode(HttpStatus.OK)
+  async sendCustomReminder(
+    @Param('eventId', ParseUUIDPipe) eventId: string,
+    @Body()
+    reminderData: {
+      type: ReminderType;
+      recipientEmails?: string[];
+      customMessage?: string;
+    },
+  ) {
+    return await this.eventReminderService.sendCustomReminder(
+      eventId,
+      reminderData.type,
+      reminderData.recipientEmails,
+      reminderData.customMessage,
+    );
+  }
+
+  @Post('reminders/process')
+  @HttpCode(HttpStatus.OK)
+  async processReminders() {
+    await this.eventReminderService.processReminders();
+    return { message: 'Reminders processed successfully' };
+  }
+
+  @Get('events/:eventId/reminders/logs')
+  async getReminderLogs(
+    @Param('eventId', ParseUUIDPipe) eventId: string,
+    @Query('days') days?: string,
+  ) {
+    const daysNumber = days ? parseInt(days, 10) : 30;
+    return await this.eventReminderService.getReminderLogs(eventId, daysNumber);
+  }
+
+  @Get('reminders/logs')
+  async getAllReminderLogs(@Query('days') days?: string) {
+    const daysNumber = days ? parseInt(days, 10) : 30;
+    return await this.eventReminderService.getReminderLogs(
+      undefined,
+      daysNumber,
+    );
+  }
+
+  @Get('events/:eventId/reminders/statistics')
+  async getEventReminderStatistics(
+    @Param('eventId', ParseUUIDPipe) eventId: string,
+  ) {
+    return await this.eventReminderService.getReminderStatistics(eventId);
+  }
+
+  @Get('reminders/statistics')
+  async getReminderStatistics() {
+    return await this.eventReminderService.getReminderStatistics();
   }
 }

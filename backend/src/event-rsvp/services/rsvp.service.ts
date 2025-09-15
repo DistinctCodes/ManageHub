@@ -7,7 +7,11 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindOptionsWhere, Like } from 'typeorm';
-import { EventRsvp, RsvpStatus, RsvpSource } from '../entities/event-rsvp.entity';
+import {
+  EventRsvp,
+  RsvpStatus,
+  RsvpSource,
+} from '../entities/event-rsvp.entity';
 import { Event, EventStatus } from '../entities/event.entity';
 import { CreateRsvpDto } from '../dto/create-rsvp.dto';
 import { UpdateRsvpDto } from '../dto/update-rsvp.dto';
@@ -52,14 +56,19 @@ export class RsvpService {
     private emailNotificationService: EmailNotificationService,
   ) {}
 
-  async createRsvp(eventId: string, createRsvpDto: CreateRsvpDto): Promise<EventRsvp> {
+  async createRsvp(
+    eventId: string,
+    createRsvpDto: CreateRsvpDto,
+  ): Promise<EventRsvp> {
     try {
       // Get event with current RSVP data
       const event = await this.eventService.findOne(eventId);
 
       // Validate event status
       if (event.status !== EventStatus.PUBLISHED) {
-        throw new BadRequestException('Event is not published and open for registration');
+        throw new BadRequestException(
+          'Event is not published and open for registration',
+        );
       }
 
       // Check if registration is still open
@@ -76,12 +85,16 @@ export class RsvpService {
       });
 
       if (existingRsvp && !existingRsvp.isCancelled) {
-        throw new ConflictException('User has already registered for this event');
+        throw new ConflictException(
+          'User has already registered for this event',
+        );
       }
 
       // Determine RSVP status based on capacity
       const isWaitlisted = event.isFullyBooked && event.allowWaitlist;
-      const status = isWaitlisted ? RsvpStatus.WAITLISTED : RsvpStatus.CONFIRMED;
+      const status = isWaitlisted
+        ? RsvpStatus.WAITLISTED
+        : RsvpStatus.CONFIRMED;
 
       // Calculate waitlist position if needed
       let waitlistPosition: number | null = null;
@@ -112,9 +125,15 @@ export class RsvpService {
       // Send appropriate email notification
       const fullRsvp = await this.findOne(savedRsvp.id);
       if (status === RsvpStatus.CONFIRMED) {
-        await this.emailNotificationService.sendRsvpConfirmation(fullRsvp, event);
+        await this.emailNotificationService.sendRsvpConfirmation(
+          fullRsvp,
+          event,
+        );
       } else if (status === RsvpStatus.WAITLISTED) {
-        await this.emailNotificationService.sendWaitlistNotification(fullRsvp, event);
+        await this.emailNotificationService.sendWaitlistNotification(
+          fullRsvp,
+          event,
+        );
       }
 
       this.logger.log(
@@ -123,7 +142,9 @@ export class RsvpService {
 
       return fullRsvp;
     } catch (error) {
-      this.logger.error(`Failed to create RSVP for event ${eventId}: ${error.message}`);
+      this.logger.error(
+        `Failed to create RSVP for event ${eventId}: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -236,7 +257,11 @@ export class RsvpService {
 
       // Handle status changes
       if (updateRsvpDto.status && updateRsvpDto.status !== rsvp.status) {
-        await this.handleStatusChange(rsvp, updateRsvpDto.status, updateRsvpDto);
+        await this.handleStatusChange(
+          rsvp,
+          updateRsvpDto.status,
+          updateRsvpDto,
+        );
       }
 
       // Update other fields
@@ -259,11 +284,13 @@ export class RsvpService {
       const rsvp = await this.findOne(id);
 
       if (!rsvp.canCancel) {
-        throw new BadRequestException('RSVP cannot be cancelled in its current state');
+        throw new BadRequestException(
+          'RSVP cannot be cancelled in its current state',
+        );
       }
 
       const wasConfirmed = rsvp.status === RsvpStatus.CONFIRMED;
-      
+
       rsvp.status = RsvpStatus.CANCELLED;
       rsvp.cancelledAt = new Date();
       rsvp.cancellationReason = reason || 'User cancelled';
@@ -300,7 +327,10 @@ export class RsvpService {
       const savedRsvp = await this.rsvpRepository.save(rsvp);
 
       // Send check-in confirmation email
-      await this.emailNotificationService.sendCheckInConfirmation(savedRsvp, rsvp.event);
+      await this.emailNotificationService.sendCheckInConfirmation(
+        savedRsvp,
+        rsvp.event,
+      );
 
       this.logger.log(`Attendee checked in successfully: ${savedRsvp.id}`);
       return savedRsvp;
@@ -315,7 +345,9 @@ export class RsvpService {
       const rsvp = await this.findOne(id);
 
       if (rsvp.status !== RsvpStatus.CONFIRMED) {
-        throw new BadRequestException('Only confirmed RSVPs can be marked as no-show');
+        throw new BadRequestException(
+          'Only confirmed RSVPs can be marked as no-show',
+        );
       }
 
       rsvp.status = RsvpStatus.NO_SHOW;
@@ -324,7 +356,9 @@ export class RsvpService {
       this.logger.log(`RSVP marked as no-show: ${savedRsvp.id}`);
       return savedRsvp;
     } catch (error) {
-      this.logger.error(`Failed to mark RSVP ${id} as no-show: ${error.message}`);
+      this.logger.error(
+        `Failed to mark RSVP ${id} as no-show: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -337,7 +371,9 @@ export class RsvpService {
         relations: ['event'],
       });
     } catch (error) {
-      this.logger.error(`Failed to get RSVPs for event ${eventId}: ${error.message}`);
+      this.logger.error(
+        `Failed to get RSVPs for event ${eventId}: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -353,7 +389,9 @@ export class RsvpService {
         relations: ['event'],
       });
     } catch (error) {
-      this.logger.error(`Failed to get waitlist for event ${eventId}: ${error.message}`);
+      this.logger.error(
+        `Failed to get waitlist for event ${eventId}: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -366,7 +404,9 @@ export class RsvpService {
         relations: ['event'],
       });
     } catch (error) {
-      this.logger.error(`Failed to get RSVPs for user ${userId}: ${error.message}`);
+      this.logger.error(
+        `Failed to get RSVPs for user ${userId}: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -484,7 +524,8 @@ export class RsvpService {
 
       case RsvpStatus.CANCELLED:
         rsvp.cancelledAt = new Date();
-        rsvp.cancellationReason = updateData.cancellationReason || 'Status changed to cancelled';
+        rsvp.cancellationReason =
+          updateData.cancellationReason || 'Status changed to cancelled';
         if (oldStatus === RsvpStatus.CONFIRMED) {
           await this.promoteFromWaitlist(rsvp.eventId);
         }
@@ -533,7 +574,10 @@ export class RsvpService {
           await this.rsvpRepository.save(nextInLine);
 
           // Send promotion email
-          await this.emailNotificationService.sendPromotionFromWaitlist(nextInLine, event);
+          await this.emailNotificationService.sendPromotionFromWaitlist(
+            nextInLine,
+            event,
+          );
 
           // Update waitlist positions for remaining people
           await this.updateWaitlistPositions(eventId);

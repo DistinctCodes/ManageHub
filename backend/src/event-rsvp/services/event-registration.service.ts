@@ -1,23 +1,36 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindOptionsWhere, ILike, Between } from 'typeorm';
 import { EventRegistrationForm } from '../entities/event-registration-form.entity';
-import { EventRegistrationResponse, ResponseStatus } from '../entities/event-registration-response.entity';
+import {
+  EventRegistrationResponse,
+  ResponseStatus,
+} from '../entities/event-registration-response.entity';
 import { Event } from '../entities/event.entity';
 import { EventRsvp } from '../entities/event-rsvp.entity';
-import { 
-  CreateRegistrationFormDto, 
-  UpdateRegistrationFormDto, 
-  FormQueryDto 
+import {
+  CreateRegistrationFormDto,
+  UpdateRegistrationFormDto,
+  FormQueryDto,
 } from '../dto/create-registration-form.dto';
-import { 
-  CreateRegistrationResponseDto, 
-  UpdateRegistrationResponseDto, 
+import {
+  CreateRegistrationResponseDto,
+  UpdateRegistrationResponseDto,
   ResponseQueryDto,
   BulkUpdateResponseDto,
-  ExportResponsesDto
+  ExportResponsesDto,
 } from '../dto/create-registration-response.dto';
-import { FieldType, ValidationRule, RegistrationFormField, FieldValidation } from '../entities/event-registration-form.entity';
+import {
+  FieldType,
+  ValidationRule,
+  RegistrationFormField,
+  FieldValidation,
+} from '../entities/event-registration-form.entity';
 import { ValidationError } from '../entities/event-registration-response.entity';
 
 export interface FormAnalytics {
@@ -65,10 +78,12 @@ export class EventRegistrationService {
   ) {}
 
   // Form Management
-  async createForm(createFormDto: CreateRegistrationFormDto): Promise<EventRegistrationForm> {
+  async createForm(
+    createFormDto: CreateRegistrationFormDto,
+  ): Promise<EventRegistrationForm> {
     // Verify event exists
     const event = await this.eventRepository.findOne({
-      where: { id: createFormDto.eventId }
+      where: { id: createFormDto.eventId },
     });
 
     if (!event) {
@@ -90,10 +105,13 @@ export class EventRegistrationService {
     return savedForm;
   }
 
-  async updateForm(id: string, updateFormDto: UpdateRegistrationFormDto): Promise<EventRegistrationForm> {
+  async updateForm(
+    id: string,
+    updateFormDto: UpdateRegistrationFormDto,
+  ): Promise<EventRegistrationForm> {
     const form = await this.formRepository.findOne({
       where: { id },
-      relations: ['event']
+      relations: ['event'],
     });
 
     if (!form) {
@@ -103,20 +121,20 @@ export class EventRegistrationService {
     // If fields are being updated, validate them
     if (updateFormDto.fields) {
       this.validateFormFields(updateFormDto.fields);
-      
+
       // Increment version if fields changed
       form.version += 1;
     }
 
     Object.assign(form, updateFormDto);
-    
+
     return this.formRepository.save(form);
   }
 
   async getFormById(id: string): Promise<EventRegistrationForm> {
     const form = await this.formRepository.findOne({
       where: { id },
-      relations: ['event', 'responses']
+      relations: ['event', 'responses'],
     });
 
     if (!form) {
@@ -130,7 +148,7 @@ export class EventRegistrationService {
     return this.formRepository.find({
       where: { eventId },
       relations: ['responses'],
-      order: { createdAt: 'DESC' }
+      order: { createdAt: 'DESC' },
     });
   }
 
@@ -140,7 +158,14 @@ export class EventRegistrationService {
     page: number;
     limit: number;
   }> {
-    const { limit = 10, offset = 0, search, sortBy = 'createdAt', sortOrder = 'DESC', ...filters } = queryDto;
+    const {
+      limit = 10,
+      offset = 0,
+      search,
+      sortBy = 'createdAt',
+      sortOrder = 'DESC',
+      ...filters
+    } = queryDto;
 
     const where: FindOptionsWhere<EventRegistrationForm> = {};
 
@@ -180,34 +205,42 @@ export class EventRegistrationService {
 
   async publishForm(id: string): Promise<EventRegistrationForm> {
     const form = await this.getFormById(id);
-    
+
     // Validate form before publishing
     this.validateFormForPublishing(form);
-    
+
     form.status = 'published';
     form.isActive = true;
-    
+
     return this.formRepository.save(form);
   }
 
   async archiveForm(id: string): Promise<EventRegistrationForm> {
     const form = await this.getFormById(id);
-    
+
     form.status = 'archived';
     form.isActive = false;
-    
+
     return this.formRepository.save(form);
   }
 
   // Response Management
-  async submitResponse(createResponseDto: CreateRegistrationResponseDto): Promise<EventRegistrationResponse> {
+  async submitResponse(
+    createResponseDto: CreateRegistrationResponseDto,
+  ): Promise<EventRegistrationResponse> {
     // Get form with validation rules
     const form = await this.formRepository.findOne({
-      where: { id: createResponseDto.formId, eventId: createResponseDto.eventId, isActive: true }
+      where: {
+        id: createResponseDto.formId,
+        eventId: createResponseDto.eventId,
+        isActive: true,
+      },
     });
 
     if (!form) {
-      throw new NotFoundException('Active registration form not found for this event');
+      throw new NotFoundException(
+        'Active registration form not found for this event',
+      );
     }
 
     // Check if multiple responses are allowed
@@ -215,21 +248,29 @@ export class EventRegistrationService {
       const existingResponse = await this.responseRepository.findOne({
         where: {
           formId: createResponseDto.formId,
-          respondentEmail: createResponseDto.respondentEmail
-        }
+          respondentEmail: createResponseDto.respondentEmail,
+        },
       });
 
       if (existingResponse) {
-        throw new BadRequestException('Only one response per person is allowed for this form');
+        throw new BadRequestException(
+          'Only one response per person is allowed for this form',
+        );
       }
     }
 
     // Validate responses
-    const validationErrors = this.validateResponses(form.fields, createResponseDto.responses);
+    const validationErrors = this.validateResponses(
+      form.fields,
+      createResponseDto.responses,
+    );
 
     const response = this.responseRepository.create({
       ...createResponseDto,
-      status: validationErrors.length > 0 ? ResponseStatus.DRAFT : ResponseStatus.SUBMITTED,
+      status:
+        validationErrors.length > 0
+          ? ResponseStatus.DRAFT
+          : ResponseStatus.SUBMITTED,
       submittedAt: validationErrors.length > 0 ? null : new Date(),
       validationErrors,
       isValid: validationErrors.length === 0,
@@ -242,10 +283,13 @@ export class EventRegistrationService {
     return savedResponse;
   }
 
-  async updateResponse(id: string, updateResponseDto: UpdateRegistrationResponseDto): Promise<EventRegistrationResponse> {
+  async updateResponse(
+    id: string,
+    updateResponseDto: UpdateRegistrationResponseDto,
+  ): Promise<EventRegistrationResponse> {
     const response = await this.responseRepository.findOne({
       where: { id },
-      relations: ['form']
+      relations: ['form'],
     });
 
     if (!response) {
@@ -254,13 +298,19 @@ export class EventRegistrationService {
 
     // If responses are being updated, validate them
     if (updateResponseDto.responses) {
-      const validationErrors = this.validateResponses(response.form.fields, updateResponseDto.responses);
+      const validationErrors = this.validateResponses(
+        response.form.fields,
+        updateResponseDto.responses,
+      );
       response.validationErrors = validationErrors;
       response.isValid = validationErrors.length === 0;
     }
 
     // Update review information
-    if (updateResponseDto.status && updateResponseDto.status !== response.status) {
+    if (
+      updateResponseDto.status &&
+      updateResponseDto.status !== response.status
+    ) {
       response.reviewedAt = new Date();
     }
 
@@ -272,7 +322,7 @@ export class EventRegistrationService {
   async getResponseById(id: string): Promise<EventRegistrationResponse> {
     const response = await this.responseRepository.findOne({
       where: { id },
-      relations: ['event', 'form', 'rsvp']
+      relations: ['event', 'form', 'rsvp'],
     });
 
     if (!response) {
@@ -288,7 +338,16 @@ export class EventRegistrationService {
     page: number;
     limit: number;
   }> {
-    const { limit = 10, offset = 0, search, sortBy = 'submittedAt', sortOrder = 'DESC', startDate, endDate, ...filters } = queryDto;
+    const {
+      limit = 10,
+      offset = 0,
+      search,
+      sortBy = 'submittedAt',
+      sortOrder = 'DESC',
+      startDate,
+      endDate,
+      ...filters
+    } = queryDto;
 
     const where: FindOptionsWhere<EventRegistrationResponse> = {};
 
@@ -296,7 +355,8 @@ export class EventRegistrationService {
     if (filters.eventId) where.eventId = filters.eventId;
     if (filters.formId) where.formId = filters.formId;
     if (filters.rsvpId) where.rsvpId = filters.rsvpId;
-    if (filters.respondentEmail) where.respondentEmail = filters.respondentEmail;
+    if (filters.respondentEmail)
+      where.respondentEmail = filters.respondentEmail;
     if (filters.status) where.status = filters.status;
     if (filters.reviewedBy) where.reviewedBy = filters.reviewedBy;
 
@@ -326,7 +386,9 @@ export class EventRegistrationService {
     };
   }
 
-  async bulkUpdateResponses(bulkUpdateDto: BulkUpdateResponseDto): Promise<{ updated: number; errors: string[] }> {
+  async bulkUpdateResponses(
+    bulkUpdateDto: BulkUpdateResponseDto,
+  ): Promise<{ updated: number; errors: string[] }> {
     const errors: string[] = [];
     let updated = 0;
 
@@ -335,7 +397,9 @@ export class EventRegistrationService {
         await this.updateResponse(responseId, bulkUpdateDto);
         updated++;
       } catch (error) {
-        errors.push(`Failed to update response ${responseId}: ${error.message}`);
+        errors.push(
+          `Failed to update response ${responseId}: ${error.message}`,
+        );
       }
     }
 
@@ -354,22 +418,24 @@ export class EventRegistrationService {
     const form = await this.getFormById(formId);
     const responses = await this.responseRepository.find({
       where: { formId },
-      order: { submittedAt: 'ASC' }
+      order: { submittedAt: 'ASC' },
     });
 
     const totalResponses = responses.length;
-    const submittedResponses = responses.filter(r => r.isSubmitted).length;
-    const approvedResponses = responses.filter(r => r.isApproved).length;
-    const rejectedResponses = responses.filter(r => r.isRejected).length;
+    const submittedResponses = responses.filter((r) => r.isSubmitted).length;
+    const approvedResponses = responses.filter((r) => r.isApproved).length;
+    const rejectedResponses = responses.filter((r) => r.isRejected).length;
 
     // Calculate average completion time (simplified)
     const completionTimes = responses
-      .filter(r => r.submittedAt && r.createdAt)
-      .map(r => r.submittedAt!.getTime() - r.createdAt.getTime());
-    
-    const averageCompletionTime = completionTimes.length > 0
-      ? completionTimes.reduce((sum, time) => sum + time, 0) / completionTimes.length
-      : 0;
+      .filter((r) => r.submittedAt && r.createdAt)
+      .map((r) => r.submittedAt!.getTime() - r.createdAt.getTime());
+
+    const averageCompletionTime =
+      completionTimes.length > 0
+        ? completionTimes.reduce((sum, time) => sum + time, 0) /
+          completionTimes.length
+        : 0;
 
     // Calculate response rate (would need view/visit tracking)
     const responseRate = 100; // Placeholder
@@ -379,9 +445,24 @@ export class EventRegistrationService {
 
     // Conversion funnel (simplified)
     const conversionFunnel: ConversionStep[] = [
-      { step: 'Form Views', visitors: totalResponses * 2, completions: totalResponses, conversionRate: 50 },
-      { step: 'Started Form', visitors: totalResponses, completions: submittedResponses, conversionRate: submittedResponses / totalResponses * 100 },
-      { step: 'Submitted', visitors: submittedResponses, completions: approvedResponses, conversionRate: approvedResponses / submittedResponses * 100 },
+      {
+        step: 'Form Views',
+        visitors: totalResponses * 2,
+        completions: totalResponses,
+        conversionRate: 50,
+      },
+      {
+        step: 'Started Form',
+        visitors: totalResponses,
+        completions: submittedResponses,
+        conversionRate: (submittedResponses / totalResponses) * 100,
+      },
+      {
+        step: 'Submitted',
+        visitors: submittedResponses,
+        completions: approvedResponses,
+        conversionRate: (approvedResponses / submittedResponses) * 100,
+      },
     ];
 
     return {
@@ -410,7 +491,11 @@ export class EventRegistrationService {
       fieldIds.add(field.id);
 
       // Validate field-specific requirements
-      if (field.type === FieldType.SELECT || field.type === FieldType.RADIO || field.type === FieldType.MULTI_SELECT) {
+      if (
+        field.type === FieldType.SELECT ||
+        field.type === FieldType.RADIO ||
+        field.type === FieldType.MULTI_SELECT
+      ) {
         if (!field.options || field.options.length === 0) {
           throw new BadRequestException(`Field ${field.name} requires options`);
         }
@@ -424,20 +509,28 @@ export class EventRegistrationService {
     }
 
     // Check for required fields
-    const hasRequiredFields = form.fields.some(field => field.required);
+    const hasRequiredFields = form.fields.some((field) => field.required);
     if (!hasRequiredFields) {
-      throw new BadRequestException('Form should have at least one required field');
+      throw new BadRequestException(
+        'Form should have at least one required field',
+      );
     }
   }
 
-  private validateResponses(fields: RegistrationFormField[], responses: Record<string, any>): ValidationError[] {
+  private validateResponses(
+    fields: RegistrationFormField[],
+    responses: Record<string, any>,
+  ): ValidationError[] {
     const errors: ValidationError[] = [];
 
     for (const field of fields) {
       const value = responses[field.id];
 
       // Check required fields
-      if (field.required && (value === undefined || value === null || value === '')) {
+      if (
+        field.required &&
+        (value === undefined || value === null || value === '')
+      ) {
         errors.push({
           fieldId: field.id,
           fieldName: field.name,
@@ -467,7 +560,11 @@ export class EventRegistrationService {
     return errors;
   }
 
-  private validateFieldValue(field: RegistrationFormField, value: any, validation: FieldValidation): ValidationError | null {
+  private validateFieldValue(
+    field: RegistrationFormField,
+    value: any,
+    validation: FieldValidation,
+  ): ValidationError | null {
     switch (validation.rule) {
       case ValidationRule.MIN_LENGTH:
         if (typeof value === 'string' && value.length < validation.value) {
@@ -475,7 +572,9 @@ export class EventRegistrationService {
             fieldId: field.id,
             fieldName: field.name,
             rule: validation.rule,
-            message: validation.message || `${field.label} must be at least ${validation.value} characters`,
+            message:
+              validation.message ||
+              `${field.label} must be at least ${validation.value} characters`,
             value,
           };
         }
@@ -487,7 +586,9 @@ export class EventRegistrationService {
             fieldId: field.id,
             fieldName: field.name,
             rule: validation.rule,
-            message: validation.message || `${field.label} must be at most ${validation.value} characters`,
+            message:
+              validation.message ||
+              `${field.label} must be at most ${validation.value} characters`,
             value,
           };
         }
@@ -499,7 +600,9 @@ export class EventRegistrationService {
             fieldId: field.id,
             fieldName: field.name,
             rule: validation.rule,
-            message: validation.message || `${field.label} must be at least ${validation.value}`,
+            message:
+              validation.message ||
+              `${field.label} must be at least ${validation.value}`,
             value,
           };
         }
@@ -511,14 +614,19 @@ export class EventRegistrationService {
             fieldId: field.id,
             fieldName: field.name,
             rule: validation.rule,
-            message: validation.message || `${field.label} must be at most ${validation.value}`,
+            message:
+              validation.message ||
+              `${field.label} must be at most ${validation.value}`,
             value,
           };
         }
         break;
 
       case ValidationRule.PATTERN:
-        if (typeof value === 'string' && !new RegExp(validation.value).test(value)) {
+        if (
+          typeof value === 'string' &&
+          !new RegExp(validation.value).test(value)
+        ) {
           return {
             fieldId: field.id,
             fieldName: field.name,
@@ -536,7 +644,9 @@ export class EventRegistrationService {
             fieldId: field.id,
             fieldName: field.name,
             rule: validation.rule,
-            message: validation.message || `${field.label} must be a valid email address`,
+            message:
+              validation.message ||
+              `${field.label} must be a valid email address`,
             value,
           };
         }
@@ -546,14 +656,20 @@ export class EventRegistrationService {
     return null;
   }
 
-  private calculateFieldAnalytics(fields: RegistrationFormField[], responses: EventRegistrationResponse[]): FieldAnalytics[] {
-    return fields.map(field => {
+  private calculateFieldAnalytics(
+    fields: RegistrationFormField[],
+    responses: EventRegistrationResponse[],
+  ): FieldAnalytics[] {
+    return fields.map((field) => {
       const fieldResponses = responses
-        .map(r => r.responses[field.id])
-        .filter(value => value !== undefined && value !== null && value !== '');
+        .map((r) => r.responses[field.id])
+        .filter(
+          (value) => value !== undefined && value !== null && value !== '',
+        );
 
       const totalResponses = fieldResponses.length;
-      const skipRate = ((responses.length - totalResponses) / responses.length) * 100;
+      const skipRate =
+        ((responses.length - totalResponses) / responses.length) * 100;
 
       const analytics: FieldAnalytics = {
         fieldId: field.id,
@@ -566,14 +682,19 @@ export class EventRegistrationService {
 
       // Field-specific analytics
       if (field.type === FieldType.TEXT || field.type === FieldType.TEXTAREA) {
-        analytics.averageLength = fieldResponses.reduce((sum, val) => sum + String(val).length, 0) / totalResponses || 0;
+        analytics.averageLength =
+          fieldResponses.reduce((sum, val) => sum + String(val).length, 0) /
+            totalResponses || 0;
       }
 
       if (field.type === FieldType.SELECT || field.type === FieldType.RADIO) {
-        analytics.valueDistribution = fieldResponses.reduce((acc, val) => {
-          acc[String(val)] = (acc[String(val)] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>);
+        analytics.valueDistribution = fieldResponses.reduce(
+          (acc, val) => {
+            acc[String(val)] = (acc[String(val)] || 0) + 1;
+            return acc;
+          },
+          {} as Record<string, number>,
+        );
       }
 
       return analytics;

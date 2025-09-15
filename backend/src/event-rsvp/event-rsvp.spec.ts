@@ -79,7 +79,9 @@ describe('EventRsvpModule Integration', () => {
     eventService = module.get<EventService>(EventService);
     rsvpService = module.get<RsvpService>(RsvpService);
     eventRepository = module.get<Repository<Event>>(getRepositoryToken(Event));
-    rsvpRepository = module.get<Repository<EventRsvp>>(getRepositoryToken(EventRsvp));
+    rsvpRepository = module.get<Repository<EventRsvp>>(
+      getRepositoryToken(EventRsvp),
+    );
 
     jest.clearAllMocks();
   });
@@ -163,9 +165,15 @@ describe('EventRsvpModule Integration', () => {
         confirmedRsvps: 10,
         registrationDeadline: null,
         startDate: new Date('2024-12-25T10:00:00Z'),
-        get registrationOpen() { return true; },
-        get isFullyBooked() { return false; },
-        get canAcceptRsvp() { return true; },
+        get registrationOpen() {
+          return true;
+        },
+        get isFullyBooked() {
+          return false;
+        },
+        get canAcceptRsvp() {
+          return true;
+        },
       };
 
       const createRsvpDto = {
@@ -187,8 +195,10 @@ describe('EventRsvpModule Integration', () => {
 
       // Mock the service methods
       jest.spyOn(eventService, 'findOne').mockResolvedValue(mockEvent as any);
-      jest.spyOn(eventService, 'updateRsvpCounts').mockResolvedValue(mockEvent as any);
-      
+      jest
+        .spyOn(eventService, 'updateRsvpCounts')
+        .mockResolvedValue(mockEvent as any);
+
       mockRsvpRepository.findOne.mockResolvedValue(null); // No existing RSVP
       mockRsvpRepository.create.mockReturnValue(mockRsvp);
       mockRsvpRepository.save.mockResolvedValue(mockRsvp);
@@ -211,9 +221,15 @@ describe('EventRsvpModule Integration', () => {
         allowWaitlist: true,
         registrationDeadline: null,
         startDate: new Date('2024-12-25T10:00:00Z'),
-        get registrationOpen() { return true; },
-        get isFullyBooked() { return true; },
-        get canAcceptRsvp() { return true; },
+        get registrationOpen() {
+          return true;
+        },
+        get isFullyBooked() {
+          return true;
+        },
+        get canAcceptRsvp() {
+          return true;
+        },
       };
 
       const createRsvpDto = {
@@ -232,8 +248,10 @@ describe('EventRsvpModule Integration', () => {
       };
 
       jest.spyOn(eventService, 'findOne').mockResolvedValue(mockEvent as any);
-      jest.spyOn(eventService, 'updateRsvpCounts').mockResolvedValue(mockEvent as any);
-      
+      jest
+        .spyOn(eventService, 'updateRsvpCounts')
+        .mockResolvedValue(mockEvent as any);
+
       mockRsvpRepository.findOne.mockResolvedValue(null);
       mockRsvpRepository.count.mockResolvedValue(0); // No waitlist
       mockRsvpRepository.create.mockReturnValue(mockRsvp);
@@ -253,7 +271,9 @@ describe('EventRsvpModule Integration', () => {
         status: RsvpStatus.CONFIRMED,
         attendeeName: 'Jane Smith',
         attendeeEmail: 'jane@example.com',
-        get canCancel() { return true; },
+        get canCancel() {
+          return true;
+        },
       };
 
       const cancelledRsvp = {
@@ -267,7 +287,10 @@ describe('EventRsvpModule Integration', () => {
       jest.spyOn(eventService, 'updateRsvpCounts').mockResolvedValue({} as any);
       mockRsvpRepository.save.mockResolvedValue(cancelledRsvp);
 
-      const result = await rsvpService.cancelRsvp('rsvp-123', 'Personal emergency');
+      const result = await rsvpService.cancelRsvp(
+        'rsvp-123',
+        'Personal emergency',
+      );
 
       expect(result.status).toBe(RsvpStatus.CANCELLED);
       expect(result.cancellationReason).toBe('Personal emergency');
@@ -330,7 +353,7 @@ describe('EventRsvpModule Integration', () => {
         .mockResolvedValueOnce(50) // totalEvents
         .mockResolvedValueOnce(20) // upcomingEvents
         .mockResolvedValueOnce(25) // pastEvents
-        .mockResolvedValueOnce(5)  // draftEvents
+        .mockResolvedValueOnce(5) // draftEvents
         .mockResolvedValueOnce(40) // publishedEvents
         .mockResolvedValueOnce(5); // cancelledEvents
 
@@ -339,8 +362,9 @@ describe('EventRsvpModule Integration', () => {
         totalRsvps: '1800',
       });
 
-      mockEventRepository.createQueryBuilder().getRawMany
-        .mockResolvedValueOnce([
+      mockEventRepository
+        .createQueryBuilder()
+        .getRawMany.mockResolvedValueOnce([
           { type: EventType.WORKSHOP, count: '15' },
           { type: EventType.SEMINAR, count: '10' },
           { type: EventType.NETWORKING, count: '8' },
@@ -370,13 +394,14 @@ describe('EventRsvpModule Integration', () => {
       mockRsvpRepository.count
         .mockResolvedValueOnce(1800) // totalRsvps
         .mockResolvedValueOnce(1500) // confirmedRsvps
-        .mockResolvedValueOnce(100)  // waitlistedRsvps
-        .mockResolvedValueOnce(150)  // cancelledRsvps
+        .mockResolvedValueOnce(100) // waitlistedRsvps
+        .mockResolvedValueOnce(150) // cancelledRsvps
         .mockResolvedValueOnce(1200) // attendedRsvps
-        .mockResolvedValueOnce(50);  // noShowRsvps
+        .mockResolvedValueOnce(50); // noShowRsvps
 
-      mockRsvpRepository.createQueryBuilder().getRawMany
-        .mockResolvedValueOnce([]) // sourceStats
+      mockRsvpRepository
+        .createQueryBuilder()
+        .getRawMany.mockResolvedValueOnce([]) // sourceStats
         .mockResolvedValueOnce([]) // monthlyStats
         .mockResolvedValueOnce([]); // topEventsStats
 

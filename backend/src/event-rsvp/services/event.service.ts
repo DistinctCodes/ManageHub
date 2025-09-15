@@ -64,7 +64,9 @@ export class EventService {
       }
 
       if (endDate <= startDate) {
-        throw new BadRequestException('Event end date must be after start date');
+        throw new BadRequestException(
+          'Event end date must be after start date',
+        );
       }
 
       if (createEventDto.registrationDeadline) {
@@ -243,12 +245,17 @@ export class EventService {
           : event.endDate;
 
         if (endDate <= startDate) {
-          throw new BadRequestException('Event end date must be after start date');
+          throw new BadRequestException(
+            'Event end date must be after start date',
+          );
         }
       }
 
       // Validate capacity changes
-      if (updateEventDto.capacity && updateEventDto.capacity < event.confirmedRsvps) {
+      if (
+        updateEventDto.capacity &&
+        updateEventDto.capacity < event.confirmedRsvps
+      ) {
         throw new BadRequestException(
           `Cannot reduce capacity below current confirmed RSVPs (${event.confirmedRsvps})`,
         );
@@ -272,8 +279,14 @@ export class EventService {
       const savedEvent = await this.eventRepository.save(event);
 
       // Send update notifications if significant changes occurred
-      const significantChanges = this.detectSignificantChanges(originalData, savedEvent);
-      if (significantChanges.length > 0 && savedEvent.status === EventStatus.PUBLISHED) {
+      const significantChanges = this.detectSignificantChanges(
+        originalData,
+        savedEvent,
+      );
+      if (
+        significantChanges.length > 0 &&
+        savedEvent.status === EventStatus.PUBLISHED
+      ) {
         await this.notifyAttendeesOfUpdates(savedEvent, significantChanges);
       }
 
@@ -412,8 +425,12 @@ export class EventService {
           where: { endDate: Between(new Date('1900-01-01'), now) },
         }),
         this.eventRepository.count({ where: { status: EventStatus.DRAFT } }),
-        this.eventRepository.count({ where: { status: EventStatus.PUBLISHED } }),
-        this.eventRepository.count({ where: { status: EventStatus.CANCELLED } }),
+        this.eventRepository.count({
+          where: { status: EventStatus.PUBLISHED },
+        }),
+        this.eventRepository.count({
+          where: { status: EventStatus.CANCELLED },
+        }),
       ]);
 
       // Get capacity and RSVP statistics
@@ -479,7 +496,8 @@ export class EventService {
         cancelledEvents,
         totalCapacity,
         totalRsvps,
-        averageCapacityUtilization: Math.round(averageCapacityUtilization * 100) / 100,
+        averageCapacityUtilization:
+          Math.round(averageCapacityUtilization * 100) / 100,
         eventsByType,
         eventsByMonth,
       };
@@ -526,11 +544,15 @@ export class EventService {
     const changes: string[] = [];
 
     if (original.startDate.getTime() !== updated.startDate.getTime()) {
-      changes.push(`Event date changed from ${original.startDate.toLocaleDateString()} to ${updated.startDate.toLocaleDateString()}`);
+      changes.push(
+        `Event date changed from ${original.startDate.toLocaleDateString()} to ${updated.startDate.toLocaleDateString()}`,
+      );
     }
 
     if (original.location !== updated.location) {
-      changes.push(`Location changed from "${original.location}" to "${updated.location}"`);
+      changes.push(
+        `Location changed from "${original.location}" to "${updated.location}"`,
+      );
     }
 
     if (original.title !== updated.title) {
@@ -540,7 +562,10 @@ export class EventService {
     return changes;
   }
 
-  private async notifyAttendeesOfUpdates(event: Event, changes: string[]): Promise<void> {
+  private async notifyAttendeesOfUpdates(
+    event: Event,
+    changes: string[],
+  ): Promise<void> {
     try {
       const rsvps = await this.rsvpRepository.find({
         where: {
@@ -554,19 +579,32 @@ export class EventService {
 
       for (const rsvp of rsvps) {
         try {
-          await this.emailNotificationService.sendEventUpdate(rsvp, event, updateMessage);
+          await this.emailNotificationService.sendEventUpdate(
+            rsvp,
+            event,
+            updateMessage,
+          );
         } catch (error) {
-          this.logger.error(`Failed to send update notification to ${rsvp.attendeeEmail}: ${error.message}`);
+          this.logger.error(
+            `Failed to send update notification to ${rsvp.attendeeEmail}: ${error.message}`,
+          );
         }
       }
 
-      this.logger.log(`Update notifications sent to ${rsvps.length} attendees for event ${event.id}`);
+      this.logger.log(
+        `Update notifications sent to ${rsvps.length} attendees for event ${event.id}`,
+      );
     } catch (error) {
-      this.logger.error(`Failed to notify attendees of updates: ${error.message}`);
+      this.logger.error(
+        `Failed to notify attendees of updates: ${error.message}`,
+      );
     }
   }
 
-  private async notifyAttendeesOfCancellation(event: Event, reason?: string): Promise<void> {
+  private async notifyAttendeesOfCancellation(
+    event: Event,
+    reason?: string,
+  ): Promise<void> {
     try {
       const rsvps = await this.rsvpRepository.find({
         where: {
@@ -578,15 +616,25 @@ export class EventService {
 
       for (const rsvp of rsvps) {
         try {
-          await this.emailNotificationService.sendEventCancellation(rsvp, event, reason);
+          await this.emailNotificationService.sendEventCancellation(
+            rsvp,
+            event,
+            reason,
+          );
         } catch (error) {
-          this.logger.error(`Failed to send cancellation notification to ${rsvp.attendeeEmail}: ${error.message}`);
+          this.logger.error(
+            `Failed to send cancellation notification to ${rsvp.attendeeEmail}: ${error.message}`,
+          );
         }
       }
 
-      this.logger.log(`Cancellation notifications sent to ${rsvps.length} attendees for event ${event.id}`);
+      this.logger.log(
+        `Cancellation notifications sent to ${rsvps.length} attendees for event ${event.id}`,
+      );
     } catch (error) {
-      this.logger.error(`Failed to notify attendees of cancellation: ${error.message}`);
+      this.logger.error(
+        `Failed to notify attendees of cancellation: ${error.message}`,
+      );
     }
   }
 }

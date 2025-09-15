@@ -13,15 +13,15 @@ import {
   Max,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { 
-  FieldType, 
-  ValidationRule, 
-  RegistrationFormField, 
-  FieldOption, 
-  FieldValidation, 
-  ConditionalLogic, 
-  FieldSettings, 
-  FormSettings 
+import {
+  FieldType,
+  ValidationRule,
+  RegistrationFormField,
+  FieldOption,
+  FieldValidation,
+  ConditionalLogic,
+  FieldSettings,
+  FormSettings,
 } from '../entities/event-registration-form.entity';
 
 export class CreateRegistrationFormDto {

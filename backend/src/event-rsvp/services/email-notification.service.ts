@@ -31,7 +31,7 @@ export enum NotificationType {
 @Injectable()
 export class EmailNotificationService {
   private readonly logger = new Logger(EmailNotificationService.name);
-  
+
   private readonly config: EmailNotificationConfig = {
     from: 'noreply@managehub.com',
     replyTo: 'support@managehub.com',
@@ -57,10 +57,14 @@ export class EmailNotificationService {
         template.htmlContent,
         template.textContent,
       );
-      
-      this.logger.log(`RSVP confirmation email sent to ${rsvp.attendeeEmail} for event ${event.title}`);
+
+      this.logger.log(
+        `RSVP confirmation email sent to ${rsvp.attendeeEmail} for event ${event.title}`,
+      );
     } catch (error) {
-      this.logger.error(`Failed to send RSVP confirmation email: ${error.message}`);
+      this.logger.error(
+        `Failed to send RSVP confirmation email: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -74,15 +78,22 @@ export class EmailNotificationService {
         template.htmlContent,
         template.textContent,
       );
-      
-      this.logger.log(`Waitlist notification sent to ${rsvp.attendeeEmail} for event ${event.title}`);
+
+      this.logger.log(
+        `Waitlist notification sent to ${rsvp.attendeeEmail} for event ${event.title}`,
+      );
     } catch (error) {
-      this.logger.error(`Failed to send waitlist notification: ${error.message}`);
+      this.logger.error(
+        `Failed to send waitlist notification: ${error.message}`,
+      );
       throw error;
     }
   }
 
-  async sendPromotionFromWaitlist(rsvp: EventRsvp, event: Event): Promise<void> {
+  async sendPromotionFromWaitlist(
+    rsvp: EventRsvp,
+    event: Event,
+  ): Promise<void> {
     try {
       const template = this.generatePromotionTemplate(rsvp, event);
       await this.sendEmail(
@@ -91,32 +102,50 @@ export class EmailNotificationService {
         template.htmlContent,
         template.textContent,
       );
-      
-      this.logger.log(`Waitlist promotion email sent to ${rsvp.attendeeEmail} for event ${event.title}`);
+
+      this.logger.log(
+        `Waitlist promotion email sent to ${rsvp.attendeeEmail} for event ${event.title}`,
+      );
     } catch (error) {
-      this.logger.error(`Failed to send promotion notification: ${error.message}`);
+      this.logger.error(
+        `Failed to send promotion notification: ${error.message}`,
+      );
       throw error;
     }
   }
 
-  async sendEventReminder(rsvp: EventRsvp, event: Event, hoursBeforeEvent: number): Promise<void> {
+  async sendEventReminder(
+    rsvp: EventRsvp,
+    event: Event,
+    hoursBeforeEvent: number,
+  ): Promise<void> {
     try {
-      const template = this.generateReminderTemplate(rsvp, event, hoursBeforeEvent);
+      const template = this.generateReminderTemplate(
+        rsvp,
+        event,
+        hoursBeforeEvent,
+      );
       await this.sendEmail(
         rsvp.attendeeEmail,
         template.subject,
         template.htmlContent,
         template.textContent,
       );
-      
-      this.logger.log(`Event reminder sent to ${rsvp.attendeeEmail} for event ${event.title}`);
+
+      this.logger.log(
+        `Event reminder sent to ${rsvp.attendeeEmail} for event ${event.title}`,
+      );
     } catch (error) {
       this.logger.error(`Failed to send event reminder: ${error.message}`);
       throw error;
     }
   }
 
-  async sendEventUpdate(rsvp: EventRsvp, event: Event, updateMessage: string): Promise<void> {
+  async sendEventUpdate(
+    rsvp: EventRsvp,
+    event: Event,
+    updateMessage: string,
+  ): Promise<void> {
     try {
       const template = this.generateUpdateTemplate(rsvp, event, updateMessage);
       await this.sendEmail(
@@ -125,15 +154,21 @@ export class EmailNotificationService {
         template.htmlContent,
         template.textContent,
       );
-      
-      this.logger.log(`Event update email sent to ${rsvp.attendeeEmail} for event ${event.title}`);
+
+      this.logger.log(
+        `Event update email sent to ${rsvp.attendeeEmail} for event ${event.title}`,
+      );
     } catch (error) {
       this.logger.error(`Failed to send event update: ${error.message}`);
       throw error;
     }
   }
 
-  async sendEventCancellation(rsvp: EventRsvp, event: Event, reason?: string): Promise<void> {
+  async sendEventCancellation(
+    rsvp: EventRsvp,
+    event: Event,
+    reason?: string,
+  ): Promise<void> {
     try {
       const template = this.generateCancellationTemplate(rsvp, event, reason);
       await this.sendEmail(
@@ -142,10 +177,14 @@ export class EmailNotificationService {
         template.htmlContent,
         template.textContent,
       );
-      
-      this.logger.log(`Event cancellation email sent to ${rsvp.attendeeEmail} for event ${event.title}`);
+
+      this.logger.log(
+        `Event cancellation email sent to ${rsvp.attendeeEmail} for event ${event.title}`,
+      );
     } catch (error) {
-      this.logger.error(`Failed to send cancellation notification: ${error.message}`);
+      this.logger.error(
+        `Failed to send cancellation notification: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -159,15 +198,23 @@ export class EmailNotificationService {
         template.htmlContent,
         template.textContent,
       );
-      
-      this.logger.log(`Check-in confirmation sent to ${rsvp.attendeeEmail} for event ${event.title}`);
+
+      this.logger.log(
+        `Check-in confirmation sent to ${rsvp.attendeeEmail} for event ${event.title}`,
+      );
     } catch (error) {
-      this.logger.error(`Failed to send check-in confirmation: ${error.message}`);
+      this.logger.error(
+        `Failed to send check-in confirmation: ${error.message}`,
+      );
       throw error;
     }
   }
 
-  async sendFeedbackRequest(rsvp: EventRsvp, event: Event, feedbackUrl: string): Promise<void> {
+  async sendFeedbackRequest(
+    rsvp: EventRsvp,
+    event: Event,
+    feedbackUrl: string,
+  ): Promise<void> {
     try {
       const template = this.generateFeedbackTemplate(rsvp, event, feedbackUrl);
       await this.sendEmail(
@@ -176,8 +223,10 @@ export class EmailNotificationService {
         template.htmlContent,
         template.textContent,
       );
-      
-      this.logger.log(`Feedback request sent to ${rsvp.attendeeEmail} for event ${event.title}`);
+
+      this.logger.log(
+        `Feedback request sent to ${rsvp.attendeeEmail} for event ${event.title}`,
+      );
     } catch (error) {
       this.logger.error(`Failed to send feedback request: ${error.message}`);
       throw error;
@@ -213,9 +262,12 @@ export class EmailNotificationService {
     */
   }
 
-  private generateRsvpConfirmationTemplate(rsvp: EventRsvp, event: Event): EmailTemplate {
+  private generateRsvpConfirmationTemplate(
+    rsvp: EventRsvp,
+    event: Event,
+  ): EmailTemplate {
     const subject = `✅ RSVP Confirmed: ${event.title}`;
-    
+
     const textContent = `
 Hi ${rsvp.attendeeName},
 
@@ -264,9 +316,12 @@ Need help? Contact us at ${this.config.supportEmail}
     return { subject, htmlContent, textContent };
   }
 
-  private generateWaitlistTemplate(rsvp: EventRsvp, event: Event): EmailTemplate {
+  private generateWaitlistTemplate(
+    rsvp: EventRsvp,
+    event: Event,
+  ): EmailTemplate {
     const subject = `📝 Waitlisted: ${event.title}`;
-    
+
     const textContent = `
 Hi ${rsvp.attendeeName},
 
@@ -310,9 +365,12 @@ The ${this.config.companyName} Team
     return { subject, htmlContent, textContent };
   }
 
-  private generatePromotionTemplate(rsvp: EventRsvp, event: Event): EmailTemplate {
+  private generatePromotionTemplate(
+    rsvp: EventRsvp,
+    event: Event,
+  ): EmailTemplate {
     const subject = `🎉 Great News! Spot Available: ${event.title}`;
-    
+
     const textContent = `
 Hi ${rsvp.attendeeName},
 
@@ -355,9 +413,13 @@ The ${this.config.companyName} Team
     return { subject, htmlContent, textContent };
   }
 
-  private generateReminderTemplate(rsvp: EventRsvp, event: Event, hoursBeforeEvent: number): EmailTemplate {
+  private generateReminderTemplate(
+    rsvp: EventRsvp,
+    event: Event,
+    hoursBeforeEvent: number,
+  ): EmailTemplate {
     const subject = `⏰ Reminder: ${event.title} starts in ${hoursBeforeEvent} hours`;
-    
+
     const textContent = `
 Hi ${rsvp.attendeeName},
 
@@ -399,9 +461,13 @@ The ${this.config.companyName} Team
     return { subject, htmlContent, textContent };
   }
 
-  private generateUpdateTemplate(rsvp: EventRsvp, event: Event, updateMessage: string): EmailTemplate {
+  private generateUpdateTemplate(
+    rsvp: EventRsvp,
+    event: Event,
+    updateMessage: string,
+  ): EmailTemplate {
     const subject = `📢 Event Update: ${event.title}`;
-    
+
     const textContent = `
 Hi ${rsvp.attendeeName},
 
@@ -444,9 +510,13 @@ The ${this.config.companyName} Team
     return { subject, htmlContent, textContent };
   }
 
-  private generateCancellationTemplate(rsvp: EventRsvp, event: Event, reason?: string): EmailTemplate {
+  private generateCancellationTemplate(
+    rsvp: EventRsvp,
+    event: Event,
+    reason?: string,
+  ): EmailTemplate {
     const subject = `❌ Event Cancelled: ${event.title}`;
-    
+
     const textContent = `
 Hi ${rsvp.attendeeName},
 
@@ -483,9 +553,12 @@ The ${this.config.companyName} Team
     return { subject, htmlContent, textContent };
   }
 
-  private generateCheckInTemplate(rsvp: EventRsvp, event: Event): EmailTemplate {
+  private generateCheckInTemplate(
+    rsvp: EventRsvp,
+    event: Event,
+  ): EmailTemplate {
     const subject = `✅ Check-in Confirmed: ${event.title}`;
-    
+
     const textContent = `
 Hi ${rsvp.attendeeName},
 
@@ -526,9 +599,13 @@ The ${this.config.companyName} Team
     return { subject, htmlContent, textContent };
   }
 
-  private generateFeedbackTemplate(rsvp: EventRsvp, event: Event, feedbackUrl: string): EmailTemplate {
+  private generateFeedbackTemplate(
+    rsvp: EventRsvp,
+    event: Event,
+    feedbackUrl: string,
+  ): EmailTemplate {
     const subject = `📝 How was ${event.title}? Share your feedback`;
-    
+
     const textContent = `
 Hi ${rsvp.attendeeName},
 

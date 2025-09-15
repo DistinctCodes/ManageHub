@@ -1,5 +1,9 @@
 export { Event, EventStatus, EventType } from './entities/event.entity';
-export { EventRsvp, RsvpStatus, RsvpSource } from './entities/event-rsvp.entity';
+export {
+  EventRsvp,
+  RsvpStatus,
+  RsvpSource,
+} from './entities/event-rsvp.entity';
 export { CreateEventDto } from './dto/create-event.dto';
 export { UpdateEventDto } from './dto/update-event.dto';
 export { CreateRsvpDto } from './dto/create-rsvp.dto';

@@ -92,6 +92,11 @@ export class EventSeries {
   }
 
   get shouldCreateNextEvent(): boolean {
-    return this.isActive && !this.hasReachedLimit && this.nextEventDate && this.nextEventDate <= new Date();
+    return (
+      this.isActive &&
+      !this.hasReachedLimit &&
+      this.nextEventDate &&
+      this.nextEventDate <= new Date()
+    );
   }
 }

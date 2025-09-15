@@ -13,7 +13,10 @@ import {
   IsUrl,
 } from 'class-validator';
 import { EventType } from '../entities/event.entity';
-import { RecurrenceType, TemplateStatus } from '../entities/event-template.entity';
+import {
+  RecurrenceType,
+  TemplateStatus,
+} from '../entities/event-template.entity';
 
 export class CreateEventTemplateDto {
   @IsString()

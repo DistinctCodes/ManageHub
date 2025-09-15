@@ -94,7 +94,7 @@ export class EventRegistrationForm {
   @JoinColumn({ name: 'eventId' })
   event: Event;
 
-  @OneToMany(() => EventRegistrationResponse, response => response.form)
+  @OneToMany(() => EventRegistrationResponse, (response) => response.form)
   responses: EventRegistrationResponse[];
 
   // Computed properties
@@ -151,7 +151,13 @@ export interface ConditionalLogic {
 
 export interface ConditionalRule {
   fieldId: string;
-  operator: 'equals' | 'not_equals' | 'contains' | 'not_contains' | 'greater_than' | 'less_than';
+  operator:
+    | 'equals'
+    | 'not_equals'
+    | 'contains'
+    | 'not_contains'
+    | 'greater_than'
+    | 'less_than';
   value: any;
 }
 

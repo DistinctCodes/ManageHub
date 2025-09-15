@@ -137,11 +137,14 @@ export class Event {
 
   get registrationOpen(): boolean {
     if (this.status !== EventStatus.PUBLISHED) return false;
-    if (this.registrationDeadline && new Date() > this.registrationDeadline) return false;
+    if (this.registrationDeadline && new Date() > this.registrationDeadline)
+      return false;
     return true;
   }
 
   get canAcceptRsvp(): boolean {
-    return this.registrationOpen && (this.availableSlots > 0 || this.allowWaitlist);
+    return (
+      this.registrationOpen && (this.availableSlots > 0 || this.allowWaitlist)
+    );
   }
 }

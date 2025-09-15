@@ -14,11 +14,38 @@ import { EventTemplateService } from './services/event-template.service';
 import { EmailNotificationService } from './services/email-notification.service';
 import { EventFeedbackService } from './services/event-feedback.service';
 import { EventRegistrationService } from './services/event-registration.service';
+import { EventReminderService } from './services/event-reminder.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Event, EventRsvp, EventTemplate, EventSeries, EventFeedback, EventRegistrationForm, EventRegistrationResponse])],
+  imports: [
+    TypeOrmModule.forFeature([
+      Event,
+      EventRsvp,
+      EventTemplate,
+      EventSeries,
+      EventFeedback,
+      EventRegistrationForm,
+      EventRegistrationResponse,
+    ]),
+  ],
   controllers: [EventRsvpController],
-  providers: [EventService, RsvpService, EventTemplateService, EmailNotificationService, EventFeedbackService, EventRegistrationService],
-  exports: [EventService, RsvpService, EventTemplateService, EmailNotificationService, EventFeedbackService, EventRegistrationService],
+  providers: [
+    EventService,
+    RsvpService,
+    EventTemplateService,
+    EmailNotificationService,
+    EventFeedbackService,
+    EventRegistrationService,
+    EventReminderService,
+  ],
+  exports: [
+    EventService,
+    RsvpService,
+    EventTemplateService,
+    EmailNotificationService,
+    EventFeedbackService,
+    EventRegistrationService,
+    EventReminderService,
+  ],
 })
 export class EventRsvpModule {}

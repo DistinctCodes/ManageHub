@@ -1,7 +1,15 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, IsNull, Not } from 'typeorm';
-import { EventFeedback, FeedbackStatus } from '../entities/event-feedback.entity';
+import {
+  EventFeedback,
+  FeedbackStatus,
+} from '../entities/event-feedback.entity';
 import { Event } from '../entities/event.entity';
 import { EventRsvp } from '../entities/event-rsvp.entity';
 import { CreateEventFeedbackDto } from '../dto/create-event-feedback.dto';
@@ -49,10 +57,12 @@ export class EventFeedbackService {
     private rsvpRepository: Repository<EventRsvp>,
   ) {}
 
-  async createFeedback(createFeedbackDto: CreateEventFeedbackDto): Promise<EventFeedback> {
+  async createFeedback(
+    createFeedbackDto: CreateEventFeedbackDto,
+  ): Promise<EventFeedback> {
     // Verify event exists
     const event = await this.eventRepository.findOne({
-      where: { id: createFeedbackDto.eventId }
+      where: { id: createFeedbackDto.eventId },
     });
 
     if (!event) {
@@ -61,17 +71,19 @@ export class EventFeedbackService {
 
     // Check if event has ended
     if (event.endDate && event.endDate > new Date()) {
-      throw new BadRequestException('Cannot submit feedback for an event that has not ended');
+      throw new BadRequestException(
+        'Cannot submit feedback for an event that has not ended',
+      );
     }
 
     // Verify RSVP if provided
     let rsvp: EventRsvp | null = null;
     if (createFeedbackDto.rsvpId) {
       rsvp = await this.rsvpRepository.findOne({
-        where: { 
+        where: {
           id: createFeedbackDto.rsvpId,
-          eventId: createFeedbackDto.eventId
-        }
+          eventId: createFeedbackDto.eventId,
+        },
       });
 
       if (!rsvp) {
@@ -83,12 +95,14 @@ export class EventFeedbackService {
     const existingFeedback = await this.feedbackRepository.findOne({
       where: {
         eventId: createFeedbackDto.eventId,
-        attendeeEmail: createFeedbackDto.attendeeEmail
-      }
+        attendeeEmail: createFeedbackDto.attendeeEmail,
+      },
     });
 
     if (existingFeedback) {
-      throw new BadRequestException('Feedback already submitted for this event');
+      throw new BadRequestException(
+        'Feedback already submitted for this event',
+      );
     }
 
     const feedback = this.feedbackRepository.create({
@@ -99,7 +113,9 @@ export class EventFeedbackService {
 
     const savedFeedback = await this.feedbackRepository.save(feedback);
 
-    this.logger.log(`Feedback submitted for event ${event.title} by ${createFeedbackDto.attendeeEmail}`);
+    this.logger.log(
+      `Feedback submitted for event ${event.title} by ${createFeedbackDto.attendeeEmail}`,
+    );
 
     return savedFeedback;
   }
@@ -108,14 +124,14 @@ export class EventFeedbackService {
     return this.feedbackRepository.find({
       where: { eventId },
       relations: ['event', 'rsvp'],
-      order: { submittedAt: 'DESC' }
+      order: { submittedAt: 'DESC' },
     });
   }
 
   async getFeedbackById(id: string): Promise<EventFeedback> {
     const feedback = await this.feedbackRepository.findOne({
       where: { id },
-      relations: ['event', 'rsvp']
+      relations: ['event', 'rsvp'],
     });
 
     if (!feedback) {
@@ -126,10 +142,10 @@ export class EventFeedbackService {
   }
 
   async updateFeedbackStatus(
-    id: string, 
-    status: FeedbackStatus, 
-    reviewedBy?: string, 
-    reviewNotes?: string
+    id: string,
+    status: FeedbackStatus,
+    reviewedBy?: string,
+    reviewNotes?: string,
   ): Promise<EventFeedback> {
     const feedback = await this.getFeedbackById(id);
 
@@ -152,10 +168,10 @@ export class EventFeedbackService {
 
   async getEventFeedbackAnalytics(eventId: string): Promise<FeedbackAnalytics> {
     const feedbacks = await this.feedbackRepository.find({
-      where: { 
+      where: {
         eventId,
-        status: Not(FeedbackStatus.PENDING)
-      }
+        status: Not(FeedbackStatus.PENDING),
+      },
     });
 
     if (feedbacks.length === 0) {
@@ -164,14 +180,23 @@ export class EventFeedbackService {
 
     // Get total RSVPs for response rate calculation
     const totalRsvps = await this.rsvpRepository.count({
-      where: { eventId }
+      where: { eventId },
     });
 
     const analytics: FeedbackAnalytics = {
       totalFeedbacks: feedbacks.length,
-      averageOverallRating: this.calculateAverageRating(feedbacks, 'overallRating'),
-      averageContentRating: this.calculateAverageRating(feedbacks, 'contentRating'),
-      averageOrganizationRating: this.calculateAverageRating(feedbacks, 'organizationRating'),
+      averageOverallRating: this.calculateAverageRating(
+        feedbacks,
+        'overallRating',
+      ),
+      averageContentRating: this.calculateAverageRating(
+        feedbacks,
+        'contentRating',
+      ),
+      averageOrganizationRating: this.calculateAverageRating(
+        feedbacks,
+        'organizationRating',
+      ),
       averageVenueRating: this.calculateAverageRating(feedbacks, 'venueRating'),
       recommendationRate: this.calculatePercentage(feedbacks, 'wouldRecommend'),
       attendAgainRate: this.calculatePercentage(feedbacks, 'wouldAttendAgain'),
@@ -186,36 +211,41 @@ export class EventFeedbackService {
 
   async getFeedbackSummaryByDateRange(
     startDate: Date,
-    endDate: Date
+    endDate: Date,
   ): Promise<EventFeedbackSummary[]> {
     const events = await this.eventRepository.find({
       where: {
-        startDate: Between(startDate, endDate)
-      }
+        startDate: Between(startDate, endDate),
+      },
     });
 
     const summaries: EventFeedbackSummary[] = [];
 
     for (const event of events) {
       const feedbacks = await this.feedbackRepository.find({
-        where: { 
+        where: {
           eventId: event.id,
-          status: Not(FeedbackStatus.PENDING)
+          status: Not(FeedbackStatus.PENDING),
         },
-        order: { submittedAt: 'DESC' }
+        order: { submittedAt: 'DESC' },
       });
 
       const totalRsvps = await this.rsvpRepository.count({
-        where: { eventId: event.id }
+        where: { eventId: event.id },
       });
 
-      const averageRating = feedbacks.length > 0 
-        ? feedbacks.reduce((sum, f) => sum + (f.averageRating || 0), 0) / feedbacks.length
-        : 0;
+      const averageRating =
+        feedbacks.length > 0
+          ? feedbacks.reduce((sum, f) => sum + (f.averageRating || 0), 0) /
+            feedbacks.length
+          : 0;
 
-      const recommendationRate = feedbacks.length > 0
-        ? (feedbacks.filter(f => f.wouldRecommend).length / feedbacks.length) * 100
-        : 0;
+      const recommendationRate =
+        feedbacks.length > 0
+          ? (feedbacks.filter((f) => f.wouldRecommend).length /
+              feedbacks.length) *
+            100
+          : 0;
 
       summaries.push({
         eventId: event.id,
@@ -223,8 +253,10 @@ export class EventFeedbackService {
         totalFeedbacks: feedbacks.length,
         averageRating,
         recommendationRate,
-        responseRate: totalRsvps > 0 ? (feedbacks.length / totalRsvps) * 100 : 0,
-        lastFeedbackDate: feedbacks.length > 0 ? feedbacks[0].submittedAt : null,
+        responseRate:
+          totalRsvps > 0 ? (feedbacks.length / totalRsvps) * 100 : 0,
+        lastFeedbackDate:
+          feedbacks.length > 0 ? feedbacks[0].submittedAt : null,
       });
     }
 
@@ -235,7 +267,7 @@ export class EventFeedbackService {
     return this.feedbackRepository.find({
       where: { status: FeedbackStatus.PENDING },
       relations: ['event', 'rsvp'],
-      order: { createdAt: 'DESC' }
+      order: { createdAt: 'DESC' },
     });
   }
 
@@ -263,8 +295,8 @@ export class EventFeedbackService {
     `;
 
     const results = await this.feedbackRepository.query(query, [limit]);
-    
-    return results.map(result => ({
+
+    return results.map((result) => ({
       eventId: result.eventId,
       eventTitle: result.eventTitle,
       totalFeedbacks: parseInt(result.totalFeedbacks),
@@ -275,27 +307,39 @@ export class EventFeedbackService {
     }));
   }
 
-  private calculateAverageRating(feedbacks: EventFeedback[], field: keyof EventFeedback): number {
+  private calculateAverageRating(
+    feedbacks: EventFeedback[],
+    field: keyof EventFeedback,
+  ): number {
     const ratings = feedbacks
-      .map(f => f[field] as number)
-      .filter(rating => rating !== null && rating !== undefined);
-    
+      .map((f) => f[field] as number)
+      .filter((rating) => rating !== null && rating !== undefined);
+
     if (ratings.length === 0) return 0;
     return ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length;
   }
 
-  private calculatePercentage(feedbacks: EventFeedback[], field: keyof EventFeedback): number {
+  private calculatePercentage(
+    feedbacks: EventFeedback[],
+    field: keyof EventFeedback,
+  ): number {
     const total = feedbacks.length;
     if (total === 0) return 0;
-    
-    const positive = feedbacks.filter(f => f[field] === true).length;
+
+    const positive = feedbacks.filter((f) => f[field] === true).length;
     return (positive / total) * 100;
   }
 
-  private calculateRatingDistribution(feedbacks: EventFeedback[]): { 1: number; 2: number; 3: number; 4: number; 5: number; } {
+  private calculateRatingDistribution(feedbacks: EventFeedback[]): {
+    1: number;
+    2: number;
+    3: number;
+    4: number;
+    5: number;
+  } {
     const distribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    
-    feedbacks.forEach(feedback => {
+
+    feedbacks.forEach((feedback) => {
       const rating = Math.round(feedback.averageRating || 0);
       if (rating >= 1 && rating <= 5) {
         distribution[rating as keyof typeof distribution]++;
@@ -307,7 +351,11 @@ export class EventFeedbackService {
 
   private extractCommonKeywords(feedbacks: EventFeedback[]): string[] {
     const allText = feedbacks
-      .map(f => [f.comments, f.suggestions, f.whatWorkedWell, f.whatCouldImprove].filter(Boolean).join(' '))
+      .map((f) =>
+        [f.comments, f.suggestions, f.whatWorkedWell, f.whatCouldImprove]
+          .filter(Boolean)
+          .join(' '),
+      )
       .join(' ');
 
     if (!allText) return [];
@@ -317,24 +365,34 @@ export class EventFeedbackService {
       .toLowerCase()
       .replace(/[^\w\s]/g, '')
       .split(/\s+/)
-      .filter(word => word.length > 3);
+      .filter((word) => word.length > 3);
 
-    const wordCount = words.reduce((acc, word) => {
-      acc[word] = (acc[word] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    const wordCount = words.reduce(
+      (acc, word) => {
+        acc[word] = (acc[word] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
 
     return Object.entries(wordCount)
-      .sort(([,a], [,b]) => b - a)
+      .sort(([, a], [, b]) => b - a)
       .slice(0, 10)
       .map(([word]) => word);
   }
 
-  private analyzeSentiment(feedbacks: EventFeedback[]): 'positive' | 'neutral' | 'negative' {
+  private analyzeSentiment(
+    feedbacks: EventFeedback[],
+  ): 'positive' | 'neutral' | 'negative' {
     if (feedbacks.length === 0) return 'neutral';
 
-    const averageRating = feedbacks.reduce((sum, f) => sum + (f.averageRating || 0), 0) / feedbacks.length;
-    const recommendationRate = this.calculatePercentage(feedbacks, 'wouldRecommend');
+    const averageRating =
+      feedbacks.reduce((sum, f) => sum + (f.averageRating || 0), 0) /
+      feedbacks.length;
+    const recommendationRate = this.calculatePercentage(
+      feedbacks,
+      'wouldRecommend',
+    );
 
     if (averageRating >= 4 && recommendationRate >= 70) return 'positive';
     if (averageRating <= 2.5 || recommendationRate <= 30) return 'negative';

@@ -111,14 +111,17 @@ export class EventFeedback {
       this.contentRating,
       this.organizationRating,
       this.venueRating,
-    ].filter(rating => rating !== null && rating !== undefined);
+    ].filter((rating) => rating !== null && rating !== undefined);
 
     if (ratings.length === 0) return 0;
     return ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length;
   }
 
   get isSubmitted(): boolean {
-    return this.status === FeedbackStatus.SUBMITTED || this.status === FeedbackStatus.REVIEWED;
+    return (
+      this.status === FeedbackStatus.SUBMITTED ||
+      this.status === FeedbackStatus.REVIEWED
+    );
   }
 
   get isReviewed(): boolean {
