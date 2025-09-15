@@ -83,16 +83,32 @@ describe('EventRegistrationService', () => {
     id: '123e4567-e89b-12d3-a456-426614174002',
     eventId: mockEvent.id,
     formId: mockForm.id,
+    rsvpId: null,
     respondentName: 'John Doe',
     respondentEmail: 'john@example.com',
+    respondentPhone: null,
     responses: {
       field1: 'John',
       field2: 'john@example.com',
       field3: 'vegetarian'
     },
+    attachments: [],
     status: ResponseStatus.SUBMITTED,
-    isValid: true,
+    submittedAt: new Date(),
+    reviewedAt: null,
+    reviewedBy: null,
+    reviewNotes: null,
     validationErrors: [],
+    isValid: true,
+    score: null,
+    metadata: {},
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    isSubmitted: true,
+    isApproved: false,
+    isRejected: false,
+    isDraft: false,
+    hasValidationErrors: false,
   };
 
   beforeEach(async () => {
@@ -227,8 +243,8 @@ describe('EventRegistrationService', () => {
     it('should submit response successfully', async () => {
       jest.spyOn(formRepository, 'findOne').mockResolvedValue(mockForm as EventRegistrationForm);
       jest.spyOn(responseRepository, 'findOne').mockResolvedValue(null); // No existing response
-      jest.spyOn(responseRepository, 'create').mockReturnValue(mockResponse as EventRegistrationResponse);
-      jest.spyOn(responseRepository, 'save').mockResolvedValue(mockResponse as EventRegistrationResponse);
+      jest.spyOn(responseRepository, 'create').mockReturnValue(mockResponse as any);
+      jest.spyOn(responseRepository, 'save').mockResolvedValue(mockResponse as any);
 
       const result = await service.submitResponse(submitResponseDto);
 
@@ -254,7 +270,7 @@ describe('EventRegistrationService', () => {
         settings: { submission: { allowMultiple: false } }
       };
       jest.spyOn(formRepository, 'findOne').mockResolvedValue(formWithoutMultiple as EventRegistrationForm);
-      jest.spyOn(responseRepository, 'findOne').mockResolvedValue(mockResponse as EventRegistrationResponse);
+      jest.spyOn(responseRepository, 'findOne').mockResolvedValue(mockResponse as any);
 
       await expect(service.submitResponse(submitResponseDto)).rejects.toThrow(BadRequestException);
     });
@@ -287,8 +303,8 @@ describe('EventRegistrationService', () => {
         ]
       };
       
-      jest.spyOn(responseRepository, 'create').mockReturnValue(invalidResponse as EventRegistrationResponse);
-      jest.spyOn(responseRepository, 'save').mockResolvedValue(invalidResponse as EventRegistrationResponse);
+      jest.spyOn(responseRepository, 'create').mockReturnValue(invalidResponse as any);
+      jest.spyOn(responseRepository, 'save').mockResolvedValue(invalidResponse as any);
 
       const result = await service.submitResponse(invalidDto);
 
@@ -325,8 +341,8 @@ describe('EventRegistrationService', () => {
         ]
       };
       
-      jest.spyOn(responseRepository, 'create').mockReturnValue(invalidResponse as EventRegistrationResponse);
-      jest.spyOn(responseRepository, 'save').mockResolvedValue(invalidResponse as EventRegistrationResponse);
+      jest.spyOn(responseRepository, 'create').mockReturnValue(invalidResponse as any);
+      jest.spyOn(responseRepository, 'save').mockResolvedValue(invalidResponse as any);
 
       const result = await service.submitResponse(invalidDto);
 
@@ -374,7 +390,7 @@ describe('EventRegistrationService', () => {
         { ...mockResponse, status: ResponseStatus.SUBMITTED },
         { ...mockResponse, status: ResponseStatus.APPROVED },
         { ...mockResponse, status: ResponseStatus.REJECTED },
-      ];
+      ] as any[];
 
       jest.spyOn(service, 'getFormById').mockResolvedValue(mockForm as EventRegistrationForm);
       jest.spyOn(responseRepository, 'find').mockResolvedValue(mockResponses as EventRegistrationResponse[]);
@@ -399,8 +415,8 @@ describe('EventRegistrationService', () => {
       };
 
       jest.spyOn(service, 'updateResponse')
-        .mockResolvedValueOnce(mockResponse as EventRegistrationResponse)
-        .mockResolvedValueOnce(mockResponse as EventRegistrationResponse);
+        .mockResolvedValueOnce(mockResponse as any)
+        .mockResolvedValueOnce(mockResponse as any);
 
       const result = await service.bulkUpdateResponses(bulkUpdateDto);
 
@@ -417,7 +433,7 @@ describe('EventRegistrationService', () => {
       };
 
       jest.spyOn(service, 'updateResponse')
-        .mockResolvedValueOnce(mockResponse as EventRegistrationResponse)
+        .mockResolvedValueOnce(mockResponse as any)
         .mockRejectedValueOnce(new Error('Update failed'));
 
       const result = await service.bulkUpdateResponses(bulkUpdateDto);

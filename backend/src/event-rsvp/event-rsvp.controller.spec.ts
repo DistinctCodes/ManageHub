@@ -190,8 +190,8 @@ describe('EventRsvpController (Integration)', () => {
         const createEventDto: CreateEventDto = {
           title: 'Test Event',
           description: 'A test event',
-          startDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
-          endDate: new Date(Date.now() + 25 * 60 * 60 * 1000),
+          startDate: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          endDate: new Date(Date.now() + 25 * 60 * 60 * 1000).toISOString(),
           location: 'Test Venue',
           capacity: 50,
           organizerName: 'John Organizer',
@@ -223,7 +223,7 @@ describe('EventRsvpController (Integration)', () => {
 
     describe('GET /event-rsvp/events', () => {
       it('should return all events', async () => {
-        const mockEvents = { events: [mockEvent], total: 1, page: 1, limit: 10 };
+        const mockEvents = { events: [mockEvent], total: 1, page: 1, limit: 10 } as any;
         jest.spyOn(eventService, 'findAll').mockResolvedValue(mockEvents);
 
         const response = await request(app.getHttpServer())
@@ -234,7 +234,7 @@ describe('EventRsvpController (Integration)', () => {
       });
 
       it('should handle query parameters', async () => {
-        const mockEvents = { events: [mockEvent], total: 1, page: 1, limit: 5 };
+        const mockEvents = { events: [mockEvent], total: 1, page: 1, limit: 5 } as any;
         jest.spyOn(eventService, 'findAll').mockResolvedValue(mockEvents);
 
         await request(app.getHttpServer())
