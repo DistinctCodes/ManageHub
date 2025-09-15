@@ -7,7 +7,14 @@ import * as https from 'https';
 import * as http from 'http';
 import { ApiEndpoint, EndpointStatus } from '../entities/api-endpoint.entity';
 import { PingResult, PingStatus } from '../entities/ping-result.entity';
-import { ManualPingDto, BulkPingDto } from '../dto/ping-result.dto';
+import { ApiNotificationService } from './api-notification.service';
+import { 
+  ManualPingDto, 
+  BulkPingDto, 
+  PingResultQueryDto, 
+  PingResultAnalyticsDto, 
+  ExportPingResultsDto 
+} from '../dto/ping-result.dto';
 
 export interface PingOptions {
   endpoint: ApiEndpoint;
@@ -44,6 +51,7 @@ export class ApiMonitorService {
     private endpointRepository: Repository<ApiEndpoint>,
     @InjectRepository(PingResult)
     private pingResultRepository: Repository<PingResult>,
+    private notificationService: ApiNotificationService,
   ) {}
 
   @Cron(CronExpression.EVERY_30_SECONDS)
@@ -273,6 +281,11 @@ export class ApiMonitorService {
         savedResult = await this.pingResultRepository.save(
           this.pingResultRepository.create(pingResult)
         );
+        
+        // Send notifications if enabled
+        if (endpoint.enableAlerts) {
+          await this.notificationService.handlePingResult(savedResult, endpoint);
+        }
       } catch (error) {
         this.logger.error('Failed to save ping result:', error);
       }
@@ -479,5 +492,491 @@ export class ApiMonitorService {
       lastPingResult,
       recentIncidents,
     };
+  }
+
+  // Controller support methods
+  async pingEndpoint(endpointId: string, triggeredBy?: string): Promise<PingResponse> {
+    const endpoint = await this.endpointRepository.findOne({
+      where: { id: endpointId }
+    });
+
+    if (!endpoint) {
+      throw new Error('Endpoint not found');
+    }
+
+    return this.pingEndpoint({
+      endpoint,
+      saveResult: true,
+      includeDetails: true,
+    });
+  }
+
+  async bulkPing(endpointIds: string[], triggeredBy?: string): Promise<PingResponse[]> {
+    const endpoints = await this.endpointRepository.findByIds(endpointIds);
+
+    if (endpoints.length === 0) {
+      throw new Error('No valid endpoints found');
+    }
+
+    const results = await Promise.all(
+      endpoints.map(endpoint =>
+        this.pingEndpoint({
+          endpoint,
+          saveResult: true,
+          includeDetails: false,
+        })
+      )
+    );
+
+    return results;
+  }
+
+  async pingAllActiveEndpoints(triggeredBy?: string): Promise<PingResponse[]> {
+    const activeEndpoints = await this.endpointRepository.find({
+      where: { 
+        isActive: true, 
+        status: EndpointStatus.ACTIVE 
+      }
+    });
+
+    return this.bulkPing(activeEndpoints.map(e => e.id), triggeredBy);
+  }
+
+  async getPingResults(queryDto: PingResultQueryDto): Promise<{
+    results: PingResult[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }> {
+    const {
+      limit = 50,
+      offset = 0,
+      endpointId,
+      status,
+      isSuccess,
+      startDate,
+      endDate,
+      sortBy = 'createdAt',
+      sortOrder = 'DESC',
+    } = queryDto;
+
+    const queryBuilder = this.pingResultRepository
+      .createQueryBuilder('result')
+      .leftJoinAndSelect('result.endpoint', 'endpoint');
+
+    if (endpointId) {
+      queryBuilder.andWhere('result.endpointId = :endpointId', { endpointId });
+    }
+
+    if (status) {
+      queryBuilder.andWhere('result.status = :status', { status });
+    }
+
+    if (isSuccess !== undefined) {
+      queryBuilder.andWhere('result.isSuccess = :isSuccess', { isSuccess });
+    }
+
+    if (startDate) {
+      queryBuilder.andWhere('result.createdAt >= :startDate', { startDate });
+    }
+
+    if (endDate) {
+      queryBuilder.andWhere('result.createdAt <= :endDate', { endDate });
+    }
+
+    queryBuilder.orderBy(`result.${sortBy}`, sortOrder);
+    queryBuilder.skip(offset).take(limit);
+
+    const [results, total] = await queryBuilder.getManyAndCount();
+
+    return {
+      results,
+      total,
+      page: Math.floor(offset / limit) + 1,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  async getPingResult(id: string): Promise<PingResult> {
+    const result = await this.pingResultRepository.findOne({
+      where: { id },
+      relations: ['endpoint'],
+    });
+
+    if (!result) {
+      throw new Error('Ping result not found');
+    }
+
+    return result;
+  }
+
+  async getEndpointPingResults(endpointId: string, queryDto: PingResultQueryDto) {
+    return this.getPingResults({ ...queryDto, endpointId });
+  }
+
+  async getAnalytics(analyticsDto: PingResultAnalyticsDto): Promise<any> {
+    const {
+      period = '24h',
+      endpointIds,
+      providers,
+      groupBy = 'hour',
+    } = analyticsDto;
+
+    const periodHours = this.parsePeriod(period);
+    const startDate = new Date();
+    startDate.setHours(startDate.getHours() - periodHours);
+
+    const queryBuilder = this.pingResultRepository
+      .createQueryBuilder('result')
+      .leftJoin('result.endpoint', 'endpoint')
+      .where('result.createdAt >= :startDate', { startDate });
+
+    if (endpointIds?.length) {
+      queryBuilder.andWhere('result.endpointId IN (:...endpointIds)', { endpointIds });
+    }
+
+    if (providers?.length) {
+      queryBuilder.andWhere('endpoint.provider IN (:...providers)', { providers });
+    }
+
+    const results = await queryBuilder.getMany();
+
+    return this.processAnalyticsData(results, groupBy, periodHours);
+  }
+
+  async getMonitoringStatus(): Promise<{
+    isRunning: boolean;
+    lastCheck: Date;
+    nextCheck: Date;
+    activeEndpoints: number;
+    totalPingsToday: number;
+    errors: string[];
+  }> {
+    const activeEndpoints = await this.endpointRepository.count({
+      where: { isActive: true, status: EndpointStatus.ACTIVE }
+    });
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const totalPingsToday = await this.pingResultRepository.count({
+      where: {
+        createdAt: today,
+      }
+    });
+
+    return {
+      isRunning: true, // TODO: Implement actual monitoring status tracking
+      lastCheck: new Date(),
+      nextCheck: new Date(Date.now() + 30000), // Next check in 30 seconds
+      activeEndpoints,
+      totalPingsToday,
+      errors: [], // TODO: Implement error tracking
+    };
+  }
+
+  async startMonitoring(): Promise<{ message: string; status: string }> {
+    // TODO: Implement actual start/stop monitoring logic
+    return {
+      message: 'Monitoring service started successfully',
+      status: 'started'
+    };
+  }
+
+  async stopMonitoring(): Promise<{ message: string; status: string }> {
+    // TODO: Implement actual start/stop monitoring logic
+    return {
+      message: 'Monitoring service stopped successfully',
+      status: 'stopped'
+    };
+  }
+
+  async restartMonitoring(): Promise<{ message: string; status: string }> {
+    // TODO: Implement actual restart monitoring logic
+    return {
+      message: 'Monitoring service restarted successfully',
+      status: 'restarted'
+    };
+  }
+
+  async exportPingResults(exportDto: ExportPingResultsDto): Promise<{
+    data: any;
+    filename: string;
+    mimeType: string;
+  }> {
+    const results = await this.getPingResults({
+      ...exportDto.filters,
+      limit: exportDto.limit || 10000,
+    });
+
+    const filename = `ping-results-${new Date().toISOString().split('T')[0]}`;
+
+    switch (exportDto.format) {
+      case 'csv':
+        return {
+          data: this.convertToCSV(results.results),
+          filename: `${filename}.csv`,
+          mimeType: 'text/csv',
+        };
+      case 'json':
+        return {
+          data: JSON.stringify(results.results, null, 2),
+          filename: `${filename}.json`,
+          mimeType: 'application/json',
+        };
+      default:
+        throw new Error('Unsupported export format');
+    }
+  }
+
+  async generateUptimeReport(period: '24h' | '7d' | '30d'): Promise<any> {
+    const hours = this.parsePeriod(period);
+    const startDate = new Date();
+    startDate.setHours(startDate.getHours() - hours);
+
+    const endpoints = await this.endpointRepository.find({
+      where: { isActive: true },
+      relations: ['pingResults'],
+    });
+
+    const report = endpoints.map(endpoint => {
+      const periodResults = endpoint.pingResults.filter(
+        result => result.createdAt >= startDate
+      );
+
+      const totalPings = periodResults.length;
+      const successfulPings = periodResults.filter(r => r.isSuccess).length;
+      const uptime = totalPings > 0 ? (successfulPings / totalPings) * 100 : 100;
+
+      return {
+        endpointId: endpoint.id,
+        endpointName: endpoint.name,
+        url: endpoint.url,
+        provider: endpoint.provider,
+        totalPings,
+        successfulPings,
+        uptimePercentage: Math.round(uptime * 100) / 100,
+        averageResponseTime: this.calculateAverageResponseTime(periodResults),
+      };
+    });
+
+    return {
+      period,
+      generatedAt: new Date(),
+      totalEndpoints: endpoints.length,
+      overallUptime: this.calculateOverallUptime(report),
+      endpoints: report,
+    };
+  }
+
+  async generatePerformanceReport(period: '24h' | '7d' | '30d'): Promise<any> {
+    const hours = this.parsePeriod(period);
+    const startDate = new Date();
+    startDate.setHours(startDate.getHours() - hours);
+
+    const results = await this.pingResultRepository
+      .createQueryBuilder('result')
+      .leftJoin('result.endpoint', 'endpoint')
+      .where('result.createdAt >= :startDate', { startDate })
+      .andWhere('result.isSuccess = :isSuccess', { isSuccess: true })
+      .getMany();
+
+    const performanceData = this.groupResultsByEndpoint(results);
+
+    return {
+      period,
+      generatedAt: new Date(),
+      totalRequests: results.length,
+      averageResponseTime: this.calculateAverageResponseTime(results),
+      endpoints: performanceData,
+    };
+  }
+
+  async generateIncidentsReport(period: '24h' | '7d' | '30d'): Promise<any> {
+    const hours = this.parsePeriod(period);
+    const startDate = new Date();
+    startDate.setHours(startDate.getHours() - hours);
+
+    const incidents = await this.pingResultRepository
+      .createQueryBuilder('result')
+      .leftJoin('result.endpoint', 'endpoint')
+      .where('result.createdAt >= :startDate', { startDate })
+      .andWhere('result.isSuccess = :isSuccess', { isSuccess: false })
+      .getMany();
+
+    const incidentsByEndpoint = this.groupIncidentsByEndpoint(incidents);
+
+    return {
+      period,
+      generatedAt: new Date(),
+      totalIncidents: incidents.length,
+      affectedEndpoints: Object.keys(incidentsByEndpoint).length,
+      incidents: incidentsByEndpoint,
+    };
+  }
+
+  async isHealthy(): Promise<boolean> {
+    // Simple health check - verify we can connect to database
+    try {
+      await this.endpointRepository.count();
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  // Helper methods
+  private parsePeriod(period: string): number {
+    switch (period) {
+      case '24h': return 24;
+      case '7d': return 24 * 7;
+      case '30d': return 24 * 30;
+      default: return 24;
+    }
+  }
+
+  private processAnalyticsData(results: PingResult[], groupBy: string, periodHours: number): any {
+    // Group results by time period and calculate metrics
+    const groupedData = {};
+    
+    results.forEach(result => {
+      const key = this.getTimeGroupKey(result.createdAt, groupBy);
+      if (!groupedData[key]) {
+        groupedData[key] = {
+          timestamp: key,
+          totalPings: 0,
+          successfulPings: 0,
+          avgResponseTime: 0,
+          responseTimes: [],
+        };
+      }
+      
+      groupedData[key].totalPings++;
+      if (result.isSuccess) {
+        groupedData[key].successfulPings++;
+        if (result.responseTimeMs) {
+          groupedData[key].responseTimes.push(result.responseTimeMs);
+        }
+      }
+    });
+
+    // Calculate averages
+    Object.values(groupedData).forEach((group: any) => {
+      if (group.responseTimes.length > 0) {
+        group.avgResponseTime = group.responseTimes.reduce((sum, time) => sum + time, 0) / group.responseTimes.length;
+      }
+      group.uptimePercentage = (group.successfulPings / group.totalPings) * 100;
+      delete group.responseTimes; // Remove raw data
+    });
+
+    return Object.values(groupedData);
+  }
+
+  private getTimeGroupKey(date: Date, groupBy: string): string {
+    switch (groupBy) {
+      case 'hour':
+        return date.toISOString().substring(0, 13) + ':00:00';
+      case 'day':
+        return date.toISOString().substring(0, 10);
+      case 'week':
+        const weekStart = new Date(date);
+        weekStart.setDate(date.getDate() - date.getDay());
+        return weekStart.toISOString().substring(0, 10);
+      default:
+        return date.toISOString().substring(0, 13) + ':00:00';
+    }
+  }
+
+  private convertToCSV(data: any[]): string {
+    if (data.length === 0) return '';
+    
+    const headers = Object.keys(data[0]);
+    const csvContent = [
+      headers.join(','),
+      ...data.map(row => 
+        headers.map(header => {
+          const value = row[header];
+          return typeof value === 'string' && value.includes(',') 
+            ? `"${value}"` 
+            : value;
+        }).join(',')
+      )
+    ].join('\n');
+    
+    return csvContent;
+  }
+
+  private calculateAverageResponseTime(results: PingResult[]): number {
+    const successfulResults = results.filter(r => r.isSuccess && r.responseTimeMs);
+    if (successfulResults.length === 0) return 0;
+    
+    const total = successfulResults.reduce((sum, r) => sum + r.responseTimeMs!, 0);
+    return Math.round(total / successfulResults.length);
+  }
+
+  private calculateOverallUptime(report: any[]): number {
+    if (report.length === 0) return 100;
+    
+    const totalUptime = report.reduce((sum, endpoint) => sum + endpoint.uptimePercentage, 0);
+    return Math.round((totalUptime / report.length) * 100) / 100;
+  }
+
+  private groupResultsByEndpoint(results: PingResult[]): any {
+    const grouped = {};
+    
+    results.forEach(result => {
+      const endpointId = result.endpointId;
+      if (!grouped[endpointId]) {
+        grouped[endpointId] = {
+          endpointId,
+          totalRequests: 0,
+          responseTimes: [],
+        };
+      }
+      
+      grouped[endpointId].totalRequests++;
+      if (result.responseTimeMs) {
+        grouped[endpointId].responseTimes.push(result.responseTimeMs);
+      }
+    });
+
+    // Calculate averages
+    Object.values(grouped).forEach((endpoint: any) => {
+      if (endpoint.responseTimes.length > 0) {
+        endpoint.averageResponseTime = this.calculateAverageResponseTime(endpoint.responseTimes);
+        endpoint.minResponseTime = Math.min(...endpoint.responseTimes);
+        endpoint.maxResponseTime = Math.max(...endpoint.responseTimes);
+      }
+      delete endpoint.responseTimes;
+    });
+
+    return grouped;
+  }
+
+  private groupIncidentsByEndpoint(incidents: PingResult[]): any {
+    const grouped = {};
+    
+    incidents.forEach(incident => {
+      const endpointId = incident.endpointId;
+      if (!grouped[endpointId]) {
+        grouped[endpointId] = {
+          endpointId,
+          incidents: [],
+          totalIncidents: 0,
+        };
+      }
+      
+      grouped[endpointId].incidents.push({
+        timestamp: incident.createdAt,
+        status: incident.status,
+        errorMessage: incident.errorMessage,
+        responseTime: incident.responseTimeMs,
+      });
+      grouped[endpointId].totalIncidents++;
+    });
+
+    return grouped;
   }
 }

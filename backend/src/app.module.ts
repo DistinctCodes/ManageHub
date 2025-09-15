@@ -33,6 +33,7 @@ import { SafetyTipsModule } from './safety-tips/safety-tips.module';
 import { EquipmentQueueModule } from './equipment-queue/equipment-queue.module';
 import { DeviceTrackerModule } from './device-tracker/device-tracker.module';
 import { EventRsvpModule } from './event-rsvp/event-rsvp.module';
+import { ApiPingMonitorModule } from './api-ping-monitor/api-ping-monitor.module';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { EventRsvpModule } from './event-rsvp/event-rsvp.module';
     EquipmentQueueModule,
     DeviceTrackerModule,
     EventRsvpModule,
+    ApiPingMonitorModule,
   ],
   controllers: [AppController],
   providers: [AppService, LibraryService],
