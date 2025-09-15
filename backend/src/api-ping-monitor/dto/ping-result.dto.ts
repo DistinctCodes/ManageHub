@@ -184,3 +184,36 @@ export class ExportReportDto {
   @IsOptional()
   includeMetrics?: boolean;
 }
+
+// Additional DTOs for analytics and reporting
+export class PingResultAnalyticsDto {
+  @IsEnum(['1h', '24h', '7d', '30d'])
+  @IsOptional()
+  period?: '1h' | '24h' | '7d' | '30d';
+
+  @IsUUID('4', { each: true })
+  @IsOptional()
+  endpointIds?: string[];
+
+  @IsString({ each: true })
+  @IsOptional()
+  providers?: string[];
+
+  @IsEnum(['hour', 'day', 'week'])
+  @IsOptional()
+  groupBy?: 'hour' | 'day' | 'week';
+}
+
+export class ExportPingResultsDto {
+  @IsEnum(['csv', 'json', 'xlsx'])
+  format: 'csv' | 'json' | 'xlsx';
+
+  @IsOptional()
+  filters?: PingResultQueryDto;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(1)
+  @Max(100000)
+  limit?: number;
+}

@@ -165,7 +165,7 @@ export class ApiPingMonitorController {
     @Body(ValidationPipe) manualPingDto: ManualPingDto,
   ) {
     this.logger.log(`Manual ping requested for endpoint: ${endpointId}`);
-    return this.monitorService.pingEndpoint(endpointId, manualPingDto.triggeredBy);
+    return this.monitorService.pingSpecificEndpoint(endpointId);
   }
 
   @Post('ping/bulk')
@@ -175,7 +175,7 @@ export class ApiPingMonitorController {
     @Body(ValidationPipe) bulkPingDto: BulkPingDto,
   ) {
     this.logger.log(`Bulk ping requested for ${bulkPingDto.endpointIds.length} endpoints`);
-    return this.monitorService.bulkPing(bulkPingDto.endpointIds, bulkPingDto.triggeredBy);
+    return this.monitorService.bulkPing(bulkPingDto.endpointIds);
   }
 
   @Post('ping/all-active')
