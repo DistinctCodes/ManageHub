@@ -13,6 +13,7 @@ import { CreateRsvpDto } from '../dto/create-rsvp.dto';
 import { UpdateRsvpDto } from '../dto/update-rsvp.dto';
 import { RsvpQueryDto } from '../dto/rsvp-query.dto';
 import { EventService } from './event.service';
+import { EmailNotificationService } from './email-notification.service';
 
 export interface RsvpStatistics {
   totalRsvps: number;
@@ -48,6 +49,7 @@ export class RsvpService {
     @InjectRepository(Event)
     private eventRepository: Repository<Event>,
     private eventService: EventService,
+    private emailNotificationService: EmailNotificationService,
   ) {}
 
   async createRsvp(eventId: string, createRsvpDto: CreateRsvpDto): Promise<EventRsvp> {
@@ -107,11 +109,19 @@ export class RsvpService {
       // Update event RSVP counts
       await this.eventService.updateRsvpCounts(eventId);
 
+      // Send appropriate email notification
+      const fullRsvp = await this.findOne(savedRsvp.id);
+      if (status === RsvpStatus.CONFIRMED) {
+        await this.emailNotificationService.sendRsvpConfirmation(fullRsvp, event);
+      } else if (status === RsvpStatus.WAITLISTED) {
+        await this.emailNotificationService.sendWaitlistNotification(fullRsvp, event);
+      }
+
       this.logger.log(
         `RSVP created successfully: ${savedRsvp.id} for event ${eventId} (${status})`,
       );
 
-      return await this.findOne(savedRsvp.id);
+      return fullRsvp;
     } catch (error) {
       this.logger.error(`Failed to create RSVP for event ${eventId}: ${error.message}`);
       throw error;
@@ -252,6 +262,8 @@ export class RsvpService {
         throw new BadRequestException('RSVP cannot be cancelled in its current state');
       }
 
+      const wasConfirmed = rsvp.status === RsvpStatus.CONFIRMED;
+      
       rsvp.status = RsvpStatus.CANCELLED;
       rsvp.cancelledAt = new Date();
       rsvp.cancellationReason = reason || 'User cancelled';
@@ -259,7 +271,7 @@ export class RsvpService {
       const savedRsvp = await this.rsvpRepository.save(rsvp);
 
       // If cancelled RSVP was confirmed, promote next waitlisted person
-      if (rsvp.status === RsvpStatus.CONFIRMED) {
+      if (wasConfirmed) {
         await this.promoteFromWaitlist(rsvp.eventId);
       }
 
@@ -539,18 +551,4 @@ export class RsvpService {
           eventId,
           status: RsvpStatus.WAITLISTED,
         },
-        order: { waitlistPosition: 'ASC' },
-      });
-
-      for (let i = 0; i < waitlistedRsvps.length; i++) {
-        waitlistedRsvps[i].waitlistPosition = i + 1;
-      }
-
-      await this.rsvpRepository.save(waitlistedRsvps);
-    } catch (error) {
-      this.logger.error(
-        `Failed to update waitlist positions for event ${eventId}: ${error.message}`,
-      );
-    }
-  }
-}
+        order: { waitlistPosition

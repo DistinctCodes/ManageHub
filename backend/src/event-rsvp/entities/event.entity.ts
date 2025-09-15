@@ -7,7 +7,6 @@ import {
   OneToMany,
   Index,
 } from 'typeorm';
-import { EventRsvp } from './event-rsvp.entity';
 
 export enum EventStatus {
   DRAFT = 'draft',
@@ -121,11 +120,11 @@ export class Event {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @OneToMany(() => EventRsvp, (rsvp) => rsvp.event, {
+  @OneToMany('EventRsvp', 'event', {
     cascade: true,
     onDelete: 'CASCADE',
   })
-  rsvps: EventRsvp[];
+  rsvps: any[];
 
   // Computed properties
   get availableSlots(): number {
