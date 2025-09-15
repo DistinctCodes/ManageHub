@@ -1,21 +1,30 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ValidationPipe, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  ValidationPipe,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { ApiPingMonitorController } from './api-ping-monitor.controller';
 import { ApiEndpointService } from './services/api-endpoint.service';
 import { ApiMonitorService } from './services/api-monitor.service';
 import { ApiAnalyticsService } from './services/api-analytics.service';
-import { 
-  CreateApiEndpointDto, 
-  UpdateApiEndpointDto, 
-  ApiEndpointQueryDto, 
-  BulkUpdateEndpointsDto 
+import {
+  CreateApiEndpointDto,
+  UpdateApiEndpointDto,
+  ApiEndpointQueryDto,
+  BulkUpdateEndpointsDto,
 } from './dto/api-endpoint.dto';
-import { 
-  ManualPingDto, 
-  BulkPingDto, 
-  PingResultQueryDto 
+import {
+  ManualPingDto,
+  BulkPingDto,
+  PingResultQueryDto,
 } from './dto/ping-result.dto';
-import { ApiEndpoint, EndpointStatus, HttpMethod, ApiProvider } from './entities/api-endpoint.entity';
+import {
+  ApiEndpoint,
+  EndpointStatus,
+  HttpMethod,
+  ApiProvider,
+} from './entities/api-endpoint.entity';
 import { PingResult, PingStatus } from './entities/ping-result.entity';
 
 describe('ApiPingMonitorController', () => {
@@ -58,10 +67,18 @@ describe('ApiPingMonitorController', () => {
     lastPingAt: null,
     nextPingAt: new Date(),
     pingResults: [],
-    get isHealthy() { return true; },
-    get currentStatus() { return 'healthy' as const; },
-    get averageResponseTime() { return 100; },
-    get uptimePercentage() { return 99.5; },
+    get isHealthy() {
+      return true;
+    },
+    get currentStatus() {
+      return 'healthy' as const;
+    },
+    get averageResponseTime() {
+      return 100;
+    },
+    get uptimePercentage() {
+      return 99.5;
+    },
     getNextPingTime: jest.fn(),
     shouldPing: jest.fn(),
   };
@@ -90,13 +107,28 @@ describe('ApiPingMonitorController', () => {
     metadata: null,
     createdAt: new Date(),
     endpoint: mockEndpoint,
-    get isHealthy() { return true; },
-    get performanceGrade() { return 'A' as const; },
-    get statusCategory() { return 'success' as const; },
+    get isHealthy() {
+      return true;
+    },
+    get performanceGrade() {
+      return 'A' as const;
+    },
+    get statusCategory() {
+      return 'success' as const;
+    },
     getFormattedResponseTime: () => '150ms',
     getErrorSummary: () => 'Success',
     hasPerformanceIssue: () => false,
-    toSummary: () => ({ id: 'ping-result-1', status: PingStatus.SUCCESS, isSuccess: true, responseTimeMs: 150, httpStatusCode: 200, errorMessage: 'Success', createdAt: new Date(), performanceGrade: 'A' }),
+    toSummary: () => ({
+      id: 'ping-result-1',
+      status: PingStatus.SUCCESS,
+      isSuccess: true,
+      responseTimeMs: 150,
+      httpStatusCode: 200,
+      errorMessage: 'Success',
+      createdAt: new Date(),
+      performanceGrade: 'A',
+    }),
   };
 
   beforeEach(async () => {
@@ -175,9 +207,13 @@ describe('ApiPingMonitorController', () => {
 
       it('should handle validation errors', async () => {
         const invalidDto = {} as CreateApiEndpointDto;
-        endpointService.create.mockRejectedValue(new BadRequestException('Validation failed'));
+        endpointService.create.mockRejectedValue(
+          new BadRequestException('Validation failed'),
+        );
 
-        await expect(controller.createEndpoint(invalidDto)).rejects.toThrow(BadRequestException);
+        await expect(controller.createEndpoint(invalidDto)).rejects.toThrow(
+          BadRequestException,
+        );
       });
     });
 
@@ -232,9 +268,13 @@ describe('ApiPingMonitorController', () => {
       });
 
       it('should handle endpoint not found', async () => {
-        endpointService.findOne.mockRejectedValue(new NotFoundException('Endpoint not found'));
+        endpointService.findOne.mockRejectedValue(
+          new NotFoundException('Endpoint not found'),
+        );
 
-        await expect(controller.getEndpoint('non-existent-id')).rejects.toThrow(NotFoundException);
+        await expect(controller.getEndpoint('non-existent-id')).rejects.toThrow(
+          NotFoundException,
+        );
       });
     });
 
@@ -244,31 +284,48 @@ describe('ApiPingMonitorController', () => {
           name: 'Updated Endpoint',
           description: 'Updated description',
         };
-        const updatedEndpoint = { 
-          ...mockEndpoint, 
+        const updatedEndpoint = {
+          ...mockEndpoint,
           ...updateDto,
-          get isHealthy() { return true; },
-          get currentStatus() { return 'healthy' as const; },
-          get averageResponseTime() { return 100; },
-          get uptimePercentage() { return 99.5; },
+          get isHealthy() {
+            return true;
+          },
+          get currentStatus() {
+            return 'healthy' as const;
+          },
+          get averageResponseTime() {
+            return 100;
+          },
+          get uptimePercentage() {
+            return 99.5;
+          },
           getNextPingTime: jest.fn(),
           shouldPing: jest.fn(),
         };
 
         endpointService.update.mockResolvedValue(updatedEndpoint);
 
-        const result = await controller.updateEndpoint(mockEndpoint.id, updateDto);
+        const result = await controller.updateEndpoint(
+          mockEndpoint.id,
+          updateDto,
+        );
 
-        expect(endpointService.update).toHaveBeenCalledWith(mockEndpoint.id, updateDto);
+        expect(endpointService.update).toHaveBeenCalledWith(
+          mockEndpoint.id,
+          updateDto,
+        );
         expect(result.name).toBe(updateDto.name);
       });
 
       it('should handle update validation errors', async () => {
         const invalidDto = { url: 'invalid-url' } as UpdateApiEndpointDto;
-        endpointService.update.mockRejectedValue(new BadRequestException('Invalid URL'));
+        endpointService.update.mockRejectedValue(
+          new BadRequestException('Invalid URL'),
+        );
 
-        await expect(controller.updateEndpoint(mockEndpoint.id, invalidDto))
-          .rejects.toThrow(BadRequestException);
+        await expect(
+          controller.updateEndpoint(mockEndpoint.id, invalidDto),
+        ).rejects.toThrow(BadRequestException);
       });
     });
 
@@ -282,9 +339,13 @@ describe('ApiPingMonitorController', () => {
       });
 
       it('should handle deletion of non-existent endpoint', async () => {
-        endpointService.remove.mockRejectedValue(new NotFoundException('Endpoint not found'));
+        endpointService.remove.mockRejectedValue(
+          new NotFoundException('Endpoint not found'),
+        );
 
-        await expect(controller.deleteEndpoint('non-existent-id')).rejects.toThrow(NotFoundException);
+        await expect(
+          controller.deleteEndpoint('non-existent-id'),
+        ).rejects.toThrow(NotFoundException);
       });
     });
 
@@ -312,7 +373,10 @@ describe('ApiPingMonitorController', () => {
           updatedBy: 'test-user',
           status: EndpointStatus.PAUSED,
         };
-        const bulkResult = { updated: 0, errors: ['Endpoint invalid-id not found'] };
+        const bulkResult = {
+          updated: 0,
+          errors: ['Endpoint invalid-id not found'],
+        };
 
         endpointService.bulkUpdate.mockResolvedValue(bulkResult);
 
@@ -326,44 +390,70 @@ describe('ApiPingMonitorController', () => {
     describe('toggleEndpointStatus', () => {
       it('should toggle endpoint status successfully', async () => {
         const newStatus = EndpointStatus.PAUSED;
-        const updatedEndpoint = { 
-          ...mockEndpoint, 
+        const updatedEndpoint = {
+          ...mockEndpoint,
           status: newStatus,
-          get isHealthy() { return true; },
-          get currentStatus() { return 'healthy' as const; },
-          get averageResponseTime() { return 100; },
-          get uptimePercentage() { return 99.5; },
+          get isHealthy() {
+            return true;
+          },
+          get currentStatus() {
+            return 'healthy' as const;
+          },
+          get averageResponseTime() {
+            return 100;
+          },
+          get uptimePercentage() {
+            return 99.5;
+          },
           getNextPingTime: jest.fn(),
           shouldPing: jest.fn(),
         };
 
         endpointService.toggleStatus.mockResolvedValue(updatedEndpoint);
 
-        const result = await controller.toggleEndpointStatus(mockEndpoint.id, { status: newStatus });
+        const result = await controller.toggleEndpointStatus(mockEndpoint.id, {
+          status: newStatus,
+        });
 
-        expect(endpointService.toggleStatus).toHaveBeenCalledWith(mockEndpoint.id, newStatus);
+        expect(endpointService.toggleStatus).toHaveBeenCalledWith(
+          mockEndpoint.id,
+          newStatus,
+        );
         expect(result.status).toBe(newStatus);
       });
     });
 
     describe('toggleEndpointActive', () => {
       it('should toggle endpoint active status successfully', async () => {
-        const updatedEndpoint = { 
-          ...mockEndpoint, 
+        const updatedEndpoint = {
+          ...mockEndpoint,
           isActive: false,
-          get isHealthy() { return true; },
-          get currentStatus() { return 'healthy' as const; },
-          get averageResponseTime() { return 100; },
-          get uptimePercentage() { return 99.5; },
+          get isHealthy() {
+            return true;
+          },
+          get currentStatus() {
+            return 'healthy' as const;
+          },
+          get averageResponseTime() {
+            return 100;
+          },
+          get uptimePercentage() {
+            return 99.5;
+          },
           getNextPingTime: jest.fn(),
           shouldPing: jest.fn(),
         };
 
         endpointService.toggleActive.mockResolvedValue(updatedEndpoint);
 
-        const result = await controller.toggleEndpointActive(mockEndpoint.id, { isActive: false });
+        const result = await controller.toggleEndpointActive(mockEndpoint.id, {
+          isActive: false,
+        });
 
-        expect(endpointService.toggleActive).toHaveBeenCalledWith(mockEndpoint.id, false);
+        expect(endpointService.toggleActive).toHaveBeenCalledWith(
+          mockEndpoint.id,
+          false,
+        );
         expect(result.isActive).toBe(false);
       });
     });
@@ -373,11 +463,15 @@ describe('ApiPingMonitorController', () => {
     describe('getEndpointsByProvider', () => {
       it('should retrieve endpoints by provider', async () => {
         const provider = 'stripe';
-        endpointService.getEndpointsByProvider.mockResolvedValue([mockEndpoint]);
+        endpointService.getEndpointsByProvider.mockResolvedValue([
+          mockEndpoint,
+        ]);
 
         const result = await controller.getEndpointsByProvider(provider);
 
-        expect(endpointService.getEndpointsByProvider).toHaveBeenCalledWith(provider);
+        expect(endpointService.getEndpointsByProvider).toHaveBeenCalledWith(
+          provider,
+        );
         expect(result).toEqual([mockEndpoint]);
       });
     });
@@ -388,9 +482,14 @@ describe('ApiPingMonitorController', () => {
         const createdBy = 'test-user';
         endpointService.createPresetEndpoints.mockResolvedValue([mockEndpoint]);
 
-        const result = await controller.createPresetEndpoints(provider, { createdBy });
+        const result = await controller.createPresetEndpoints(provider, {
+          createdBy,
+        });
 
-        expect(endpointService.createPresetEndpoints).toHaveBeenCalledWith(provider, createdBy);
+        expect(endpointService.createPresetEndpoints).toHaveBeenCalledWith(
+          provider,
+          createdBy,
+        );
         expect(result).toEqual([mockEndpoint]);
       });
     });
@@ -414,9 +513,14 @@ describe('ApiPingMonitorController', () => {
 
         monitorService.pingSpecificEndpoint.mockResolvedValue(pingResponse);
 
-        const result = await controller.manualPing(mockEndpoint.id, manualPingDto);
+        const result = await controller.manualPing(
+          mockEndpoint.id,
+          manualPingDto,
+        );
 
-        expect(monitorService.pingSpecificEndpoint).toHaveBeenCalledWith(mockEndpoint.id);
+        expect(monitorService.pingSpecificEndpoint).toHaveBeenCalledWith(
+          mockEndpoint.id,
+        );
         expect(result.isSuccess).toBe(true);
       });
     });
@@ -441,7 +545,9 @@ describe('ApiPingMonitorController', () => {
 
         const result = await controller.bulkPing(bulkPingDto);
 
-        expect(monitorService.bulkPing).toHaveBeenCalledWith(bulkPingDto.endpointIds);
+        expect(monitorService.bulkPing).toHaveBeenCalledWith(
+          bulkPingDto.endpointIds,
+        );
         expect(result).toHaveLength(1);
         expect(result[0].isSuccess).toBe(true);
       });
@@ -459,11 +565,15 @@ describe('ApiPingMonitorController', () => {
           },
         ];
 
-        monitorService.pingAllActiveEndpoints.mockResolvedValue(allActiveResponse);
+        monitorService.pingAllActiveEndpoints.mockResolvedValue(
+          allActiveResponse,
+        );
 
         const result = await controller.pingAllActive({ triggeredBy });
 
-        expect(monitorService.pingAllActiveEndpoints).toHaveBeenCalledWith(triggeredBy);
+        expect(monitorService.pingAllActiveEndpoints).toHaveBeenCalledWith(
+          triggeredBy,
+        );
         expect(result).toHaveLength(1);
       });
     });
@@ -501,14 +611,20 @@ describe('ApiPingMonitorController', () => {
 
         const result = await controller.getPingResult(mockPingResult.id);
 
-        expect(monitorService.getPingResult).toHaveBeenCalledWith(mockPingResult.id);
+        expect(monitorService.getPingResult).toHaveBeenCalledWith(
+          mockPingResult.id,
+        );
         expect(result).toEqual(mockPingResult);
       });
 
       it('should handle ping result not found', async () => {
-        monitorService.getPingResult.mockRejectedValue(new NotFoundException('Ping result not found'));
+        monitorService.getPingResult.mockRejectedValue(
+          new NotFoundException('Ping result not found'),
+        );
 
-        await expect(controller.getPingResult('non-existent-id')).rejects.toThrow(NotFoundException);
+        await expect(
+          controller.getPingResult('non-existent-id'),
+        ).rejects.toThrow(NotFoundException);
       });
     });
 
@@ -526,11 +642,19 @@ describe('ApiPingMonitorController', () => {
           totalPages: 1,
         };
 
-        monitorService.getEndpointPingResults.mockResolvedValue(endpointResults);
+        monitorService.getEndpointPingResults.mockResolvedValue(
+          endpointResults,
+        );
 
-        const result = await controller.getEndpointPingResults(mockEndpoint.id, queryDto);
+        const result = await controller.getEndpointPingResults(
+          mockEndpoint.id,
+          queryDto,
+        );
 
-        expect(monitorService.getEndpointPingResults).toHaveBeenCalledWith(mockEndpoint.id, queryDto);
+        expect(monitorService.getEndpointPingResults).toHaveBeenCalledWith(
+          mockEndpoint.id,
+          queryDto,
+        );
         expect(result.results).toHaveLength(1);
       });
     });
@@ -554,9 +678,15 @@ describe('ApiPingMonitorController', () => {
 
         endpointService.getEndpointHistory.mockResolvedValue(historyData);
 
-        const result = await controller.getEndpointHistory(mockEndpoint.id, days);
+        const result = await controller.getEndpointHistory(
+          mockEndpoint.id,
+          days,
+        );
 
-        expect(endpointService.getEndpointHistory).toHaveBeenCalledWith(mockEndpoint.id, days);
+        expect(endpointService.getEndpointHistory).toHaveBeenCalledWith(
+          mockEndpoint.id,
+          days,
+        );
         expect(result.history).toHaveLength(1);
       });
 
@@ -570,7 +700,10 @@ describe('ApiPingMonitorController', () => {
 
         await controller.getEndpointHistory(mockEndpoint.id);
 
-        expect(endpointService.getEndpointHistory).toHaveBeenCalledWith(mockEndpoint.id, 7);
+        expect(endpointService.getEndpointHistory).toHaveBeenCalledWith(
+          mockEndpoint.id,
+          7,
+        );
       });
     });
   });
@@ -625,9 +758,15 @@ describe('ApiPingMonitorController', () => {
 
         analyticsService.getUptimeMetrics.mockResolvedValue(uptimeMetrics);
 
-        const result = await controller.getUptimeAnalytics(period, mockEndpoint.id);
+        const result = await controller.getUptimeAnalytics(
+          period,
+          mockEndpoint.id,
+        );
 
-        expect(analyticsService.getUptimeMetrics).toHaveBeenCalledWith(mockEndpoint.id, period);
+        expect(analyticsService.getUptimeMetrics).toHaveBeenCalledWith(
+          mockEndpoint.id,
+          period,
+        );
         expect(result).toHaveLength(1);
         expect(result[0].uptimePercentage).toBe(99.5);
       });
@@ -637,7 +776,10 @@ describe('ApiPingMonitorController', () => {
 
         await controller.getUptimeAnalytics();
 
-        expect(analyticsService.getUptimeMetrics).toHaveBeenCalledWith(undefined, '24h');
+        expect(analyticsService.getUptimeMetrics).toHaveBeenCalledWith(
+          undefined,
+          '24h',
+        );
       });
     });
 
@@ -665,11 +807,19 @@ describe('ApiPingMonitorController', () => {
           },
         ];
 
-        analyticsService.getPerformanceMetrics.mockResolvedValue(performanceMetrics);
+        analyticsService.getPerformanceMetrics.mockResolvedValue(
+          performanceMetrics,
+        );
 
-        const result = await controller.getPerformanceAnalytics(period, mockEndpoint.id);
+        const result = await controller.getPerformanceAnalytics(
+          period,
+          mockEndpoint.id,
+        );
 
-        expect(analyticsService.getPerformanceMetrics).toHaveBeenCalledWith(mockEndpoint.id, period);
+        expect(analyticsService.getPerformanceMetrics).toHaveBeenCalledWith(
+          mockEndpoint.id,
+          period,
+        );
         expect(result).toHaveLength(1);
         expect(result[0].responseTime.average).toBe(150);
       });
@@ -709,9 +859,15 @@ describe('ApiPingMonitorController', () => {
 
         analyticsService.getIncidentMetrics.mockResolvedValue(incidentMetrics);
 
-        const result = await controller.getIncidentAnalytics(period, mockEndpoint.id);
+        const result = await controller.getIncidentAnalytics(
+          period,
+          mockEndpoint.id,
+        );
 
-        expect(analyticsService.getIncidentMetrics).toHaveBeenCalledWith(mockEndpoint.id, period);
+        expect(analyticsService.getIncidentMetrics).toHaveBeenCalledWith(
+          mockEndpoint.id,
+          period,
+        );
         expect(result).toHaveLength(1);
         expect(result[0].totalIncidents).toBe(5);
       });
@@ -762,11 +918,21 @@ describe('ApiPingMonitorController', () => {
           },
         };
 
-        analyticsService.getComparisonMetrics.mockResolvedValue(comparisonMetrics);
+        analyticsService.getComparisonMetrics.mockResolvedValue(
+          comparisonMetrics,
+        );
 
-        const result = await controller.getComparisonAnalytics(mockEndpoint.id, current, previous);
+        const result = await controller.getComparisonAnalytics(
+          mockEndpoint.id,
+          current,
+          previous,
+        );
 
-        expect(analyticsService.getComparisonMetrics).toHaveBeenCalledWith(mockEndpoint.id, current, previous);
+        expect(analyticsService.getComparisonMetrics).toHaveBeenCalledWith(
+          mockEndpoint.id,
+          current,
+          previous,
+        );
         expect(result.change.uptimePercentage).toBe(1.5);
         expect(result.change.averageResponseTime).toBe(-30);
       });
@@ -782,16 +948,24 @@ describe('ApiPingMonitorController', () => {
 
         await controller.getComparisonAnalytics(mockEndpoint.id);
 
-        expect(analyticsService.getComparisonMetrics).toHaveBeenCalledWith(mockEndpoint.id, '24h', '24h');
+        expect(analyticsService.getComparisonMetrics).toHaveBeenCalledWith(
+          mockEndpoint.id,
+          '24h',
+          '24h',
+        );
       });
     });
   });
 
   describe('Error Handling', () => {
     it('should handle service errors gracefully', async () => {
-      endpointService.findAll.mockRejectedValue(new Error('Database connection failed'));
+      endpointService.findAll.mockRejectedValue(
+        new Error('Database connection failed'),
+      );
 
-      await expect(controller.getEndpoints({})).rejects.toThrow('Database connection failed');
+      await expect(controller.getEndpoints({})).rejects.toThrow(
+        'Database connection failed',
+      );
     });
 
     it('should validate UUID parameters', async () => {
@@ -801,7 +975,9 @@ describe('ApiPingMonitorController', () => {
 
       await controller.getEndpoint('123e4567-e89b-12d3-a456-426614174000');
 
-      expect(endpointService.findOne).toHaveBeenCalledWith('123e4567-e89b-12d3-a456-426614174000');
+      expect(endpointService.findOne).toHaveBeenCalledWith(
+        '123e4567-e89b-12d3-a456-426614174000',
+      );
     });
 
     it('should handle validation pipe errors for DTO validation', async () => {
@@ -811,9 +987,13 @@ describe('ApiPingMonitorController', () => {
         url: 'invalid-url', // Invalid URL should fail validation
       } as CreateApiEndpointDto;
 
-      endpointService.create.mockRejectedValue(new BadRequestException('Validation failed'));
+      endpointService.create.mockRejectedValue(
+        new BadRequestException('Validation failed'),
+      );
 
-      await expect(controller.createEndpoint(invalidDto)).rejects.toThrow(BadRequestException);
+      await expect(controller.createEndpoint(invalidDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 });

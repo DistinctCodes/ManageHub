@@ -5,7 +5,12 @@ import { Repository } from 'typeorm';
 import * as request from 'supertest';
 
 import { ApiPingMonitorModule } from './api-ping-monitor.module';
-import { ApiEndpoint, EndpointStatus, HttpMethod, ApiProvider } from './entities/api-endpoint.entity';
+import {
+  ApiEndpoint,
+  EndpointStatus,
+  HttpMethod,
+  ApiProvider,
+} from './entities/api-endpoint.entity';
 import { PingResult, PingStatus } from './entities/ping-result.entity';
 import { CreateApiEndpointDto } from './dto/api-endpoint.dto';
 
@@ -49,8 +54,10 @@ describe('ApiPingMonitorModule (Integration)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
-    
+    app.useGlobalPipes(
+      new ValidationPipe({ transform: true, whitelist: true }),
+    );
+
     await app.init();
 
     endpointRepository = moduleFixture.get('ApiEndpointRepository');
@@ -136,7 +143,7 @@ describe('ApiPingMonitorModule (Integration)', () => {
               ...testEndpointData,
               name: `Test Endpoint ${i}`,
               url: `https://httpbin.org/status/20${i}`,
-            })
+            }),
           );
           endpoints.push(endpoint);
         }
@@ -159,7 +166,7 @@ describe('ApiPingMonitorModule (Integration)', () => {
             ...testEndpointData,
             name: 'Google API Endpoint',
             url: 'https://google.com',
-          })
+          }),
         );
 
         await endpointRepository.save(
@@ -167,7 +174,7 @@ describe('ApiPingMonitorModule (Integration)', () => {
             ...testEndpointData,
             name: 'Stripe API Endpoint',
             url: 'https://stripe.com',
-          })
+          }),
         );
 
         const response = await request(app.getHttpServer())
@@ -183,7 +190,7 @@ describe('ApiPingMonitorModule (Integration)', () => {
     describe('GET /api-ping-monitor/endpoints/:id', () => {
       it('should retrieve a specific endpoint', async () => {
         const endpoint = await endpointRepository.save(
-          endpointRepository.create(testEndpointData)
+          endpointRepository.create(testEndpointData),
         );
 
         const response = await request(app.getHttpServer())
@@ -196,7 +203,7 @@ describe('ApiPingMonitorModule (Integration)', () => {
 
       it('should return 404 for non-existent endpoint', async () => {
         const fakeId = '123e4567-e89b-12d3-a456-426614174000';
-        
+
         await request(app.getHttpServer())
           .get(`/api-ping-monitor/endpoints/${fakeId}`)
           .expect(404);
@@ -212,7 +219,7 @@ describe('ApiPingMonitorModule (Integration)', () => {
     describe('PUT /api-ping-monitor/endpoints/:id', () => {
       it('should update an endpoint', async () => {
         const endpoint = await endpointRepository.save(
-          endpointRepository.create(testEndpointData)
+          endpointRepository.create(testEndpointData),
         );
 
         const updateData = {
@@ -242,7 +249,7 @@ describe('ApiPingMonitorModule (Integration)', () => {
           endpointRepository.create({
             ...testEndpointData,
             url: 'https://api1.example.com',
-          })
+          }),
         );
 
         const endpoint2 = await endpointRepository.save(
@@ -250,7 +257,7 @@ describe('ApiPingMonitorModule (Integration)', () => {
             ...testEndpointData,
             name: 'Second Endpoint',
             url: 'https://api2.example.com',
-          })
+          }),
         );
 
         await request(app.getHttpServer())
@@ -263,7 +270,7 @@ describe('ApiPingMonitorModule (Integration)', () => {
     describe('DELETE /api-ping-monitor/endpoints/:id', () => {
       it('should delete an endpoint', async () => {
         const endpoint = await endpointRepository.save(
-          endpointRepository.create(testEndpointData)
+          endpointRepository.create(testEndpointData),
         );
 
         await request(app.getHttpServer())
@@ -279,7 +286,7 @@ describe('ApiPingMonitorModule (Integration)', () => {
 
       it('should return 404 when deleting non-existent endpoint', async () => {
         const fakeId = '123e4567-e89b-12d3-a456-426614174000';
-        
+
         await request(app.getHttpServer())
           .delete(`/api-ping-monitor/endpoints/${fakeId}`)
           .expect(404);
@@ -292,7 +299,7 @@ describe('ApiPingMonitorModule (Integration)', () => {
           endpointRepository.create({
             ...testEndpointData,
             status: EndpointStatus.ACTIVE,
-          })
+          }),
         );
 
         const response = await request(app.getHttpServer())
@@ -316,7 +323,7 @@ describe('ApiPingMonitorModule (Integration)', () => {
           endpointRepository.create({
             ...testEndpointData,
             isActive: true,
-          })
+          }),
         );
 
         const response = await request(app.getHttpServer())
@@ -396,7 +403,7 @@ describe('ApiPingMonitorModule (Integration)', () => {
           endpointRepository.create({
             ...testEndpointData,
             url: 'https://httpbin.org/status/200', // Reliable test endpoint
-          })
+          }),
         );
 
         const manualPingData = {
@@ -439,7 +446,7 @@ describe('ApiPingMonitorModule (Integration)', () => {
         ]);
 
         const bulkPingData = {
-          endpointIds: endpoints.map(e => e.id),
+          endpointIds: endpoints.map((e) => e.id),
           saveResults: true,
           includeDetails: false,
         };
@@ -451,7 +458,7 @@ describe('ApiPingMonitorModule (Integration)', () => {
 
         expect(response.body).toBeInstanceOf(Array);
         expect(response.body).toHaveLength(2);
-        
+
         response.body.forEach((result: any) => {
           expect(result).toHaveProperty('endpointId');
           expect(result).toHaveProperty('status');
@@ -533,7 +540,7 @@ describe('ApiPingMonitorModule (Integration)', () => {
     describe('GET /api-ping-monitor/analytics/uptime', () => {
       it('should retrieve uptime analytics with period filter', async () => {
         const endpoint = await endpointRepository.save(
-          endpointRepository.create(testEndpointData)
+          endpointRepository.create(testEndpointData),
         );
 
         // Create some ping results
@@ -610,7 +617,7 @@ describe('ApiPingMonitorModule (Integration)', () => {
 
     it('should handle concurrent requests properly', async () => {
       const promises = [];
-      
+
       // Create multiple endpoints concurrently
       for (let i = 0; i < 5; i++) {
         promises.push(
@@ -620,14 +627,14 @@ describe('ApiPingMonitorModule (Integration)', () => {
               ...testEndpointData,
               name: `Concurrent Endpoint ${i}`,
               url: `https://concurrent${i}.example.com`,
-            })
+            }),
         );
       }
 
       const responses = await Promise.all(promises);
-      
+
       // All should succeed
-      responses.forEach(response => {
+      responses.forEach((response) => {
         expect(response.status).toBe(201);
       });
 

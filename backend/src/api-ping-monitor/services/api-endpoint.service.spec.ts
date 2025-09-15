@@ -174,7 +174,7 @@ describe('ApiEndpointService', () => {
         skip: jest.fn().mockReturnThis(),
         take: jest.fn().mockReturnThis(),
         getManyAndCount: jest.fn().mockResolvedValue([[mockEndpoint], 1]),
-      };
+      } as any;
 
       endpointRepository.createQueryBuilder.mockReturnValue(mockQueryBuilder);
 

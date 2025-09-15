@@ -1,12 +1,17 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as request from 'supertest';
 
 import { ApiPingMonitorModule } from './api-ping-monitor.module';
-import { ApiEndpoint, HttpMethod, ApiProvider } from './entities/api-endpoint.entity';
-import { PingResult } from './entities/ping-result.entity';
+import {
+  ApiEndpoint,
+  HttpMethod,
+  ApiProvider,
+} from './entities/api-endpoint.entity';
+import { PingResult, PingStatus } from './entities/ping-result.entity';
 import { ApiMonitorService } from './services/api-monitor.service';
 import { ApiEndpointService } from './services/api-endpoint.service';
 import { ApiAnalyticsService } from './services/api-analytics.service';
@@ -69,7 +74,7 @@ describe('API Ping Monitor Performance Tests', () => {
               provider: ApiProvider.CUSTOM,
               intervalSeconds: 300,
               createdBy: 'performance-test',
-            })
+            }),
         );
       }
 
@@ -78,7 +83,7 @@ describe('API Ping Monitor Performance Tests', () => {
       const duration = endTime - startTime;
 
       // All requests should succeed
-      results.forEach(response => {
+      results.forEach((response) => {
         expect(response.status).toBe(201);
       });
 
@@ -89,7 +94,9 @@ describe('API Ping Monitor Performance Tests', () => {
       const endpointsCount = await endpointRepository.count();
       expect(endpointsCount).toBe(100);
 
-      console.log(`Created 100 endpoints in ${duration}ms (${(duration/100).toFixed(2)}ms per endpoint)`);
+      console.log(
+        `Created 100 endpoints in ${duration}ms (${(duration / 100).toFixed(2)}ms per endpoint)`,
+      );
     }, 45000);
 
     it('should handle bulk ping operations efficiently', async () => {
@@ -107,7 +114,7 @@ describe('API Ping Monitor Performance Tests', () => {
             timeoutMs: 10000,
             retryAttempts: 1,
             createdBy: 'bulk-performance-test',
-          })
+          }),
         );
         endpoints.push(endpoint);
       }
@@ -117,7 +124,7 @@ describe('API Ping Monitor Performance Tests', () => {
       const response = await request(app.getHttpServer())
         .post('/api-ping-monitor/ping/bulk')
         .send({
-          endpointIds: endpoints.map(e => e.id),
+          endpointIds: endpoints.map((e) => e.id),
           saveResults: true,
           includeDetails: false,
         })
@@ -135,7 +142,9 @@ describe('API Ping Monitor Performance Tests', () => {
       const resultCount = await pingResultRepository.count();
       expect(resultCount).toBe(50);
 
-      console.log(`Bulk pinged 50 endpoints in ${duration}ms (${(duration/50).toFixed(2)}ms per ping)`);
+      console.log(
+        `Bulk pinged 50 endpoints in ${duration}ms (${(duration / 50).toFixed(2)}ms per ping)`,
+      );
     }, 75000);
 
     it('should handle large dataset queries efficiently', async () => {
@@ -149,7 +158,7 @@ describe('API Ping Monitor Performance Tests', () => {
           provider: ApiProvider.CUSTOM,
           intervalSeconds: 300,
           createdBy: 'large-dataset-test',
-        })
+        }),
       );
 
       // Create 1000 ping results
@@ -164,8 +173,8 @@ describe('API Ping Monitor Performance Tests', () => {
             isSuccess: i % 10 !== 0,
             isTimeout: i % 10 === 0,
             attemptNumber: 1,
-            createdAt: new Date(Date.now() - (i * 60000)), // Spread over time
-          })
+            createdAt: new Date(Date.now() - i * 60000), // Spread over time
+          }),
         );
       }
 
@@ -210,7 +219,7 @@ describe('API Ping Monitor Performance Tests', () => {
             provider: i % 2 === 0 ? ApiProvider.STRIPE : ApiProvider.GOOGLE,
             intervalSeconds: 300,
             createdBy: 'analytics-performance-test',
-          })
+          }),
         );
         endpoints.push(endpoint);
 
@@ -226,8 +235,8 @@ describe('API Ping Monitor Performance Tests', () => {
               isSuccess: j % 15 !== 0,
               isTimeout: j % 15 === 0,
               attemptNumber: 1,
-              createdAt: new Date(Date.now() - (j * 60000)), // Spread over time
-            })
+              createdAt: new Date(Date.now() - j * 60000), // Spread over time
+            }),
           );
         }
         await pingResultRepository.save(pingResults);
@@ -283,7 +292,7 @@ describe('API Ping Monitor Performance Tests', () => {
           provider: ApiProvider.CUSTOM,
           intervalSeconds: 300,
           createdBy: 'concurrent-analytics-test',
-        })
+        }),
       );
 
       // Create ping results
@@ -298,8 +307,8 @@ describe('API Ping Monitor Performance Tests', () => {
             isSuccess: i % 20 !== 0,
             isTimeout: i % 20 === 0,
             attemptNumber: 1,
-            createdAt: new Date(Date.now() - (i * 30000)),
-          })
+            createdAt: new Date(Date.now() - i * 30000),
+          }),
         );
       }
       await pingResultRepository.save(pingResults);
@@ -319,20 +328,21 @@ describe('API Ping Monitor Performance Tests', () => {
         request(app.getHttpServer())
           .get(`/api-ping-monitor/endpoints/${endpoint.id}/history`)
           .query({ days: 1 }),
-        request(app.getHttpServer())
-          .get('/api-ping-monitor/statistics'),
+        request(app.getHttpServer()).get('/api-ping-monitor/statistics'),
       ];
 
       const results = await Promise.all(promises);
       const endTime = Date.now();
 
-      results.forEach(response => {
+      results.forEach((response) => {
         expect(response.status).toBe(200);
       });
 
       expect(endTime - startTime).toBeLessThan(15000); // All should complete within 15 seconds
 
-      console.log(`5 concurrent analytics requests completed in ${endTime - startTime}ms`);
+      console.log(
+        `5 concurrent analytics requests completed in ${endTime - startTime}ms`,
+      );
     }, 30000);
   });
 
@@ -354,7 +364,7 @@ describe('API Ping Monitor Performance Tests', () => {
             timeoutMs: 5000,
             retryAttempts: 1,
             createdBy: 'memory-test',
-          })
+          }),
         );
         endpoints.push(endpoint);
       }
@@ -364,7 +374,7 @@ describe('API Ping Monitor Performance Tests', () => {
         await request(app.getHttpServer())
           .post('/api-ping-monitor/ping/bulk')
           .send({
-            endpointIds: endpoints.map(e => e.id),
+            endpointIds: endpoints.map((e) => e.id),
             saveResults: true,
             includeDetails: false,
           })
@@ -406,7 +416,7 @@ describe('API Ping Monitor Performance Tests', () => {
               provider: ApiProvider.CUSTOM,
               intervalSeconds: 300,
               createdBy: 'db-pool-test',
-            })
+            }),
         );
       }
 
@@ -414,7 +424,7 @@ describe('API Ping Monitor Performance Tests', () => {
       const endTime = Date.now();
 
       // All should succeed
-      results.forEach(response => {
+      results.forEach((response) => {
         expect(response.status).toBe(201);
       });
 
@@ -425,7 +435,9 @@ describe('API Ping Monitor Performance Tests', () => {
       const endpointCount = await endpointRepository.count();
       expect(endpointCount).toBe(50);
 
-      console.log(`50 concurrent database operations completed in ${endTime - startTime}ms`);
+      console.log(
+        `50 concurrent database operations completed in ${endTime - startTime}ms`,
+      );
     }, 30000);
   });
 
@@ -442,7 +454,7 @@ describe('API Ping Monitor Performance Tests', () => {
         // Create endpoints
         const endpoints = [];
         const createStartTime = Date.now();
-        
+
         for (let i = 0; i < size; i++) {
           const endpoint = await endpointRepository.save(
             endpointRepository.create({
@@ -455,7 +467,7 @@ describe('API Ping Monitor Performance Tests', () => {
               timeoutMs: 5000,
               retryAttempts: 1,
               createdBy: 'scale-test',
-            })
+            }),
           );
           endpoints.push(endpoint);
         }
@@ -467,7 +479,7 @@ describe('API Ping Monitor Performance Tests', () => {
         await request(app.getHttpServer())
           .post('/api-ping-monitor/ping/bulk')
           .send({
-            endpointIds: endpoints.map(e => e.id),
+            endpointIds: endpoints.map((e) => e.id),
             saveResults: true,
             includeDetails: false,
           })
@@ -492,10 +504,10 @@ describe('API Ping Monitor Performance Tests', () => {
 
       // Log results for analysis
       console.log('Scalability Test Results:');
-      results.forEach(result => {
+      results.forEach((result) => {
         console.log(`${result.size} endpoints:
-          - Create time: ${result.createTime}ms (${(result.createTime/result.size).toFixed(2)}ms/endpoint)
-          - Ping time: ${result.pingTime}ms (${(result.pingTime/result.size).toFixed(2)}ms/endpoint)  
+          - Create time: ${result.createTime}ms (${(result.createTime / result.size).toFixed(2)}ms/endpoint)
+          - Ping time: ${result.pingTime}ms (${(result.pingTime / result.size).toFixed(2)}ms/endpoint)  
           - Analytics time: ${result.analyticsTime}ms`);
       });
 
@@ -506,7 +518,6 @@ describe('API Ping Monitor Performance Tests', () => {
 
       // Scale ratio should be reasonable (not exponential growth)
       expect(scaleRatio).toBeLessThan(5); // Should not be more than 5x slower per endpoint
-
     }, 120000);
   });
 
@@ -514,21 +525,24 @@ describe('API Ping Monitor Performance Tests', () => {
     it('should handle errors efficiently without performance degradation', async () => {
       // Create mix of working and failing endpoints
       const endpoints = [];
-      
+
       for (let i = 0; i < 20; i++) {
         const endpoint = await endpointRepository.save(
           endpointRepository.create({
             name: `Error Test Endpoint ${i}`,
             description: `Error handling performance test ${i}`,
             // Mix of working and failing URLs
-            url: i % 2 === 0 ? 'https://httpbin.org/status/200' : 'https://httpbin.org/status/500',
+            url:
+              i % 2 === 0
+                ? 'https://httpbin.org/status/200'
+                : 'https://httpbin.org/status/500',
             method: HttpMethod.GET,
             provider: ApiProvider.CUSTOM,
             intervalSeconds: 300,
             timeoutMs: 5000,
             retryAttempts: 1,
             createdBy: 'error-performance-test',
-          })
+          }),
         );
         endpoints.push(endpoint);
       }
@@ -539,7 +553,7 @@ describe('API Ping Monitor Performance Tests', () => {
       const response = await request(app.getHttpServer())
         .post('/api-ping-monitor/ping/bulk')
         .send({
-          endpointIds: endpoints.map(e => e.id),
+          endpointIds: endpoints.map((e) => e.id),
           saveResults: true,
           includeDetails: true,
         })
@@ -550,7 +564,9 @@ describe('API Ping Monitor Performance Tests', () => {
 
       // Verify mixed results
       const successCount = response.body.filter((r: any) => r.isSuccess).length;
-      const failureCount = response.body.filter((r: any) => !r.isSuccess).length;
+      const failureCount = response.body.filter(
+        (r: any) => !r.isSuccess,
+      ).length;
 
       expect(successCount).toBe(10); // Half should succeed
       expect(failureCount).toBe(10); // Half should fail
@@ -558,7 +574,9 @@ describe('API Ping Monitor Performance Tests', () => {
       // Error handling should not significantly impact performance
       expect(duration).toBeLessThan(30000); // Should complete within 30 seconds
 
-      console.log(`Error handling performance: ${duration}ms for 20 mixed endpoints (${successCount} success, ${failureCount} failures)`);
+      console.log(
+        `Error handling performance: ${duration}ms for 20 mixed endpoints (${successCount} success, ${failureCount} failures)`,
+      );
     }, 45000);
   });
 });

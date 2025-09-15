@@ -9,21 +9,26 @@ This document provides a comprehensive overview of the test suite for the API Pi
 ### Test Files Created
 
 1. **Unit Tests**
+
    - `api-endpoint.service.spec.ts` - Unit tests for ApiEndpointService
-   - `api-monitor.service.spec.ts` - Unit tests for ApiMonitorService  
+   - `api-monitor.service.spec.ts` - Unit tests for ApiMonitorService
    - `api-notification.service.spec.ts` - Unit tests for ApiNotificationService
    - `api-analytics.service.spec.ts` - Unit tests for ApiAnalyticsService
 
 2. **Controller Tests**
+
    - `api-ping-monitor.controller.spec.ts` - Unit tests for the main controller
 
 3. **Integration Tests**
+
    - `api-ping-monitor.integration.spec.ts` - Integration tests for the complete module
 
 4. **End-to-End Tests**
+
    - `api-ping-monitor.e2e.spec.ts` - Full system workflow tests
 
 5. **Performance Tests**
+
    - `api-ping-monitor.performance.spec.ts` - Performance and scalability tests
 
 6. **Edge Case Tests**
@@ -34,6 +39,7 @@ This document provides a comprehensive overview of the test suite for the API Pi
 ### Unit Tests (Services)
 
 #### ApiEndpointService Tests
+
 - **CRUD Operations**: Create, read, update, delete endpoints
 - **Validation**: URL validation, duplicate prevention
 - **Bulk Operations**: Bulk updates, status toggles
@@ -42,6 +48,7 @@ This document provides a comprehensive overview of the test suite for the API Pi
 - **Error Handling**: Not found exceptions, validation errors
 
 #### ApiMonitorService Tests
+
 - **Scheduled Monitoring**: Automated ping scheduling
 - **Manual Operations**: Manual pings, bulk pings
 - **Retry Logic**: Retry attempts and delays
@@ -50,6 +57,7 @@ This document provides a comprehensive overview of the test suite for the API Pi
 - **Performance Metrics**: Response time tracking
 
 #### ApiNotificationService Tests
+
 - **Alert Handling**: Failure and recovery notifications
 - **Notification Channels**: Email, Slack, webhook notifications
 - **Cooldown Management**: Notification throttling
@@ -58,6 +66,7 @@ This document provides a comprehensive overview of the test suite for the API Pi
 - **Cleanup**: Memory management and resource cleanup
 
 #### ApiAnalyticsService Tests
+
 - **Uptime Analytics**: Uptime calculation and metrics
 - **Performance Analytics**: Response time analysis
 - **Incident Analytics**: Failure tracking and analysis
@@ -68,6 +77,7 @@ This document provides a comprehensive overview of the test suite for the API Pi
 ### Controller Tests
 
 #### ApiPingMonitorController Tests
+
 - **Endpoint Management**: All CRUD operations via HTTP
 - **Provider Operations**: Provider-specific endpoints
 - **Manual Ping Operations**: Manual and bulk ping requests
@@ -79,6 +89,7 @@ This document provides a comprehensive overview of the test suite for the API Pi
 ### Integration Tests
 
 #### Module Integration Tests
+
 - **Database Integration**: Real database operations
 - **Service Coordination**: Service interaction testing
 - **HTTP API Integration**: Complete request/response cycles
@@ -89,6 +100,7 @@ This document provides a comprehensive overview of the test suite for the API Pi
 ### End-to-End Tests
 
 #### Complete System Workflows
+
 - **Monitoring Lifecycle**: Complete monitoring workflow
 - **Real-time Simulation**: Concurrent monitoring activities
 - **Error Recovery**: Network failure and recovery scenarios
@@ -99,6 +111,7 @@ This document provides a comprehensive overview of the test suite for the API Pi
 ### Performance Tests
 
 #### Scalability and Performance
+
 - **Bulk Operations**: Large-scale endpoint and ping operations
 - **Analytics Performance**: Large dataset analytics
 - **Concurrent Operations**: Multi-user simulation
@@ -109,6 +122,7 @@ This document provides a comprehensive overview of the test suite for the API Pi
 ### Edge Case Tests
 
 #### Boundary Conditions and Error Scenarios
+
 - **Input Validation**: Extreme and invalid inputs
 - **Network Scenarios**: Timeout, DNS failures, connection issues
 - **Database Edge Cases**: Constraint violations, concurrent modifications
@@ -120,6 +134,7 @@ This document provides a comprehensive overview of the test suite for the API Pi
 ## Test Configuration
 
 ### Test Environment Setup
+
 ```typescript
 // In-memory SQLite database for isolation
 TypeOrmModule.forRoot({
@@ -128,16 +143,18 @@ TypeOrmModule.forRoot({
   entities: [ApiEndpoint, PingResult],
   synchronize: true,
   logging: false,
-})
+});
 ```
 
 ### Mock Strategy
+
 - **Repository Mocking**: TypeORM repository mocking for unit tests
 - **Service Mocking**: Service dependency mocking
 - **HTTP Mocking**: External HTTP request mocking
 - **Time Mocking**: Date/time mocking for consistent testing
 
 ### Test Data Management
+
 - **Factory Functions**: Reusable test data creation
 - **Database Cleanup**: Automatic cleanup between tests
 - **Isolation**: Each test runs in isolation
@@ -146,6 +163,7 @@ TypeOrmModule.forRoot({
 ## Running Tests
 
 ### Individual Test Suites
+
 ```bash
 # Unit tests only
 npm test -- --testPathPattern=".*\.spec\.ts$"
@@ -164,6 +182,7 @@ npm test -- --testPathPattern="edge-cases\.spec\.ts$"
 ```
 
 ### Complete Test Suite
+
 ```bash
 # Run all API ping monitor tests
 npm test -- --testPathPattern="api-ping-monitor.*\.spec\.ts$"
@@ -175,18 +194,21 @@ npm test -- --coverage --testPathPattern="api-ping-monitor"
 ## Test Metrics and Goals
 
 ### Coverage Targets
+
 - **Line Coverage**: > 95%
 - **Branch Coverage**: > 90%
 - **Function Coverage**: > 95%
 - **Statement Coverage**: > 95%
 
 ### Performance Benchmarks
+
 - **Unit Tests**: < 50ms per test
 - **Integration Tests**: < 500ms per test
 - **E2E Tests**: < 5000ms per test
 - **Performance Tests**: Baseline establishment
 
 ### Quality Metrics
+
 - **Test Reliability**: < 1% flaky test rate
 - **Test Maintainability**: Clear, readable test code
 - **Test Documentation**: Comprehensive test descriptions
@@ -195,6 +217,7 @@ npm test -- --coverage --testPathPattern="api-ping-monitor"
 ## Test Maintenance
 
 ### Best Practices
+
 1. **Test Naming**: Descriptive test names explaining the scenario
 2. **Test Structure**: Arrange-Act-Assert pattern
 3. **Test Data**: Minimal, focused test data
@@ -202,6 +225,7 @@ npm test -- --coverage --testPathPattern="api-ping-monitor"
 5. **Error Testing**: Comprehensive error scenario coverage
 
 ### Regular Maintenance Tasks
+
 1. **Test Review**: Regular review of test effectiveness
 2. **Performance Monitoring**: Track test execution times
 3. **Coverage Analysis**: Monitor and improve coverage
@@ -211,12 +235,14 @@ npm test -- --coverage --testPathPattern="api-ping-monitor"
 ## Continuous Integration
 
 ### CI Pipeline Integration
+
 - **Pre-commit**: Unit tests run before commit
 - **Pull Request**: Full test suite on PR creation
 - **Deployment**: Integration and E2E tests before deployment
 - **Performance**: Performance tests on release candidates
 
 ### Test Reporting
+
 - **Coverage Reports**: Automated coverage reporting
 - **Performance Metrics**: Performance benchmark tracking
 - **Failure Analysis**: Detailed failure investigation
@@ -225,6 +251,7 @@ npm test -- --coverage --testPathPattern="api-ping-monitor"
 ## Future Enhancements
 
 ### Planned Test Improvements
+
 1. **Mutation Testing**: Code quality validation
 2. **Load Testing**: Extended performance validation
 3. **Security Testing**: Automated security scanning
@@ -232,6 +259,7 @@ npm test -- --coverage --testPathPattern="api-ping-monitor"
 5. **Contract Testing**: API contract validation
 
 ### Test Automation Enhancements
+
 1. **Test Generation**: Automated test case generation
 2. **Data Generation**: Dynamic test data creation
 3. **Environment Management**: Automated test environment setup

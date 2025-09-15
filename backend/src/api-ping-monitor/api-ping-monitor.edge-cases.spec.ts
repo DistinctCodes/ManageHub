@@ -5,7 +5,12 @@ import { Repository } from 'typeorm';
 import * as request from 'supertest';
 
 import { ApiPingMonitorModule } from './api-ping-monitor.module';
-import { ApiEndpoint, EndpointStatus, HttpMethod, ApiProvider } from './entities/api-endpoint.entity';
+import {
+  ApiEndpoint,
+  EndpointStatus,
+  HttpMethod,
+  ApiProvider,
+} from './entities/api-endpoint.entity';
 import { PingResult, PingStatus } from './entities/ping-result.entity';
 
 describe('API Ping Monitor Edge Cases and Error Scenarios', () => {
@@ -28,8 +33,10 @@ describe('API Ping Monitor Edge Cases and Error Scenarios', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true }));
-    
+    app.useGlobalPipes(
+      new ValidationPipe({ transform: true, whitelist: true }),
+    );
+
     await app.init();
 
     endpointRepository = moduleFixture.get('ApiEndpointRepository');
@@ -62,7 +69,7 @@ describe('API Ping Monitor Edge Cases and Error Scenarios', () => {
 
       // Should either accept it (if within limit) or reject with proper error
       expect([201, 400]).toContain(response.status);
-      
+
       if (response.status === 400) {
         expect(response.body.message).toBeDefined();
       }
@@ -117,7 +124,10 @@ describe('API Ping Monitor Edge Cases and Error Scenarios', () => {
 
     it('should handle boundary values for numeric fields', async () => {
       const testCases = [
-        { field: 'intervalSeconds', values: [0, -1, 1, 2147483647, 2147483648] },
+        {
+          field: 'intervalSeconds',
+          values: [0, -1, 1, 2147483647, 2147483648],
+        },
         { field: 'timeoutMs', values: [0, -1, 1, 2147483647, 2147483648] },
         { field: 'retryAttempts', values: [-1, 0, 1, 100, 1000] },
         { field: 'retryDelayMs', values: [0, -1, 1, 2147483647] },
@@ -178,7 +188,10 @@ describe('API Ping Monitor Edge Cases and Error Scenarios', () => {
         { url: 'ftp://example.com', shouldWork: false },
         { url: 'file:///etc/passwd', shouldWork: false },
         { url: 'javascript:alert("xss")', shouldWork: false },
-        { url: 'data:text/html,<script>alert("xss")</script>', shouldWork: false },
+        {
+          url: 'data:text/html,<script>alert("xss")</script>',
+          shouldWork: false,
+        },
         { url: 'localhost:3000', shouldWork: false }, // No scheme
         { url: '192.168.1.1', shouldWork: false }, // No scheme
         { url: 'https://', shouldWork: false }, // Incomplete URL
@@ -216,7 +229,7 @@ describe('API Ping Monitor Edge Cases and Error Scenarios', () => {
           timeoutMs: 2000, // 2 second timeout
           retryAttempts: 1,
           createdBy: 'timeout-test',
-        })
+        }),
       );
 
       const response = await request(app.getHttpServer())
@@ -243,7 +256,7 @@ describe('API Ping Monitor Edge Cases and Error Scenarios', () => {
           timeoutMs: 5000,
           retryAttempts: 1,
           createdBy: 'dns-test',
-        })
+        }),
       );
 
       const response = await request(app.getHttpServer())
@@ -256,7 +269,9 @@ describe('API Ping Monitor Edge Cases and Error Scenarios', () => {
         .expect(200);
 
       expect(response.body.isSuccess).toBe(false);
-      expect([PingStatus.DNS_ERROR, PingStatus.CONNECTION_ERROR]).toContain(response.body.status);
+      expect([PingStatus.DNS_ERROR, PingStatus.CONNECTION_ERROR]).toContain(
+        response.body.status,
+      );
     }, 15000);
 
     it('should handle connection refused scenarios', async () => {
@@ -270,7 +285,7 @@ describe('API Ping Monitor Edge Cases and Error Scenarios', () => {
           timeoutMs: 5000,
           retryAttempts: 1,
           createdBy: 'connection-test',
-        })
+        }),
       );
 
       const response = await request(app.getHttpServer())
@@ -327,7 +342,7 @@ describe('API Ping Monitor Edge Cases and Error Scenarios', () => {
           method: HttpMethod.GET,
           provider: ApiProvider.CUSTOM,
           createdBy: 'concurrent-test',
-        })
+        }),
       );
 
       // Perform concurrent updates
@@ -339,14 +354,14 @@ describe('API Ping Monitor Edge Cases and Error Scenarios', () => {
             .send({
               name: `Updated Name ${i}`,
               description: `Updated by concurrent operation ${i}`,
-            })
+            }),
         );
       }
 
       const results = await Promise.all(promises);
 
       // At least one should succeed
-      const successfulUpdates = results.filter(r => r.status === 200);
+      const successfulUpdates = results.filter((r) => r.status === 200);
       expect(successfulUpdates.length).toBeGreaterThan(0);
 
       // Verify final state is consistent
@@ -366,7 +381,7 @@ describe('API Ping Monitor Edge Cases and Error Scenarios', () => {
           method: HttpMethod.GET,
           provider: ApiProvider.CUSTOM,
           createdBy: 'orphan-test',
-        })
+        }),
       );
 
       // Create ping results
@@ -476,7 +491,7 @@ describe('API Ping Monitor Edge Cases and Error Scenarios', () => {
           provider: ApiProvider.CUSTOM,
           timeoutMs: 1000,
           createdBy: 'rapid-test',
-        })
+        }),
       );
 
       // Send 20 requests rapidly
@@ -489,14 +504,14 @@ describe('API Ping Monitor Edge Cases and Error Scenarios', () => {
               endpointId: endpoint.id,
               saveResult: true,
               includeDetails: false,
-            })
+            }),
         );
       }
 
       const results = await Promise.all(promises);
 
       // All should return some response (not necessarily success)
-      results.forEach(response => {
+      results.forEach((response) => {
         expect([200, 429, 503]).toContain(response.status);
       });
     }, 30000);
@@ -531,7 +546,7 @@ describe('API Ping Monitor Edge Cases and Error Scenarios', () => {
 
       // Should handle gracefully, likely returning empty results
       expect([200, 400]).toContain(response.status);
-      
+
       if (response.status === 200) {
         expect(response.body).toBeInstanceOf(Array);
         expect(response.body).toHaveLength(0);
@@ -567,7 +582,7 @@ describe('API Ping Monitor Edge Cases and Error Scenarios', () => {
           method: HttpMethod.GET,
           provider: ApiProvider.CUSTOM,
           createdBy: 'date-test',
-        })
+        }),
       );
 
       const edgeCasePeriods = ['1h', '24h', '7d', '30d'];
@@ -594,7 +609,7 @@ describe('API Ping Monitor Edge Cases and Error Scenarios', () => {
             method: HttpMethod.GET,
             provider: ApiProvider.CUSTOM,
             createdBy: 'pagination-test',
-          })
+          }),
         );
         endpoints.push(endpoint);
       }
@@ -615,7 +630,7 @@ describe('API Ping Monitor Edge Cases and Error Scenarios', () => {
 
         // Should handle gracefully
         expect([200, 400]).toContain(response.status);
-        
+
         if (response.status === 200) {
           expect(response.body).toHaveProperty('endpoints');
           expect(response.body.endpoints).toBeInstanceOf(Array);
@@ -636,7 +651,7 @@ describe('API Ping Monitor Edge Cases and Error Scenarios', () => {
           retryAttempts: 3,
           retryDelayMs: 100,
           createdBy: 'recovery-test',
-        })
+        }),
       );
 
       // Initial failure
@@ -686,7 +701,7 @@ describe('API Ping Monitor Edge Cases and Error Scenarios', () => {
             timeoutMs: 2000,
             retryAttempts: 1,
             createdBy: 'error-rate-test',
-          })
+          }),
         );
         endpoints.push(endpoint);
       }
@@ -695,7 +710,7 @@ describe('API Ping Monitor Edge Cases and Error Scenarios', () => {
       const response = await request(app.getHttpServer())
         .post('/api-ping-monitor/ping/bulk')
         .send({
-          endpointIds: endpoints.map(e => e.id),
+          endpointIds: endpoints.map((e) => e.id),
           saveResults: true,
           includeDetails: false,
         })
