@@ -299,6 +299,9 @@ export class RsvpService {
 
       const savedRsvp = await this.rsvpRepository.save(rsvp);
 
+      // Send check-in confirmation email
+      await this.emailNotificationService.sendCheckInConfirmation(savedRsvp, rsvp.event);
+
       this.logger.log(`Attendee checked in successfully: ${savedRsvp.id}`);
       return savedRsvp;
     } catch (error) {
@@ -529,6 +532,9 @@ export class RsvpService {
 
           await this.rsvpRepository.save(nextInLine);
 
+          // Send promotion email
+          await this.emailNotificationService.sendPromotionFromWaitlist(nextInLine, event);
+
           // Update waitlist positions for remaining people
           await this.updateWaitlistPositions(eventId);
 
@@ -551,4 +557,18 @@ export class RsvpService {
           eventId,
           status: RsvpStatus.WAITLISTED,
         },
-        order: { waitlistPosition
+        order: { waitlistPosition: 'ASC' },
+      });
+
+      for (let i = 0; i < waitlistedRsvps.length; i++) {
+        waitlistedRsvps[i].waitlistPosition = i + 1;
+      }
+
+      await this.rsvpRepository.save(waitlistedRsvps);
+    } catch (error) {
+      this.logger.error(
+        `Failed to update waitlist positions for event ${eventId}: ${error.message}`,
+      );
+    }
+  }
+}

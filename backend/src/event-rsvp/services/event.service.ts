@@ -8,9 +8,11 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindOptionsWhere, Like, Between, In } from 'typeorm';
 import { Event, EventStatus, EventType } from '../entities/event.entity';
+import { EventRsvp } from '../entities/event-rsvp.entity';
 import { CreateEventDto } from '../dto/create-event.dto';
 import { UpdateEventDto } from '../dto/update-event.dto';
 import { EventQueryDto } from '../dto/event-query.dto';
+import { EmailNotificationService } from './email-notification.service';
 
 export interface EventStatistics {
   totalEvents: number;
@@ -45,6 +47,9 @@ export class EventService {
   constructor(
     @InjectRepository(Event)
     private eventRepository: Repository<Event>,
+    @InjectRepository(EventRsvp)
+    private rsvpRepository: Repository<EventRsvp>,
+    private emailNotificationService: EmailNotificationService,
   ) {}
 
   async create(createEventDto: CreateEventDto): Promise<Event> {
@@ -226,6 +231,7 @@ export class EventService {
   async update(id: string, updateEventDto: UpdateEventDto): Promise<Event> {
     try {
       const event = await this.findOne(id);
+      const originalData = { ...event };
 
       // Validate dates if provided
       if (updateEventDto.startDate || updateEventDto.endDate) {
@@ -264,6 +270,12 @@ export class EventService {
 
       Object.assign(event, updatedData);
       const savedEvent = await this.eventRepository.save(event);
+
+      // Send update notifications if significant changes occurred
+      const significantChanges = this.detectSignificantChanges(originalData, savedEvent);
+      if (significantChanges.length > 0 && savedEvent.status === EventStatus.PUBLISHED) {
+        await this.notifyAttendeesOfUpdates(savedEvent, significantChanges);
+      }
 
       this.logger.log(`Event updated successfully: ${savedEvent.id}`);
       return savedEvent;
@@ -335,6 +347,9 @@ export class EventService {
       }
 
       const savedEvent = await this.eventRepository.save(event);
+
+      // Notify all attendees about cancellation
+      await this.notifyAttendeesOfCancellation(savedEvent, reason);
 
       this.logger.log(`Event cancelled successfully: ${savedEvent.id}`);
       return savedEvent;
@@ -504,6 +519,74 @@ export class EventService {
         `Failed to get events for organizer ${organizerId}: ${error.message}`,
       );
       throw error;
+    }
+  }
+
+  private detectSignificantChanges(original: Event, updated: Event): string[] {
+    const changes: string[] = [];
+
+    if (original.startDate.getTime() !== updated.startDate.getTime()) {
+      changes.push(`Event date changed from ${original.startDate.toLocaleDateString()} to ${updated.startDate.toLocaleDateString()}`);
+    }
+
+    if (original.location !== updated.location) {
+      changes.push(`Location changed from "${original.location}" to "${updated.location}"`);
+    }
+
+    if (original.title !== updated.title) {
+      changes.push(`Event title changed to "${updated.title}"`);
+    }
+
+    return changes;
+  }
+
+  private async notifyAttendeesOfUpdates(event: Event, changes: string[]): Promise<void> {
+    try {
+      const rsvps = await this.rsvpRepository.find({
+        where: {
+          eventId: event.id,
+          status: In(['confirmed', 'waitlisted']),
+        },
+        relations: ['event'],
+      });
+
+      const updateMessage = changes.join('. ');
+
+      for (const rsvp of rsvps) {
+        try {
+          await this.emailNotificationService.sendEventUpdate(rsvp, event, updateMessage);
+        } catch (error) {
+          this.logger.error(`Failed to send update notification to ${rsvp.attendeeEmail}: ${error.message}`);
+        }
+      }
+
+      this.logger.log(`Update notifications sent to ${rsvps.length} attendees for event ${event.id}`);
+    } catch (error) {
+      this.logger.error(`Failed to notify attendees of updates: ${error.message}`);
+    }
+  }
+
+  private async notifyAttendeesOfCancellation(event: Event, reason?: string): Promise<void> {
+    try {
+      const rsvps = await this.rsvpRepository.find({
+        where: {
+          eventId: event.id,
+          status: In(['confirmed', 'waitlisted']),
+        },
+        relations: ['event'],
+      });
+
+      for (const rsvp of rsvps) {
+        try {
+          await this.emailNotificationService.sendEventCancellation(rsvp, event, reason);
+        } catch (error) {
+          this.logger.error(`Failed to send cancellation notification to ${rsvp.attendeeEmail}: ${error.message}`);
+        }
+      }
+
+      this.logger.log(`Cancellation notifications sent to ${rsvps.length} attendees for event ${event.id}`);
+    } catch (error) {
+      this.logger.error(`Failed to notify attendees of cancellation: ${error.message}`);
     }
   }
 }

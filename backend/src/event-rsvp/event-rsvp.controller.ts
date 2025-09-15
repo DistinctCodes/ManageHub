@@ -14,18 +14,22 @@ import {
 } from '@nestjs/common';
 import { EventService } from './services/event.service';
 import { RsvpService } from './services/rsvp.service';
+import { EventTemplateService } from './services/event-template.service';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { CreateRsvpDto } from './dto/create-rsvp.dto';
 import { UpdateRsvpDto } from './dto/update-rsvp.dto';
 import { EventQueryDto } from './dto/event-query.dto';
 import { RsvpQueryDto } from './dto/rsvp-query.dto';
+import { CreateEventTemplateDto } from './dto/create-event-template.dto';
+import { CreateEventFromTemplateDto, CreateEventSeriesDto } from './dto/create-event-from-template.dto';
 
 @Controller('event-rsvp')
 export class EventRsvpController {
   constructor(
     private readonly eventService: EventService,
     private readonly rsvpService: RsvpService,
+    private readonly eventTemplateService: EventTemplateService,
   ) {}
 
   // Event Management Endpoints
