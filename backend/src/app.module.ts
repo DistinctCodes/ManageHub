@@ -32,6 +32,7 @@ import { WorkLogModule } from './remote-work-log/work-log.module';
 
 import { SafetyTipsModule } from './safety-tips/safety-tips.module';
 import { EquipmentQueueModule } from './equipment-queue/equipment-queue.module';
+import { FAQModule } from './faq/faq.module';
 
 
 @Module({
@@ -64,6 +65,7 @@ import { EquipmentQueueModule } from './equipment-queue/equipment-queue.module';
     WorkLogModule,
   SafetyTipsModule,
   EquipmentQueueModule,
+  FAQModule,
   ],
   controllers: [AppController],
   providers: [AppService, LibraryService],

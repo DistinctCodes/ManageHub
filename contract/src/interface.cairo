@@ -12,12 +12,9 @@ trait IUserManager<TContractState> {
 
 #[starknet::interface]
 trait IWorkspaceManager<TContractState> {
-    fn create_workspace(ref self: TContractState, name: felt252, capacity: u32, workspace_type: u8);
-    fn allocate_workspace(ref self: TContractState, user_address: ContractAddress, workspace_id: u32);
-    fn deallocate_workspace(ref self: TContractState, user_address: ContractAddress, workspace_id: u32);
-    fn get_workspace_occupancy(self: @TContractState, workspace_id: u32) -> u32;
-    fn is_workspace_available(self: @TContractState, workspace_id: u32) -> bool;
-    fn set_workspace_maintenance(ref self: TContractState, workspace_id: u32, is_maintenance: bool);
+    fn create_workspace(ref self: TContractState, name: felt252, capacity: u32) -> u32;
+    fn assign_user_to_workspace(ref self: TContractState, user: ContractAddress, workspace_id: u32) -> bool;
+    fn get_workspace_info(self: @TContractState, workspace_id: u32) -> (felt252, u32, u32, bool);
 }
 
 #[starknet::interface]
