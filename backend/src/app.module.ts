@@ -28,17 +28,16 @@ import { StaffModule } from './staff/staff.module';
 import { LocationModule } from './location/location.module';
 import { WorkspacePreferencesModule } from './work-space-preference/work-space-preference.module';
 import { WorkLogModule } from './remote-work-log/work-log.module';
-
 import { SafetyTipsModule } from './safety-tips/safety-tips.module';
 import { EquipmentQueueModule } from './equipment-queue/equipment-queue.module';
 import { DeviceTrackerModule } from './device-tracker/device-tracker.module';
 import { EventRsvpModule } from './event-rsvp/event-rsvp.module';
 import { ApiPingMonitorModule } from './api-ping-monitor/api-ping-monitor.module';
+import { FAQModule } from './faq/faq.module';
 
 @Module({
   imports: [
     ScheduleModule.forRoot(),
-
     BadgesModule,
     InternetSpeedModule,
     LibraryModule,
@@ -68,6 +67,9 @@ import { ApiPingMonitorModule } from './api-ping-monitor/api-ping-monitor.module
     DeviceTrackerModule,
     EventRsvpModule,
     ApiPingMonitorModule,
+  SafetyTipsModule,
+  EquipmentQueueModule,
+  FAQModule,
   ],
   controllers: [AppController],
   providers: [AppService, LibraryService],
