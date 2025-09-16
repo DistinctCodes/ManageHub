@@ -23,22 +23,21 @@ import { ParkingModule } from './parking/parking.module';
 import { SurveysModule } from './surveys/surveys.module';
 import { PartnersModule } from './partners/partners.module';
 import { DonationsModule } from 'donations/donations.module';
-import { ShiftsModule } from './shifts/shifts.module';
+import { ShiftModule } from './shifts/shifts.module';
 import { StaffModule } from './staff/staff.module';
 import { LocationModule } from './location/location.module';
-import { WorkSpacePreferenceModule } from './work-space-preference/work-space-preference.module';
+import { WorkspacePreferencesModule } from './work-space-preference/work-space-preference.module';
 import { WorkLogModule } from './remote-work-log/work-log.module';
-
-
 import { SafetyTipsModule } from './safety-tips/safety-tips.module';
 import { EquipmentQueueModule } from './equipment-queue/equipment-queue.module';
+import { DeviceTrackerModule } from './device-tracker/device-tracker.module';
+import { EventRsvpModule } from './event-rsvp/event-rsvp.module';
+import { ApiPingMonitorModule } from './api-ping-monitor/api-ping-monitor.module';
 import { FAQModule } from './faq/faq.module';
-
 
 @Module({
   imports: [
     ScheduleModule.forRoot(),
-
     BadgesModule,
     InternetSpeedModule,
     LibraryModule,
@@ -58,11 +57,16 @@ import { FAQModule } from './faq/faq.module';
     SurveysModule,
     PartnersModule,
     DonationsModule,
-    ShiftsModule,
+    ShiftModule,
     StaffModule,
     LocationModule,
-    WorkSpacePreferenceModule,
+    WorkspacePreferencesModule,
     WorkLogModule,
+    SafetyTipsModule,
+    EquipmentQueueModule,
+    DeviceTrackerModule,
+    EventRsvpModule,
+    ApiPingMonitorModule,
   SafetyTipsModule,
   EquipmentQueueModule,
   FAQModule,
