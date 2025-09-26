@@ -1,129 +1,52 @@
-const isBrowser = typeof window !== undefined;
+const AUTH_TOKEN_KEY = "authToken";
+const AUTH_USER_KEY = "authUser";
 
+export const storage = {
+  // [1] A WAY OF WRITING A METHOD/FUNCTION PROPERTY INSIDE AN OBJECT
+  //   getToken: function (): string | null {
+  //     if (typeof window === "undefined") null;
+  //     return localStorage.getItem(AUTH_TOKEN_KEY);
+  //   },
 
-const getNamespacedKey = (key: string): string => {
-  return `manageHub_${key}`;
+  // [2] A SHORTHAND WAY OF WRITING A METHOD/FUNCTION PROPERTY INSIDE AN OBJECT
+  getToken(): string | null {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem(AUTH_TOKEN_KEY);
+  },
+
+  setToken(token: string): void {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(AUTH_TOKEN_KEY, token);
+    // set the token to cookie as well for middleware access
+    document.cookie = `authToken=${token}; path=/; max-age=${1 * 24 * 60 * 60}`; // 1 day - Access Token
+  },
+
+  removeToken(): void {
+    if (typeof window === "undefined") return;
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    document.cookie = `authToken=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT`;
+  },
+
+  getUser(): any | null {
+    if (typeof window === "undefined") return null;
+    const user = localStorage.getItem(AUTH_USER_KEY);
+    return user ? JSON.parse(user) : null;
+  },
+
+  setUser(user: any): void {
+    if (typeof window === "undefined") return;
+    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+  },
+
+  removeUser(): void {
+    if (typeof window === "undefined") return;
+    localStorage.removeItem(AUTH_USER_KEY);
+  },
+
+  clear(): void {
+    if (typeof window === "undefined") return;
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    localStorage.removeItem(AUTH_USER_KEY);
+    document.cookie = `authToken=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT`;
+  },
 };
-
-const getFromLocalStorage = <T>(key: string, parseData: boolean = true) => {
-  if (!isBrowser) return null;
-
-  const namespacedKey = getNamespacedKey(key);
-  const data = localStorage.getItem(namespacedKey);
-  if (data) {
-    return parseData ? (JSON.parse(data) as T) : (data as T);
-  }
-  return data as T;
-};
-
-const saveToLocalStorage = <T>(key: string, value: T) => {
-  if (!isBrowser) return false;
-
-  const namespacedKey = getNamespacedKey(key);
-  if (localStorage.getItem(namespacedKey)) localStorage.removeItem(namespacedKey);
-  try {
-    localStorage.setItem(namespacedKey, JSON.stringify(value));
-    setCookie(namespacedKey, JSON.stringify(value))
-    return true;
-  } catch (error) {
-    console.log(error);
-    return false;
-  }
-};
-
-const removeFromLocalStorage = (key: string) => {
-  if (!isBrowser) return false;
-
-  const namespacedKey = getNamespacedKey(key);
-  try {
-    localStorage.removeItem(namespacedKey);
-    deleteCookie(namespacedKey);
-    return true;
-  } catch (error) {
-    console.log(error);
-    return false;
-  }
-};
-
-
-const setCookie = (key: string, value: string, days: number = 1): void => {
-  if (!isBrowser) return;
-  
-  const maxAge = days * 24 * 60 * 60;
-  document.cookie = `${encodeURIComponent(key)}=${encodeURIComponent(
-    value
-  )}; max-age=${maxAge}; path=/`;
-};
-
-// Added a get cookie helper function should the need arise
-// Add to exported storage object if required
-const getCookie = (key: string): string | null => {
-  if (!isBrowser) return null;
-
-  return document.cookie
-    .split("; ")
-    .find((row) => row.startsWith(`${encodeURIComponent(key)}=`))
-    ?.split("=")[1]
-    ? decodeURIComponent(
-        document.cookie
-          .split("; ")
-          .find((row) => row.startsWith(`${encodeURIComponent(key)}=`))
-          ?.split("=")[1] || ""
-      )
-    : null;
-};
-
-const deleteCookie = (key: string): void => {
-  if (!isBrowser) return;
-
-  document.cookie = `${encodeURIComponent(
-    key
-  )}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
-};
-
-
-// Token utils
-const getToken = () => {
-  return getFromLocalStorage("token", false)
-}
-
-const setToken = (token: string) => {
-  return saveToLocalStorage("token", token)
-}
-
-const removeToken = () => {
-  return removeFromLocalStorage("token");
-}
-
-
-// User utils
-const getUser = () => {
-  return getFromLocalStorage("user")
-}
-
-const setUser = (user: any) => {
-  return saveToLocalStorage("user", user)
-}
-
-const removeUser = () => {
-  return removeFromLocalStorage("user");
-}
-
-
-const clear = () => {
-  removeToken();
-  removeUser();
-}
-
-
-const storage = {
-  getToken,
-  setToken,
-  removeToken,
-  getUser,
-  setUser,
-  removeUser,
-  clear,
-};
-
-export default storage;
