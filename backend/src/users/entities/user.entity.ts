@@ -1,4 +1,13 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  OneToMany,
+  CreateDateColumn,
+  UpdateDateColumn,
+  DeleteDateColumn,
+} from 'typeorm';
+import { RefreshToken } from '../../auth/entities/refreshToken.entity';
 import { UserRole } from '../enums/userRoles.enum';
 
 @Entity('users')
@@ -6,19 +15,19 @@ export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ length: 30 })
+  @Column()
   firstname: string;
 
-  @Column({ length: 30 })
+  @Column()
   lastname: string;
 
-  @Column({ length: 20, nullable: true })
+  @Column({ nullable: true })
   username?: string;
 
-  @Column({ length: 50, unique: true })
+  @Column({ unique: true })
   email: string;
 
-  @Column({ length: 80 })
+  @Column()
   password: string;
 
   @Column({
@@ -28,18 +37,30 @@ export class User {
   })
   role: UserRole;
 
+  @Column({ nullable: true })
+  passwordResetToken?: string;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  passwordResetExpiresIn?: Date;
+
   @Column({ default: true })
   isActive: boolean;
 
   @Column({ default: false })
-  isSuspended: boolean;
+  isDeleted: boolean;
 
   @Column({ default: false })
-  isDeleted: boolean;
+  isSuspended: boolean;
+
+  @OneToMany(() => RefreshToken, (refreshToken) => refreshToken.user)
+  refreshTokens: RefreshToken[];
 
   @CreateDateColumn()
   createdAt: Date;
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @DeleteDateColumn()
+  deletedAt: Date;
 }
