@@ -5,6 +5,7 @@ import {
   ManyToOne,
   CreateDateColumn,
   UpdateDateColumn,
+  JoinColumn
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 
@@ -34,7 +35,9 @@ export class RefreshToken {
   @ManyToOne(() => User, (user) => user.refreshTokens, {
     onDelete: 'CASCADE',
   })
-  user: User;
+  
+@JoinColumn() 
+user: User;
 
   @CreateDateColumn()
   createdAt: Date;
