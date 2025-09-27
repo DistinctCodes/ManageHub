@@ -98,4 +98,5 @@ class ApiClient {
     return this.request<T>(endpoint, "DELETE");
   }
 }
-export default ApiClient;
+const apiClient = new ApiClient();
+export default apiClient;
