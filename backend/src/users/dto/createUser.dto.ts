@@ -1,11 +1,13 @@
-import { IsString, IsEmail, IsOptional, MinLength, MaxLength, Matches } from 'class-validator';
+import { IsString, IsEmail, IsOptional, MinLength, MaxLength, Matches, IsNotEmpty } from 'class-validator';
 
 export class CreateUserDto {
+  @IsNotEmpty()
   @IsString()
   @MinLength(1)
   @MaxLength(30)
   firstname: string;
 
+  @IsNotEmpty()
   @IsString()
   @MinLength(1)
   @MaxLength(30)
@@ -17,10 +19,12 @@ export class CreateUserDto {
   @MaxLength(20)
   username?: string;
 
+  @IsNotEmpty()
   @IsEmail()
   @MaxLength(50)
   email: string;
 
+  @IsNotEmpty()
   @IsString()
   @MinLength(8)
   @MaxLength(80)
