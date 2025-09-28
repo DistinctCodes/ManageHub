@@ -6,6 +6,9 @@ import { AuthService } from './providers/auth.service';
 import { UsersModule } from '../users/users.module';
 import { HashingProvider } from './providers/hashing.provider';
 import { BcryptProvider } from './providers/bcrypt.provider';
+import { LocalStrategy } from './strategies/local.strategy';
+import { JwtStrategy } from './strategies/jwt.strategy';
+import { JwtRefreshStrategy } from './strategies/jwtRefresh.strategy';
 
 @Module({
   imports: [
@@ -13,10 +16,16 @@ import { BcryptProvider } from './providers/bcrypt.provider';
     forwardRef(() => UsersModule)
   ],
   controllers: [AuthController],
-  providers: [AuthService,    {
+  providers: [
+    AuthService,
+    {
       provide: HashingProvider,
       useClass: BcryptProvider,
-    },],
-  exports: [AuthService]
+    },
+        LocalStrategy,
+    JwtStrategy,
+    JwtRefreshStrategy,
+  ],
+  exports: [AuthService, HashingProvider]
 })
 export class AuthModule {}
