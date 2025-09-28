@@ -11,7 +11,10 @@ import { UsersModule } from '../users/users.module';
     forwardRef(() => UsersModule)
   ],
   controllers: [AuthController],
-  providers: [AuthService],
+  providers: [AuthService,    {
+      provide: HashingProvider,
+      useClass: BcryptProvider,
+    },],
   exports: [AuthService]
 })
 export class AuthModule {}
