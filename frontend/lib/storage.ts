@@ -20,13 +20,13 @@ export const storage = {
     document.cookie = `authToken=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT`;
   },
 
-  getUser(): any | null {
+  getUser(): unknown | null {
     if (typeof window === "undefined") return null;
     const user = localStorage.getItem(AUTH_USER_KEY);
     return user ? JSON.parse(user) : null;
   },
 
-  setUser(user: any): void {
+  setUser(user: unknown): void {
     if (typeof window === "undefined") return;
     localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
   },
