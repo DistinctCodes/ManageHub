@@ -1,14 +1,9 @@
+import { User } from "./types/user";
+
 const AUTH_TOKEN_KEY = "authToken";
 const AUTH_USER_KEY = "authUser";
 
 export const storage = {
-  // [1] A WAY OF WRITING A METHOD/FUNCTION PROPERTY INSIDE AN OBJECT
-  //   getToken: function (): string | null {
-  //     if (typeof window === "undefined") null;
-  //     return localStorage.getItem(AUTH_TOKEN_KEY);
-  //   },
-
-  // [2] A SHORTHAND WAY OF WRITING A METHOD/FUNCTION PROPERTY INSIDE AN OBJECT
   getToken(): string | null {
     if (typeof window === "undefined") return null;
     return localStorage.getItem(AUTH_TOKEN_KEY);
@@ -27,13 +22,13 @@ export const storage = {
     document.cookie = `authToken=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT`;
   },
 
-  getUser(): any | null {
+  getUser(): User | null {
     if (typeof window === "undefined") return null;
     const user = localStorage.getItem(AUTH_USER_KEY);
     return user ? JSON.parse(user) : null;
   },
 
-  setUser(user: any): void {
+  setUser(user: unknown): void {
     if (typeof window === "undefined") return;
     localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
   },

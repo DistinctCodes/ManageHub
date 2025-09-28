@@ -9,7 +9,7 @@ export interface User {
   lastname: string;
   username?: string | null;
   email: string;
-  role: UserRole;
+  role: "user" | "admin";
   isActive: boolean;
   isSuspended: boolean;
   isDeleted: boolean;
