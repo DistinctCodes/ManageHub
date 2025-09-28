@@ -1,104 +1,78 @@
-type RequestMethod = "GET" | "POST" | "PATCH" | "DELETE";
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_BACKEND_API_URL || "http://localhost:6000";
 
 class ApiClient {
-  private baseUrl: string;
+  private baseURL: string;
   private token: string | null = null;
 
-  constructor() {
-    this.baseUrl =
-      process.env.NEXT_PUBLIC_BACKEND_API_URL || "http://localhost:6000/api/v1";
+  constructor(baseURL: string) {
+    this.baseURL = baseURL;
   }
 
-  public setToken(token: string) {
+  setToken(token: string | null) {
     this.token = token;
   }
-  private async fetchWithAuth<T>(
+
+  private async request<T>(
     endpoint: string,
-    options: RequestInit
+    options: RequestInit = {}
   ): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`;
+    const url = `${this.baseURL}${endpoint}`;
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
-      ...((options.headers as Record<string, string>) || {}),
+      ...(options.headers as Record<string, string>),
     };
 
     if (this.token) {
       headers["Authorization"] = `Bearer ${this.token}`;
     }
 
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers,
-      });
-
-      const contentType = response.headers.get("content-type");
-      const isJson = contentType?.includes("application/json");
-
-      if (!response.ok) {
-        let errorMessage = response.statusText;
-
-        try {
-          if (isJson) {
-            const errorData = await response.json();
-            errorMessage = errorData.message || errorData.error || errorMessage;
-          } else {
-            const errorText = await response.text();
-            errorMessage = errorText || errorMessage;
-          }
-        } catch (err: any) {
-          console.error(err.errorMessage);
-        }
-
-        throw new Error(`[${response.status}] ${errorMessage}`);
-      }
-
-      return isJson
-        ? await response.json()
-        : ((await response.text()) as unknown as T);
-    } catch (error: any) {
-      const isNetworkError = error instanceof TypeError;
-
-      const fallbackMessage = isNetworkError
-        ? "Network error. Please check your connection or try again later."
-        : error.message || "An unexpected error occurred.";
-
-      console.error(`[ApiClient Error] ${options.method} ${url}:`, error);
-      throw new Error(fallbackMessage);
-    }
-  }
-  private request<T>(
-    endpoint: string,
-    method: RequestMethod,
-    data?: any
-  ): Promise<T> {
-    const options: RequestInit = {
-      method,
+    const config: RequestInit = {
+      ...options,
+      headers,
     };
 
-    if (data) {
-      options.body = JSON.stringify(data);
+    try {
+      const response = await fetch(url, config);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "An API error occurred");
+      }
+
+      return await response.json();
+    } catch (error) {
+      throw new Error("Network error occured");
     }
-
-    return this.fetchWithAuth<T>(endpoint, options);
   }
 
-  public get<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, "GET");
+  async get<T>(endpoint: string): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: "GET",
+    });
   }
 
-  public post<T>(endpoint: string, data?: any): Promise<T> {
-    return this.request<T>(endpoint, "POST", data);
+  async post<T>(endpoint: string, data?: any): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: "POST",
+      credentials: "include",
+      body: data ? JSON.stringify(data) : undefined,
+    });
   }
 
-  public patch<T>(endpoint: string, data?: any): Promise<T> {
-    return this.request<T>(endpoint, "PATCH", data);
+  async patch<T>(endpoint: string, data?: any): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: "PATCH",
+      body: data ? JSON.stringify(data) : undefined,
+    });
   }
 
-  public delete<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, "DELETE");
+  async delete<T>(endpoint: string): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: "DELETE",
+    });
   }
 }
-const apiClient = new ApiClient();
-export default apiClient;
+
+export const apiClient = new ApiClient(API_BASE_URL);

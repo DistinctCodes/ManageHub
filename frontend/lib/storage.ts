@@ -2,13 +2,6 @@ const AUTH_TOKEN_KEY = "authToken";
 const AUTH_USER_KEY = "authUser";
 
 export const storage = {
-  // [1] A WAY OF WRITING A METHOD/FUNCTION PROPERTY INSIDE AN OBJECT
-  //   getToken: function (): string | null {
-  //     if (typeof window === "undefined") null;
-  //     return localStorage.getItem(AUTH_TOKEN_KEY);
-  //   },
-
-  // [2] A SHORTHAND WAY OF WRITING A METHOD/FUNCTION PROPERTY INSIDE AN OBJECT
   getToken(): string | null {
     if (typeof window === "undefined") return null;
     return localStorage.getItem(AUTH_TOKEN_KEY);

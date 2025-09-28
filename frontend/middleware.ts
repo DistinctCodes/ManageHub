@@ -1,49 +1,58 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from "next/server";
 
-// Route configuration
-const PUBLIC_ROUTES = ['/', '/login', '/register', '/forgot-password'] as const
-const PROTECTED_ROUTES = ['/dashboard', '/users', '/admin'] as const
-const AUTH_ROUTES = ['/login', '/register'] as const
+const publicRoutes = ["/", "/login", "/register", "/forgot-password"];
 
-// Constants
-const AUTH_COOKIE_NAME = 'authToken'
-const DEFAULT_REDIRECT_PATH = '/dashboard'
+const protectedRoutes = {
+  "/dashboard": ["users", "admin"],
+  "/users": ["admin"],
+  "/admin": ["admin"],
+} as const;
 
 export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl
-  
-  // Check authentication status
-  const authToken = request.cookies.get(AUTH_COOKIE_NAME)?.value
-  const isAuthenticated = Boolean(authToken)
-  
-  // Determine route types
-  const isAuthRoute = AUTH_ROUTES.includes(pathname as any)
-  const isProtectedRoute = PROTECTED_ROUTES.some(route => 
+  const { pathname } = request.nextUrl;
+  const token = request.cookies.get("authToken")?.value;
+  console.log(token);
+  const isPublicRoute = publicRoutes.includes(pathname);
+  const isPrivateRoute = Object.keys(protectedRoutes).some((route) =>
     pathname.startsWith(route)
-  )
-  
-  // Redirect authenticated users away from auth pages
-  if (isAuthenticated && isAuthRoute) {
-    return NextResponse.redirect(new URL(DEFAULT_REDIRECT_PATH, request.url))
+  );
+
+  // Check if the route is public
+  if (isPublicRoute) {
+    // If user is authenticated and trying to access auth pages, redirect to dashboard
+    if (token && (pathname === "/login" || pathname === "/register")) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+
+    // If not authenticated, Let the request continue as normal (take them to the public route they were trying to go to).
+    return NextResponse.next();
   }
-  
-  // Redirect unauthenticated users from protected routes to login
-  if (!isAuthenticated && isProtectedRoute) {
-    const loginUrl = new URL('/login', request.url)
-    loginUrl.searchParams.set('redirect', pathname)
-    return NextResponse.redirect(loginUrl)
+
+  // Check if the route is protected and need authentication
+  if (isPrivateRoute) {
+    // if no token, redirect to login
+    if (!token) {
+      const loginUrl = new URL("/login", request.url);
+      loginUrl.searchParams.set("redirect", pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+
+    // For role-based protection, we'll handle this in the component level
+    // since we need to decode the JWT to get user role
   }
-  
-  // Allow request to continue
-  return NextResponse.next()
+
+  return NextResponse.next();
 }
 
-/**
- * Middleware configuration
- * Excludes API routes, static files, and Next.js internal routes
- */
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    "/((?!api|_next/static|_next/image|favicon.ico).*)",
   ],
-}
+};
