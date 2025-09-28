@@ -13,10 +13,13 @@ import { BcryptProvider } from './providers/bcrypt.provider';
     forwardRef(() => UsersModule)
   ],
   controllers: [AuthController],
-  providers: [AuthService,    {
+  providers: [
+    AuthService,
+    {
       provide: HashingProvider,
       useClass: BcryptProvider,
-    },],
-  exports: [AuthService]
+    },
+  ],
+  exports: [AuthService, HashingProvider]
 })
 export class AuthModule {}
