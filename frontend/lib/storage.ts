@@ -1,3 +1,5 @@
+import { User } from "./types/user";
+
 const AUTH_TOKEN_KEY = "authToken";
 const AUTH_USER_KEY = "authUser";
 
@@ -20,7 +22,7 @@ export const storage = {
     document.cookie = `authToken=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT`;
   },
 
-  getUser(): unknown | null {
+  getUser(): User | null {
     if (typeof window === "undefined") return null;
     const user = localStorage.getItem(AUTH_USER_KEY);
     return user ? JSON.parse(user) : null;
