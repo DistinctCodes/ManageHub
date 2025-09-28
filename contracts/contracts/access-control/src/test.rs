@@ -24,16 +24,13 @@ fn test_initialize() {
     let is_admin = client.is_admin(&admin);
     assert!(is_admin);
 
-    // Check default roles were created
+    // Check default roles were created (only Minter role, Transferer removed for security)
     let minter_role = String::from_str(&env, "Minter");
-    let transferer_role = String::from_str(&env, "Transferer");
 
     let minter_members = client.get_role_members(&minter_role);
-    let transferer_members = client.get_role_members(&transferer_role);
 
     // Just check that we can get the members (Vec should be valid)
     assert_eq!(minter_members.len(), 0);
-    assert_eq!(transferer_members.len(), 0);
 }
 
 #[test]
@@ -251,21 +248,24 @@ fn test_multiple_roles() {
     client.initialize(&admin);
 
     let minter_role = String::from_str(&env, "Minter");
-    let transferer_role = String::from_str(&env, "Transferer");
+    let custom_role = String::from_str(&env, "CustomRole");
+
+    // Create a custom role first
+    client.create_role(&admin, &custom_role);
 
     // Grant both roles to user
     client.grant_role(&admin, &user, &minter_role);
-    client.grant_role(&admin, &user, &transferer_role);
+    client.grant_role(&admin, &user, &custom_role);
 
     // Verify user has both roles
     let has_minter = client.has_role(&user, &minter_role);
-    let has_transferer = client.has_role(&user, &transferer_role);
+    let has_custom = client.has_role(&user, &custom_role);
     assert!(has_minter);
-    assert!(has_transferer);
+    assert!(has_custom);
 
     // Verify user's roles contain both
     let user_roles = client.get_user_roles(&user);
     assert!(user_roles.contains(minter_role));
-    assert!(user_roles.contains(transferer_role));
+    assert!(user_roles.contains(custom_role));
     assert_eq!(user_roles.len(), 2);
 }

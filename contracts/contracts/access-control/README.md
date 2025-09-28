@@ -1,8 +1,8 @@
-# 🔐 Access Control Contract
+# Access Control Contract
 
 A comprehensive Role-Based Access Control (RBAC) smart contract for the ManageHub ecosystem built on Soroban (Stellar).
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [Overview](#overview)
 - [Features](#features)
@@ -15,35 +15,34 @@ A comprehensive Role-Based Access Control (RBAC) smart contract for the ManageHu
 - [Deployment](#deployment)
 - [Security Considerations](#security-considerations)
 
-## 🌟 Overview
+## Overview
 
 The Access Control contract provides a robust role-based permission system that allows administrators to manage user access across the entire ManageHub ecosystem. It serves as the central authority for verifying user permissions before critical operations in other contracts.
 
-### Key Benefits:
+### Key Benefits
 
-- ✅ **Centralized Permission Management**
-- ✅ **Hierarchical Role System**
-- ✅ **Cross-Contract Integration**
-- ✅ **Event-Driven Transparency**
-- ✅ **Admin-Controlled Security**
+- Centralized Permission Management
+- Hierarchical Role System
+- Cross-Contract Integration
+- Event-Driven Transparency
+- Admin-Controlled Security
 
-## 🚀 Features
+## Features
 
 ### Core Functionality
 
-- **Role Creation**: Administrators can create custom roles
-- **Role Assignment**: Grant roles to specific addresses
-- **Role Revocation**: Remove roles from users
-- **Access Verification**: Check if users have required roles
-- **Admin Management**: Hierarchical admin system
+- Role Creation: Administrators can create custom roles
+- Role Assignment: Grant roles to specific addresses
+- Role Revocation: Remove roles from users
+- Access Verification: Check if users have required roles
+- Admin Management: Hierarchical admin system
 
 ### Built-in Roles
 
-- **Admin**: Can create roles and manage user permissions
-- **Minter**: Authorized to mint tokens in connected contracts
-- **Transferer**: Can transfer tokens between accounts
+- Admin: Can create roles and manage user permissions
+- Minter: Authorized to mint tokens in connected contracts
 
-## 🏗️ Role System
+## Role System
 
 ### Role Hierarchy
 
@@ -56,20 +55,19 @@ The Access Control contract provides a robust role-based permission system that 
    │ Roles │
    └───────┘
        │
-   ┌───▼────────────────┐
-   │ Minter│ Transferer │ ← Specific permissions
-   └────────────────────┘
+   ┌───▼────┐
+   │ Minter │ ← Specific permissions
+   └────────┘
 ```
 
 ### Role Definitions
 
-| Role           | Description          | Permissions                                         |
-| -------------- | -------------------- | --------------------------------------------------- |
-| **Admin**      | System Administrator | Create roles, grant/revoke roles, system management |
-| **Minter**     | Token Issuer         | Mint new tokens in connected token contracts        |
-| **Transferer** | Transfer Agent       | Transfer tokens between any accounts                |
+| Role   | Description          | Permissions                                         |
+| ------ | -------------------- | --------------------------------------------------- |
+| Admin  | System Administrator | Create roles, grant/revoke roles, system management |
+| Minter | Token Issuer         | Mint new tokens in connected token contracts        |
 
-## 🏛️ Contract Architecture
+## Contract Architecture
 
 ### Data Structures
 
@@ -99,7 +97,7 @@ pub enum Error {
 - **Instance Storage**: Admin address and contract metadata
 - **Efficient Lookups**: Optimized for both user-to-roles and role-to-users queries
 
-## 📚 Functions
+## Functions
 
 ### Administrative Functions
 
@@ -218,7 +216,7 @@ Returns all users who have a specific role.
 
 Checks if a user has admin privileges.
 
-## 🔗 Integration with Other Contracts
+## Integration with Other Contracts
 
 ### Cross-Contract Communication
 
@@ -284,7 +282,7 @@ pub fn mint(env: Env, caller: Address, to: Address, amount: i128) -> Result<(), 
 - **Flexibility**: Easy to add new roles and permissions
 - **Security**: Centralized security model
 
-## 💡 Usage Examples
+## Usage Examples
 
 ### Basic Setup
 
@@ -333,7 +331,7 @@ pub fn protected_function(env: Env, caller: Address) -> Result<(), Error> {
 }
 ```
 
-## 🧪 Testing
+## Testing
 
 ### Test Coverage
 
@@ -376,7 +374,7 @@ test test::test_user_already_has_role_error ... ok
 test result: ok. 10 passed; 0 failed
 ```
 
-## 🚀 Deployment
+## Deployment
 
 ### Building for Production
 
@@ -411,7 +409,7 @@ client.grant_role(&admin_address, &minter_address, &String::from_str(env, "Minte
 client.grant_role(&admin_address, &transferer_address, &String::from_str(env, "Transferer"))?;
 ```
 
-## 🛡️ Security Considerations
+## Security Considerations
 
 ### Access Control Security
 
@@ -440,7 +438,7 @@ client.grant_role(&admin_address, &transferer_address, &String::from_str(env, "T
 - **Audit Logs**: Monitor all role changes via events
 - **Emergency Stops**: Implement emergency pause functionality
 
-## 📝 Events
+## Events
 
 The contract emits events for transparency and monitoring:
 
@@ -458,7 +456,7 @@ env.events().publish((symbol_short!("role_take"), user.clone(), role.clone()), (
 env.events().publish((symbol_short!("init"), admin.clone()), ());
 ```
 
-## 🔧 Development
+## Development
 
 ### Prerequisites
 
@@ -487,15 +485,3 @@ cargo clippy
 ```
 
 ---
-
-## 📞 Support
-
-For questions, issues, or contributions:
-
-- **Repository**: [ManageHub Contracts](repository-url)
-- **Documentation**: [Soroban Docs](https://soroban.stellar.org/)
-- **Community**: [Stellar Discord](https://discord.gg/stellar)
-
----
-
-**Built with ❤️ for the ManageHub ecosystem using Soroban smart contracts**

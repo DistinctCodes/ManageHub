@@ -57,11 +57,9 @@ impl AccessControl {
         Self::create_role_internal(&env, &admin_role)?;
         Self::grant_role_internal(&env, &admin, &admin_role)?;
 
-        // Create default roles
+        // Create default minter role (removed transferer role for security)
         let minter_role = String::from_str(&env, "Minter");
-        let transferer_role = String::from_str(&env, "Transferer");
         Self::create_role_internal(&env, &minter_role)?;
-        Self::create_role_internal(&env, &transferer_role)?;
 
         env.events().publish((symbol_short!("init"), admin), ());
 
@@ -87,10 +85,7 @@ impl AccessControl {
     }
 
     pub fn check_access(env: Env, query: QueryMsg) -> AccessResponse {
-        let has_access = match Self::has_role(env.clone(), query.check_access.caller.clone(), query.check_access.required_role.clone()) {
-            Ok(has_role) => has_role,
-            Err(_) => false,
-        };
+        let has_access = Self::has_role(env.clone(), query.check_access.caller.clone(), query.check_access.required_role.clone()).unwrap_or_default();
 
         AccessResponse { has_access }
     }
@@ -211,7 +206,7 @@ impl AccessControl {
         }
 
         // Remove role from user
-        let mut new_user_roles = Vec::new(&env);
+        let mut new_user_roles = Vec::new(env);
         for r in user_roles.iter() {
             if r.clone() != role.clone() {
                 new_user_roles.push_back(r.clone());
@@ -224,7 +219,7 @@ impl AccessControl {
             .get(&DataKey::RoleMembers(role.clone()))
             .unwrap_or_else(|| Vec::new(env));
 
-        let mut new_role_members = Vec::new(&env);
+        let mut new_role_members = Vec::new(env);
         for member in role_members.iter() {
             if member.clone() != user.clone() {
                 new_role_members.push_back(member.clone());

@@ -106,9 +106,10 @@ impl MembershipToken {
     pub fn transfer(env: Env, caller: Address, from: Address, to: Address, amount: i128) -> Result<(), Error> {
         caller.require_auth();
 
-        // Check if caller is the owner or has transfer permission
+        // Only allow owners to transfer their own tokens
+        // For delegated transfers, use approve/transfer_from pattern
         if caller != from {
-            Self::check_access(&env, &caller, &String::from_str(&env, "Transferer"))?;
+            return Err(Error::Unauthorized);
         }
 
         if amount <= 0 {

@@ -1,8 +1,8 @@
-# 🎫 Membership Token Contract
+# Membership Token Contract
 
-A feature-rich ERC20-compatible membership token smart contract for the ManageHub ecosystem built on Soroban (Stellar) with integrated Role-Based Access Control (RBAC).
+A feature rich ERC20 compatible membership token smart contract for the ManageHub ecosystem built on Soroban (Stellar) with integrated Role Based Access Control (RBAC).
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [Overview](#overview)
 - [Features](#features)
@@ -16,37 +16,36 @@ A feature-rich ERC20-compatible membership token smart contract for the ManageHu
 - [Deployment](#deployment)
 - [Security Considerations](#security-considerations)
 
-## 🌟 Overview
+## Overview
 
 The Membership Token contract provides a comprehensive token system for the ManageHub ecosystem with built-in access control integration. It follows ERC20 standards while leveraging Soroban's cross-contract capabilities to enforce role-based permissions for critical operations.
 
-### Key Benefits:
+### Key Benefits
 
-- ✅ **ERC20 Compatibility**: Standard token interface with transfer, approve, allowance
-- ✅ **Role-Based Security**: Integrated with Access Control contract for permission management
-- ✅ **Protected Operations**: Minting and transfers require specific roles
-- ✅ **Cross-Contract Integration**: Seamless communication with Access Control contract
-- ✅ **Event-Driven Transparency**: All operations emit events for tracking
-- ✅ **Soroban Optimized**: Built specifically for Stellar's smart contract platform
+- ERC20 Compatibility: Standard token interface with transfer, approve, allowance
+- Role-Based Security: Integrated with Access Control contract for permission management
+- Protected Operations: Minting requires specific roles
+- Cross-Contract Integration: Seamless communication with Access Control contract
+- Event-Driven Transparency: All operations emit events for tracking
+- Soroban Optimized: Built specifically for Stellar's smart contract platform
 
-## 🚀 Features
+## Features
 
 ### Core Token Functionality
 
-- **Standard Operations**: Transfer, approve, allowance, balance queries
-- **Minting**: Create new tokens (restricted to Minter role)
-- **Protected Transfers**: Third-party transfers require Transferer role
-- **Owner Transfers**: Token holders can always transfer their own tokens
-- **Allowance System**: Approve/transferFrom pattern for delegated transfers
+- Standard Operations: Transfer, approve, allowance, balance queries
+- Minting: Create new tokens (restricted to Minter role)
+- Owner-Only Transfers: Token holders can only transfer their own tokens
+- Allowance System: Approve/transferFrom pattern for delegated transfers
 
 ### Access Control Features
 
-- **Role Verification**: Checks permissions via cross-contract calls
-- **Minter Protection**: Only addresses with "Minter" role can mint tokens
-- **Transfer Protection**: Non-owners need "Transferer" role for transfers
-- **Dynamic Permissions**: Role assignments managed by Access Control contract
+- Role Verification: Checks permissions via cross-contract calls
+- Minter Protection: Only addresses with "Minter" role can mint tokens
+- Enhanced Security: Removed transferer role for improved security
+- Dynamic Permissions: Role assignments managed by Access Control contract
 
-## 🎯 Token Specifications
+## Token Specifications
 
 ### Token Properties
 
@@ -61,11 +60,10 @@ pub struct TokenInfo {
 
 ### Built-in Roles Integration
 
-- **Minter**: Can create new tokens via `mint()` function
-- **Transferer**: Can transfer tokens between any accounts via `transfer()` function
-- **Token Holders**: Can always transfer their own tokens regardless of roles
+- Minter: Can create new tokens via `mint()` function
+- Token Holders: Can transfer their own tokens (enhanced security model)
 
-## 🔗 Access Control Integration
+## Access Control Integration
 
 ### Cross-Contract Architecture
 
@@ -76,8 +74,8 @@ The Membership Token contract integrates with the Access Control contract throug
 │   Membership Token      │◄────────┤    Access Control        │
 │                         │         │                          │
 │ • mint() checks Minter  │  calls  │ • check_access()         │
-│ • transfer() checks     │────────►│ • Role verification      │
-│   Transferer (if needed)│         │ • Permission management  │
+│ • transfer() owner-only │────────►│ • Role verification      │
+│   (enhanced security)   │         │ • Permission management  │
 └─────────────────────────┘         └──────────────────────────┘
 ```
 
@@ -88,7 +86,7 @@ The Membership Token contract integrates with the Access Control contract throug
 - **Flexible Permissions**: Easy to modify roles without contract upgrades
 - **Audit Trail**: Permission checks logged via events
 
-## 🏛️ Contract Architecture
+## Contract Architecture
 
 ### Data Structures
 
@@ -139,7 +137,7 @@ pub mod access_control_interface {
 }
 ```
 
-## 📚 Functions
+## Functions
 
 ### Initialization
 
@@ -238,7 +236,7 @@ Returns the total number of tokens in circulation.
 
 Returns complete token metadata.
 
-## 🔄 Cross-Contract Communication
+## Cross-Contract Communication
 
 ### Permission Verification Process
 
@@ -291,7 +289,7 @@ fn check_access(env: &Env, caller: &Address, required_role: &String) -> Result<(
 - **Consistent Enforcement**: Same permission logic across all operations
 - **Audit Trail**: All permission checks create transaction records
 
-## 💡 Usage Examples
+## Usage Examples
 
 ### Basic Setup
 
@@ -369,7 +367,7 @@ let remaining = token_client.allowance(&recipient, &spender);
 assert_eq!(remaining, 25_i128 * 10_i128.pow(18));
 ```
 
-## 🧪 Testing
+## Testing
 
 ### Test Coverage
 
@@ -445,7 +443,7 @@ fn test_transfer_from() {
 }
 ```
 
-## 🚀 Deployment
+## Deployment
 
 ### Building for Production
 
@@ -492,7 +490,7 @@ access_client.grant_role(&admin_address, &transferer_address, &String::from_str(
 token_client.mint(&minter_address, &initial_holder, &initial_supply)?;
 ```
 
-## 🛡️ Security Considerations
+## Security Considerations
 
 ### Access Control Security
 
@@ -530,7 +528,7 @@ token_client.mint(&minter_address, &initial_holder, &initial_supply)?;
 - **Emergency Stops**: Implement emergency pause functionality
 - **Role Expiration**: Consider time-based role expiration
 
-## 📝 Events
+## Events
 
 The contract emits events for transparency and monitoring:
 
@@ -545,7 +543,7 @@ env.events().publish((symbol_short!("transfer"), from, to, amount), ());
 env.events().publish((symbol_short!("approve"), owner, spender, amount), ());
 ```
 
-## 🔄 Integration with Other Contracts
+## Integration with Other Contracts
 
 ### ManageHub Ecosystem Integration
 
@@ -571,7 +569,7 @@ The Membership Token contract is designed to integrate seamlessly with other Man
 - **Scalability**: Add new features without modifying core contracts
 - **Interoperability**: Standard interfaces for cross-contract communication
 
-## 🔧 Development
+## Development
 
 ### Prerequisites
 
@@ -609,7 +607,7 @@ cargo clippy
 
 ---
 
-## 📞 Support
+## Support
 
 For questions, issues, or contributions:
 
@@ -618,5 +616,3 @@ For questions, issues, or contributions:
 - **Community**: [Stellar Discord](https://discord.gg/stellar)
 
 ---
-
-**Built with ❤️ for the ManageHub ecosystem using Soroban smart contracts**

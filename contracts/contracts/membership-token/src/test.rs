@@ -76,12 +76,10 @@ mod access_control_mock {
     #[contractimpl]
     impl MockAccessControl {
         pub fn check_access(env: Env, query: QueryMsg) -> AccessResponse {
-            // For testing purposes, grant access to specific roles
+            // For testing purposes, only grant access to Minter role
+            // Removed Transferer role for security
             let required_role = query.check_access.required_role;
-
-            let has_access = required_role == String::from_str(&env, "Minter") ||
-                           required_role == String::from_str(&env, "Transferer");
-
+            let has_access = required_role == String::from_str(&env, "Minter");
             AccessResponse { has_access }
         }
     }
@@ -200,4 +198,81 @@ fn test_transfer_from() {
     assert_eq!(owner_balance, amount / 2);
     assert_eq!(to_balance, amount / 2);
     assert_eq!(remaining_allowance, amount / 2);
+}
+
+#[test]
+fn test_transfer_owner_only() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    // Deploy access control mock
+    let access_control_id = env.register(access_control_mock::MockAccessControl, ());
+
+    // Deploy token contract
+    let contract_id = env.register(MembershipToken, ());
+    let client = MembershipTokenClient::new(&env, &contract_id);
+
+    let name = String::from_str(&env, "ManageHub Token");
+    let symbol = String::from_str(&env, "MHT");
+    let decimals = 8u32;
+
+    // Initialize with mock access control
+    client.initialize(&name, &symbol, &decimals, &access_control_id);
+
+    let from = Address::generate(&env);
+    let to = Address::generate(&env);
+    let unauthorized = Address::generate(&env);
+    let amount = 1000i128;
+
+    // First mint tokens to from address
+    let minter = Address::generate(&env);
+    client.mint(&minter, &from, &amount);
+
+    // Owner can transfer their own tokens
+    client.transfer(&from, &from, &to, &500i128);
+    assert_eq!(client.balance_of(&from), 500i128);
+    assert_eq!(client.balance_of(&to), 500i128);
+
+    // Unauthorized user cannot transfer others' tokens
+    let result = client.try_transfer(&unauthorized, &from, &to, &100i128);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_transfer_from_with_allowance() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    // Deploy access control mock
+    let access_control_id = env.register(access_control_mock::MockAccessControl, ());
+
+    // Deploy token contract
+    let contract_id = env.register(MembershipToken, ());
+    let client = MembershipTokenClient::new(&env, &contract_id);
+
+    let name = String::from_str(&env, "ManageHub Token");
+    let symbol = String::from_str(&env, "MHT");
+    let decimals = 8u32;
+
+    // Initialize with mock access control
+    client.initialize(&name, &symbol, &decimals, &access_control_id);
+
+    let owner = Address::generate(&env);
+    let spender = Address::generate(&env);
+    let to = Address::generate(&env);
+    let amount = 1000i128;
+
+    // Mint tokens to owner
+    let minter = Address::generate(&env);
+    client.mint(&minter, &owner, &amount);
+
+    // Owner approves spender
+    client.approve(&owner, &spender, &500i128);
+
+    // Spender can transfer from owner's account
+    client.transfer_from(&spender, &owner, &to, &300i128);
+    
+    assert_eq!(client.balance_of(&owner), 700i128);
+    assert_eq!(client.balance_of(&to), 300i128);
+    assert_eq!(client.allowance(&owner, &spender), 200i128);
 }
