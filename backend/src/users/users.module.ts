@@ -4,6 +4,8 @@ import { UsersController } from './users.controller';
 import { UsersService } from './providers/users.service';
 import { AuthModule } from '../auth/auth.module';
 import { User } from './entities/user.entity';
+import { FindOneUserByEmailProvider } from './providers/findOneUserByEmail.provider';
+import { FindOneUserByIdProvider } from './providers/findOneUserById.provider';
 
 
 @Module({
@@ -12,7 +14,8 @@ import { User } from './entities/user.entity';
     forwardRef(() => AuthModule)
   ],
   controllers: [UsersController],
-  providers: [UsersService],
+  providers: [UsersService,    FindOneUserByEmailProvider,
+    FindOneUserByIdProvider,],
   exports: [UsersService]
 })
 export class UsersModule {}
