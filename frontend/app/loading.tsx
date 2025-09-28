@@ -1,5 +1,3 @@
-import React from "react";
-
 export default function Loader() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center space-y-5 inset-0  w-full fixed bg-black/70 z-[100]">
