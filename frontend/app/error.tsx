@@ -39,6 +39,27 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
             Reload
           </button>
         </div>
+
+        {/* Minimal Error Showcase */}
+        {process.env.NODE_ENV === "development" && (
+          <div className="mt-8 max-w-lg w-full">
+            <details className="bg-gray-50 border rounded-lg p-4">
+              <summary className="cursor-pointer font-medium text-gray-700">
+                Error Details
+              </summary>
+              <div className="mt-3 space-y-2">
+                <div className="text-sm">
+                  <strong>Message:</strong> {error.message || "Unknown error"}
+                </div>
+                {error.digest && (
+                  <div className="text-sm">
+                    <strong>ID:</strong> <code className="bg-gray-200 px-1 rounded">{error.digest}</code>
+                  </div>
+                )}
+              </div>
+            </details>
+          </div>
+        )}
       </div>
     </div>
   );
