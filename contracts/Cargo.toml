@@ -1,7 +1,9 @@
 [workspace]
 resolver = "2"
 members = [
-  "contracts/*",
+    "access_control",
+    "manage_hub",
+    "membership_token"
 ]
 
 [workspace.dependencies]

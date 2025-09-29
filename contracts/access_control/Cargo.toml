@@ -1,15 +1,17 @@
 [package]
-name = "hello-world"
-version = "0.0.0"
+name = "access_control"
+version = "1.0.0"
 edition = "2021"
-publish = false
 
 [lib]
-crate-type = ["lib", "cdylib"]
-doctest = false
+crate-type = ["cdylib"]
 
 [dependencies]
 soroban-sdk = { workspace = true }
 
 [dev-dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }
+
+[features]
+testutils = ["soroban-sdk/testutils"]
+
