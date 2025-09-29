@@ -49,8 +49,12 @@ impl AccessControlError {
             AccessControlError::InsufficientRole => "User does not have the required role",
             AccessControlError::RoleAssignmentFailed => "Failed to assign role to user",
             AccessControlError::MembershipTokenNotSet => "Membership token contract not configured",
-            AccessControlError::MembershipTokenCallFailed => "Cross-contract call to membership token failed",
-            AccessControlError::InsufficientMembership => "User does not have required membership token",
+            AccessControlError::MembershipTokenCallFailed => {
+                "Cross-contract call to membership token failed"
+            }
+            AccessControlError::InsufficientMembership => {
+                "User does not have required membership token"
+            }
             AccessControlError::InvalidTokenBalance => "Invalid membership token balance",
             AccessControlError::NotInitialized => "Access control system not initialized",
             AccessControlError::ConfigurationError => "Access control configuration error",

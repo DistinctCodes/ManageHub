@@ -67,8 +67,8 @@ fn test_approve() {
 }
 
 mod access_control_mock {
+    use super::access_control_interface::{AccessResponse, QueryMsg};
     use soroban_sdk::{contract, contractimpl, Env, String};
-    use super::access_control_interface::{QueryMsg, AccessResponse};
 
     #[contract]
     pub struct MockAccessControl;
@@ -271,7 +271,7 @@ fn test_transfer_from_with_allowance() {
 
     // Spender can transfer from owner's account
     client.transfer_from(&spender, &owner, &to, &300i128);
-    
+
     assert_eq!(client.balance_of(&owner), 700i128);
     assert_eq!(client.balance_of(&to), 300i128);
     assert_eq!(client.allowance(&owner, &spender), 200i128);

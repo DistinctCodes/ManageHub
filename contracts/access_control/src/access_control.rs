@@ -1,9 +1,10 @@
-use soroban_sdk::{
-    contracttype, Address, Env, Symbol, Vec, IntoVal, symbol_short
-};
+use soroban_sdk::{contracttype, symbol_short, Address, Env, IntoVal, Symbol, Vec};
 
-use crate::types::{UserRole, AccessControlConfig, MembershipInfo, MultiSigConfig, PendingProposal, ProposalAction, PendingAdminTransfer};
 use crate::errors::{AccessControlError, AccessControlResult};
+use crate::types::{
+    AccessControlConfig, MembershipInfo, MultiSigConfig, PendingAdminTransfer, PendingProposal,
+    ProposalAction, UserRole,
+};
 
 /// Storage keys for the access control module
 #[contracttype]
@@ -34,26 +35,18 @@ impl AccessControlModule {
             return Err(AccessControlError::ConfigurationError);
         }
 
-        env.storage()
-            .persistent()
-            .set(&DataKey::Admin, &admin);
+        env.storage().persistent().set(&DataKey::Admin, &admin);
 
         env.storage()
             .persistent()
             .set(&DataKey::UserRole(admin.clone()), &UserRole::Admin);
 
         let config = config.unwrap_or_default();
-        env.storage()
-            .persistent()
-            .set(&DataKey::Config, &config);
+        env.storage().persistent().set(&DataKey::Config, &config);
 
-        env.storage()
-            .persistent()
-            .set(&DataKey::Initialized, &true);
+        env.storage().persistent().set(&DataKey::Initialized, &true);
 
-        env.storage()
-            .persistent()
-            .set(&DataKey::Paused, &false);
+        env.storage().persistent().set(&DataKey::Paused, &false);
 
         env.storage()
             .persistent()
@@ -72,7 +65,7 @@ impl AccessControlModule {
             return Err(AccessControlError::ConfigurationError);
         }
 
-        if admins.len() == 0 || required_signatures == 0 || required_signatures > admins.len() {
+        if admins.is_empty() || required_signatures == 0 || required_signatures > admins.len() {
             return Err(AccessControlError::InvalidAddress);
         }
 
@@ -92,17 +85,11 @@ impl AccessControlModule {
         }
 
         let config = config.unwrap_or_default();
-        env.storage()
-            .persistent()
-            .set(&DataKey::Config, &config);
+        env.storage().persistent().set(&DataKey::Config, &config);
 
-        env.storage()
-            .persistent()
-            .set(&DataKey::Initialized, &true);
+        env.storage().persistent().set(&DataKey::Initialized, &true);
 
-        env.storage()
-            .persistent()
-            .set(&DataKey::Paused, &false);
+        env.storage().persistent().set(&DataKey::Paused, &false);
 
         env.storage()
             .persistent()
@@ -131,7 +118,7 @@ impl AccessControlModule {
 
         env.events().publish(
             (symbol_short!("role_set"), user.clone(), role.clone()),
-            (caller.clone(), old_role)
+            (caller.clone(), old_role),
         );
 
         Ok(())
@@ -156,8 +143,12 @@ impl AccessControlModule {
 
         if Self::is_blacklisted(env, &user) {
             env.events().publish(
-                (symbol_short!("acc_deny"), user.clone(), required_role.clone()),
-                "blacklisted"
+                (
+                    symbol_short!("acc_deny"),
+                    user.clone(),
+                    required_role.clone(),
+                ),
+                "blacklisted",
             );
             return Ok(false);
         }
@@ -174,7 +165,7 @@ impl AccessControlModule {
             Ok(_) => {
                 Self::log_access_attempt(env, &user, &required_role, true);
                 Ok(true)
-            },
+            }
             Err(_) => {
                 Self::log_access_attempt(env, &user, &required_role, false);
                 Ok(false)
@@ -265,13 +256,11 @@ impl AccessControlModule {
         Self::require_admin(env, &caller)?;
 
         let old_config = Self::get_config(env);
-        env.storage()
-            .persistent()
-            .set(&DataKey::Config, &config);
+        env.storage().persistent().set(&DataKey::Config, &config);
 
         env.events().publish(
             (symbol_short!("cfg_upd"), config.clone()),
-            (caller.clone(), old_config)
+            (caller.clone(), old_config),
         );
 
         Ok(())
@@ -285,14 +274,10 @@ impl AccessControlModule {
 
         Self::require_admin(env, &caller)?;
 
-        env.storage()
-            .persistent()
-            .set(&DataKey::Paused, &true);
+        env.storage().persistent().set(&DataKey::Paused, &true);
 
-        env.events().publish(
-            (symbol_short!("paused"), true),
-            caller.clone()
-        );
+        env.events()
+            .publish((symbol_short!("paused"), true), caller.clone());
 
         Ok(())
     }
@@ -305,14 +290,10 @@ impl AccessControlModule {
 
         Self::require_admin(env, &caller)?;
 
-        env.storage()
-            .persistent()
-            .set(&DataKey::Paused, &false);
+        env.storage().persistent().set(&DataKey::Paused, &false);
 
-        env.events().publish(
-            (symbol_short!("unpaused"), false),
-            caller.clone()
-        );
+        env.events()
+            .publish((symbol_short!("unpaused"), false), caller.clone());
 
         Ok(())
     }
@@ -324,9 +305,11 @@ impl AccessControlModule {
     ) -> AccessControlResult<()> {
         let config = Self::get_config(env);
 
-        if config.require_membership_for_roles && matches!(role, UserRole::Member | UserRole::Admin) {
+        if config.require_membership_for_roles && matches!(role, UserRole::Member | UserRole::Admin)
+        {
             if let Some(membership_contract) = config.membership_token_contract {
-                let membership_info = Self::check_membership_token(env, &membership_contract, user)?;
+                let membership_info =
+                    Self::check_membership_token(env, &membership_contract, user)?;
 
                 if membership_info.balance < config.min_token_balance {
                     return Err(AccessControlError::InsufficientMembership);
@@ -346,9 +329,12 @@ impl AccessControlModule {
     ) -> AccessControlResult<()> {
         let config = Self::get_config(env);
 
-        if config.require_membership_for_roles && matches!(required_role, UserRole::Member | UserRole::Admin) {
+        if config.require_membership_for_roles
+            && matches!(required_role, UserRole::Member | UserRole::Admin)
+        {
             if let Some(membership_contract) = config.membership_token_contract {
-                let membership_info = Self::check_membership_token(env, &membership_contract, user)?;
+                let membership_info =
+                    Self::check_membership_token(env, &membership_contract, user)?;
 
                 if membership_info.balance < config.min_token_balance {
                     return Err(AccessControlError::InsufficientMembership);
@@ -388,9 +374,7 @@ impl AccessControlModule {
 
     /// Get admin address
     pub fn get_admin(env: &Env) -> Option<Address> {
-        env.storage()
-            .persistent()
-            .get(&DataKey::Admin)
+        env.storage().persistent().get(&DataKey::Admin)
     }
 
     pub fn propose_admin_transfer(
@@ -420,17 +404,15 @@ impl AccessControlModule {
 
         env.events().publish(
             (symbol_short!("adm_prop"), new_admin.clone()),
-            current_admin.clone()
+            current_admin.clone(),
         );
 
         Ok(())
     }
 
-    pub fn accept_admin_transfer(
-        env: &Env,
-        new_admin: Address,
-    ) -> AccessControlResult<()> {
-        let pending_transfer: PendingAdminTransfer = env.storage()
+    pub fn accept_admin_transfer(env: &Env, new_admin: Address) -> AccessControlResult<()> {
+        let pending_transfer: PendingAdminTransfer = env
+            .storage()
             .persistent()
             .get(&DataKey::PendingAdminTransfer)
             .ok_or(AccessControlError::InvalidAddress)?;
@@ -445,9 +427,7 @@ impl AccessControlModule {
 
         let old_admin = Self::get_admin(env).ok_or(AccessControlError::AdminRequired)?;
 
-        env.storage()
-            .persistent()
-            .set(&DataKey::Admin, &new_admin);
+        env.storage().persistent().set(&DataKey::Admin, &new_admin);
 
         env.storage()
             .persistent()
@@ -463,19 +443,17 @@ impl AccessControlModule {
 
         env.events().publish(
             (symbol_short!("adm_xfer"), new_admin.clone()),
-            old_admin.clone()
+            old_admin.clone(),
         );
 
         Ok(())
     }
 
-    pub fn cancel_admin_transfer(
-        env: &Env,
-        current_admin: Address,
-    ) -> AccessControlResult<()> {
+    pub fn cancel_admin_transfer(env: &Env, current_admin: Address) -> AccessControlResult<()> {
         Self::require_admin(env, &current_admin)?;
 
-        let pending_transfer: PendingAdminTransfer = env.storage()
+        let pending_transfer: PendingAdminTransfer = env
+            .storage()
             .persistent()
             .get(&DataKey::PendingAdminTransfer)
             .ok_or(AccessControlError::InvalidAddress)?;
@@ -489,8 +467,11 @@ impl AccessControlModule {
             .remove(&DataKey::PendingAdminTransfer);
 
         env.events().publish(
-            (symbol_short!("adm_canc"), pending_transfer.proposed_admin.clone()),
-            current_admin.clone()
+            (
+                symbol_short!("adm_canc"),
+                pending_transfer.proposed_admin.clone(),
+            ),
+            current_admin.clone(),
         );
 
         Ok(())
@@ -502,11 +483,7 @@ impl AccessControlModule {
             .get(&DataKey::PendingAdminTransfer)
     }
 
-    pub fn remove_role(
-        env: &Env,
-        caller: Address,
-        user: Address,
-    ) -> AccessControlResult<()> {
+    pub fn remove_role(env: &Env, caller: Address, user: Address) -> AccessControlResult<()> {
         Self::require_admin(env, &caller)?;
 
         if let Some(admin) = Self::get_admin(env) {
@@ -526,7 +503,7 @@ impl AccessControlModule {
 
         env.events().publish(
             (symbol_short!("role_rm"), user.clone()),
-            (caller.clone(), old_role)
+            (caller.clone(), old_role),
         );
 
         Ok(())
@@ -539,10 +516,8 @@ impl AccessControlModule {
             .persistent()
             .set(&DataKey::Blacklisted(user.clone()), &true);
 
-        env.events().publish(
-            (symbol_short!("usr_black"), user.clone()),
-            caller.clone()
-        );
+        env.events()
+            .publish((symbol_short!("usr_black"), user.clone()), caller.clone());
 
         Ok(())
     }
@@ -554,10 +529,8 @@ impl AccessControlModule {
             .persistent()
             .remove(&DataKey::Blacklisted(user.clone()));
 
-        env.events().publish(
-            (symbol_short!("usr_white"), user.clone()),
-            caller.clone()
-        );
+        env.events()
+            .publish((symbol_short!("usr_white"), user.clone()), caller.clone());
 
         Ok(())
     }
@@ -577,18 +550,24 @@ impl AccessControlModule {
     }
 
     fn log_access_attempt(env: &Env, user: &Address, required_role: &UserRole, success: bool) {
-        let current_attempts: u32 = env.storage()
+        let current_attempts: u32 = env
+            .storage()
             .persistent()
             .get(&DataKey::AccessAttempts(user.clone()))
             .unwrap_or(0);
 
-        env.storage()
-            .persistent()
-            .set(&DataKey::AccessAttempts(user.clone()), &(current_attempts + 1));
+        env.storage().persistent().set(
+            &DataKey::AccessAttempts(user.clone()),
+            &(current_attempts + 1),
+        );
 
         env.events().publish(
-            (symbol_short!("acc_try"), user.clone(), required_role.clone()),
-            (success, current_attempts + 1)
+            (
+                symbol_short!("acc_try"),
+                user.clone(),
+                required_role.clone(),
+            ),
+            (success, current_attempts + 1),
         );
     }
 
@@ -612,7 +591,8 @@ impl AccessControlModule {
     ) -> AccessControlResult<u64> {
         Self::require_admin(env, &proposer)?;
 
-        let proposal_id: u64 = env.storage()
+        let proposal_id: u64 = env
+            .storage()
             .persistent()
             .get(&DataKey::ProposalCounter)
             .unwrap_or(0);
@@ -637,10 +617,8 @@ impl AccessControlModule {
             .persistent()
             .set(&DataKey::ProposalCounter, &(proposal_id + 1));
 
-        env.events().publish(
-            (symbol_short!("proposal"), proposal_id),
-            proposer.clone()
-        );
+        env.events()
+            .publish((symbol_short!("proposal"), proposal_id), proposer.clone());
 
         // Check if proposal can be executed immediately
         if let Some(multisig_config) = Self::get_multisig_config(env) {
@@ -659,7 +637,8 @@ impl AccessControlModule {
     ) -> AccessControlResult<()> {
         Self::require_admin(env, &approver)?;
 
-        let mut proposal: PendingProposal = env.storage()
+        let mut proposal: PendingProposal = env
+            .storage()
             .persistent()
             .get(&DataKey::Proposal(proposal_id))
             .ok_or(AccessControlError::InvalidAddress)?;
@@ -682,10 +661,8 @@ impl AccessControlModule {
             .persistent()
             .set(&DataKey::Proposal(proposal_id), &proposal);
 
-        env.events().publish(
-            (symbol_short!("approve"), proposal_id),
-            approver.clone()
-        );
+        env.events()
+            .publish((symbol_short!("approve"), proposal_id), approver.clone());
 
         if let Some(multisig_config) = Self::get_multisig_config(env) {
             if proposal.approvals.len() >= multisig_config.required_signatures {
@@ -696,11 +673,9 @@ impl AccessControlModule {
         Ok(())
     }
 
-    pub fn execute_proposal(
-        env: &Env,
-        proposal_id: u64,
-    ) -> AccessControlResult<()> {
-        let mut proposal: PendingProposal = env.storage()
+    pub fn execute_proposal(env: &Env, proposal_id: u64) -> AccessControlResult<()> {
+        let mut proposal: PendingProposal = env
+            .storage()
             .persistent()
             .get(&DataKey::Proposal(proposal_id))
             .ok_or(AccessControlError::InvalidAddress)?;
@@ -730,45 +705,37 @@ impl AccessControlModule {
 
                 env.events().publish(
                     (symbol_short!("role_set"), user.clone(), role.clone()),
-                    (proposal.proposer.clone(), old_role)
+                    (proposal.proposer.clone(), old_role),
                 );
-            },
+            }
             ProposalAction::UpdateConfig(config) => {
-                env.storage()
-                    .persistent()
-                    .set(&DataKey::Config, &config);
+                env.storage().persistent().set(&DataKey::Config, &config);
 
                 env.events().publish(
                     (symbol_short!("cfg_upd"), config.clone()),
-                    proposal.proposer.clone()
+                    proposal.proposer.clone(),
                 );
-            },
+            }
             ProposalAction::Pause => {
-                env.storage()
-                    .persistent()
-                    .set(&DataKey::Paused, &true);
+                env.storage().persistent().set(&DataKey::Paused, &true);
 
-                env.events().publish(
-                    (symbol_short!("paused"), true),
-                    proposal.proposer.clone()
-                );
-            },
+                env.events()
+                    .publish((symbol_short!("paused"), true), proposal.proposer.clone());
+            }
             ProposalAction::Unpause => {
-                env.storage()
-                    .persistent()
-                    .set(&DataKey::Paused, &false);
+                env.storage().persistent().set(&DataKey::Paused, &false);
 
                 env.events().publish(
                     (symbol_short!("unpaused"), false),
-                    proposal.proposer.clone()
+                    proposal.proposer.clone(),
                 );
-            },
+            }
             _ => return Err(AccessControlError::InvalidAddress),
         }
 
         env.events().publish(
             (symbol_short!("executed"), proposal_id),
-            proposal.proposer.clone()
+            proposal.proposer.clone(),
         );
 
         Ok(())

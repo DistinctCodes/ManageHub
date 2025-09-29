@@ -1,7 +1,8 @@
 #![no_std]
 
 use soroban_sdk::{
-    contract, contractimpl, contracttype, contracterror, Address, Env, String, Vec, Symbol, symbol_short, IntoVal
+    contract, contracterror, contractimpl, contracttype, symbol_short, Address, Env, IntoVal,
+    String, Symbol, Vec,
 };
 
 #[contract]
@@ -75,8 +76,12 @@ impl MembershipToken {
             total_supply: 0,
         };
 
-        env.storage().instance().set(&DataKey::TokenInfo, &token_info);
-        env.storage().instance().set(&DataKey::AccessControl, &access_control_contract);
+        env.storage()
+            .instance()
+            .set(&DataKey::TokenInfo, &token_info);
+        env.storage()
+            .instance()
+            .set(&DataKey::AccessControl, &access_control_contract);
 
         Ok(())
     }
@@ -94,16 +99,27 @@ impl MembershipToken {
         let mut token_info = Self::get_token_info(&env)?;
         let current_balance = Self::get_balance(&env, &to);
 
-        env.storage().instance().set(&DataKey::Balance(to.clone()), &(current_balance + amount));
+        env.storage()
+            .instance()
+            .set(&DataKey::Balance(to.clone()), &(current_balance + amount));
         token_info.total_supply += amount;
-        env.storage().instance().set(&DataKey::TokenInfo, &token_info);
+        env.storage()
+            .instance()
+            .set(&DataKey::TokenInfo, &token_info);
 
-        env.events().publish((symbol_short!("mint"), to, amount), ());
+        env.events()
+            .publish((symbol_short!("mint"), to, amount), ());
 
         Ok(())
     }
 
-    pub fn transfer(env: Env, caller: Address, from: Address, to: Address, amount: i128) -> Result<(), Error> {
+    pub fn transfer(
+        env: Env,
+        caller: Address,
+        from: Address,
+        to: Address,
+        amount: i128,
+    ) -> Result<(), Error> {
         caller.require_auth();
 
         // Only allow owners to transfer their own tokens
@@ -123,10 +139,15 @@ impl MembershipToken {
 
         let to_balance = Self::get_balance(&env, &to);
 
-        env.storage().instance().set(&DataKey::Balance(from.clone()), &(from_balance - amount));
-        env.storage().instance().set(&DataKey::Balance(to.clone()), &(to_balance + amount));
+        env.storage()
+            .instance()
+            .set(&DataKey::Balance(from.clone()), &(from_balance - amount));
+        env.storage()
+            .instance()
+            .set(&DataKey::Balance(to.clone()), &(to_balance + amount));
 
-        env.events().publish((symbol_short!("transfer"), from, to, amount), ());
+        env.events()
+            .publish((symbol_short!("transfer"), from, to, amount), ());
 
         Ok(())
     }
@@ -138,14 +159,23 @@ impl MembershipToken {
             return Err(Error::InvalidAmount);
         }
 
-        env.storage().instance().set(&DataKey::Allowance(owner.clone(), spender.clone()), &amount);
+        env.storage()
+            .instance()
+            .set(&DataKey::Allowance(owner.clone(), spender.clone()), &amount);
 
-        env.events().publish((symbol_short!("approve"), owner, spender, amount), ());
+        env.events()
+            .publish((symbol_short!("approve"), owner, spender, amount), ());
 
         Ok(())
     }
 
-    pub fn transfer_from(env: Env, spender: Address, from: Address, to: Address, amount: i128) -> Result<(), Error> {
+    pub fn transfer_from(
+        env: Env,
+        spender: Address,
+        from: Address,
+        to: Address,
+        amount: i128,
+    ) -> Result<(), Error> {
         spender.require_auth();
 
         if amount <= 0 {
@@ -164,11 +194,19 @@ impl MembershipToken {
 
         let to_balance = Self::get_balance(&env, &to);
 
-        env.storage().instance().set(&DataKey::Balance(from.clone()), &(from_balance - amount));
-        env.storage().instance().set(&DataKey::Balance(to.clone()), &(to_balance + amount));
-        env.storage().instance().set(&DataKey::Allowance(from.clone(), spender.clone()), &(allowance - amount));
+        env.storage()
+            .instance()
+            .set(&DataKey::Balance(from.clone()), &(from_balance - amount));
+        env.storage()
+            .instance()
+            .set(&DataKey::Balance(to.clone()), &(to_balance + amount));
+        env.storage().instance().set(
+            &DataKey::Allowance(from.clone(), spender.clone()),
+            &(allowance - amount),
+        );
 
-        env.events().publish((symbol_short!("transfer"), from, to, amount), ());
+        env.events()
+            .publish((symbol_short!("transfer"), from, to, amount), ());
 
         Ok(())
     }
@@ -191,19 +229,30 @@ impl MembershipToken {
     }
 
     fn get_token_info(env: &Env) -> Result<TokenInfo, Error> {
-        env.storage().instance().get(&DataKey::TokenInfo).ok_or(Error::Unauthorized)
+        env.storage()
+            .instance()
+            .get(&DataKey::TokenInfo)
+            .ok_or(Error::Unauthorized)
     }
 
     fn get_balance(env: &Env, account: &Address) -> i128 {
-        env.storage().instance().get(&DataKey::Balance(account.clone())).unwrap_or(0)
+        env.storage()
+            .instance()
+            .get(&DataKey::Balance(account.clone()))
+            .unwrap_or(0)
     }
 
     fn get_allowance(env: &Env, owner: &Address, spender: &Address) -> i128 {
-        env.storage().instance().get(&DataKey::Allowance(owner.clone(), spender.clone())).unwrap_or(0)
+        env.storage()
+            .instance()
+            .get(&DataKey::Allowance(owner.clone(), spender.clone()))
+            .unwrap_or(0)
     }
 
     fn check_access(env: &Env, caller: &Address, required_role: &String) -> Result<(), Error> {
-        let access_control_contract: Address = env.storage().instance()
+        let access_control_contract: Address = env
+            .storage()
+            .instance()
             .get(&DataKey::AccessControl)
             .ok_or(Error::AccessControlNotSet)?;
 
@@ -214,8 +263,11 @@ impl MembershipToken {
             },
         };
 
-        let response: access_control_interface::AccessResponse = env
-            .invoke_contract(&access_control_contract, &Symbol::new(env, "check_access"), Vec::from_array(env, [query.into_val(env)]));
+        let response: access_control_interface::AccessResponse = env.invoke_contract(
+            &access_control_contract,
+            &Symbol::new(env, "check_access"),
+            Vec::from_array(env, [query.into_val(env)]),
+        );
 
         if response.has_access {
             Ok(())

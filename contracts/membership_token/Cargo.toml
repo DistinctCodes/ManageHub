@@ -11,7 +11,7 @@ soroban-sdk = { workspace = true }
 
 [dev-dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }
-access_control = { path = "../access-control" }
+access_control = { path = "../access_control" }
 
 [features]
 testutils = ["soroban-sdk/testutils"]
