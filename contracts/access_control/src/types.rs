@@ -26,9 +26,8 @@ impl UserRole {
         }
     }
 
-    /// Create UserRole from string (case-insensitive)
-    pub fn from_str(role_str: &str) -> Option<UserRole> {
-        match role_str.to_lowercase().as_str() {
+    pub fn parse_from_str(role_str: &str) -> Option<Self> {
+        match role_str.to_ascii_lowercase().as_str() {
             "guest" => Some(UserRole::Guest),
             "member" => Some(UserRole::Member),
             "admin" => Some(UserRole::Admin),
@@ -51,7 +50,7 @@ pub struct MembershipInfo {
 
 /// Access control configuration
 #[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Default)]
 pub struct AccessControlConfig {
     /// Address of the membership token contract
     pub membership_token_contract: Option<Address>,
@@ -59,16 +58,6 @@ pub struct AccessControlConfig {
     pub require_membership_for_roles: bool,
     /// Minimum token balance required for membership
     pub min_token_balance: i128,
-}
-
-impl Default for AccessControlConfig {
-    fn default() -> Self {
-        Self {
-            membership_token_contract: None,
-            require_membership_for_roles: false,
-            min_token_balance: 0,
-        }
-    }
 }
 
 #[contracttype]
@@ -118,11 +107,11 @@ mod tests {
         assert!(UserRole::Admin.has_access(&UserRole::Guest));
         assert!(UserRole::Admin.has_access(&UserRole::Member));
         assert!(UserRole::Admin.has_access(&UserRole::Admin));
-        
+
         assert!(UserRole::Member.has_access(&UserRole::Guest));
         assert!(UserRole::Member.has_access(&UserRole::Member));
         assert!(!UserRole::Member.has_access(&UserRole::Admin));
-        
+
         assert!(UserRole::Guest.has_access(&UserRole::Guest));
         assert!(!UserRole::Guest.has_access(&UserRole::Member));
         assert!(!UserRole::Guest.has_access(&UserRole::Admin));
@@ -134,9 +123,9 @@ mod tests {
         assert_eq!(UserRole::Member.as_str(), "Member");
         assert_eq!(UserRole::Guest.as_str(), "Guest");
 
-        assert_eq!(UserRole::from_str("admin"), Some(UserRole::Admin));
-        assert_eq!(UserRole::from_str("MEMBER"), Some(UserRole::Member));
-        assert_eq!(UserRole::from_str("guest"), Some(UserRole::Guest));
-        assert_eq!(UserRole::from_str("invalid"), None);
+        assert_eq!(UserRole::parse_from_str("admin"), Some(UserRole::Admin));
+        assert_eq!(UserRole::parse_from_str("MEMBER"), Some(UserRole::Member));
+        assert_eq!(UserRole::parse_from_str("guest"), Some(UserRole::Guest));
+        assert_eq!(UserRole::parse_from_str("invalid"), None);
     }
 }

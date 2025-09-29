@@ -266,7 +266,7 @@ fn test_transfer_token_not_found() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let user1 = Address::generate(&env);
+    let _user1 = Address::generate(&env);
     let user2 = Address::generate(&env);
     let token_id = BytesN::<32>::random(&env);
 

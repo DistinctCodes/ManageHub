@@ -1,17 +1,17 @@
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, Address, Env, Vec, String};
+use soroban_sdk::{contract, contractimpl, Address, Env, String, Vec};
 
-pub mod types;
-pub mod errors;
 pub mod access_control;
+pub mod errors;
+pub mod types;
 
 #[cfg(test)]
 mod access_control_tests;
 
-pub use types::{UserRole, AccessControlConfig, MembershipInfo, MultiSigConfig, ProposalAction};
-pub use errors::{AccessControlError, AccessControlResult};
 pub use access_control::AccessControlModule;
+pub use errors::{AccessControlError, AccessControlResult};
+pub use types::{AccessControlConfig, MembershipInfo, MultiSigConfig, ProposalAction, UserRole};
 
 #[contract]
 pub struct AccessControl;
@@ -128,5 +128,3 @@ impl AccessControl {
         AccessControlModule::check_access(&env, caller, role).unwrap_or(false)
     }
 }
-
-
