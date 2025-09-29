@@ -30,7 +30,7 @@ impl UserRole {
         match role_str.to_ascii_lowercase().as_str() {
             "guest" => Some(UserRole::Guest),
             "member" => Some(UserRole::Member),
-            "admin"  => Some(UserRole::Admin),
+            "admin" => Some(UserRole::Admin),
             _ => None,
         }
     }
