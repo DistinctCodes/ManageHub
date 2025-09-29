@@ -1,248 +1,132 @@
 #![no_std]
 
-use soroban_sdk::{
-    contract, contractimpl, contracttype, contracterror, Address, Env, String, Vec, symbol_short
-};
+use soroban_sdk::{contract, contractimpl, Address, Env, Vec, String};
+
+pub mod types;
+pub mod errors;
+pub mod access_control;
+
+#[cfg(test)]
+mod access_control_tests;
+
+pub use types::{UserRole, AccessControlConfig, MembershipInfo, MultiSigConfig, ProposalAction};
+pub use errors::{AccessControlError, AccessControlResult};
+pub use access_control::AccessControlModule;
 
 #[contract]
 pub struct AccessControl;
 
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum DataKey {
-    Admin,
-    UserRoles(Address),
-    RoleMembers(String),
-    RoleExists(String),
-}
-
-#[contracterror]
-#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
-#[repr(u32)]
-pub enum Error {
-    Unauthorized = 1,
-    RoleAlreadyExists = 2,
-    RoleDoesNotExist = 3,
-    UserAlreadyHasRole = 4,
-    UserDoesNotHaveRole = 5,
-    AdminRequired = 6,
-}
-
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct QueryMsg {
-    pub check_access: CheckAccessQuery,
-}
-
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct CheckAccessQuery {
-    pub caller: Address,
-    pub required_role: String,
-}
-
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct AccessResponse {
-    pub has_access: bool,
-}
-
 #[contractimpl]
 impl AccessControl {
-    pub fn initialize(env: Env, admin: Address) -> Result<(), Error> {
-        env.storage().instance().set(&DataKey::Admin, &admin);
-
-        // Create default admin role
-        let admin_role = String::from_str(&env, "Admin");
-        Self::create_role_internal(&env, &admin_role)?;
-        Self::grant_role_internal(&env, &admin, &admin_role)?;
-
-        // Create default minter role (removed transferer role for security)
-        let minter_role = String::from_str(&env, "Minter");
-        Self::create_role_internal(&env, &minter_role)?;
-
-        env.events().publish((symbol_short!("init"), admin), ());
-
-        Ok(())
+    pub fn initialize(env: Env, admin: Address) {
+        AccessControlModule::initialize(&env, admin, None).unwrap()
     }
 
-    pub fn create_role(env: Env, admin: Address, role: String) -> Result<(), Error> {
-        admin.require_auth();
-        Self::require_admin(&env, &admin)?;
-        Self::create_role_internal(&env, &role)
+    pub fn set_role(env: Env, admin: Address, user: Address, role: UserRole) {
+        AccessControlModule::set_role(&env, admin, user, role).unwrap()
     }
 
-    pub fn grant_role(env: Env, admin: Address, user: Address, role: String) -> Result<(), Error> {
-        admin.require_auth();
-        Self::require_admin(&env, &admin)?;
-        Self::grant_role_internal(&env, &user, &role)
+    pub fn get_role(env: Env, user: Address) -> UserRole {
+        AccessControlModule::get_role(&env, user)
     }
 
-    pub fn revoke_role(env: Env, admin: Address, user: Address, role: String) -> Result<(), Error> {
-        admin.require_auth();
-        Self::require_admin(&env, &admin)?;
-        Self::revoke_role_internal(&env, &user, &role)
+    pub fn check_access(env: Env, user: Address, required_role: UserRole) -> bool {
+        AccessControlModule::check_access(&env, user, required_role).unwrap_or(false)
     }
 
-    pub fn check_access(env: Env, query: QueryMsg) -> AccessResponse {
-        let has_access = Self::has_role(env.clone(), query.check_access.caller.clone(), query.check_access.required_role.clone()).unwrap_or_default();
-
-        AccessResponse { has_access }
-    }
-
-    pub fn has_role(env: Env, user: Address, role: String) -> Result<bool, Error> {
-        // Check if role exists
-        let role_exists = env.storage().persistent()
-            .get(&DataKey::RoleExists(role.clone()))
-            .unwrap_or(false);
-
-        if !role_exists {
-            return Err(Error::RoleDoesNotExist);
-        }
-
-        // Check if user has the role
-        let user_roles: Vec<String> = env.storage().persistent()
-            .get(&DataKey::UserRoles(user.clone()))
-            .unwrap_or_else(|| Vec::new(&env));
-
-        Ok(user_roles.contains(role.clone()))
-    }
-
-    pub fn get_user_roles(env: Env, user: Address) -> Vec<String> {
-        env.storage().persistent()
-            .get(&DataKey::UserRoles(user))
-            .unwrap_or_else(|| Vec::new(&env))
-    }
-
-    pub fn get_role_members(env: Env, role: String) -> Result<Vec<Address>, Error> {
-        let role_exists = env.storage().persistent()
-            .get(&DataKey::RoleExists(role.clone()))
-            .unwrap_or(false);
-
-        if !role_exists {
-            return Err(Error::RoleDoesNotExist);
-        }
-
-        Ok(env.storage().persistent()
-            .get(&DataKey::RoleMembers(role))
-            .unwrap_or_else(|| Vec::new(&env)))
+    pub fn require_access(env: Env, user: Address, required_role: UserRole) {
+        AccessControlModule::require_access(&env, user, required_role).unwrap()
     }
 
     pub fn is_admin(env: Env, user: Address) -> bool {
-        let admin_role = String::from_str(&env, "Admin");
-        Self::has_role(env.clone(), user.clone(), admin_role).unwrap_or(false)
+        AccessControlModule::is_admin(&env, user)
     }
 
-    fn create_role_internal(env: &Env, role: &String) -> Result<(), Error> {
-        let role_exists = env.storage().persistent()
-            .get(&DataKey::RoleExists(role.clone()))
-            .unwrap_or(false);
-
-        if role_exists {
-            return Err(Error::RoleAlreadyExists);
-        }
-
-        env.storage().persistent().set(&DataKey::RoleExists(role.clone()), &true);
-        env.storage().persistent().set(&DataKey::RoleMembers(role.clone()), &Vec::<Address>::new(env));
-
-        env.events().publish((symbol_short!("role_new"), role.clone()), ());
-
-        Ok(())
+    pub fn remove_role(env: Env, admin: Address, user: Address) {
+        AccessControlModule::remove_role(&env, admin, user).unwrap()
     }
 
-    fn grant_role_internal(env: &Env, user: &Address, role: &String) -> Result<(), Error> {
-        // Check if role exists
-        let role_exists = env.storage().persistent()
-            .get(&DataKey::RoleExists(role.clone()))
-            .unwrap_or(false);
-
-        if !role_exists {
-            return Err(Error::RoleDoesNotExist);
-        }
-
-        // Get current user roles
-        let mut user_roles: Vec<String> = env.storage().persistent()
-            .get(&DataKey::UserRoles(user.clone()))
-            .unwrap_or_else(|| Vec::new(env));
-
-        if user_roles.contains(role.clone()) {
-            return Err(Error::UserAlreadyHasRole);
-        }
-
-        // Add role to user
-        user_roles.push_back(role.clone());
-        env.storage().persistent().set(&DataKey::UserRoles(user.clone()), &user_roles);
-
-        // Add user to role members
-        let mut role_members: Vec<Address> = env.storage().persistent()
-            .get(&DataKey::RoleMembers(role.clone()))
-            .unwrap_or_else(|| Vec::new(env));
-
-        role_members.push_back(user.clone());
-        env.storage().persistent().set(&DataKey::RoleMembers(role.clone()), &role_members);
-
-        env.events().publish((symbol_short!("role_give"), user.clone(), role.clone()), ());
-
-        Ok(())
+    pub fn update_config(env: Env, admin: Address, config: AccessControlConfig) {
+        AccessControlModule::update_config(&env, admin, config).unwrap()
     }
 
-    fn revoke_role_internal(env: &Env, user: &Address, role: &String) -> Result<(), Error> {
-        // Check if role exists
-        let role_exists = env.storage().persistent()
-            .get(&DataKey::RoleExists(role.clone()))
-            .unwrap_or(false);
-
-        if !role_exists {
-            return Err(Error::RoleDoesNotExist);
-        }
-
-        // Get current user roles
-        let user_roles: Vec<String> = env.storage().persistent()
-            .get(&DataKey::UserRoles(user.clone()))
-            .unwrap_or_else(|| Vec::new(env));
-
-        if !user_roles.contains(role.clone()) {
-            return Err(Error::UserDoesNotHaveRole);
-        }
-
-        // Remove role from user
-        let mut new_user_roles = Vec::new(env);
-        for r in user_roles.iter() {
-            if r.clone() != role.clone() {
-                new_user_roles.push_back(r.clone());
-            }
-        }
-        env.storage().persistent().set(&DataKey::UserRoles(user.clone()), &new_user_roles);
-
-        // Remove user from role members
-        let role_members: Vec<Address> = env.storage().persistent()
-            .get(&DataKey::RoleMembers(role.clone()))
-            .unwrap_or_else(|| Vec::new(env));
-
-        let mut new_role_members = Vec::new(env);
-        for member in role_members.iter() {
-            if member.clone() != user.clone() {
-                new_role_members.push_back(member.clone());
-            }
-        }
-        env.storage().persistent().set(&DataKey::RoleMembers(role.clone()), &new_role_members);
-
-        env.events().publish((symbol_short!("role_take"), user.clone(), role.clone()), ());
-
-        Ok(())
+    pub fn get_config(env: Env) -> AccessControlConfig {
+        AccessControlModule::get_config(&env)
     }
 
-    fn require_admin(env: &Env, caller: &Address) -> Result<(), Error> {
-        let admin: Address = env.storage().instance()
-            .get(&DataKey::Admin)
-            .ok_or(Error::Unauthorized)?;
+    pub fn pause(env: Env, admin: Address) {
+        AccessControlModule::pause(&env, admin).unwrap()
+    }
 
-        if caller != &admin && !Self::is_admin(env.clone(), caller.clone()) {
-            return Err(Error::AdminRequired);
-        }
+    pub fn unpause(env: Env, admin: Address) {
+        AccessControlModule::unpause(&env, admin).unwrap()
+    }
 
-        Ok(())
+    pub fn blacklist_user(env: Env, admin: Address, user: Address) {
+        AccessControlModule::blacklist_user(&env, admin, user).unwrap()
+    }
+
+    pub fn unblacklist_user(env: Env, admin: Address, user: Address) {
+        AccessControlModule::unblacklist_user(&env, admin, user).unwrap()
+    }
+
+    pub fn is_blacklisted(env: Env, user: Address) -> bool {
+        AccessControlModule::is_blacklisted(&env, &user)
+    }
+
+    pub fn propose_admin_transfer(env: Env, current_admin: Address, new_admin: Address) {
+        AccessControlModule::propose_admin_transfer(&env, current_admin, new_admin).unwrap()
+    }
+
+    pub fn accept_admin_transfer(env: Env, new_admin: Address) {
+        AccessControlModule::accept_admin_transfer(&env, new_admin).unwrap()
+    }
+
+    pub fn cancel_admin_transfer(env: Env, current_admin: Address) {
+        AccessControlModule::cancel_admin_transfer(&env, current_admin).unwrap()
+    }
+
+    pub fn initialize_multisig(env: Env, admins: Vec<Address>, required_signatures: u32) {
+        AccessControlModule::initialize_multisig(&env, admins, required_signatures, None).unwrap()
+    }
+
+    pub fn create_proposal(env: Env, proposer: Address, action: ProposalAction) -> u64 {
+        AccessControlModule::create_proposal(&env, proposer, action).unwrap()
+    }
+
+    pub fn approve_proposal(env: Env, approver: Address, proposal_id: u64) {
+        AccessControlModule::approve_proposal(&env, approver, proposal_id).unwrap()
+    }
+
+    pub fn is_multisig_enabled(env: Env) -> bool {
+        AccessControlModule::is_multisig_enabled(&env)
+    }
+
+    pub fn get_multisig_admins(env: Env) -> Vec<Address> {
+        AccessControlModule::get_multisig_config(&env)
+            .map(|config| config.admins)
+            .unwrap_or_else(|| Vec::new(&env))
+    }
+
+    pub fn get_multisig_threshold(env: Env) -> u32 {
+        AccessControlModule::get_multisig_config(&env)
+            .map(|config| config.required_signatures)
+            .unwrap_or(0)
+    }
+
+    pub fn check_access_legacy(env: Env, caller: Address, required_role: String) -> bool {
+        let admin_str = String::from_str(&env, "Admin");
+        let member_str = String::from_str(&env, "Member");
+
+        let role = if required_role == admin_str {
+            UserRole::Admin
+        } else if required_role == member_str {
+            UserRole::Member
+        } else {
+            UserRole::Guest
+        };
+        AccessControlModule::check_access(&env, caller, role).unwrap_or(false)
     }
 }
 
-mod test;
+

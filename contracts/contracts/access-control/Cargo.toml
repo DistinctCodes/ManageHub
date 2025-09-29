@@ -15,6 +15,3 @@ soroban-sdk = { workspace = true, features = ["testutils"] }
 [features]
 testutils = ["soroban-sdk/testutils"]
 
-[[bin]]
-name = "access-control"
-path = "src/bin/access-control.rs"
