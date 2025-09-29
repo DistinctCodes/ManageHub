@@ -7,7 +7,6 @@ import { ArrowLeft, Info, Mail, Send } from 'lucide-react';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import z from 'zod';
-import ResetComponent from './ResetComponent';
 
 import {
   Form,
@@ -20,8 +19,9 @@ import {
 import { Input } from '@/components/ui/Input';
 import { Separator } from '@/components/ui/separator';
 import { useState } from 'react';
+import ResetPasswordCard from './ResetPasswordCard';
 
-const Email = () => {
+const EmailResetPassword = () => {
   const [dummyLoadingState, setDummyLoadingState] = useState(false);
   const form = useForm<z.infer<typeof forgotPasswordSchema>>({
     resolver: zodResolver(forgotPasswordSchema),
@@ -41,7 +41,7 @@ const Email = () => {
   }
   return (
     <>
-      <ResetComponent
+      <ResetPasswordCard
         heading='Forgot Password'
         subHeading="No worries, we'll send you reset instructions"
       >
@@ -88,7 +88,7 @@ const Email = () => {
           <ArrowLeft size={20} />
           <Link href='sign-in'>Back to Sign in</Link>
         </div>
-      </ResetComponent>
+      </ResetPasswordCard>
 
       {/* alert */}
       <div className='bg-[#eff6ff] text-primary text-start border-1 font-medium border-[#cee3fe] border-sm p-2 md:p-4 rounded-lg flex gap-3'>
@@ -109,4 +109,4 @@ const Email = () => {
   );
 };
 
-export default Email;
+export default EmailResetPassword;

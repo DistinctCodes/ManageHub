@@ -4,7 +4,7 @@ interface ResetComponentProps {
   children?: React.ReactNode;
 }
 
-const ResetComponent = ({
+const ResetPasswordCard = ({
   heading,
   subHeading,
   children,
@@ -27,4 +27,4 @@ const ResetComponent = ({
   );
 };
 
-export default ResetComponent;
+export default ResetPasswordCard;
