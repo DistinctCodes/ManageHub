@@ -1,5 +1,5 @@
-import Newsletter from "./components/newa-letter";
-import Footer from "./components/ui/Footer";
+import Newsletter from "../components/newa-letter";
+import Footer from "../components/ui/Footer";
 
 export default function Home() {
   return (
