@@ -4,10 +4,10 @@ POST http://localhost:6000/auth/register
 Content-Type: application/json
 
 {
-    "firstname": "john",
-    "lastname": "doe",
-    "email": "johndoe@gmail.com",
-    "password": "Adetomi.54"
+    "firstname": "test",
+    "lastname": "user",
+    "email": "testuser@gmail.com",
+    "password": "Testing123.56"
 }
 
 // LOGIN USER
@@ -15,6 +15,6 @@ POST http://localhost:6000/auth/login
 Content-Type: application/json
 
 {
-    "email": "johndoe",
-    "password": "Adetomi.54"
+    "email": "testuser@gmail.com",
+    "password": "Testing123.56"
 }

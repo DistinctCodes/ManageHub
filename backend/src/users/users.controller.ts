@@ -1,5 +1,6 @@
 import {
   Controller,
+
   Post,
   Get,
   Param,
@@ -21,10 +22,14 @@ import { GetCurrentUser } from '../auth/decorators/getCurrentUser.decorator';
 import { UserRole } from './enums/userRoles.enum';
 import { ApiTags, ApiOperation, ApiConsumes, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
 
+import { UpdateUserDto } from './dto/updateUser.dto';
+
+
 @ApiTags('users')
 @ApiBearerAuth()
 @Controller('users')
 export class UsersController {
+
   private readonly logger = new Logger(UsersController.name);
 
   constructor(
@@ -97,5 +102,33 @@ export class UsersController {
       message: 'User retrieved successfully',
       data: userWithoutSensitiveData,
     };
+  }
+  // GET /users
+  @Get()
+  async findAll() {
+    const users = await this.usersService.findAllUsers();
+    return { success: true, data: users };
+  }
+
+  // PATCH /users/:id
+  @Patch(':id')
+  async update(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() updateData: UpdateUserDto,
+  ) {
+    const user = await this.usersService.updateUser(id, updateData);
+    return {
+      success: true,
+      message: `User ${id} updated successfully`,
+      data: user,
+    };
+  }
+
+  // DELETE /users/:id
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async remove(@Param('id', new ParseUUIDPipe()) id: string) {
+    await this.usersService.deleteUser(id);
+    return;
   }
 }
