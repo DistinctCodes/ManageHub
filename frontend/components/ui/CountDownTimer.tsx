@@ -1,5 +1,5 @@
 "use client"
-import { Building2, X, Menu } from "lucide-react";
+import { Building2, X, Menu, Clock } from "lucide-react";
 import { useMemo, useState, useEffect } from "react";
 import { TimePill } from "./TimePill";
 
@@ -21,9 +21,9 @@ export function CountdownTimer({ targetDate }: { targetDate: string | Date }) {
     const seconds = Math.floor((diff / 1000) % 60);
   
     return (
-      <div className="w-full max-w-2xl mx-auto bg-white rounded-2xl p-6 shadow-lg text-gray-800">
-        <div className="flex items-center justify-center gap-2 mb-4">
-          <Building2 className="w-7 h-7 text-primary" />
+      <div className="w-full max-w-xl mx-auto bg-white rounded-2xl p-8 shadow-lg text-gray-800">
+        <div className="flex items-center justify-center gap-2 mb-5">
+          <Clock className="w-6 h-6 text-[#155dfc]" size={12}/>
           <span className="text-black font-bold">Launching In</span>
         </div>
         <div className="grid grid-cols-4 gap-3 text-center">

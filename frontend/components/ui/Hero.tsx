@@ -1,11 +1,12 @@
+import { Star } from "lucide-react";
 import { CountdownTimer } from "./CountDownTimer";
 
 
 export function Hero({ launchDate = new Date(Date.now() + 1000 * 60 * 60 * 24 * 45) }: { launchDate?: Date | string }) {
     return (
-      <section className="min-h-screen flex flex-col items-center justify-center text-center bg-[#f8fafc] px-6 pt-24">
-        <div className="inline-block mb-4 px-4 py-1 rounded-full border border-gray-300 text-sm text-gray-600 shadow-sm">
-          ⭐ Something Amazing is Coming
+      <section className="min-h-screen flex flex-col items-center justify-center text-center bg-[#f8fafc] px-6 pt-20">
+        <div className="flex gap-2 items-center justify-center mb-4 px-4 py-1 rounded-full border border-gray-300 text-sm text-[#155dfc] shadow-sm">
+          <Star color="#fea419" size={16} /> Something Amazing is Coming
         </div>
   
         <h1 className="text-4xl sm:text-5xl md:text-7xl font-extrabold leading-tight text-gray-900 mb-6">
