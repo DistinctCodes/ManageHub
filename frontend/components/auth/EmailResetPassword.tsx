@@ -20,8 +20,13 @@ import { Input } from '@/components/ui/Input';
 import { Separator } from '@/components/ui/separator';
 import { useState } from 'react';
 import ResetPasswordCard from './ResetPasswordCard';
+import Alert from '../ui/Alert';
 
-const EmailResetPassword = () => {
+interface EmailResetPasswordProps {
+  onTogglePage: (value: 'email' | 'resend') => void;
+}
+
+const EmailResetPassword = ({ onTogglePage }: EmailResetPasswordProps) => {
   const [dummyLoadingState, setDummyLoadingState] = useState(false);
   const form = useForm<z.infer<typeof forgotPasswordSchema>>({
     resolver: zodResolver(forgotPasswordSchema),
@@ -37,6 +42,7 @@ const EmailResetPassword = () => {
       setDummyLoadingState(false);
       form.reset();
       console.log(values);
+      onTogglePage('resend');
     });
   }
   return (
@@ -91,20 +97,13 @@ const EmailResetPassword = () => {
       </ResetPasswordCard>
 
       {/* alert */}
-      <div className='bg-[#eff6ff] text-primary text-start border-1 font-medium border-[#cee3fe] border-sm p-2 md:p-4 rounded-lg flex gap-3'>
-        <Info />
-
-        <article className='space-y-1 text-xs md:text-sm'>
-          <h3>Need help?</h3>
-          <p className='leading-4 md:leading-5'>
-            If you are having trouble accessing your account, comtact our
-            support team at{' '}
-            <Link href='mailto:support@managehub.com' className='underline'>
-              support@managehub.com
-            </Link>
-          </p>
-        </article>
-      </div>
+      <Alert icon={<Info />} title='Need help?'>
+        If you are having trouble accessing your account, comtact our support
+        team at{' '}
+        <Link href='mailto:support@managehub.com' className='underline'>
+          support@managehub.com
+        </Link>
+      </Alert>
     </>
   );
 };

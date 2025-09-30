@@ -1,5 +1,5 @@
+import ResetPasswordLayout from '@/components/auth/ResetPasswordLayout';
 import Link from 'next/link';
-import EmailResetPassword from '../../../components/auth/EmailResetPassword';
 
 export const metadata = {
   title: 'Forgot Password',
@@ -10,7 +10,7 @@ const page = () => {
   return (
     <main className='min-h-screen bg-[#f8fafc] flex flex-col justify-center items-center gap-10 p-4'>
       <section className='w-full md:w-8/12 lg:w-1/3 space-y-10 mx-auto flex flex-col items-center'>
-        <EmailResetPassword />
+        <ResetPasswordLayout />
 
         <footer className='space-y-3 text-center text-[#a2a9b6] text-sm '>
           <p className='md:text-xl text-[#787f8b] font-medium pb-3'>
@@ -26,13 +26,13 @@ const page = () => {
 
           <ul className='flex items-center justify-center gap-3 *:hover:text-primary *:transition-colors *:duration-300'>
             <li>
-              <Link href=''>Privacy policy</Link>
+              <Link href='privacy-policy'>Privacy policy</Link>
             </li>
             <li>
-              <Link href=''>Terms of service</Link>
+              <Link href='terms-of-service'>Terms of service</Link>
             </li>
             <li>
-              <Link href=''>Support</Link>
+              <Link href='support'>Support</Link>
             </li>
           </ul>
         </footer>
