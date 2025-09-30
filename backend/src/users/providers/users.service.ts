@@ -7,6 +7,9 @@ import { FindOneUserByEmailProvider } from './findOneUserByEmail.provider';
 import { ValidateUserProvider } from './validateUser.provider';
 import { AuthResponse } from 'src/auth/interfaces/authResponse.interface';
 import { Response } from 'express';
+import { NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 
 @Injectable()
 export class UsersService {
@@ -15,6 +18,8 @@ export class UsersService {
     private readonly findOneUserByIdProvider: FindOneUserByIdProvider,
     private readonly findOneUserByEmailProvider: FindOneUserByEmailProvider,
     private readonly validateUserProvider: ValidateUserProvider,
+    @InjectRepository(User)
+    private readonly usersRepository: Repository<User>,
   ) {}
 
   async createUser(
@@ -40,5 +45,27 @@ export class UsersService {
     password: string,
   ): Promise<Partial<User>> {
     return await this.validateUserProvider.validateUser(email, password);
+  }
+
+  // UPDATE PROFILE PICTURE
+  async updateProfilePicture(userId: string, profilePictureUrl: string): Promise<User & { oldProfilePicture?: string }> {
+    const user = await this.findUserById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    const oldProfilePicture = user.profilePicture;
+    user.profilePicture = profilePictureUrl;
+    const updatedUser = await this.usersRepository.save(user);
+    return { ...updatedUser, oldProfilePicture } as User & { oldProfilePicture?: string };
+  }
+
+  // FIND ONE BY ID (EXCLUDE PASSWORD)
+  async findOneById(id: string): Promise<Partial<User>> {
+    const user = await this.findUserById(id);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    const { password, ...userWithoutPassword } = user as any;
+    return userWithoutPassword;
   }
 }

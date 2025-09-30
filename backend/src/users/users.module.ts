@@ -8,9 +8,10 @@ import { FindOneUserByEmailProvider } from './providers/findOneUserByEmail.provi
 import { FindOneUserByIdProvider } from './providers/findOneUserById.provider';
 import { CreateUserProvider } from './providers/createUser.provider';
 import { ValidateUserProvider } from './providers/validateUser.provider';
+import { CloudinaryModule } from '../cloudinary/cloudinary.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User]), forwardRef(() => AuthModule)],
+  imports: [TypeOrmModule.forFeature([User]), forwardRef(() => AuthModule), CloudinaryModule],
   controllers: [UsersController],
   providers: [
     UsersService,

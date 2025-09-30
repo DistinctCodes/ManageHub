@@ -1,5 +1,6 @@
 export interface TokenPayload {
-  userId: string;
+  userId?: string;
+  sub?: string;
   email?: string;
   role?: string;
   iat?: number;
