@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 ::-webkit-scrollar {
   width: 8px;
@@ -32,4 +32,3 @@
     scrollbar-color: #4b5563 transparent;
   }
 }
-
