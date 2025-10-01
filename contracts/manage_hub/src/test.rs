@@ -4,8 +4,6 @@ extern crate alloc;
 use alloc::format;
 
 use super::*;
-use crate::errors::Error;
-use crate::membership_token::MembershipTokenContract;
 use crate::types::MembershipStatus;
 use soroban_sdk::map;
 use soroban_sdk::{
@@ -39,7 +37,7 @@ fn test_set_admin_success() {
     let admin = Address::generate(&env);
 
     // Set admin should succeed
-    let result = client.set_admin(&admin);
+    client.set_admin(&admin);
 }
 
 #[test]
@@ -124,7 +122,7 @@ fn test_issue_token_invalid_expiry_date_equal() {
     client.set_admin(&admin);
 
     // Try to issue token with expiry date equal to current time
-    let result = client.issue_token(&token_id, &user, &current_time);
+    client.issue_token(&token_id, &user, &current_time);
 }
 
 #[test]
