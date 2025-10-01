@@ -15,8 +15,8 @@ export default function Home() {
       <Navbar />
       {/* Hero Section */}
       <Hero launchDate={launchDate} /> {/* Newsletter Section */}
-      <section className="min-h-screen flex items-center justify-center">
-        /{" "}
+      <section className='min-h-screen flex items-center justify-center'>
+        /{' '}
       </section>
       {/* Features Section */}
       <FeaturesSection />
