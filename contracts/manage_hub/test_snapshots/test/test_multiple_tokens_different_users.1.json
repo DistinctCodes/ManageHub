@@ -12,8 +12,12 @@
           "function": {
             "contract_fn": {
               "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-              "function_name": "",
-              "args": []
+              "function_name": "set_admin",
+              "args": [
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                }
+              ]
             }
           },
           "sub_invocations": []
@@ -27,8 +31,18 @@
           "function": {
             "contract_fn": {
               "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-              "function_name": "",
-              "args": []
+              "function_name": "issue_token",
+              "args": [
+                {
+                  "bytes": "51f19fdd629dc762a7f2933a58d48ab20affd71f68298cecd7521e45a920e488"
+                },
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                },
+                {
+                  "u64": 1000
+                }
+              ]
             }
           },
           "sub_invocations": []
@@ -42,8 +56,18 @@
           "function": {
             "contract_fn": {
               "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-              "function_name": "",
-              "args": []
+              "function_name": "issue_token",
+              "args": [
+                {
+                  "bytes": "6a047a1cdc1a15a4b1ff7c4ae158a41b0b637294f184000be5c57fa92234d615"
+                },
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
+                },
+                {
+                  "u64": 1000
+                }
+              ]
             }
           },
           "sub_invocations": []
@@ -73,7 +97,7 @@
                   "symbol": "Token"
                 },
                 {
-                  "bytes": "c7f8ffe0366ed3cefa58f42c9339a568308a9c49b3f2140c700bd845a8e20423"
+                  "bytes": "51f19fdd629dc762a7f2933a58d48ab20affd71f68298cecd7521e45a920e488"
                 }
               ]
             },
@@ -93,7 +117,7 @@
                       "symbol": "Token"
                     },
                     {
-                      "bytes": "c7f8ffe0366ed3cefa58f42c9339a568308a9c49b3f2140c700bd845a8e20423"
+                      "bytes": "51f19fdd629dc762a7f2933a58d48ab20affd71f68298cecd7521e45a920e488"
                     }
                   ]
                 },
@@ -113,97 +137,7 @@
                         "symbol": "id"
                       },
                       "val": {
-                        "bytes": "c7f8ffe0366ed3cefa58f42c9339a568308a9c49b3f2140c700bd845a8e20423"
-                      }
-                    },
-                    {
-                      "key": {
-                        "symbol": "issue_date"
-                      },
-                      "val": {
-                        "u64": 0
-                      }
-                    },
-                    {
-                      "key": {
-                        "symbol": "status"
-                      },
-                      "val": {
-                        "vec": [
-                          {
-                            "symbol": "Active"
-                          }
-                        ]
-                      }
-                    },
-                    {
-                      "key": {
-                        "symbol": "user"
-                      },
-                      "val": {
-                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
-                      }
-                    }
-                  ]
-                }
-              }
-            },
-            "ext": "v0"
-          },
-          4095
-        ]
-      ],
-      [
-        {
-          "contract_data": {
-            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-            "key": {
-              "vec": [
-                {
-                  "symbol": "Token"
-                },
-                {
-                  "bytes": "d80473360bd718a5e3100e4944e02ff9b92a20979ea1246f3c8d9e94e5bcd9d4"
-                }
-              ]
-            },
-            "durability": "persistent"
-          }
-        },
-        [
-          {
-            "last_modified_ledger_seq": 0,
-            "data": {
-              "contract_data": {
-                "ext": "v0",
-                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-                "key": {
-                  "vec": [
-                    {
-                      "symbol": "Token"
-                    },
-                    {
-                      "bytes": "d80473360bd718a5e3100e4944e02ff9b92a20979ea1246f3c8d9e94e5bcd9d4"
-                    }
-                  ]
-                },
-                "durability": "persistent",
-                "val": {
-                  "map": [
-                    {
-                      "key": {
-                        "symbol": "expiry_date"
-                      },
-                      "val": {
-                        "u64": 1000
-                      }
-                    },
-                    {
-                      "key": {
-                        "symbol": "id"
-                      },
-                      "val": {
-                        "bytes": "d80473360bd718a5e3100e4944e02ff9b92a20979ea1246f3c8d9e94e5bcd9d4"
+                        "bytes": "51f19fdd629dc762a7f2933a58d48ab20affd71f68298cecd7521e45a920e488"
                       }
                     },
                     {
@@ -232,6 +166,96 @@
                       },
                       "val": {
                         "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "ext": "v0"
+          },
+          4095
+        ]
+      ],
+      [
+        {
+          "contract_data": {
+            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+            "key": {
+              "vec": [
+                {
+                  "symbol": "Token"
+                },
+                {
+                  "bytes": "6a047a1cdc1a15a4b1ff7c4ae158a41b0b637294f184000be5c57fa92234d615"
+                }
+              ]
+            },
+            "durability": "persistent"
+          }
+        },
+        [
+          {
+            "last_modified_ledger_seq": 0,
+            "data": {
+              "contract_data": {
+                "ext": "v0",
+                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+                "key": {
+                  "vec": [
+                    {
+                      "symbol": "Token"
+                    },
+                    {
+                      "bytes": "6a047a1cdc1a15a4b1ff7c4ae158a41b0b637294f184000be5c57fa92234d615"
+                    }
+                  ]
+                },
+                "durability": "persistent",
+                "val": {
+                  "map": [
+                    {
+                      "key": {
+                        "symbol": "expiry_date"
+                      },
+                      "val": {
+                        "u64": 1000
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "id"
+                      },
+                      "val": {
+                        "bytes": "6a047a1cdc1a15a4b1ff7c4ae158a41b0b637294f184000be5c57fa92234d615"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "issue_date"
+                      },
+                      "val": {
+                        "u64": 0
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "status"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "symbol": "Active"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "user"
+                      },
+                      "val": {
+                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
                       }
                     }
                   ]

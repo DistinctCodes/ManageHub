@@ -1,4 +1,4 @@
-import {
+                    import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
@@ -7,6 +7,7 @@ import {
   UpdateDateColumn,
   DeleteDateColumn,
 } from 'typeorm';
+import { Exclude } from 'class-transformer';
 import { RefreshToken } from '../../auth/entities/refreshToken.entity';
 import { UserRole } from '../enums/userRoles.enum';
 
@@ -27,6 +28,7 @@ export class User {
   @Column({ unique: true })
   email: string;
 
+  @Exclude()
   @Column()
   password: string;
 
@@ -37,9 +39,11 @@ export class User {
   })
   role: UserRole;
 
+  @Exclude()
   @Column({ nullable: true })
   passwordResetToken?: string;
 
+  @Exclude()
   @Column({ type: 'timestamptz', nullable: true })
   passwordResetExpiresIn?: Date;
 
@@ -52,6 +56,7 @@ export class User {
   @Column({ default: false })
   isSuspended: boolean;
 
+  @Exclude()
   @OneToMany(() => RefreshToken, (refreshToken) => refreshToken.user)
   refreshTokens: RefreshToken[];
 

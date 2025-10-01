@@ -1,6 +1,6 @@
-"use client"
-import Link from "next/link"
-import { Home, ArrowLeft, SearchX } from "lucide-react"
+"use client";
+import Link from "next/link";
+import { Home, ArrowLeft, SearchX } from "lucide-react";
 
 export default function NotFound() {
   return (
@@ -10,7 +10,10 @@ export default function NotFound() {
         <div className="relative inline-block">
           <div className="absolute inset-0 bg-purple-200 rounded-full blur-3xl opacity-30 animate-pulse" />
           <div className="relative bg-white rounded-full p-4 sm:p-6 md:p-8 shadow-xl">
-            <SearchX className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 text-purple-600 mx-auto" strokeWidth={1.5} />
+            <SearchX
+              className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 text-purple-600 mx-auto"
+              strokeWidth={1.5}
+            />
           </div>
         </div>
 
@@ -28,8 +31,8 @@ export default function NotFound() {
             Page Not Found
           </h2>
           <p className="text-lg text-gray-600 max-w-md mx-auto leading-relaxed">
-            Oops! The page you're looking for seems to have wandered off. 
-            Let's get you back on track.
+            Oops! The page you&#39;re looking for seems to have wandered off.
+            Let&#39;s get you back on track.
           </p>
         </div>
 
@@ -55,10 +58,11 @@ export default function NotFound() {
         {/* Additional Info */}
         <div className="pt-8">
           <p className="text-sm text-gray-500">
-            Error Code: <span className="font-mono font-semibold text-purple-600">404</span>
+            Error Code:{" "}
+            <span className="font-mono font-semibold text-purple-600">404</span>
           </p>
         </div>
       </div>
     </div>
-  )
+  );
 }

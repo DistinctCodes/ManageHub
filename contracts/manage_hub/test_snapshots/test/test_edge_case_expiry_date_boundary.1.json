@@ -12,8 +12,12 @@
           "function": {
             "contract_fn": {
               "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-              "function_name": "",
-              "args": []
+              "function_name": "set_admin",
+              "args": [
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                }
+              ]
             }
           },
           "sub_invocations": []
@@ -27,8 +31,18 @@
           "function": {
             "contract_fn": {
               "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-              "function_name": "",
-              "args": []
+              "function_name": "issue_token",
+              "args": [
+                {
+                  "bytes": "63a1da5a279347ed2ad664fa7508bad1d496911c54d7d804e7bf9837c695a2c1"
+                },
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                },
+                {
+                  "u64": 1
+                }
+              ]
             }
           },
           "sub_invocations": []
@@ -41,7 +55,7 @@
   "ledger": {
     "protocol_version": 22,
     "sequence_number": 0,
-    "timestamp": 2,
+    "timestamp": 1,
     "network_id": "0000000000000000000000000000000000000000000000000000000000000000",
     "base_reserve": 0,
     "min_persistent_entry_ttl": 4096,
@@ -58,7 +72,7 @@
                   "symbol": "Token"
                 },
                 {
-                  "bytes": "ab5829d8e354432f54ddd4aba8e9bb9962c4ed697c45c86e1e08f248c4029c1f"
+                  "bytes": "63a1da5a279347ed2ad664fa7508bad1d496911c54d7d804e7bf9837c695a2c1"
                 }
               ]
             },
@@ -78,7 +92,7 @@
                       "symbol": "Token"
                     },
                     {
-                      "bytes": "ab5829d8e354432f54ddd4aba8e9bb9962c4ed697c45c86e1e08f248c4029c1f"
+                      "bytes": "63a1da5a279347ed2ad664fa7508bad1d496911c54d7d804e7bf9837c695a2c1"
                     }
                   ]
                 },
@@ -98,7 +112,7 @@
                         "symbol": "id"
                       },
                       "val": {
-                        "bytes": "ab5829d8e354432f54ddd4aba8e9bb9962c4ed697c45c86e1e08f248c4029c1f"
+                        "bytes": "63a1da5a279347ed2ad664fa7508bad1d496911c54d7d804e7bf9837c695a2c1"
                       }
                     },
                     {

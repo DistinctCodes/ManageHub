@@ -12,8 +12,12 @@
           "function": {
             "contract_fn": {
               "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-              "function_name": "",
-              "args": []
+              "function_name": "set_admin",
+              "args": [
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                }
+              ]
             }
           },
           "sub_invocations": []
@@ -27,15 +31,24 @@
           "function": {
             "contract_fn": {
               "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-              "function_name": "",
-              "args": []
+              "function_name": "issue_token",
+              "args": [
+                {
+                  "bytes": "826d1aaa9b40e756a54d948baac25b357cae754dff7bda4a318bcf961c5e41be"
+                },
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                },
+                {
+                  "u64": 1000
+                }
+              ]
             }
           },
           "sub_invocations": []
         }
       ]
     ],
-    [],
     []
   ],
   "ledger": {
@@ -58,7 +71,7 @@
                   "symbol": "Token"
                 },
                 {
-                  "bytes": "b4320e95a8115a3b6c4397962f19c451344a8baff29af6aea01aad7585664f92"
+                  "bytes": "826d1aaa9b40e756a54d948baac25b357cae754dff7bda4a318bcf961c5e41be"
                 }
               ]
             },
@@ -78,7 +91,7 @@
                       "symbol": "Token"
                     },
                     {
-                      "bytes": "b4320e95a8115a3b6c4397962f19c451344a8baff29af6aea01aad7585664f92"
+                      "bytes": "826d1aaa9b40e756a54d948baac25b357cae754dff7bda4a318bcf961c5e41be"
                     }
                   ]
                 },
@@ -98,7 +111,7 @@
                         "symbol": "id"
                       },
                       "val": {
-                        "bytes": "b4320e95a8115a3b6c4397962f19c451344a8baff29af6aea01aad7585664f92"
+                        "bytes": "826d1aaa9b40e756a54d948baac25b357cae754dff7bda4a318bcf961c5e41be"
                       }
                     },
                     {
@@ -116,7 +129,7 @@
                       "val": {
                         "vec": [
                           {
-                            "symbol": "Inactive"
+                            "symbol": "Active"
                           }
                         ]
                       }

@@ -1,15 +1,14 @@
 #![no_std]
 use soroban_sdk::{contract, contractimpl, vec, Address, BytesN, Env, String, Vec};
 
+mod attendance_log;
 mod errors;
 mod membership_token;
-mod subscription;
 mod types;
 
+use attendance_log::{AttendanceLogModule, EventLog};
 use errors::Error;
 use membership_token::{MembershipToken, MembershipTokenContract};
-use subscription::SubscriptionContract;
-use types::Subscription;
 
 #[contract]
 pub struct Contract;
@@ -41,33 +40,21 @@ impl Contract {
         MembershipTokenContract::set_admin(env, admin)
     }
 
-    // Subscription management functions
-    pub fn validate_payment(
+    pub fn log_event(
         env: Env,
-        payment_token: Address,
-        amount: i128,
-        payer: Address,
-    ) -> Result<bool, Error> {
-        SubscriptionContract::validate_payment(env, payment_token, amount, payer)
-    }
-
-    pub fn create_subscription(
-        env: Env,
-        id: String,
+        event_id: BytesN<32>,
         user: Address,
-        payment_token: Address,
-        amount: i128,
-        duration: u64,
+        event_details: soroban_sdk::Map<String, String>,
     ) -> Result<(), Error> {
-        SubscriptionContract::create_subscription(env, id, user, payment_token, amount, duration)
+        AttendanceLogModule::log_event(env, event_id, user, event_details)
     }
 
-    pub fn get_subscription(env: Env, id: String) -> Result<Subscription, Error> {
-        SubscriptionContract::get_subscription(env, id)
+    pub fn get_events_by_event(env: Env, event_id: BytesN<32>) -> Vec<EventLog> {
+        AttendanceLogModule::get_events_by_event(env, event_id)
     }
 
-    pub fn set_usdc_contract(env: Env, admin: Address, usdc_address: Address) -> Result<(), Error> {
-        SubscriptionContract::set_usdc_contract(env, admin, usdc_address)
+    pub fn get_events_by_user(env: Env, user: Address) -> Vec<EventLog> {
+        AttendanceLogModule::get_events_by_user(env, user)
     }
 }
 
