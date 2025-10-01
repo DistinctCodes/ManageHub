@@ -1,8 +1,9 @@
-import { Navbar } from '@/components/ui/Navbar';
-import Newsletter from '../components/newa-letter';
-import Footer from '../components/ui/Footer';
-import { useMemo } from 'react';
-import { Hero } from '@/components/ui/Hero';
+import { Navbar } from "@/components/ui/Navbar";
+import Newsletter from "../components/newa-letter";
+import Footer from "../components/ui/Footer";
+import { useMemo } from "react";
+import { Hero } from "@/components/ui/Hero";
+import FeaturesSection from "@/components/ui/FeaturesSection";
 
 export default function Home() {
   const launchDate = useMemo(
@@ -17,6 +18,8 @@ export default function Home() {
       <section className='min-h-screen flex items-center justify-center'>
         /{' '}
       </section>
+      {/* Features Section */}
+      <FeaturesSection />
       <Newsletter />
       {/* Footer Section */}
       <Footer />
