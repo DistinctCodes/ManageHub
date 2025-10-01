@@ -14,7 +14,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://example.com"),
+  metadataBase: (() => {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+    if (!siteUrl) {
+      throw new Error("NEXT_PUBLIC_SITE_URL environment variable is not set.");
+    }
+    return new URL(siteUrl);
+  })(),
   title: { default: "ManageHub", template: "%s | ManageHub" },
   description: "Smart Hub & Workspace Management System",
   keywords: ["managehub", "workspaces", "tech hubs"],

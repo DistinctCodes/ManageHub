@@ -15,6 +15,7 @@ interface BuildMetadataInput {
   type?: 'website' | 'article' | 'profile';
   publishedTime?: string;
   modifiedTime?: string;
+  themeColor?: string;
 }
 
 /**
@@ -50,18 +51,22 @@ export function buildMetadata(input: BuildMetadataInput = {}): Metadata {
     type = defaults.type,
     publishedTime,
     modifiedTime,
+    themeColor = '#000000',
   } = input;
 
   // Build the metadata object
   const metadata: Metadata = {
     // Title configuration - let the layout handle the template
-    title: title,
+    title,
     
     // Description
     description,
     
     // Keywords
     keywords,
+    
+    // Theme color
+    themeColor,
     
     // Robots configuration
     robots: {
@@ -114,11 +119,6 @@ export function buildMetadata(input: BuildMetadataInput = {}): Metadata {
       initialScale: 1,
       maximumScale: 1,
     },
-    
-    // Additional meta tags
-    other: {
-      'theme-color': '#000000',
-    }
   };
 
   // Add canonical URL if provided
