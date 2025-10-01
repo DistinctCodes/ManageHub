@@ -1,22 +1,25 @@
-import Newsletter from "./components/newa-letter";
-import { buildMetadata } from "@/lib/seo";
-
-export const metadata = buildMetadata({
-  title: "Home",
-  description: "Welcome to ManageHub - Your smart workspace management solution",
-  keywords: ["workspace", "management", "productivity", "collaboration", "hub"]
-});
+import { Navbar } from '@/components/ui/Navbar';
+import Newsletter from '../components/newa-letter';
+import Footer from '../components/ui/Footer';
+import { useMemo } from 'react';
+import { Hero } from '@/components/ui/Hero';
 
 export default function Home() {
+  const launchDate = useMemo(
+    () => new Date(Date.now() + 1000 * 60 * 60 * 24 * 77 + 1000 * 60 * 10),
+    []
+  );
   return (
     <main>
+      <Navbar />
       {/* Hero Section */}
-      <section className="min-h-screen flex items-center justify-center">
-        <h1 className="text-4xl font-bold">Hero Section</h1>
+      <Hero launchDate={launchDate} /> {/* Newsletter Section */}
+      <section className='min-h-screen flex items-center justify-center'>
+        /{' '}
       </section>
-
-      {/* Newsletter Section */}
       <Newsletter />
+      {/* Footer Section */}
+      <Footer />
     </main>
   );
 }
