@@ -1,5 +1,6 @@
-import { IsString, IsEmail, IsOptional, MinLength, MaxLength, Matches, IsNotEmpty } from 'class-validator';
+import { IsString, IsEmail, IsOptional, MinLength, MaxLength, Matches, IsNotEmpty, IsEnum } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { UserRole } from '../enums/userRoles.enum'; // import your enum
 
 export class CreateUserDto {
   @ApiProperty({ minLength: 1, maxLength: 30 })
@@ -38,4 +39,9 @@ export class CreateUserDto {
     message: 'Password must contain at least one lowercase letter, one uppercase letter, one number, and one special character (@$!%*?&-_.).',
   })
   password: string;
+
+  @ApiPropertyOptional({ enum: UserRole, default: UserRole.USER })
+  @IsOptional()
+  @IsEnum(UserRole)
+  role?: UserRole;
 }
