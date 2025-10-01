@@ -14,6 +14,8 @@ import { Response } from 'express';
 import { NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { UploadProfilePictureProvider } from './uploadProfilePicture.provider';
+import { UserRole } from '../enums/userRoles.enum';
 
 @Injectable()
 export class UsersService {
@@ -30,6 +32,7 @@ export class UsersService {
     private readonly updateUserProvider: UpdateUserProvider,
     private readonly deleteUserProvider: DeleteUserProvider,
 
+    private readonly uploadProfilePictureProvider: UploadProfilePictureProvider,
   ) {}
 
   // CREATE USER
@@ -73,7 +76,22 @@ export class UsersService {
     return await this.validateUserProvider.validateUser(email, password);
   }
 
-  // UPDATE PROFILE PICTURE
+  // UPDATE PROFILE PICTURE (delegates to provider)
+  async uploadUserProfilePicture(
+    targetUserId: string,
+    file: Express.Multer.File,
+    currentUserId: string,
+    currentUserRole: UserRole,
+  ): Promise<{ id: string; profilePicture: string }> {
+    return await this.uploadProfilePictureProvider.uploadProfilePicture(
+      targetUserId,
+      file,
+      currentUserId,
+      currentUserRole,
+    );
+  }
+
+  // UPDATE PROFILE PICTURE (legacy save method if needed elsewhere)
   async updateProfilePicture(userId: string, profilePictureUrl: string): Promise<User & { oldProfilePicture?: string }> {
     const user = await this.findUserById(userId);
     if (!user) {
@@ -85,8 +103,8 @@ export class UsersService {
     return { ...updatedUser, oldProfilePicture } as User & { oldProfilePicture?: string };
   }
 
-  // FIND ONE BY ID (EXCLUDE PASSWORD)
-  async findOneById(id: string): Promise<Partial<User>> {
+  // FIND ONE BY ID (EXCLUDE PASSWORD) - service-level method for controller
+  async findOnePublicById(id: string): Promise<Partial<User>> {
     const user = await this.findUserById(id);
     if (!user) {
       throw new NotFoundException('User not found');

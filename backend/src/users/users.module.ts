@@ -14,6 +14,7 @@ import { CloudinaryModule } from '../cloudinary/cloudinary.module';
 import { FindAllUsersProvider } from './providers/findAllUsers.provider';
 import { UpdateUserProvider } from './providers/updateUser.provider';
 import { DeleteUserProvider } from './providers/deleteUser.provider';
+import { UploadProfilePictureProvider } from './providers/uploadProfilePicture.provider';
 
 
 @Module({
@@ -28,6 +29,7 @@ import { DeleteUserProvider } from './providers/deleteUser.provider';
     FindAllUsersProvider,
     UpdateUserProvider,
     DeleteUserProvider,
+    UploadProfilePictureProvider,
   ],
   exports: [UsersService],
 })
