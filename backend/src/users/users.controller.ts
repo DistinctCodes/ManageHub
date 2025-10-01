@@ -1,21 +1,84 @@
 import {
   Controller,
+
+  Post,
   Get,
-  Patch,
-  Delete,
   Param,
-  Body,
+  UseInterceptors,
+  UploadedFile,
   ParseUUIDPipe,
   HttpCode,
+  Patch,
+  Body,
+  Delete,
   HttpStatus,
+  Logger,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { FileValidationPipe } from '../common/pipes/file-validation.pipe';
 import { UsersService } from './providers/users.service';
+import { GetCurrentUser } from '../auth/decorators/getCurrentUser.decorator';
+import { UserRole } from './enums/userRoles.enum';
+import { ApiTags, ApiOperation, ApiConsumes, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
+
 import { UpdateUserDto } from './dto/updateUser.dto';
 
+
+@ApiTags('users')
+@ApiBearerAuth()
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
 
+  private readonly logger = new Logger(UsersController.name);
+
+  constructor(
+    private readonly usersService: UsersService,
+  ) {}
+
+  @Post(':id/profile-picture')
+  @ApiOperation({ summary: 'Upload user profile picture' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @UseInterceptors(FileInterceptor('file'))
+  @HttpCode(HttpStatus.OK)
+  async uploadProfilePicture(
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFile(new FileValidationPipe()) file: Express.Multer.File,
+    @GetCurrentUser('id') currentUserId: string,
+    @GetCurrentUser('role') currentUserRole: UserRole,
+  ) {
+    this.logger.log(`Uploading profile picture for user ${id}`);
+    const result = await this.usersService.uploadUserProfilePicture(
+      id,
+      file,
+      currentUserId,
+      currentUserRole,
+    );
+    this.logger.log(`Profile picture updated for user ${id}`);
+    return {
+      message: 'Profile picture updated successfully',
+      data: result,
+    };
+  }
+
+  @Get(':id')
+  async findOne(@Param('id', ParseUUIDPipe) id: string) {
+    const user = await this.usersService.findOnePublicById(id);
+    return {
+      message: 'User retrieved successfully',
+      data: user,
+    };
+  }
   // GET /users
   @Get()
   async findAll() {

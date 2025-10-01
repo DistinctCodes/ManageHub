@@ -1,7 +1,11 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+
 import { ValidationPipe, ClassSerializerInterceptor } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -34,7 +38,17 @@ async function bootstrap() {
     credentials: true,
   });
 
-  await app.listen(process.env.PORT ?? 6000);
-  console.log(`Server is listening on port: ${process.env.PORT}`);
+  // SWAGGER SETUP
+  const config = new DocumentBuilder()
+    .setTitle('ManageHub API')
+    .setDescription('API documentation for ManageHub backend')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+  const document = SwaggerModule.createDocument(app as any, config);
+  SwaggerModule.setup('swagger', app as any, document);
+
+  await app.listen(process.env.PORT ?? 3000);
+  console.log(`Server is listening at: ${await app.getUrl()}`);
 }
 bootstrap();
