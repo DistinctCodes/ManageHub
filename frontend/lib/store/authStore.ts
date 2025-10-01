@@ -222,13 +222,22 @@ export const useAuthState = () =>
     }))
   );
 
-export const useAuthActions = () =>
-  useAuthStore((state) => ({
-    login: state.login,
-    register: state.register,
-    logout: state.logout,
-    refreshAccessToken: state.refreshAccessToken,
-    updateProfile: state.updateProfile,
-    initializeAuth: state.initializeAuth,
-    clearAuth: state.clearAuth,
-  }));
+export const useAuthActions = () => {
+  const login = useAuthStore((state) => state.login);
+  const register = useAuthStore((state) => state.register);
+  const logout = useAuthStore((state) => state.logout);
+  const refreshAccessToken = useAuthStore((state) => state.refreshAccessToken);
+  const updateProfile = useAuthStore((state) => state.updateProfile);
+  const initializeAuth = useAuthStore((state) => state.initializeAuth);
+  const clearAuth = useAuthStore((state) => state.clearAuth);
+
+  return {
+    login,
+    register,
+    logout,
+    refreshAccessToken,
+    updateProfile,
+    initializeAuth,
+    clearAuth,
+  };
+};

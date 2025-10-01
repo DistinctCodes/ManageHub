@@ -56,7 +56,13 @@ export class User {
   @Column({ default: false })
   isSuspended: boolean;
 
+
+  @Column({ nullable: true, type: 'varchar', length: 500 })
+  profilePicture?: string;
+
+
   @Exclude()
+
   @OneToMany(() => RefreshToken, (refreshToken) => refreshToken.user)
   refreshTokens: RefreshToken[];
 
