@@ -9,4 +9,5 @@ pub enum Error {
     Unauthorized = 4,
     TokenExpired = 5,
     InvalidExpiryDate = 6,
+    InvalidEventDetails = 7,
 }
