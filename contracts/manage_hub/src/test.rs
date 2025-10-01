@@ -1,9 +1,13 @@
 #![cfg(test)]
 
+extern crate alloc;
+use alloc::format;
+
 use super::*;
 use crate::errors::Error;
 use crate::membership_token::MembershipTokenContract;
 use crate::types::MembershipStatus;
+use soroban_sdk::map;
 use soroban_sdk::{
     testutils::{Address as _, BytesN as BytesNTestUtils, Ledger as LedgerTestUtils},
     vec, Address, BytesN, Env, String,
@@ -375,6 +379,70 @@ fn test_admin_change() {
         expiry_date,
     );
     assert!(result.is_ok());
+}
+
+#[test]
+fn test_log_event_and_retrieve() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let user1 = Address::generate(&env);
+    let user2 = Address::generate(&env);
+    let event_id = BytesN::<32>::random(&env);
+
+    // Log two RSVPs for the same event from different users
+    let details1 = map![
+        &env,
+        (
+            String::from_str(&env, "status"),
+            String::from_str(&env, "going")
+        )
+    ];
+    let details2 = map![
+        &env,
+        (
+            String::from_str(&env, "status"),
+            String::from_str(&env, "interested")
+        )
+    ];
+
+    Contract::log_event(env.clone(), event_id.clone(), user1.clone(), details1).unwrap();
+    Contract::log_event(env.clone(), event_id.clone(), user2.clone(), details2).unwrap();
+
+    // Retrieve by event
+    let logs_by_event = Contract::get_events_by_event(env.clone(), event_id.clone());
+    assert_eq!(logs_by_event.len(), 2);
+    assert_eq!(logs_by_event.get(0).unwrap().event_id, event_id);
+
+    // Retrieve by user1
+    let logs_by_user1 = Contract::get_events_by_user(env.clone(), user1.clone());
+    assert_eq!(logs_by_user1.len(), 1);
+    assert_eq!(logs_by_user1.get(0).unwrap().user, user1);
+
+    // Retrieve by user2
+    let logs_by_user2 = Contract::get_events_by_user(env.clone(), user2.clone());
+    assert_eq!(logs_by_user2.len(), 1);
+    assert_eq!(logs_by_user2.get(0).unwrap().user, user2);
+}
+
+#[test]
+fn test_log_event_details_limit() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let user = Address::generate(&env);
+    let event_id = BytesN::<32>::random(&env);
+
+    // Create a map with > 50 entries to trigger InvalidEventDetails
+    let mut big_map = soroban_sdk::Map::<String, String>::new(&env);
+    for i in 0..51u32 {
+        let key = String::from_str(&env, &format!("k{}", i));
+        let val = String::from_str(&env, &format!("v{}", i));
+        big_map.set(key, val);
+    }
+
+    let result = Contract::log_event(env.clone(), event_id, user, big_map);
+    assert_eq!(result, Err(Error::InvalidEventDetails));
 }
 
 #[test]
