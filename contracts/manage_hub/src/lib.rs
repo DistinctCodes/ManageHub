@@ -5,6 +5,7 @@ mod errors;
 mod membership_token;
 mod types;
 
+pub use errors::Error;
 use errors::Error;
 use membership_token::{MembershipToken, MembershipTokenContract};
 
