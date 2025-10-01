@@ -14,8 +14,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ManageHub",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://example.com"),
+  title: { default: "ManageHub", template: "%s | ManageHub" },
   description: "Smart Hub & Workspace Management System",
+  keywords: ["managehub", "workspaces", "tech hubs"],
 };
 
 export default function RootLayout({

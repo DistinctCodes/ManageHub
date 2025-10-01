@@ -1,4 +1,11 @@
 import Newsletter from "./components/newa-letter";
+import { buildMetadata } from "@/lib/seo";
+
+export const metadata = buildMetadata({
+  title: "Home",
+  description: "Welcome to ManageHub - Your smart workspace management solution",
+  keywords: ["workspace", "management", "productivity", "collaboration", "hub"]
+});
 
 export default function Home() {
   return (
