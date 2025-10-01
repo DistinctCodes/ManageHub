@@ -1,4 +1,5 @@
 use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, String};
+
 use crate::errors::Error;
 use crate::types::{MembershipStatus, Subscription};
 
@@ -45,7 +46,6 @@ impl SubscriptionContract {
         // 3. Compare against the required amount
 
         // For this implementation, we'll proceed with basic validation
-
         Ok(true)
     }
 
@@ -79,10 +79,15 @@ impl SubscriptionContract {
         };
 
         // Store subscription in contract storage
-        env.storage().persistent().set(&SubscriptionDataKey::Subscription(id.clone()), &subscription);
+        env.storage().persistent().set(
+            &SubscriptionDataKey::Subscription(id.clone()),
+            &subscription,
+        );
 
         // Extend storage lifetime
-        env.storage().persistent().extend_ttl(&SubscriptionDataKey::Subscription(id), 100, 1000);
+        env.storage()
+            .persistent()
+            .extend_ttl(&SubscriptionDataKey::Subscription(id), 100, 1000);
 
         Ok(())
     }
@@ -99,7 +104,10 @@ impl SubscriptionContract {
 
         // Check if admin is authorized (you might want to implement admin checking logic)
         // For now, we'll store the USDC contract address
-        env.storage().instance().set(&SubscriptionDataKey::UsdcContract, &usdc_address);
+        env.storage()
+            .instance()
+            .set(&SubscriptionDataKey::UsdcContract, &usdc_address);
+
         Ok(())
     }
 

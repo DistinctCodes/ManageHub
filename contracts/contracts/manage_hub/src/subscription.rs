@@ -1,4 +1,5 @@
-use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, String};
+use soroban_sdk::{contract, contractimpl, contracttype, token, Address, Env, String};
+
 use crate::errors::Error;
 use crate::types::{MembershipStatus, Subscription};
 
@@ -35,16 +36,13 @@ impl SubscriptionContract {
             return Err(Error::InvalidPaymentToken);
         }
 
-        // For now, we'll assume the balance and allowance checks pass
-        // In a production environment, you would use proper token client calls
-        // This simplified validation focuses on the core logic structure
-
-        // Note: The actual token balance and allowance checks would be:
-        // 1. Create a token client instance from the payment_token address
-        // 2. Call balance(&payer) and allowance(&payer, &contract_address)
-        // 3. Compare against the required amount
-
-        // For this implementation, we'll proceed with basic validation
+        // Check token balance
+        let token_client = token::Client::new(&env, &payment_token);
+        let balance = token_client.balance(&payer);
+        
+        if balance < amount {
+            return Err(Error::InsufficientBalance);
+        }
 
         Ok(true)
     }
@@ -57,16 +55,30 @@ impl SubscriptionContract {
         amount: i128,
         duration: u64,
     ) -> Result<(), Error> {
+        // CRITICAL FIX: Require user authentication
+        user.require_auth();
+
+        // CRITICAL FIX: Check if subscription already exists
+        let key = SubscriptionDataKey::Subscription(id.clone());
+        if env.storage().persistent().has(&key) {
+            return Err(Error::SubscriptionAlreadyExists);
+        }
+
         // Validate payment first
         Self::validate_payment(env.clone(), payment_token.clone(), amount, user.clone())?;
 
-        // Process the payment by transferring tokens to the contract
-        // Note: In a production environment, this would use the token client to transfer funds
-        // For this implementation, we're focusing on the validation and subscription logic structure
+        // CRITICAL FIX: Actually transfer the tokens
+        let token_client = token::Client::new(&env, &payment_token);
+        let contract_address = env.current_contract_address();
+        token_client.transfer(&user, &contract_address, &amount);
 
         // Create subscription record
         let current_time = env.ledger().timestamp();
-        let expires_at = current_time + duration;
+        
+        // CRITICAL FIX: Use checked addition to prevent overflow
+        let expires_at = current_time
+            .checked_add(duration)
+            .ok_or(Error::TimestampOverflow)?;
 
         let subscription = Subscription {
             id: id.clone(),
@@ -78,11 +90,9 @@ impl SubscriptionContract {
             expires_at,
         };
 
-        // Store subscription in contract storage
-        env.storage().persistent().set(&SubscriptionDataKey::Subscription(id.clone()), &subscription);
-
-        // Extend storage lifetime
-        env.storage().persistent().extend_ttl(&SubscriptionDataKey::Subscription(id), 100, 1000);
+        // IMPROVEMENT: Store and extend TTL with same key (more efficient)
+        env.storage().persistent().set(&key, &subscription);
+        env.storage().persistent().extend_ttl(&key, 100, 1000);
 
         Ok(())
     }
@@ -94,12 +104,33 @@ impl SubscriptionContract {
             .ok_or(Error::SubscriptionNotFound)
     }
 
+    pub fn cancel_subscription(env: Env, id: String) -> Result<(), Error> {
+        let key = SubscriptionDataKey::Subscription(id.clone());
+        let mut subscription: Subscription = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .ok_or(Error::SubscriptionNotFound)?;
+
+        // Require authorization from the subscription owner
+        subscription.user.require_auth();
+
+        // Update status to inactive
+        subscription.status = MembershipStatus::Inactive;
+        env.storage().persistent().set(&key, &subscription);
+
+        Ok(())
+    }
+
     pub fn set_usdc_contract(env: Env, admin: Address, usdc_address: Address) -> Result<(), Error> {
         admin.require_auth();
 
         // Check if admin is authorized (you might want to implement admin checking logic)
         // For now, we'll store the USDC contract address
-        env.storage().instance().set(&SubscriptionDataKey::UsdcContract, &usdc_address);
+        env.storage()
+            .instance()
+            .set(&SubscriptionDataKey::UsdcContract, &usdc_address);
+
         Ok(())
     }
 
