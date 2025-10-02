@@ -37,7 +37,7 @@
               "function_name": "create_subscription",
               "args": [
                 {
-                  "string": "sub_001"
+                  "string": "sub_002"
                 },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
@@ -49,6 +49,37 @@
                   "i128": {
                     "hi": 0,
                     "lo": 100000
+                  }
+                },
+                {
+                  "u64": 2592000
+                }
+              ]
+            }
+          },
+          "sub_invocations": []
+        }
+      ]
+    ],
+    [
+      [
+        "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M",
+        {
+          "function": {
+            "contract_fn": {
+              "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+              "function_name": "renew_subscription",
+              "args": [
+                {
+                  "string": "sub_002"
+                },
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
+                },
+                {
+                  "i128": {
+                    "hi": 0,
+                    "lo": 150000
                   }
                 },
                 {
@@ -140,7 +171,76 @@
                                   "string": "subscription_id"
                                 },
                                 "val": {
-                                  "string": "sub_001"
+                                  "string": "sub_002"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "string": "timestamp"
+                                },
+                                "val": {
+                                  "string": "event_time"
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "event_id"
+                          },
+                          "val": {
+                            "bytes": "0700000000000000000000000000000000000000000000000000000000000000"
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "timestamp"
+                          },
+                          "val": {
+                            "u64": 0
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "user"
+                          },
+                          "val": {
+                            "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "map": [
+                        {
+                          "key": {
+                            "symbol": "details"
+                          },
+                          "val": {
+                            "map": [
+                              {
+                                "key": {
+                                  "string": "action"
+                                },
+                                "val": {
+                                  "string": "subscription_renewed"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "string": "amount"
+                                },
+                                "val": {
+                                  "string": "amount_logged"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "string": "subscription_id"
+                                },
+                                "val": {
+                                  "string": "sub_002"
                                 }
                               },
                               {
@@ -255,7 +355,76 @@
                                   "string": "subscription_id"
                                 },
                                 "val": {
-                                  "string": "sub_001"
+                                  "string": "sub_002"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "string": "timestamp"
+                                },
+                                "val": {
+                                  "string": "event_time"
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "event_id"
+                          },
+                          "val": {
+                            "bytes": "0700000000000000000000000000000000000000000000000000000000000000"
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "timestamp"
+                          },
+                          "val": {
+                            "u64": 0
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "user"
+                          },
+                          "val": {
+                            "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "map": [
+                        {
+                          "key": {
+                            "symbol": "details"
+                          },
+                          "val": {
+                            "map": [
+                              {
+                                "key": {
+                                  "string": "action"
+                                },
+                                "val": {
+                                  "string": "subscription_renewed"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "string": "amount"
+                                },
+                                "val": {
+                                  "string": "amount_logged"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "string": "subscription_id"
+                                },
+                                "val": {
+                                  "string": "sub_002"
                                 }
                               },
                               {
@@ -314,7 +483,7 @@
                   "symbol": "Subscription"
                 },
                 {
-                  "string": "sub_001"
+                  "string": "sub_002"
                 }
               ]
             },
@@ -334,7 +503,7 @@
                       "symbol": "Subscription"
                     },
                     {
-                      "string": "sub_001"
+                      "string": "sub_002"
                     }
                   ]
                 },
@@ -348,7 +517,7 @@
                       "val": {
                         "i128": {
                           "hi": 0,
-                          "lo": 100000
+                          "lo": 150000
                         }
                       }
                     },
@@ -373,7 +542,7 @@
                         "symbol": "id"
                       },
                       "val": {
-                        "string": "sub_001"
+                        "string": "sub_002"
                       }
                     },
                     {
@@ -480,6 +649,39 @@
                 "key": {
                   "ledger_key_nonce": {
                     "nonce": 801925984706572462
+                  }
+                },
+                "durability": "temporary",
+                "val": "void"
+              }
+            },
+            "ext": "v0"
+          },
+          6311999
+        ]
+      ],
+      [
+        {
+          "contract_data": {
+            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M",
+            "key": {
+              "ledger_key_nonce": {
+                "nonce": 1033654523790656264
+              }
+            },
+            "durability": "temporary"
+          }
+        },
+        [
+          {
+            "last_modified_ledger_seq": 0,
+            "data": {
+              "contract_data": {
+                "ext": "v0",
+                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M",
+                "key": {
+                  "ledger_key_nonce": {
+                    "nonce": 1033654523790656264
                   }
                 },
                 "durability": "temporary",
