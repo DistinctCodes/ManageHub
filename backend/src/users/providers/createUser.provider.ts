@@ -11,6 +11,7 @@ import { ConfigService } from '@nestjs/config';
 import { GenerateTokensProvider } from 'src/auth/providers/generateTokens.provider';
 import { RefreshTokenRepositoryOperations } from 'src/auth/providers/RefreshTokenCrud.repository';
 import { UserRole } from '../enums/userRoles.enum';
+import { EmailService } from '../../email/providers/email.service';
 @Injectable()
 export class CreateUserProvider {
   constructor(
@@ -24,6 +25,8 @@ export class CreateUserProvider {
     private readonly generateTokensProvider: GenerateTokensProvider,
 
     private readonly refreshTokenRepositoryOperations: RefreshTokenRepositoryOperations,
+
+    private readonly emailService: EmailService,
   ) {}
 
   public async createUser(
@@ -70,6 +73,25 @@ export class CreateUserProvider {
         path: '/auth/refresh-token',
         sameSite: 'none',
       });
+
+      // Send registration confirmation email
+      try {
+        const emailSent = await this.emailService.sendRegistrationConfirmation(
+          user.email,
+          `${user.firstname} ${user.lastname}`
+        );
+        
+        if (!emailSent) {
+          // Log the error but don't fail the registration
+          console.warn(`Failed to send registration confirmation email to ${user.email}. User registration was successful.`);
+        } else {
+          console.log(`Registration confirmation email sent successfully to ${user.email}`);
+        }
+      } catch (emailError) {
+        // Log the error but don't fail the registration
+        console.error(`Error sending registration confirmation email to ${user.email}:`, emailError.message);
+        console.log('User registration was successful despite email failure.');
+      }
 
       return { user, accessToken };
     } catch (error) {
