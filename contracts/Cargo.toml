@@ -3,11 +3,13 @@ resolver = "2"
 members = [
     "access_control",
     "manage_hub",
-    "membership_token"
+    "membership_token",
+    "common_types"
 ]
 
 [workspace.dependencies]
 soroban-sdk = "22.0.0"
+common_types = { path = "common_types" }
 
 [profile.release]
 opt-level = "z"

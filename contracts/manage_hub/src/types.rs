@@ -1,13 +1,7 @@
 use soroban_sdk::{contracttype, Address, String};
 
-#[contracttype]
-#[derive(Clone, Debug, PartialEq)]
-pub enum MembershipStatus {
-    Active,
-    Expired,
-    Revoked,
-    Inactive,
-}
+// Re-export MembershipStatus from common_types for consistency
+pub use common_types::MembershipStatus;
 
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
