@@ -6,8 +6,8 @@ mod errors;
 mod membership_token;
 mod types;
 
+pub use errors::Error;
 use attendance_log::{AttendanceLogModule, EventLog};
-use errors::Error;
 use membership_token::{MembershipToken, MembershipTokenContract};
 
 #[contract]
