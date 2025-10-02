@@ -16,22 +16,15 @@ pub enum Error {
     LogAlreadyExists,
     /// Returned when a token has already been issued.
     TokenAlreadyIssued,
-    /// Returned when an admin address has not been configured yet.
-    AdminNotSet,
-    /// Returned when the requested token cannot be located in storage.
-    TokenNotFound,
-    /// Returned when the token has expired or is no longer valid.
-    TokenExpired,
-    /// Returned when the supplied expiry date is invalid (e.g., in the past).
-    InvalidExpiryDate,
 }
 
 #[cfg(test)]
 mod tests {
     use super::Error;
 
-    fn simulate_duplicate_subscription(attempt_duplicate: bool) -> Result<(), Error> {
-        if attempt_duplicate {
+    /// Dummy function to simulate subscription creation.
+    fn simulate_subscription_creation(duplicate: bool) -> Result<(), Error> {
+        if duplicate {
             Err(Error::SubscriptionAlreadyExists)
         } else {
             Ok(())
@@ -40,7 +33,13 @@ mod tests {
 
     #[test]
     fn returns_subscription_already_exists() {
-        let result = simulate_duplicate_subscription(true);
+        let result = simulate_subscription_creation(true);
         assert!(matches!(result, Err(Error::SubscriptionAlreadyExists)));
+    }
+
+    #[test]
+    fn succeeds_when_not_duplicate() {
+        let result = simulate_subscription_creation(false);
+        assert!(result.is_ok());
     }
 }

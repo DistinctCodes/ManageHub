@@ -1,12 +1,13 @@
 #![no_std]
 use soroban_sdk::{contract, contractimpl, vec, Address, BytesN, Env, String, Vec};
 
+mod attendance_log;
 mod errors;
 mod membership_token;
 mod types;
 
 pub use errors::Error;
-use errors::Error;
+use attendance_log::{AttendanceLogModule, EventLog};
 use membership_token::{MembershipToken, MembershipTokenContract};
 
 #[contract]
@@ -37,6 +38,23 @@ impl Contract {
 
     pub fn set_admin(env: Env, admin: Address) -> Result<(), Error> {
         MembershipTokenContract::set_admin(env, admin)
+    }
+
+    pub fn log_event(
+        env: Env,
+        event_id: BytesN<32>,
+        user: Address,
+        event_details: soroban_sdk::Map<String, String>,
+    ) -> Result<(), Error> {
+        AttendanceLogModule::log_event(env, event_id, user, event_details)
+    }
+
+    pub fn get_events_by_event(env: Env, event_id: BytesN<32>) -> Vec<EventLog> {
+        AttendanceLogModule::get_events_by_event(env, event_id)
+    }
+
+    pub fn get_events_by_user(env: Env, user: Address) -> Vec<EventLog> {
+        AttendanceLogModule::get_events_by_user(env, user)
     }
 }
 

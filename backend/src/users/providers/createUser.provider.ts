@@ -10,7 +10,8 @@ import { Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { GenerateTokensProvider } from 'src/auth/providers/generateTokens.provider';
 import { RefreshTokenRepositoryOperations } from 'src/auth/providers/RefreshTokenCrud.repository';
-
+import { UserRole } from '../enums/userRoles.enum';
+import { EmailService } from '../../email/providers/email.service';
 @Injectable()
 export class CreateUserProvider {
   constructor(
@@ -24,6 +25,8 @@ export class CreateUserProvider {
     private readonly generateTokensProvider: GenerateTokensProvider,
 
     private readonly refreshTokenRepositoryOperations: RefreshTokenRepositoryOperations,
+
+    private readonly emailService: EmailService,
   ) {}
 
   public async createUser(
@@ -32,34 +35,35 @@ export class CreateUserProvider {
   ): Promise<AuthResponse> {
     try {
       const existingUser = await this.userRepository.findOne({
-        where: {
-          email: createUserDto.email,
-        },
+        where: { email: createUserDto.email },
       });
 
       if (existingUser) {
         throw new ConflictException('User already exists.');
       }
 
-      let password = await this.hashingProvider.hash(createUserDto.password);
+      // Hash the password
+      const hashedPassword = await this.hashingProvider.hash(createUserDto.password);
+      createUserDto.password = hashedPassword;
 
-      createUserDto.password = password;
+      // Set default role if not provided
+      if (!createUserDto.role) {
+        createUserDto.role = UserRole.USER;
+      }
 
+      // Create and save the user (or admin)
       let user = this.userRepository.create(createUserDto);
-
       user = await this.userRepository.save(user);
 
+      // Generate tokens
       const { accessToken, refreshToken } =
         await this.generateTokensProvider.generateBothTokens(user);
 
-      await this.refreshTokenRepositoryOperations.saveRefreshToken(
-        user,
-        refreshToken,
-      );
+      await this.refreshTokenRepositoryOperations.saveRefreshToken(user, refreshToken);
 
       const jwtExpirationMs = parseInt(
         this.configService.get<string>('JWT_REFRESH_EXPIRATION') || '604800000',
-      ); // 7 DAYS in milliseconds
+      );
       const expires = new Date(Date.now() + jwtExpirationMs);
 
       response.cookie('authRefreshToken', refreshToken, {
@@ -69,6 +73,25 @@ export class CreateUserProvider {
         path: '/auth/refresh-token',
         sameSite: 'none',
       });
+
+      // Send registration confirmation email
+      try {
+        const emailSent = await this.emailService.sendRegistrationConfirmation(
+          user.email,
+          `${user.firstname} ${user.lastname}`
+        );
+        
+        if (!emailSent) {
+          // Log the error but don't fail the registration
+          console.warn(`Failed to send registration confirmation email to ${user.email}. User registration was successful.`);
+        } else {
+          console.log(`Registration confirmation email sent successfully to ${user.email}`);
+        }
+      } catch (emailError) {
+        // Log the error but don't fail the registration
+        console.error(`Error sending registration confirmation email to ${user.email}:`, emailError.message);
+        console.log('User registration was successful despite email failure.');
+      }
 
       return { user, accessToken };
     } catch (error) {
