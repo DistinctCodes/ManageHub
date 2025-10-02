@@ -11,7 +11,6 @@ use soroban_sdk::{
     Address, BytesN, Env, String,
 };
 
-
 #[test]
 fn test_log_attendance_clock_in() {
     let env = Env::default();
@@ -22,7 +21,7 @@ fn test_log_attendance_clock_in() {
 
     let user = Address::generate(&env);
     let log_id = BytesN::<32>::random(&env);
-    
+
     let details = map![
         &env,
         (
@@ -37,7 +36,7 @@ fn test_log_attendance_clock_in() {
     // Retrieve logs for user
     let logs = client.get_logs_for_user(&user);
     assert_eq!(logs.len(), 1);
-    
+
     let log = logs.get(0).unwrap();
     assert_eq!(log.id, log_id);
     assert_eq!(log.user_id, user);
@@ -55,7 +54,7 @@ fn test_log_attendance_clock_out() {
 
     let user = Address::generate(&env);
     let log_id = BytesN::<32>::random(&env);
-    
+
     let details = map![
         &env,
         (
@@ -70,7 +69,7 @@ fn test_log_attendance_clock_out() {
     // Retrieve logs for user
     let logs = client.get_logs_for_user(&user);
     assert_eq!(logs.len(), 1);
-    
+
     let log = logs.get(0).unwrap();
     assert_eq!(log.action, AttendanceAction::ClockOut);
 }
@@ -87,7 +86,7 @@ fn test_log_attendance_multiple_users() {
     let user2 = Address::generate(&env);
     let log_id1 = BytesN::<32>::random(&env);
     let log_id2 = BytesN::<32>::random(&env);
-    
+
     let details = map![
         &env,
         (
@@ -103,7 +102,7 @@ fn test_log_attendance_multiple_users() {
     // Each user should have their own log
     let logs_user1 = client.get_logs_for_user(&user1);
     let logs_user2 = client.get_logs_for_user(&user2);
-    
+
     assert_eq!(logs_user1.len(), 1);
     assert_eq!(logs_user2.len(), 1);
     assert_eq!(logs_user1.get(0).unwrap().user_id, user1);
@@ -121,7 +120,7 @@ fn test_log_attendance_multiple_entries_same_user() {
     let user = Address::generate(&env);
     let log_id1 = BytesN::<32>::random(&env);
     let log_id2 = BytesN::<32>::random(&env);
-    
+
     let details = map![
         &env,
         (
@@ -174,7 +173,7 @@ fn test_get_attendance_log_by_id() {
 
     let user = Address::generate(&env);
     let log_id = BytesN::<32>::random(&env);
-    
+
     let details = map![
         &env,
         (
@@ -189,7 +188,7 @@ fn test_get_attendance_log_by_id() {
     // Retrieve specific log by ID
     let log = client.get_attendance_log(&log_id);
     assert!(log.is_some());
-    
+
     let log = log.unwrap();
     assert_eq!(log.id, log_id);
     assert_eq!(log.user_id, user);
@@ -221,7 +220,7 @@ fn test_attendance_log_immutability() {
 
     let user = Address::generate(&env);
     let log_id = BytesN::<32>::random(&env);
-    
+
     let details = map![
         &env,
         (

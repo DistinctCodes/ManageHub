@@ -78,8 +78,6 @@ impl AttendanceLogModule {
     }
 
     pub fn get_attendance_log(env: Env, id: BytesN<32>) -> Option<AttendanceLog> {
-        env.storage()
-            .persistent()
-            .get(&DataKey::AttendanceLog(id))
+        env.storage().persistent().get(&DataKey::AttendanceLog(id))
     }
 }
