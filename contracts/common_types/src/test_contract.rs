@@ -1,5 +1,3 @@
-#![cfg(test)]
-
 //! Test contract to verify common types functionality
 
 use crate::{AttendanceAction, MembershipStatus, SubscriptionPlan, UserRole};
