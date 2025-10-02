@@ -3,7 +3,7 @@
 //! Test contract to verify common types functionality
 
 use crate::{AttendanceAction, MembershipStatus, SubscriptionPlan, UserRole};
-use soroban_sdk::{contract, contractimpl, testutils::Address as _, Address, Env, Symbol};
+use soroban_sdk::{contract, contractimpl, Env, Symbol};
 
 #[contract]
 pub struct TestTypesContract;
@@ -48,7 +48,7 @@ mod tests {
     #[test]
     fn test_subscription_plan() {
         let env = Env::default();
-        let contract_id = env.register_contract(None, TestTypesContract);
+        let contract_id = env.register(TestTypesContract, ());
         let client = TestTypesContractClient::new(&env, &contract_id);
 
         assert_eq!(
@@ -64,7 +64,7 @@ mod tests {
     #[test]
     fn test_attendance() {
         let env = Env::default();
-        let contract_id = env.register_contract(None, TestTypesContract);
+        let contract_id = env.register(TestTypesContract, ());
         let client = TestTypesContractClient::new(&env, &contract_id);
 
         assert_eq!(
@@ -76,7 +76,7 @@ mod tests {
     #[test]
     fn test_role() {
         let env = Env::default();
-        let contract_id = env.register_contract(None, TestTypesContract);
+        let contract_id = env.register(TestTypesContract, ());
         let client = TestTypesContractClient::new(&env, &contract_id);
 
         assert_eq!(client.test_role(&UserRole::Admin), UserRole::Admin);
@@ -85,7 +85,7 @@ mod tests {
     #[test]
     fn test_status() {
         let env = Env::default();
-        let contract_id = env.register_contract(None, TestTypesContract);
+        let contract_id = env.register(TestTypesContract, ());
         let client = TestTypesContractClient::new(&env, &contract_id);
 
         assert_eq!(
@@ -101,7 +101,8 @@ mod tests {
     #[test]
     fn test_all_types() {
         let env = Env::default();
-        let contract_id = env.register_contract(None, TestTypesContract);
+        let contract_id = env.register(TestTypesContract, ());
+
         let client = TestTypesContractClient::new(&env, &contract_id);
 
         let result = client.test_all_types(
