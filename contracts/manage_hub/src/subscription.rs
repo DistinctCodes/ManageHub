@@ -176,7 +176,7 @@ impl SubscriptionContract {
         user: &Address,
         action: String,
         subscription_id: &String,
-        amount: i128,
+        _amount: i128,
     ) -> Result<(), Error> {
         // Generate event_id from subscription_id
         let event_id = Self::generate_event_id(env, subscription_id);
