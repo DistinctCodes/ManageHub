@@ -108,4 +108,60 @@ export class EmailService {
       return false;
     }
   }
+  async sendVerificationEmail(userEmail: string, verificationToken: string, userName: string): Promise<boolean> {
+    const template = this.getVerificationEmailTemplate(verificationToken, userName);
+    
+    return await this.sendEmail({
+      to: userEmail,
+      subject: template.subject,
+      text: template.text,
+      html: template.html,
+    });
+  }
+  
+  private getVerificationEmailTemplate(verificationToken: string, userName: string): EmailTemplate {
+    const platformName = 'ManageHub';
+    const verificationUrl = `${this.configService.get('FRONTEND_URL')}/auth/verify-email?token=${verificationToken}`;
+    
+    return {
+      subject: `Verify your email - ${platformName}`,
+      text: `Dear ${userName},\n\nPlease verify your email address by clicking the following link:\n\n${verificationUrl}\n\nThis link will expire in 24 hours.\n\nIf you didn't create an account with ${platformName}, please ignore this email.\n\nBest regards,\nThe ${platformName} Team`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background-color: #f8f9fa; padding: 30px; border-radius: 10px; text-align: center;">
+            <h1 style="color: #333; margin-bottom: 20px;">Verify Your Email</h1>
+            <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+              <h2 style="color: #007bff; margin-bottom: 20px;">📧 Email Verification Required</h2>
+              <p style="font-size: 16px; line-height: 1.6; color: #555; margin-bottom: 20px;">
+                Dear <strong>${userName}</strong>,
+              </p>
+              <p style="font-size: 16px; line-height: 1.6; color: #555; margin-bottom: 20px;">
+                Thank you for registering with <strong>${platformName}</strong>! To complete your registration, please verify your email address by clicking the button below.
+              </p>
+              <div style="margin: 30px 0;">
+                <a href="${verificationUrl}" style="background-color: #007bff; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
+                  Verify Email Address
+                </a>
+              </div>
+              <p style="font-size: 14px; line-height: 1.6; color: #666; margin-bottom: 20px;">
+                Or copy and paste this link into your browser:<br>
+                <a href="${verificationUrl}" style="color: #007bff; word-break: break-all;">${verificationUrl}</a>
+              </p>
+              <div style="background-color: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                <p style="margin: 0; font-size: 14px; color: #856404;">
+                  <strong>⏰ Important:</strong> This verification link will expire in 24 hours.
+                </p>
+              </div>
+              <p style="font-size: 14px; color: #6c757d; margin-top: 30px;">
+                If you didn't create an account with ${platformName}, please ignore this email.<br><br>
+                Best regards,<br>
+                The ${platformName} Team
+              </p>
+            </div>
+          </div>
+        </div>
+      `,
+    };
+  }
 }
+
