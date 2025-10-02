@@ -735,13 +735,12 @@ fn test_multiple_subscription_events_logged() {
     let logs = client.get_events_by_user(&user);
     assert_eq!(logs.len(), 3);
 
-    // Verify action types
-    let actions: Vec<String> = logs
-        .iter()
-        .map(|log| log.details.get(String::from_str(&env, "action")).unwrap())
-        .collect();
+    // Verify action types - check each log directly
+    let action1 = logs.get(0).unwrap().details.get(String::from_str(&env, "action")).unwrap();
+    let action2 = logs.get(1).unwrap().details.get(String::from_str(&env, "action")).unwrap();
+    let action3 = logs.get(2).unwrap().details.get(String::from_str(&env, "action")).unwrap();
 
-    assert_eq!(actions.get(0).unwrap(), String::from_str(&env, "subscription_created"));
-    assert_eq!(actions.get(1).unwrap(), String::from_str(&env, "subscription_created"));
-    assert_eq!(actions.get(2).unwrap(), String::from_str(&env, "subscription_renewed"));
+    assert_eq!(action1, String::from_str(&env, "subscription_created"));
+    assert_eq!(action2, String::from_str(&env, "subscription_created"));
+    assert_eq!(action3, String::from_str(&env, "subscription_renewed"));
 }
