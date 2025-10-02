@@ -11,6 +11,13 @@ pub enum MembershipStatus {
 
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
+pub enum AttendanceAction {
+    ClockIn,
+    ClockOut,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Subscription {
     pub id: String,
     pub user: Address,

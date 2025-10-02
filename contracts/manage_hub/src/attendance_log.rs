@@ -1,18 +1,20 @@
 use crate::errors::Error;
+use crate::types::AttendanceAction;
 use soroban_sdk::{contracttype, symbol_short, Address, BytesN, Env, Map, String, Vec};
 
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
 pub enum DataKey {
-    EventLogsByEvent(BytesN<32>),
-    EventLogsByUser(Address),
+    AttendanceLog(BytesN<32>),
+    AttendanceLogsByUser(Address),
 }
 
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
-pub struct EventLog {
-    pub event_id: BytesN<32>,
-    pub user: Address,
+pub struct AttendanceLog {
+    pub id: BytesN<32>,
+    pub user_id: Address,
+    pub action: AttendanceAction,
     pub timestamp: u64,
     pub details: Map<String, String>,
 }
@@ -20,66 +22,64 @@ pub struct EventLog {
 pub struct AttendanceLogModule;
 
 impl AttendanceLogModule {
-    pub fn log_event(
+    pub fn log_attendance(
         env: Env,
-        event_id: BytesN<32>,
-        user: Address,
-        event_details: Map<String, String>,
+        id: BytesN<32>,
+        user_id: Address,
+        action: AttendanceAction,
+        details: Map<String, String>,
     ) -> Result<(), Error> {
-        // Optional validation on details size to integrate with errors
-        if event_details.len() > 50 {
+        // Enforce initiator authentication
+        user_id.require_auth();
+
+        // Validate details size
+        if details.len() > 50 {
             return Err(Error::InvalidEventDetails);
         }
 
         let timestamp = env.ledger().timestamp();
 
-        let log = EventLog {
-            event_id: event_id.clone(),
-            user: user.clone(),
+        let log = AttendanceLog {
+            id: id.clone(),
+            user_id: user_id.clone(),
+            action: action.clone(),
             timestamp,
-            details: event_details.clone(),
+            details: details.clone(),
         };
 
-        // Append immutably to per-event log list
-        let mut by_event: Vec<EventLog> = env
-            .storage()
-            .persistent()
-            .get(&DataKey::EventLogsByEvent(event_id.clone()))
-            .unwrap_or(Vec::new(&env));
-        by_event.push_back(log.clone());
+        // Store individual attendance log immutably
         env.storage()
             .persistent()
-            .set(&DataKey::EventLogsByEvent(event_id.clone()), &by_event);
+            .set(&DataKey::AttendanceLog(id.clone()), &log);
 
-        // Append immutably to per-user log list
-        let mut by_user: Vec<EventLog> = env
+        // Append to user's attendance logs
+        let mut user_logs: Vec<AttendanceLog> = env
             .storage()
             .persistent()
-            .get(&DataKey::EventLogsByUser(user.clone()))
+            .get(&DataKey::AttendanceLogsByUser(user_id.clone()))
             .unwrap_or(Vec::new(&env));
-        by_user.push_back(log.clone());
+        user_logs.push_back(log.clone());
         env.storage()
             .persistent()
-            .set(&DataKey::EventLogsByUser(user.clone()), &by_user);
+            .set(&DataKey::AttendanceLogsByUser(user_id.clone()), &user_logs);
 
         // Emit event for off-chain indexing
         env.events()
-            .publish((symbol_short!("rsvp"), event_id, user), event_details);
+            .publish((symbol_short!("attend"), id, user_id), action);
 
         Ok(())
     }
 
-    pub fn get_events_by_event(env: Env, event_id: BytesN<32>) -> Vec<EventLog> {
+    pub fn get_logs_for_user(env: Env, user_id: Address) -> Vec<AttendanceLog> {
         env.storage()
             .persistent()
-            .get(&DataKey::EventLogsByEvent(event_id))
+            .get(&DataKey::AttendanceLogsByUser(user_id))
             .unwrap_or(Vec::new(&env))
     }
 
-    pub fn get_events_by_user(env: Env, user: Address) -> Vec<EventLog> {
+    pub fn get_attendance_log(env: Env, id: BytesN<32>) -> Option<AttendanceLog> {
         env.storage()
             .persistent()
-            .get(&DataKey::EventLogsByUser(user))
-            .unwrap_or(Vec::new(&env))
+            .get(&DataKey::AttendanceLog(id))
     }
 }
