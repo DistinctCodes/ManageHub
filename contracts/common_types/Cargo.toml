@@ -1,16 +1,13 @@
 [package]
-name = "manage_hub"
-version = "0.0.0"
+name = "common_types"
+version = "0.1.0"
 edition = "2021"
-publish = false
 
 [lib]
-crate-type = ["lib", "cdylib"]
-doctest = false
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 soroban-sdk = { workspace = true }
-common_types = { workspace = true }
 
 [dev-dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }
