@@ -11,6 +11,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt.guard';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { InventoryItemsModule } from './inventory-items/inventory-items.module';
+import { CountriesCurrenciesModule } from './countries-currencies/countries-currencies.module';
 
 @Module({
   imports: [
@@ -63,6 +64,7 @@ import { InventoryItemsModule } from './inventory-items/inventory-items.module';
     EmailModule,
     NewsletterModule,
     InventoryItemsModule,
+    CountriesCurrenciesModule,
   ],
   controllers: [AppController],
   providers: [
