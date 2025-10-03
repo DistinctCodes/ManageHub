@@ -6,6 +6,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { EmailModule } from './email/email.module';
+import { SuppliersModule } from './suppliers/suppliers.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt.guard';
 
@@ -32,9 +33,10 @@ import { JwtAuthGuard } from './auth/guards/jwt.guard';
             : false,
       }),
     }),
-    AuthModule,
-    UsersModule,
-    EmailModule,
+  AuthModule,
+  UsersModule,
+  EmailModule,
+  SuppliersModule,
   ],
   controllers: [AppController],
   providers: [
