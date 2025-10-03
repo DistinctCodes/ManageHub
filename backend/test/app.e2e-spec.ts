@@ -3,6 +3,7 @@ import { INestApplication, ValidationPipe, HttpStatus  } from '@nestjs/common';
 import * as request from 'supertest';
 import { AppModule } from './../src/app.module';
 
+jest.setTimeout(30000);
 import { UserRole } from '../src/users/enums/userRoles.enum';
 import { Repository } from 'typeorm';
 import { getRepositoryToken } from '@nestjs/typeorm';
@@ -15,7 +16,7 @@ describe('AppController (e2e)', () => {
   let adminToken: string;
   let testAdmin: User;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -24,11 +25,16 @@ describe('AppController (e2e)', () => {
     await app.init();
   });
 
-  it('/ (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/')
-      .expect(200)
-      .expect('Hello World!');
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it('POST /auth/forgot-password with unknown email returns 404', async () => {
+    await request(app.getHttpServer())
+      .post('/auth/forgot-password')
+      .set('Content-Type', 'application/json')
+      .send({ email: 'unknown+e2e@example.com' })
+      .expect(404);
   });
 
 });

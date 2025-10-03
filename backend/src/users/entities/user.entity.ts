@@ -89,4 +89,6 @@ export class User {
 
   @DeleteDateColumn()
   deletedAt: Date;
+  fullName: any;
+  name: any;
 }
