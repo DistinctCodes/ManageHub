@@ -16,6 +16,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { UploadProfilePictureProvider } from './uploadProfilePicture.provider';
 import { UserRole } from '../enums/userRoles.enum';
+import { ForgotPasswordProvider } from './forgotPassword.provider';
+import { ResetPasswordProvider } from './resetPassword.provider';
 
 @Injectable()
 export class UsersService {
@@ -33,6 +35,9 @@ export class UsersService {
     private readonly deleteUserProvider: DeleteUserProvider,
 
     private readonly uploadProfilePictureProvider: UploadProfilePictureProvider,
+
+    private readonly forgotPasswordProvider: ForgotPasswordProvider,
+    private readonly resetPasswordProvider: ResetPasswordProvider,
   ) {}
 
   // CREATE USER
@@ -111,5 +116,15 @@ export class UsersService {
     }
     const { password, ...userWithoutPassword } = user as any;
     return userWithoutPassword;
+  }
+
+  // FORGOT PASSWORD
+  async forgotPassword(email: string) {
+    return await this.forgotPasswordProvider.execute(email);
+  }
+
+  // RESET PASSWORD
+  async resetPassword(token: string, newPassword: string) {
+    return await this.resetPasswordProvider.execute(token, newPassword);
   }
 }
