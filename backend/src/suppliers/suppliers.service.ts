@@ -1,8 +1,3 @@
-  async toggleStatus(id: number): Promise<Supplier> {
-    const supplier = await this.findOne(id);
-    supplier.isActive = !supplier.isActive;
-    return this.suppliersRepository.save(supplier);
-  }
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -33,6 +28,11 @@ export class SuppliersService {
     return { data, total };
   }
 
+  async toggleStatus(id: number): Promise<Supplier> {
+    const supplier = await this.findOne(id);
+    supplier.isActive = !supplier.isActive;
+    return this.suppliersRepository.save(supplier);
+  }
   async findOne(id: number): Promise<Supplier> {
     const supplier = await this.suppliersRepository.findOne({ where: { id }, relations: ['assets'] });
     if (!supplier) throw new NotFoundException('Supplier not found');
