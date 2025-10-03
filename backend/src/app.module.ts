@@ -9,6 +9,7 @@ import { EmailModule } from './email/email.module';
 import { SuppliersModule } from './suppliers/suppliers.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt.guard';
+import { AssetDepreciationModule } from './asset-depreciation/asset-depreciation.module';
 
 @Module({
   imports: [
