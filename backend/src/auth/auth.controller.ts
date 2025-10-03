@@ -30,6 +30,8 @@ import { GetCurrentUser } from './decorators/getCurrentUser.decorator';
 import { LocalAuthGuard } from './guards/local.guard';
 import { ForgotPasswordDto } from './dto/forgotPassword.dto';
 import { ResetPasswordDto } from './dto/resetPassword.dto';
+import { VerifyEmailDto } from './dto/verifyEmail.dto';
+import { ResendVerifyEmailDto } from './dto/resendVerifyEmail.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -96,5 +98,33 @@ export class AuthController {
   async resetPassword(@Body() dto: ResetPasswordDto) {
     const result = await this.authService.resetPassword(dto.token, dto.newPassword);
     return result;
+  // VERIFY EMAIL
+  @Public()
+  @Post('verify-email')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verify user email with token' })
+  @ApiOkResponse({ description: 'Email verified successfully.' })
+  @ApiBadRequestResponse({ description: 'Invalid or expired token.' })
+  @ApiBody({ type: VerifyEmailDto })
+  async verifyEmail(
+    @Body() verifyEmailDto: VerifyEmailDto,
+  ): Promise<{ message: string }> {
+    return await this.authService.verifyEmail(verifyEmailDto.token);
+  }
+
+  // RESEND VERIFICATION EMAIL
+  @Public()
+  @Post('resend-verify-email')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Resend email verification link' })
+  @ApiOkResponse({ description: 'Verification email sent successfully.' })
+  @ApiBadRequestResponse({ description: 'User not found or already verified.' })
+  @ApiBody({ type: ResendVerifyEmailDto })
+  async resendVerifyEmail(
+    @Body() resendVerifyEmailDto: ResendVerifyEmailDto,
+  ): Promise<{ message: string }> {
+    return await this.authService.resendVerificationEmail(
+      resendVerifyEmailDto.email,
+    );
   }
 }

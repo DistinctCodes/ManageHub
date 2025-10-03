@@ -1,12 +1,20 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, ValidationPipe, HttpStatus  } from '@nestjs/common';
 import * as request from 'supertest';
 import { AppModule } from './../src/app.module';
 
 jest.setTimeout(30000);
+import { UserRole } from '../src/users/enums/userRoles.enum';
+import { Repository } from 'typeorm';
+import { getRepositoryToken } from '@nestjs/typeorm';
+import { User } from '../src/users/entities/user.entity';
+
 
 describe('AppController (e2e)', () => {
   let app: INestApplication;
+  let userRepo: Repository<User>;
+  let adminToken: string;
+  let testAdmin: User;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -28,4 +36,5 @@ describe('AppController (e2e)', () => {
       .send({ email: 'unknown+e2e@example.com' })
       .expect(404);
   });
+
 });

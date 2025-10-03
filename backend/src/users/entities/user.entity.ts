@@ -47,6 +47,21 @@ export class User {
   @Column({ type: 'timestamptz', nullable: true })
   passwordResetExpiresIn?: Date;
 
+  @Exclude()
+  @Column({ nullable: true })
+  verificationToken?: string;
+
+  @Exclude()
+  @Column({ type: 'timestamptz', nullable: true })
+  verificationTokenExpiry?: Date;
+
+  @Exclude()
+  @Column({ type: 'timestamptz', nullable: true })
+  lastVerificationEmailSent?: Date;
+
+  @Column({ default: false })
+  isVerified: boolean;
+
   @Column({ default: true })
   isActive: boolean;
 
