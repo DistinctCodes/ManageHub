@@ -12,6 +12,7 @@ import { GenerateTokensProvider } from 'src/auth/providers/generateTokens.provid
 import { RefreshTokenRepositoryOperations } from 'src/auth/providers/RefreshTokenCrud.repository';
 import { UserRole } from '../enums/userRoles.enum';
 import { EmailService } from '../../email/providers/email.service';
+import * as crypto from 'crypto';
 @Injectable()
 export class CreateUserProvider {
   constructor(
@@ -43,7 +44,9 @@ export class CreateUserProvider {
       }
 
       // Hash the password
-      const hashedPassword = await this.hashingProvider.hash(createUserDto.password);
+      const hashedPassword = await this.hashingProvider.hash(
+        createUserDto.password,
+      );
       createUserDto.password = hashedPassword;
 
       // Set default role if not provided
@@ -51,15 +54,28 @@ export class CreateUserProvider {
         createUserDto.role = UserRole.USER;
       }
 
+      // Generate verification token
+      const verificationToken = crypto.randomBytes(32).toString('hex');
+      const verificationTokenExpiry = new Date();
+      verificationTokenExpiry.setHours(verificationTokenExpiry.getHours() + 24); // 24 hours expiry
+
       // Create and save the user (or admin)
-      let user = this.userRepository.create(createUserDto);
+      let user = this.userRepository.create({
+        ...createUserDto,
+        isVerified: false,
+        verificationToken,
+        verificationTokenExpiry,
+      });
       user = await this.userRepository.save(user);
 
       // Generate tokens
       const { accessToken, refreshToken } =
         await this.generateTokensProvider.generateBothTokens(user);
 
-      await this.refreshTokenRepositoryOperations.saveRefreshToken(user, refreshToken);
+      await this.refreshTokenRepositoryOperations.saveRefreshToken(
+        user,
+        refreshToken,
+      );
 
       const jwtExpirationMs = parseInt(
         this.configService.get<string>('JWT_REFRESH_EXPIRATION') || '604800000',
@@ -74,22 +90,28 @@ export class CreateUserProvider {
         sameSite: 'none',
       });
 
-      // Send registration confirmation email
+      // Send verification email
       try {
-        const emailSent = await this.emailService.sendRegistrationConfirmation(
+        const emailSent = await this.emailService.sendVerificationEmail(
           user.email,
-          `${user.firstname} ${user.lastname}`
+          verificationToken,
+          `${user.firstname} ${user.lastname}`,
         );
-        
+
         if (!emailSent) {
           // Log the error but don't fail the registration
-          console.warn(`Failed to send registration confirmation email to ${user.email}. User registration was successful.`);
+          console.warn(
+            `Failed to send verification email to ${user.email}. User registration was successful.`,
+          );
         } else {
-          console.log(`Registration confirmation email sent successfully to ${user.email}`);
+          console.log(`Verification email sent successfully to ${user.email}`);
         }
       } catch (emailError) {
         // Log the error but don't fail the registration
-        console.error(`Error sending registration confirmation email to ${user.email}:`, emailError.message);
+        console.error(
+          `Error sending verification email to ${user.email}:`,
+          emailError.message,
+        );
         console.log('User registration was successful despite email failure.');
       }
 
