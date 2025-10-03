@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { config } from 'dotenv';
 import { User } from '../users/entities/user.entity';
 import { RefreshToken } from '../auth/entities/refreshToken.entity';
+import { ProcurementRequest } from '../procurement/entities/procurement-request.entity';
 
 config();
 
@@ -19,7 +20,7 @@ export default new DataSource({
     configService.get('NODE_ENV') === 'production'
       ? { rejectUnauthorized: false }
       : false,
-  entities: [User, RefreshToken],
+  entities: [User, RefreshToken, ProcurementRequest],
   migrations: ['src/migrations/*.ts'],
   synchronize: false, // Always false for migrations
 });
