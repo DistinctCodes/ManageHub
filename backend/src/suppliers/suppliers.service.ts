@@ -46,7 +46,8 @@ export class SuppliersService {
   }
 
   async remove(id: number): Promise<void> {
-    await this.suppliersRepository.softDelete(id);
+    const supplier = await this.findOne(id);
+    await this.suppliersRepository.remove(supplier);
   }
 
   async assignAsset(supplierId: number, assetId: number): Promise<Supplier> {

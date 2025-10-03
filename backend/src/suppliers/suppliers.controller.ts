@@ -20,6 +20,7 @@ export class SuppliersController {
   findAll(@Query() query: QuerySupplierDto) {
     return this.suppliersService.findAll(query);
   }
+  
   @Post('assign-asset')
   assignAsset(@Body() assignAssetDto: AssignAssetDto) {
     return this.suppliersService.assignAsset(assignAssetDto.supplierId, assignAssetDto.assetId);
@@ -38,6 +39,11 @@ export class SuppliersController {
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateSupplierDto: UpdateSupplierDto) {
     return this.suppliersService.update(+id, updateSupplierDto);
+  }
+
+  @Patch(':id/toggle-status')
+  toggleStatus(@Param('id') id: string) {
+    return this.suppliersService.toggleStatus(+id);
   }
 
   @Delete(':id')
