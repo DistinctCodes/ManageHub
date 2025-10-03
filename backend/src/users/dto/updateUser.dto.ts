@@ -1,5 +1,6 @@
 // src/users/dto/updateUser.dto.ts
 import { IsString, IsEmail, IsOptional, MinLength, MaxLength, Matches } from 'class-validator';
+import { UserRole } from '../enums/userRoles.enum';
 
 export class UpdateUserDto {
   @IsOptional()
@@ -34,4 +35,8 @@ export class UpdateUserDto {
       'Password must contain at least one lowercase letter, one uppercase letter, one number, and one special character (@$!%*?&-_.).',
   })
   password?: string;
+
+  @IsOptional()
+  role?: UserRole;
+
 }
