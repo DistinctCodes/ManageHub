@@ -10,6 +10,7 @@ import { NewsletterModule } from './newsletter/newsletter.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt.guard';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { InventoryItemsModule } from './inventory-items/inventory-items.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
     UsersModule,
     EmailModule,
     NewsletterModule,
+    InventoryItemsModule,
   ],
   controllers: [AppController],
   providers: [
