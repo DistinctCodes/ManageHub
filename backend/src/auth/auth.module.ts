@@ -1,6 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { RefreshToken } from './entities/refreshToken.entity';
+import { User } from '../users/entities/user.entity';
 import { AuthController } from './auth.controller';
 import { AuthService } from './providers/auth.service';
 import { UsersModule } from '../users/users.module';
@@ -16,11 +17,15 @@ import { RefreshTokenRepositoryOperations } from './providers/RefreshTokenCrud.r
 import { FindOneRefreshTokenProvider } from './providers/findOneRefreshToken.provider';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
+import { VerifyEmailProvider } from './providers/verifyEmail.provider';
+import { ResendVerificationEmailProvider } from './providers/resendVerificationEmail.provider';
+import { EmailModule } from '../email/email.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([RefreshToken]),
+    TypeOrmModule.forFeature([RefreshToken, User]),
     forwardRef(() => UsersModule),
+    EmailModule,
     ConfigModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -48,6 +53,8 @@ import { JwtModule } from '@nestjs/jwt';
     RefreshTokensProvider,
     RefreshTokenRepositoryOperations,
     FindOneRefreshTokenProvider,
+    VerifyEmailProvider,
+    ResendVerificationEmailProvider,
   ],
   exports: [
     AuthService,
