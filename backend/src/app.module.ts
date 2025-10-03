@@ -6,7 +6,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { EmailModule } from './email/email.module';
-import { SuppliersModule } from './suppliers/suppliers.module';
+import { ProcurementModule } from './procurement/procurement.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt.guard';
 import { AssetDepreciationModule } from './asset-depreciation/asset-depreciation.module';
@@ -34,10 +34,10 @@ import { AssetDepreciationModule } from './asset-depreciation/asset-depreciation
             : false,
       }),
     }),
-  AuthModule,
-  UsersModule,
-  EmailModule,
-  SuppliersModule,
+    AuthModule,
+    UsersModule,
+    EmailModule,
+    ProcurementModule,
   ],
   controllers: [AppController],
   providers: [
