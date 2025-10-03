@@ -1,7 +1,9 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
 import { SuppliersService } from './suppliers.service';
 import { CreateSupplierDto } from './dto/create-supplier.dto';
 import { UpdateSupplierDto } from './dto/update-supplier.dto';
+import { QuerySupplierDto } from './dto/query-supplier.dto';
+import { AssignAssetDto } from './dto/assign-asset.dto';
 
 @Controller('suppliers')
 export class SuppliersController {
@@ -13,8 +15,17 @@ export class SuppliersController {
   }
 
   @Get()
-  findAll() {
-    return this.suppliersService.findAll();
+  findAll(@Query() query: QuerySupplierDto) {
+    return this.suppliersService.findAll(query);
+  }
+  @Post('assign-asset')
+  assignAsset(@Body() assignAssetDto: AssignAssetDto) {
+    return this.suppliersService.assignAsset(assignAssetDto.supplierId, assignAssetDto.assetId);
+  }
+
+  @Post('unassign-asset')
+  unassignAsset(@Body() assignAssetDto: AssignAssetDto) {
+    return this.suppliersService.unassignAsset(assignAssetDto.supplierId, assignAssetDto.assetId);
   }
 
   @Get(':id')
