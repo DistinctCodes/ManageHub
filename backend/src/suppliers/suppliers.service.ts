@@ -1,3 +1,8 @@
+  async toggleStatus(id: number): Promise<Supplier> {
+    const supplier = await this.findOne(id);
+    supplier.isActive = !supplier.isActive;
+    return this.suppliersRepository.save(supplier);
+  }
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -41,8 +46,7 @@ export class SuppliersService {
   }
 
   async remove(id: number): Promise<void> {
-    const supplier = await this.findOne(id);
-    await this.suppliersRepository.remove(supplier);
+    await this.suppliersRepository.softDelete(id);
   }
 
   async assignAsset(supplierId: number, assetId: number): Promise<Supplier> {

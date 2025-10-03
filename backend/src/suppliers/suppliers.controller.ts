@@ -1,3 +1,7 @@
+  @Patch(':id/status')
+  toggleStatus(@Param('id') id: string) {
+    return this.suppliersService.toggleStatus(+id);
+  }
 import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common';
 import { SuppliersService } from './suppliers.service';
 import { CreateSupplierDto } from './dto/create-supplier.dto';
