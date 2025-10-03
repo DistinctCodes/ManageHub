@@ -8,6 +8,7 @@ import { UsersModule } from './users/users.module';
 import { EmailModule } from './email/email.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt.guard';
+import { AssetDepreciationModule } from './asset-depreciation/asset-depreciation.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { JwtAuthGuard } from './auth/guards/jwt.guard';
     AuthModule,
     UsersModule,
     EmailModule,
+    AssetDepreciationModule,
   ],
   controllers: [AppController],
   providers: [
