@@ -8,14 +8,9 @@ import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { cn } from '@/utils/cn';
+import { loginSchema, type LoginSchema } from '@/lib/schemas/loginSchema';
 
-const emailLoginSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-  password: z.string().min(1, 'Password is required'),
-  rememberMe: z.boolean().optional(),
-});
-
-type EmailLoginFormData = z.infer<typeof emailLoginSchema>;
+type EmailLoginFormData = LoginSchema & { rememberMe?: boolean };
 
 interface EmailLoginFormProps {
   onSubmit: (data: EmailLoginFormData) => void;
@@ -30,7 +25,13 @@ export function EmailLoginForm({ onSubmit, className }: EmailLoginFormProps) {
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<EmailLoginFormData>({
-    resolver: zodResolver(emailLoginSchema),
+    resolver: zodResolver(
+      loginSchema.and(
+        z.object({
+          rememberMe: z.boolean().optional(),
+        })
+      )
+    ),
     mode: 'onBlur', // Validate on blur for better UX
     defaultValues: {
       email: '',
