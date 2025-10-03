@@ -1,7 +1,16 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
+import { EmailModule } from './email/email.module';
+import { NewsletterModule } from './newsletter/newsletter.module';
+import { APP_GUARD } from '@nestjs/core';
+import { JwtAuthGuard } from './auth/guards/jwt.guard';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { NotificationsModule } from './notifications/notifications.module';
 import { BadgesModule } from './badges/badges.module';
 import { InternetSpeedModule } from './internet-speed/internet-speed.module';
 import { LibraryService } from './library/library.service';
@@ -58,6 +67,24 @@ import { InventoryMovementsModule } from './inventory-movements/inventory-moveme
           configService.get<string>('DATABASE_SSL') === 'true' ||
           (host ? host.includes('neon.tech') : false);
 
+        return {
+          type: 'postgres',
+          database: configService.get('DATABASE_NAME'),
+          password: configService.get('DATABASE_PASSWORD'),
+          username: configService.get('DATABASE_USERNAME'),
+          port: +configService.get('DATABASE_PORT'),
+          host,
+          autoLoadEntities: true,
+          synchronize: true,
+          ssl: sslRequired ? { rejectUnauthorized: false } : false,
+        };
+      },
+    }),
+    AuthModule,
+    UsersModule,
+    EmailModule,
+    NewsletterModule,
+    NotificationsModule,
     BadgesModule,
     InternetSpeedModule,
     LibraryModule,

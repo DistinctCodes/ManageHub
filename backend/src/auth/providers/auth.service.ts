@@ -49,6 +49,7 @@ export class AuthService {
   // RESET PASSWORD
   public async resetPassword(token: string, newPassword: string) {
     return await this.usersService.resetPassword(token, newPassword);
+  }
   public async verifyEmail(token: string): Promise<{ message: string }> {
     return await this.verifyEmailProvider.verifyEmail(token);
   }
