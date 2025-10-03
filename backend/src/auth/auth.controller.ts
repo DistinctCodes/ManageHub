@@ -98,6 +98,7 @@ export class AuthController {
   async resetPassword(@Body() dto: ResetPasswordDto) {
     const result = await this.authService.resetPassword(dto.token, dto.newPassword);
     return result;
+  }
   // VERIFY EMAIL
   @Public()
   @Post('verify-email')
