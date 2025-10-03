@@ -1,27 +1,34 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+::-webkit-scrollar {
+  width: 8px;
+  height: 8px;
 }
 
+::-webkit-scrollbar-thumb {
+  border-radius: 6px;
+  background-color: #9ca3af;
+}
+
+::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+/* Dark mode */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  ::-webkit-scrollbar-thumb {
+    background-color: #4b5563;
   }
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #9ca3af transparent;
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
+@media (prefers-color-scheme: dark) {
+  * {
+    scrollbar-color: #4b5563 transparent;
   }
 }

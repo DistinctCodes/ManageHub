@@ -27,7 +27,36 @@ import { InventoryMovementsModule } from './inventory-movements/inventory-moveme
 
 @Module({
   imports: [
-    ScheduleModule.forRoot(),
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
+    ThrottlerModule.forRoot([
+      {
+        name: 'short',
+        ttl: 1000, // 1 second
+        limit: 3, // 3 requests per second
+      },
+      {
+        name: 'medium',
+        ttl: 10000, // 10 seconds
+        limit: 20, // 20 requests per 10 seconds
+      },
+      {
+        name: 'long',
+        ttl: 60000, // 1 minute
+        limit: 100, // 100 requests per minute
+      },
+    ]),
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => {
+        const host = configService.get<string>('DATABASE_HOST');
+        const sslRequired =
+          configService.get<string>('NODE_ENV') === 'production' ||
+          configService.get<string>('PGSSLMODE') === 'require' ||
+          configService.get<string>('DATABASE_SSL') === 'true' ||
+          (host ? host.includes('neon.tech') : false);
 
     BadgesModule,
     InternetSpeedModule,
@@ -51,6 +80,16 @@ import { InventoryMovementsModule } from './inventory-movements/inventory-moveme
     InventoryMovementsModule
   ],
   controllers: [AppController],
-  providers: [AppService, LibraryService],
+  providers: [
+    AppService,
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}
