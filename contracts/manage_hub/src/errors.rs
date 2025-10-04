@@ -1,3 +1,4 @@
+use membership_token::Error as MembershipTokenError;
 use soroban_sdk::contracterror;
 
 #[contracterror]
@@ -10,4 +11,16 @@ pub enum Error {
     TokenExpired = 5,
     InvalidExpiryDate = 6,
     InvalidEventDetails = 7,
+}
+
+impl From<MembershipTokenError> for Error {
+    fn from(e: MembershipTokenError) -> Self {
+        match e {
+            MembershipTokenError::AdminNotSet => Error::AdminNotSet,
+            MembershipTokenError::TokenAlreadyIssued => Error::TokenAlreadyIssued,
+            MembershipTokenError::InvalidExpiryDate => Error::InvalidExpiryDate,
+            MembershipTokenError::TokenNotFound => Error::TokenNotFound,
+            MembershipTokenError::TokenExpired => Error::TokenExpired,
+        }
+    }
 }

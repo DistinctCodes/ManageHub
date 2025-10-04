@@ -3,12 +3,12 @@ use soroban_sdk::{contract, contractimpl, vec, Address, BytesN, Env, String, Vec
 
 mod attendance_log;
 mod errors;
-mod membership_token;
 mod types;
 
 use attendance_log::{AttendanceLog, AttendanceLogModule};
 use errors::Error;
 use membership_token::{MembershipToken, MembershipTokenContract};
+
 use types::AttendanceAction;
 
 #[contract]
@@ -26,19 +26,22 @@ impl Contract {
         user: Address,
         expiry_date: u64,
     ) -> Result<(), Error> {
-        MembershipTokenContract::issue_token(env, id, user, expiry_date)
+        MembershipTokenContract::issue_token(env, id, user, expiry_date)?;
+        Ok(())
     }
 
     pub fn transfer_token(env: Env, id: BytesN<32>, new_user: Address) -> Result<(), Error> {
-        MembershipTokenContract::transfer_token(env, id, new_user)
+        MembershipTokenContract::transfer_token(env, id, new_user)?;
+        Ok(())
     }
 
     pub fn get_token(env: Env, id: BytesN<32>) -> Result<MembershipToken, Error> {
-        MembershipTokenContract::get_token(env, id)
+        Ok(MembershipTokenContract::get_token(env, id)?)
     }
 
     pub fn set_admin(env: Env, admin: Address) -> Result<(), Error> {
-        MembershipTokenContract::set_admin(env, admin)
+        MembershipTokenContract::set_admin(env, admin)?;
+        Ok(())
     }
 
     pub fn log_attendance(

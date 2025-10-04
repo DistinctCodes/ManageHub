@@ -15,7 +15,7 @@
               "function_name": "log_attendance",
               "args": [
                 {
-                  "bytes": "bb40b4889c0d4a0bae8d273dec467883d0f54003eefb2bf7dfe9016208fc598c"
+                  "bytes": "74ff006d0fca1f1f0f7a7d41b7b35b86d0956a89812506203cd7ca0dfd64d416"
                 },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
@@ -68,7 +68,7 @@
                   "symbol": "AttendanceLog"
                 },
                 {
-                  "bytes": "bb40b4889c0d4a0bae8d273dec467883d0f54003eefb2bf7dfe9016208fc598c"
+                  "bytes": "74ff006d0fca1f1f0f7a7d41b7b35b86d0956a89812506203cd7ca0dfd64d416"
                 }
               ]
             },
@@ -88,7 +88,7 @@
                       "symbol": "AttendanceLog"
                     },
                     {
-                      "bytes": "bb40b4889c0d4a0bae8d273dec467883d0f54003eefb2bf7dfe9016208fc598c"
+                      "bytes": "74ff006d0fca1f1f0f7a7d41b7b35b86d0956a89812506203cd7ca0dfd64d416"
                     }
                   ]
                 },
@@ -129,7 +129,7 @@
                         "symbol": "id"
                       },
                       "val": {
-                        "bytes": "bb40b4889c0d4a0bae8d273dec467883d0f54003eefb2bf7dfe9016208fc598c"
+                        "bytes": "74ff006d0fca1f1f0f7a7d41b7b35b86d0956a89812506203cd7ca0dfd64d416"
                       }
                     },
                     {
@@ -230,7 +230,7 @@
                             "symbol": "id"
                           },
                           "val": {
-                            "bytes": "bb40b4889c0d4a0bae8d273dec467883d0f54003eefb2bf7dfe9016208fc598c"
+                            "bytes": "74ff006d0fca1f1f0f7a7d41b7b35b86d0956a89812506203cd7ca0dfd64d416"
                           }
                         },
                         {
