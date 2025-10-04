@@ -1,4 +1,10 @@
-import { MigrationInterface, QueryRunner, Table, Index, ForeignKey } from 'typeorm';
+import {
+  MigrationInterface,
+  QueryRunner,
+  Table,
+  TableIndex,
+  TableForeignKey,
+} from 'typeorm';
 
 export class CreateCountriesCurrenciesTables1728000000000 implements MigrationInterface {
   name = 'CreateCountriesCurrenciesTables1728000000000';
@@ -265,27 +271,72 @@ export class CreateCountriesCurrenciesTables1728000000000 implements MigrationIn
     );
 
     // Create indexes
-    await queryRunner.createIndex('countries', new Index('IDX_countries_iso2Code', ['iso2Code']));
-    await queryRunner.createIndex('countries', new Index('IDX_countries_iso3Code', ['iso3Code']));
-    await queryRunner.createIndex('countries', new Index('IDX_countries_name', ['name']));
-    await queryRunner.createIndex('countries', new Index('IDX_countries_isActive', ['isActive']));
-    await queryRunner.createIndex('countries', new Index('IDX_countries_isDeleted', ['isDeleted']));
+    await queryRunner.createIndex(
+      'countries',
+      new TableIndex({ name: 'IDX_countries_iso2Code', columnNames: ['iso2Code'] }),
+    );
+    await queryRunner.createIndex(
+      'countries',
+      new TableIndex({ name: 'IDX_countries_iso3Code', columnNames: ['iso3Code'] }),
+    );
+    await queryRunner.createIndex(
+      'countries',
+      new TableIndex({ name: 'IDX_countries_name', columnNames: ['name'] }),
+    );
+    await queryRunner.createIndex(
+      'countries',
+      new TableIndex({ name: 'IDX_countries_isActive', columnNames: ['isActive'] }),
+    );
+    await queryRunner.createIndex(
+      'countries',
+      new TableIndex({ name: 'IDX_countries_isDeleted', columnNames: ['isDeleted'] }),
+    );
 
-    await queryRunner.createIndex('currencies', new Index('IDX_currencies_code', ['code']));
-    await queryRunner.createIndex('currencies', new Index('IDX_currencies_isBaseCurrency', ['isBaseCurrency']));
-    await queryRunner.createIndex('currencies', new Index('IDX_currencies_isActive', ['isActive']));
-    await queryRunner.createIndex('currencies', new Index('IDX_currencies_isDeleted', ['isDeleted']));
+    await queryRunner.createIndex(
+      'currencies',
+      new TableIndex({ name: 'IDX_currencies_code', columnNames: ['code'] }),
+    );
+    await queryRunner.createIndex(
+      'currencies',
+      new TableIndex({ name: 'IDX_currencies_isBaseCurrency', columnNames: ['isBaseCurrency'] }),
+    );
+    await queryRunner.createIndex(
+      'currencies',
+      new TableIndex({ name: 'IDX_currencies_isActive', columnNames: ['isActive'] }),
+    );
+    await queryRunner.createIndex(
+      'currencies',
+      new TableIndex({ name: 'IDX_currencies_isDeleted', columnNames: ['isDeleted'] }),
+    );
 
-    await queryRunner.createIndex('exchange_rates', new Index('IDX_exchange_rates_fromCurrencyId', ['fromCurrencyId']));
-    await queryRunner.createIndex('exchange_rates', new Index('IDX_exchange_rates_toCurrencyId', ['toCurrencyId']));
-    await queryRunner.createIndex('exchange_rates', new Index('IDX_exchange_rates_effectiveDate', ['effectiveDate']));
-    await queryRunner.createIndex('exchange_rates', new Index('IDX_exchange_rates_isActive', ['isActive']));
-    await queryRunner.createIndex('exchange_rates', new Index('IDX_exchange_rates_isDeleted', ['isDeleted']));
+    await queryRunner.createIndex(
+      'exchange_rates',
+      new TableIndex({
+        name: 'IDX_exchange_rates_fromCurrencyId',
+        columnNames: ['fromCurrencyId'],
+      }),
+    );
+    await queryRunner.createIndex(
+      'exchange_rates',
+      new TableIndex({ name: 'IDX_exchange_rates_toCurrencyId', columnNames: ['toCurrencyId'] }),
+    );
+    await queryRunner.createIndex(
+      'exchange_rates',
+      new TableIndex({ name: 'IDX_exchange_rates_effectiveDate', columnNames: ['effectiveDate'] }),
+    );
+    await queryRunner.createIndex(
+      'exchange_rates',
+      new TableIndex({ name: 'IDX_exchange_rates_isActive', columnNames: ['isActive'] }),
+    );
+    await queryRunner.createIndex(
+      'exchange_rates',
+      new TableIndex({ name: 'IDX_exchange_rates_isDeleted', columnNames: ['isDeleted'] }),
+    );
 
     // Create foreign key constraints
     await queryRunner.createForeignKey(
       'currencies',
-      new ForeignKey({
+      new TableForeignKey({
         columnNames: ['countryId'],
         referencedColumnNames: ['id'],
         referencedTableName: 'countries',
@@ -295,7 +346,7 @@ export class CreateCountriesCurrenciesTables1728000000000 implements MigrationIn
 
     await queryRunner.createForeignKey(
       'exchange_rates',
-      new ForeignKey({
+      new TableForeignKey({
         columnNames: ['fromCurrencyId'],
         referencedColumnNames: ['id'],
         referencedTableName: 'currencies',
@@ -305,7 +356,7 @@ export class CreateCountriesCurrenciesTables1728000000000 implements MigrationIn
 
     await queryRunner.createForeignKey(
       'exchange_rates',
-      new ForeignKey({
+      new TableForeignKey({
         columnNames: ['toCurrencyId'],
         referencedColumnNames: ['id'],
         referencedTableName: 'currencies',

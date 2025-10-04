@@ -123,10 +123,18 @@ export class RefreshTokenRepositoryOperations {
       },
     });
 
+    if (!allRefreshTokenEntities.length) {
+      return {
+        revokedAllSessions: false,
+        revokedCount: 0,
+      };
+    }
+
     const now = new Date();
 
     const revokedTokens = allRefreshTokenEntities.map((token) => {
-      ((token.revoked = true), (token.revokedAt = now));
+      token.revoked = true;
+      token.revokedAt = now;
       return token;
     });
 
@@ -134,6 +142,7 @@ export class RefreshTokenRepositoryOperations {
 
     return {
       revokedAllSessions: true,
+      revokedCount: revokedTokens.length,
     };
   }
 }

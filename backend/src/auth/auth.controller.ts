@@ -17,6 +17,7 @@ import {
   ApiNotFoundResponse,
   ApiBody,
   ApiTooManyRequestsResponse,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './providers/auth.service';
@@ -32,6 +33,7 @@ import { ForgotPasswordDto } from './dto/forgotPassword.dto';
 import { ResetPasswordDto } from './dto/resetPassword.dto';
 import { VerifyEmailDto } from './dto/verifyEmail.dto';
 import { ResendVerifyEmailDto } from './dto/resendVerifyEmail.dto';
+import { LogoutDto } from './dto/logout.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -127,5 +129,38 @@ export class AuthController {
     return await this.authService.resendVerificationEmail(
       resendVerifyEmailDto.email,
     );
+  }
+
+  // LOGOUT CURRENT SESSION
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Log out current session' })
+  @ApiOkResponse({ description: 'Logged out successfully.' })
+  @ApiUnauthorizedResponse({ description: 'No active session found.' })
+  async logout(
+    @Body() logoutDto: LogoutDto,
+    @GetCurrentUser('id') userId: string,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<{ message: string }> {
+    return await this.authService.logout(
+      userId,
+      logoutDto.refreshToken,
+      response,
+    );
+  }
+
+  // LOGOUT ALL SESSIONS
+  @Post('logout-all')
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Log out from all sessions' })
+  @ApiOkResponse({ description: 'Logged out from all sessions successfully.' })
+  @ApiUnauthorizedResponse({ description: 'No active sessions found.' })
+  async logoutAll(
+    @GetCurrentUser('id') userId: string,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<{ message: string }> {
+    return await this.authService.logoutAllSessions(userId, response);
   }
 }
