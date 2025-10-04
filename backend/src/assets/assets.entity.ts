@@ -1,7 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany } from 'typeorm';
 import { Supplier } from '../suppliers/suppliers.entity';
-import { AssetDisposal } from 'src/asset-disposals/entities/asset-disposal.entity';
-import { AssetAudit } from '../asset-audits/entities/asset-audit.entity';
+import { AssetMaintenance } from '../asset-maintenance/asset-maintenence.entity';
 
 @Entity('assets')
 export class Asset {
@@ -17,12 +16,6 @@ export class Asset {
   @ManyToOne(() => Supplier, supplier => supplier.assets)
   supplier: Supplier;
 
-  @OneToMany(() => AssetDisposal, (disposal) => disposal.asset)
-  disposals: AssetDisposal[];
-
-  @OneToMany(() => AssetAudit, (assetAudit) => assetAudit.asset)
-  audits: AssetAudit[];
-
-  @Column({ default: 'active' })
-  status: 'active' | 'disposed';
+  @OneToMany(() => AssetMaintenance, maintenance => maintenance.asset)
+  maintenances: AssetMaintenance[];
 }
