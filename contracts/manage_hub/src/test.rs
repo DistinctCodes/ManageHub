@@ -502,13 +502,7 @@ fn test_create_subscription_success() {
     client.set_usdc_contract(&admin, &payment_token);
 
     // Create subscription
-    client.create_subscription(
-        &subscription_id,
-        &user,
-        &payment_token,
-        &amount,
-        &duration,
-    );
+    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration);
 
     // Verify subscription was created
     let subscription = client.get_subscription(&subscription_id);
@@ -520,10 +514,10 @@ fn test_create_subscription_success() {
     // Verify attendance log was created
     let logs = client.get_events_by_user(&user);
     assert_eq!(logs.len(), 1);
-    
+
     let log = logs.get(0).unwrap();
     assert_eq!(log.user, user);
-    
+
     let details = log.details;
     let action = details.get(String::from_str(&env, "action")).unwrap();
     assert_eq!(action, String::from_str(&env, "subscription_created"));
@@ -556,12 +550,7 @@ fn test_renew_subscription_success() {
     );
 
     // Renew subscription
-    client.renew_subscription(
-        &subscription_id,
-        &payment_token,
-        &renewal_amount,
-        &duration,
-    );
+    client.renew_subscription(&subscription_id, &payment_token, &renewal_amount, &duration);
 
     // Verify subscription was renewed
     let subscription = client.get_subscription(&subscription_id);
@@ -597,12 +586,7 @@ fn test_renew_subscription_not_found() {
     client.set_usdc_contract(&admin, &payment_token);
 
     // Try to renew non-existent subscription
-    client.renew_subscription(
-        &subscription_id,
-        &payment_token,
-        &amount,
-        &duration,
-    );
+    client.renew_subscription(&subscription_id, &payment_token, &amount, &duration);
 }
 
 #[test]
@@ -679,13 +663,7 @@ fn test_subscription_cross_contract_call_integration() {
 
     // Setup and create subscription
     client.set_usdc_contract(&admin, &payment_token);
-    client.create_subscription(
-        &subscription_id,
-        &user,
-        &payment_token,
-        &amount,
-        &duration,
-    );
+    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration);
 
     // Verify cross-contract call worked by checking attendance logs
     let user_logs = client.get_events_by_user(&user);
@@ -693,15 +671,17 @@ fn test_subscription_cross_contract_call_integration() {
 
     let log = user_logs.get(0).unwrap();
     let details = log.details;
-    
+
     // Verify all expected fields in the log details
     assert!(details.contains_key(String::from_str(&env, "action")));
     assert!(details.contains_key(String::from_str(&env, "subscription_id")));
     assert!(details.contains_key(String::from_str(&env, "amount")));
     assert!(details.contains_key(String::from_str(&env, "timestamp")));
-    
+
     // Verify the subscription_id in the log matches
-    let logged_sub_id = details.get(String::from_str(&env, "subscription_id")).unwrap();
+    let logged_sub_id = details
+        .get(String::from_str(&env, "subscription_id"))
+        .unwrap();
     assert_eq!(logged_sub_id, subscription_id);
 }
 
@@ -736,9 +716,24 @@ fn test_multiple_subscription_events_logged() {
     assert_eq!(logs.len(), 3);
 
     // Verify action types - check each log directly
-    let action1 = logs.get(0).unwrap().details.get(String::from_str(&env, "action")).unwrap();
-    let action2 = logs.get(1).unwrap().details.get(String::from_str(&env, "action")).unwrap();
-    let action3 = logs.get(2).unwrap().details.get(String::from_str(&env, "action")).unwrap();
+    let action1 = logs
+        .get(0)
+        .unwrap()
+        .details
+        .get(String::from_str(&env, "action"))
+        .unwrap();
+    let action2 = logs
+        .get(1)
+        .unwrap()
+        .details
+        .get(String::from_str(&env, "action"))
+        .unwrap();
+    let action3 = logs
+        .get(2)
+        .unwrap()
+        .details
+        .get(String::from_str(&env, "action"))
+        .unwrap();
 
     assert_eq!(action1, String::from_str(&env, "subscription_created"));
     assert_eq!(action2, String::from_str(&env, "subscription_created"));
