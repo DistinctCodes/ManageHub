@@ -16,7 +16,10 @@ import { FindAllUsersProvider } from './providers/findAllUsers.provider';
 import { UpdateUserProvider } from './providers/updateUser.provider';
 import { DeleteUserProvider } from './providers/deleteUser.provider';
 import { UploadProfilePictureProvider } from './providers/uploadProfilePicture.provider';
-
+import { ForgotPasswordProvider } from './providers/forgotPassword.provider';
+import { ResetPasswordProvider } from './providers/resetPassword.provider';
+import { FindAllAdminsProvider } from './providers/findAllAdmins.provider';
+import { FindAdminByIdProvider } from './providers/findAdminById.provider';
 
 @Module({
   imports: [TypeOrmModule.forFeature([User]), forwardRef(() => AuthModule), CloudinaryModule, EmailModule],
@@ -31,6 +34,10 @@ import { UploadProfilePictureProvider } from './providers/uploadProfilePicture.p
     UpdateUserProvider,
     DeleteUserProvider,
     UploadProfilePictureProvider,
+    ForgotPasswordProvider,
+    ResetPasswordProvider,
+    FindAllAdminsProvider,
+    FindAdminByIdProvider,
   ],
   exports: [UsersService],
 })

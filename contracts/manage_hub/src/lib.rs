@@ -7,11 +7,10 @@ mod membership_token;
 mod subscription;
 mod types;
 
-use attendance_log::{AttendanceLogModule, EventLog};
+use attendance_log::{AttendanceLog, AttendanceLogModule};
 use errors::Error;
 use membership_token::{MembershipToken, MembershipTokenContract};
-use subscription::SubscriptionContract;
-use types::Subscription;
+use types::AttendanceAction;
 
 #[contract]
 pub struct Contract;
@@ -43,21 +42,22 @@ impl Contract {
         MembershipTokenContract::set_admin(env, admin)
     }
 
-    pub fn log_event(
+    pub fn log_attendance(
         env: Env,
-        event_id: BytesN<32>,
-        user: Address,
-        event_details: soroban_sdk::Map<String, String>,
+        id: BytesN<32>,
+        user_id: Address,
+        action: AttendanceAction,
+        details: soroban_sdk::Map<String, String>,
     ) -> Result<(), Error> {
-        AttendanceLogModule::log_event(env, event_id, user, event_details)
+        AttendanceLogModule::log_attendance(env, id, user_id, action, details)
     }
 
-    pub fn get_events_by_event(env: Env, event_id: BytesN<32>) -> Vec<EventLog> {
-        AttendanceLogModule::get_events_by_event(env, event_id)
+    pub fn get_logs_for_user(env: Env, user_id: Address) -> Vec<AttendanceLog> {
+        AttendanceLogModule::get_logs_for_user(env, user_id)
     }
 
-    pub fn get_events_by_user(env: Env, user: Address) -> Vec<EventLog> {
-        AttendanceLogModule::get_events_by_user(env, user)
+    pub fn get_attendance_log(env: Env, id: BytesN<32>) -> Option<AttendanceLog> {
+        AttendanceLogModule::get_attendance_log(env, id)
     }
 
     pub fn create_subscription(

@@ -34,7 +34,7 @@
               "function_name": "issue_token",
               "args": [
                 {
-                  "bytes": "afc9840e2b0cbd1c4bafe3c447fc4f39d44776b607ba599e3184b21cde4afc55"
+                  "bytes": "ca737117706b1a4441a05d1221202abfea780df15ebc6e2aa7bc15c424b7fee8"
                 },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
@@ -71,7 +71,7 @@
                   "symbol": "Token"
                 },
                 {
-                  "bytes": "afc9840e2b0cbd1c4bafe3c447fc4f39d44776b607ba599e3184b21cde4afc55"
+                  "bytes": "ca737117706b1a4441a05d1221202abfea780df15ebc6e2aa7bc15c424b7fee8"
                 }
               ]
             },
@@ -91,7 +91,7 @@
                       "symbol": "Token"
                     },
                     {
-                      "bytes": "afc9840e2b0cbd1c4bafe3c447fc4f39d44776b607ba599e3184b21cde4afc55"
+                      "bytes": "ca737117706b1a4441a05d1221202abfea780df15ebc6e2aa7bc15c424b7fee8"
                     }
                   ]
                 },
@@ -111,7 +111,7 @@
                         "symbol": "id"
                       },
                       "val": {
-                        "bytes": "afc9840e2b0cbd1c4bafe3c447fc4f39d44776b607ba599e3184b21cde4afc55"
+                        "bytes": "ca737117706b1a4441a05d1221202abfea780df15ebc6e2aa7bc15c424b7fee8"
                       }
                     },
                     {
