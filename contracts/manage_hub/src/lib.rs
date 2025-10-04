@@ -86,6 +86,10 @@ impl Contract {
         SubscriptionContract::get_subscription(env, id)
     }
 
+    pub fn cancel_subscription(env: Env, id: String) -> Result<(), Error> {
+        SubscriptionContract::cancel_subscription(env, id)
+    }
+
     pub fn set_usdc_contract(env: Env, admin: Address, usdc_address: Address) -> Result<(), Error> {
         SubscriptionContract::set_usdc_contract(env, admin, usdc_address)
     }
