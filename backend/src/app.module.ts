@@ -10,8 +10,11 @@ import { NewsletterModule } from './newsletter/newsletter.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt.guard';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { AuditsModule } from './audits/audits.module';  
+import { AuditsModule } from './audits/audits.module';
 import { CostCentersModule } from './cost-centers/cost-centers.module';
+import { BranchesModule } from './branches/branches.module';
+import { CompaniesModule } from './companies/companies.module';
+import { DepartmentsModule } from './departments/departments.module';
 
 @Module({
   imports: [
@@ -64,7 +67,10 @@ import { CostCentersModule } from './cost-centers/cost-centers.module';
     EmailModule,
     NewsletterModule,
     AuditsModule,
-    CostCentersModule,  
+    CostCentersModule,
+    BranchesModule,
+    CompaniesModule,
+    DepartmentsModule,
   ],
   controllers: [AppController],
   providers: [
