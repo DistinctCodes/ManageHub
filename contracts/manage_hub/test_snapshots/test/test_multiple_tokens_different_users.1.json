@@ -34,7 +34,7 @@
               "function_name": "issue_token",
               "args": [
                 {
-                  "bytes": "ae9c20189265b972f02dcd8e6232ee0cd4a8b3261e60d304e8dbbc708cb0a3f3"
+                  "bytes": "20ca4695baca21a7653615042b8c7081d2aed7cfd92839b0dc7cab6be76c942f"
                 },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
@@ -59,7 +59,7 @@
               "function_name": "issue_token",
               "args": [
                 {
-                  "bytes": "86f1afd3f344171942a8da34b0dc03ec9572772c4170ed334a8d9d28dbd13f3f"
+                  "bytes": "f566c98bfb9e14ca72ee08782c20e07acf30bc5dabaa78c7c73d7d749bec5c66"
                 },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
@@ -97,7 +97,7 @@
                   "symbol": "Token"
                 },
                 {
-                  "bytes": "86f1afd3f344171942a8da34b0dc03ec9572772c4170ed334a8d9d28dbd13f3f"
+                  "bytes": "20ca4695baca21a7653615042b8c7081d2aed7cfd92839b0dc7cab6be76c942f"
                 }
               ]
             },
@@ -117,7 +117,7 @@
                       "symbol": "Token"
                     },
                     {
-                      "bytes": "86f1afd3f344171942a8da34b0dc03ec9572772c4170ed334a8d9d28dbd13f3f"
+                      "bytes": "20ca4695baca21a7653615042b8c7081d2aed7cfd92839b0dc7cab6be76c942f"
                     }
                   ]
                 },
@@ -137,97 +137,7 @@
                         "symbol": "id"
                       },
                       "val": {
-                        "bytes": "86f1afd3f344171942a8da34b0dc03ec9572772c4170ed334a8d9d28dbd13f3f"
-                      }
-                    },
-                    {
-                      "key": {
-                        "symbol": "issue_date"
-                      },
-                      "val": {
-                        "u64": 0
-                      }
-                    },
-                    {
-                      "key": {
-                        "symbol": "status"
-                      },
-                      "val": {
-                        "vec": [
-                          {
-                            "symbol": "Active"
-                          }
-                        ]
-                      }
-                    },
-                    {
-                      "key": {
-                        "symbol": "user"
-                      },
-                      "val": {
-                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
-                      }
-                    }
-                  ]
-                }
-              }
-            },
-            "ext": "v0"
-          },
-          4095
-        ]
-      ],
-      [
-        {
-          "contract_data": {
-            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-            "key": {
-              "vec": [
-                {
-                  "symbol": "Token"
-                },
-                {
-                  "bytes": "ae9c20189265b972f02dcd8e6232ee0cd4a8b3261e60d304e8dbbc708cb0a3f3"
-                }
-              ]
-            },
-            "durability": "persistent"
-          }
-        },
-        [
-          {
-            "last_modified_ledger_seq": 0,
-            "data": {
-              "contract_data": {
-                "ext": "v0",
-                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-                "key": {
-                  "vec": [
-                    {
-                      "symbol": "Token"
-                    },
-                    {
-                      "bytes": "ae9c20189265b972f02dcd8e6232ee0cd4a8b3261e60d304e8dbbc708cb0a3f3"
-                    }
-                  ]
-                },
-                "durability": "persistent",
-                "val": {
-                  "map": [
-                    {
-                      "key": {
-                        "symbol": "expiry_date"
-                      },
-                      "val": {
-                        "u64": 1000
-                      }
-                    },
-                    {
-                      "key": {
-                        "symbol": "id"
-                      },
-                      "val": {
-                        "bytes": "ae9c20189265b972f02dcd8e6232ee0cd4a8b3261e60d304e8dbbc708cb0a3f3"
+                        "bytes": "20ca4695baca21a7653615042b8c7081d2aed7cfd92839b0dc7cab6be76c942f"
                       }
                     },
                     {
@@ -256,6 +166,96 @@
                       },
                       "val": {
                         "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "ext": "v0"
+          },
+          4095
+        ]
+      ],
+      [
+        {
+          "contract_data": {
+            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+            "key": {
+              "vec": [
+                {
+                  "symbol": "Token"
+                },
+                {
+                  "bytes": "f566c98bfb9e14ca72ee08782c20e07acf30bc5dabaa78c7c73d7d749bec5c66"
+                }
+              ]
+            },
+            "durability": "persistent"
+          }
+        },
+        [
+          {
+            "last_modified_ledger_seq": 0,
+            "data": {
+              "contract_data": {
+                "ext": "v0",
+                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+                "key": {
+                  "vec": [
+                    {
+                      "symbol": "Token"
+                    },
+                    {
+                      "bytes": "f566c98bfb9e14ca72ee08782c20e07acf30bc5dabaa78c7c73d7d749bec5c66"
+                    }
+                  ]
+                },
+                "durability": "persistent",
+                "val": {
+                  "map": [
+                    {
+                      "key": {
+                        "symbol": "expiry_date"
+                      },
+                      "val": {
+                        "u64": 1000
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "id"
+                      },
+                      "val": {
+                        "bytes": "f566c98bfb9e14ca72ee08782c20e07acf30bc5dabaa78c7c73d7d749bec5c66"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "issue_date"
+                      },
+                      "val": {
+                        "u64": 0
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "status"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "symbol": "Active"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "user"
+                      },
+                      "val": {
+                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
                       }
                     }
                   ]
