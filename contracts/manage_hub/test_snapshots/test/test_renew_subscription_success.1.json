@@ -1,6 +1,6 @@
 {
   "generators": {
-    "address": 3,
+    "address": 4,
     "nonce": 0
   },
   "auth": [
@@ -12,32 +12,13 @@
           "function": {
             "contract_fn": {
               "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-              "function_name": "log_attendance",
+              "function_name": "set_usdc_contract",
               "args": [
-                {
-                  "bytes": "30215a2dd9095313f37e74e931c6d677bc4f411cc3ace682f755c1591a91a8b2"
-                },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
                 },
                 {
-                  "vec": [
-                    {
-                      "symbol": "ClockIn"
-                    }
-                  ]
-                },
-                {
-                  "map": [
-                    {
-                      "key": {
-                        "string": "location"
-                      },
-                      "val": {
-                        "string": "office"
-                      }
-                    }
-                  ]
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
                 }
               ]
             }
@@ -53,32 +34,56 @@
           "function": {
             "contract_fn": {
               "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-              "function_name": "log_attendance",
+              "function_name": "create_subscription",
               "args": [
                 {
-                  "bytes": "d19d846654092fad6c7d6f705b1e78fce2c0d81d235d2151a180dfbfb7c1833e"
+                  "string": "sub_002"
                 },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
                 },
                 {
-                  "vec": [
-                    {
-                      "symbol": "ClockIn"
-                    }
-                  ]
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
                 },
                 {
-                  "map": [
-                    {
-                      "key": {
-                        "string": "location"
-                      },
-                      "val": {
-                        "string": "office"
-                      }
-                    }
-                  ]
+                  "i128": {
+                    "hi": 0,
+                    "lo": 100000
+                  }
+                },
+                {
+                  "u64": 2592000
+                }
+              ]
+            }
+          },
+          "sub_invocations": []
+        }
+      ]
+    ],
+    [
+      [
+        "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M",
+        {
+          "function": {
+            "contract_fn": {
+              "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+              "function_name": "renew_subscription",
+              "args": [
+                {
+                  "string": "sub_002"
+                },
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
+                },
+                {
+                  "i128": {
+                    "hi": 0,
+                    "lo": 150000
+                  }
+                },
+                {
+                  "u64": 2592000
                 }
               ]
             }
@@ -110,7 +115,7 @@
                   "symbol": "AttendanceLog"
                 },
                 {
-                  "bytes": "30215a2dd9095313f37e74e931c6d677bc4f411cc3ace682f755c1591a91a8b2"
+                  "bytes": "0700000000000000000000000000000000000000000000000000000000000000"
                 }
               ]
             },
@@ -130,7 +135,7 @@
                       "symbol": "AttendanceLog"
                     },
                     {
-                      "bytes": "30215a2dd9095313f37e74e931c6d677bc4f411cc3ace682f755c1591a91a8b2"
+                      "bytes": "0700000000000000000000000000000000000000000000000000000000000000"
                     }
                   ]
                 },
@@ -144,7 +149,7 @@
                       "val": {
                         "vec": [
                           {
-                            "symbol": "ClockIn"
+                            "symbol": "ClockOut"
                           }
                         ]
                       }
@@ -157,109 +162,34 @@
                         "map": [
                           {
                             "key": {
-                              "string": "location"
+                              "string": "action"
                             },
                             "val": {
-                              "string": "office"
+                              "string": "subscription_renewed"
                             }
-                          }
-                        ]
-                      }
-                    },
-                    {
-                      "key": {
-                        "symbol": "id"
-                      },
-                      "val": {
-                        "bytes": "30215a2dd9095313f37e74e931c6d677bc4f411cc3ace682f755c1591a91a8b2"
-                      }
-                    },
-                    {
-                      "key": {
-                        "symbol": "timestamp"
-                      },
-                      "val": {
-                        "u64": 0
-                      }
-                    },
-                    {
-                      "key": {
-                        "symbol": "user_id"
-                      },
-                      "val": {
-                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
-                      }
-                    }
-                  ]
-                }
-              }
-            },
-            "ext": "v0"
-          },
-          4095
-        ]
-      ],
-      [
-        {
-          "contract_data": {
-            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-            "key": {
-              "vec": [
-                {
-                  "symbol": "AttendanceLog"
-                },
-                {
-                  "bytes": "d19d846654092fad6c7d6f705b1e78fce2c0d81d235d2151a180dfbfb7c1833e"
-                }
-              ]
-            },
-            "durability": "persistent"
-          }
-        },
-        [
-          {
-            "last_modified_ledger_seq": 0,
-            "data": {
-              "contract_data": {
-                "ext": "v0",
-                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-                "key": {
-                  "vec": [
-                    {
-                      "symbol": "AttendanceLog"
-                    },
-                    {
-                      "bytes": "d19d846654092fad6c7d6f705b1e78fce2c0d81d235d2151a180dfbfb7c1833e"
-                    }
-                  ]
-                },
-                "durability": "persistent",
-                "val": {
-                  "map": [
-                    {
-                      "key": {
-                        "symbol": "action"
-                      },
-                      "val": {
-                        "vec": [
-                          {
-                            "symbol": "ClockIn"
-                          }
-                        ]
-                      }
-                    },
-                    {
-                      "key": {
-                        "symbol": "details"
-                      },
-                      "val": {
-                        "map": [
+                          },
                           {
                             "key": {
-                              "string": "location"
+                              "string": "amount"
                             },
                             "val": {
-                              "string": "office"
+                              "string": "amount_logged"
+                            }
+                          },
+                          {
+                            "key": {
+                              "string": "subscription_id"
+                            },
+                            "val": {
+                              "string": "sub_002"
+                            }
+                          },
+                          {
+                            "key": {
+                              "string": "timestamp"
+                            },
+                            "val": {
+                              "string": "event_time"
                             }
                           }
                         ]
@@ -270,7 +200,7 @@
                         "symbol": "id"
                       },
                       "val": {
-                        "bytes": "d19d846654092fad6c7d6f705b1e78fce2c0d81d235d2151a180dfbfb7c1833e"
+                        "bytes": "0700000000000000000000000000000000000000000000000000000000000000"
                       }
                     },
                     {
@@ -288,109 +218,6 @@
                       "val": {
                         "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
                       }
-                    }
-                  ]
-                }
-              }
-            },
-            "ext": "v0"
-          },
-          4095
-        ]
-      ],
-      [
-        {
-          "contract_data": {
-            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-            "key": {
-              "vec": [
-                {
-                  "symbol": "AttendanceLogsByUser"
-                },
-                {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
-                }
-              ]
-            },
-            "durability": "persistent"
-          }
-        },
-        [
-          {
-            "last_modified_ledger_seq": 0,
-            "data": {
-              "contract_data": {
-                "ext": "v0",
-                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-                "key": {
-                  "vec": [
-                    {
-                      "symbol": "AttendanceLogsByUser"
-                    },
-                    {
-                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
-                    }
-                  ]
-                },
-                "durability": "persistent",
-                "val": {
-                  "vec": [
-                    {
-                      "map": [
-                        {
-                          "key": {
-                            "symbol": "action"
-                          },
-                          "val": {
-                            "vec": [
-                              {
-                                "symbol": "ClockIn"
-                              }
-                            ]
-                          }
-                        },
-                        {
-                          "key": {
-                            "symbol": "details"
-                          },
-                          "val": {
-                            "map": [
-                              {
-                                "key": {
-                                  "string": "location"
-                                },
-                                "val": {
-                                  "string": "office"
-                                }
-                              }
-                            ]
-                          }
-                        },
-                        {
-                          "key": {
-                            "symbol": "id"
-                          },
-                          "val": {
-                            "bytes": "30215a2dd9095313f37e74e931c6d677bc4f411cc3ace682f755c1591a91a8b2"
-                          }
-                        },
-                        {
-                          "key": {
-                            "symbol": "timestamp"
-                          },
-                          "val": {
-                            "u64": 0
-                          }
-                        },
-                        {
-                          "key": {
-                            "symbol": "user_id"
-                          },
-                          "val": {
-                            "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
-                          }
-                        }
-                      ]
                     }
                   ]
                 }
@@ -460,10 +287,34 @@
                             "map": [
                               {
                                 "key": {
-                                  "string": "location"
+                                  "string": "action"
                                 },
                                 "val": {
-                                  "string": "office"
+                                  "string": "subscription_created"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "string": "amount"
+                                },
+                                "val": {
+                                  "string": "amount_logged"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "string": "subscription_id"
+                                },
+                                "val": {
+                                  "string": "sub_002"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "string": "timestamp"
+                                },
+                                "val": {
+                                  "string": "event_time"
                                 }
                               }
                             ]
@@ -474,7 +325,88 @@
                             "symbol": "id"
                           },
                           "val": {
-                            "bytes": "d19d846654092fad6c7d6f705b1e78fce2c0d81d235d2151a180dfbfb7c1833e"
+                            "bytes": "0700000000000000000000000000000000000000000000000000000000000000"
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "timestamp"
+                          },
+                          "val": {
+                            "u64": 0
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "user_id"
+                          },
+                          "val": {
+                            "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "map": [
+                        {
+                          "key": {
+                            "symbol": "action"
+                          },
+                          "val": {
+                            "vec": [
+                              {
+                                "symbol": "ClockOut"
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "details"
+                          },
+                          "val": {
+                            "map": [
+                              {
+                                "key": {
+                                  "string": "action"
+                                },
+                                "val": {
+                                  "string": "subscription_renewed"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "string": "amount"
+                                },
+                                "val": {
+                                  "string": "amount_logged"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "string": "subscription_id"
+                                },
+                                "val": {
+                                  "string": "sub_002"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "string": "timestamp"
+                                },
+                                "val": {
+                                  "string": "event_time"
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "id"
+                          },
+                          "val": {
+                            "bytes": "0700000000000000000000000000000000000000000000000000000000000000"
                           }
                         },
                         {
@@ -508,6 +440,115 @@
         {
           "contract_data": {
             "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+            "key": {
+              "vec": [
+                {
+                  "symbol": "Subscription"
+                },
+                {
+                  "string": "sub_002"
+                }
+              ]
+            },
+            "durability": "persistent"
+          }
+        },
+        [
+          {
+            "last_modified_ledger_seq": 0,
+            "data": {
+              "contract_data": {
+                "ext": "v0",
+                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+                "key": {
+                  "vec": [
+                    {
+                      "symbol": "Subscription"
+                    },
+                    {
+                      "string": "sub_002"
+                    }
+                  ]
+                },
+                "durability": "persistent",
+                "val": {
+                  "map": [
+                    {
+                      "key": {
+                        "symbol": "amount"
+                      },
+                      "val": {
+                        "i128": {
+                          "hi": 0,
+                          "lo": 150000
+                        }
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "created_at"
+                      },
+                      "val": {
+                        "u64": 0
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "expires_at"
+                      },
+                      "val": {
+                        "u64": 2592000
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "id"
+                      },
+                      "val": {
+                        "string": "sub_002"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "payment_token"
+                      },
+                      "val": {
+                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "status"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "symbol": "Active"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "user"
+                      },
+                      "val": {
+                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "ext": "v0"
+          },
+          4095
+        ]
+      ],
+      [
+        {
+          "contract_data": {
+            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
             "key": "ledger_key_contract_instance",
             "durability": "persistent"
           }
@@ -526,7 +567,20 @@
                     "executable": {
                       "wasm": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
                     },
-                    "storage": null
+                    "storage": [
+                      {
+                        "key": {
+                          "vec": [
+                            {
+                              "symbol": "UsdcContract"
+                            }
+                          ]
+                        },
+                        "val": {
+                          "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
+                        }
+                      }
+                    ]
                   }
                 }
               }
@@ -558,6 +612,39 @@
                 "key": {
                   "ledger_key_nonce": {
                     "nonce": 801925984706572462
+                  }
+                },
+                "durability": "temporary",
+                "val": "void"
+              }
+            },
+            "ext": "v0"
+          },
+          6311999
+        ]
+      ],
+      [
+        {
+          "contract_data": {
+            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M",
+            "key": {
+              "ledger_key_nonce": {
+                "nonce": 1033654523790656264
+              }
+            },
+            "durability": "temporary"
+          }
+        },
+        [
+          {
+            "last_modified_ledger_seq": 0,
+            "data": {
+              "contract_data": {
+                "ext": "v0",
+                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M",
+                "key": {
+                  "ledger_key_nonce": {
+                    "nonce": 1033654523790656264
                   }
                 },
                 "durability": "temporary",

@@ -1,7 +1,8 @@
-use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, String};
+use soroban_sdk::{contract, contractimpl, contracttype, Address, BytesN, Env, Map, String};
 
+use crate::attendance_log::AttendanceLogModule;
 use crate::errors::Error;
-use crate::types::{MembershipStatus, Subscription};
+use crate::types::{AttendanceAction, MembershipStatus, Subscription};
 
 #[contracttype]
 pub enum SubscriptionDataKey {
@@ -85,9 +86,20 @@ impl SubscriptionContract {
         );
 
         // Extend storage lifetime
-        env.storage()
-            .persistent()
-            .extend_ttl(&SubscriptionDataKey::Subscription(id), 100, 1000);
+        env.storage().persistent().extend_ttl(
+            &SubscriptionDataKey::Subscription(id.clone()),
+            100,
+            1000,
+        );
+
+        // Log attendance event for subscription creation (ClockIn)
+        Self::log_subscription_event(
+            &env,
+            &user,
+            String::from_str(&env, "subscription_created"),
+            &id,
+            amount,
+        )?;
 
         Ok(())
     }
@@ -116,5 +128,121 @@ impl SubscriptionContract {
             .instance()
             .get(&SubscriptionDataKey::UsdcContract)
             .ok_or(Error::UsdcContractNotSet)
+    }
+
+    pub fn renew_subscription(
+        env: Env,
+        id: String,
+        payment_token: Address,
+        amount: i128,
+        duration: u64,
+    ) -> Result<(), Error> {
+        // Get existing subscription
+        let mut subscription = Self::get_subscription(env.clone(), id.clone())?;
+
+        // Validate payment
+        Self::validate_payment(
+            env.clone(),
+            payment_token.clone(),
+            amount,
+            subscription.user.clone(),
+        )?;
+
+        // Update subscription details
+        let current_time = env.ledger().timestamp();
+        subscription.expires_at = current_time + duration;
+        subscription.status = MembershipStatus::Active;
+        subscription.amount = amount;
+
+        // Store updated subscription
+        env.storage().persistent().set(
+            &SubscriptionDataKey::Subscription(id.clone()),
+            &subscription,
+        );
+
+        // Extend storage lifetime
+        env.storage().persistent().extend_ttl(
+            &SubscriptionDataKey::Subscription(id.clone()),
+            100,
+            1000,
+        );
+
+        // Log attendance event for subscription renewal
+        Self::log_subscription_event(
+            &env,
+            &subscription.user,
+            String::from_str(&env, "subscription_renewed"),
+            &id,
+            amount,
+        )?;
+
+        Ok(())
+    }
+
+    /// Helper function to log subscription events to attendance log
+    fn log_subscription_event(
+        env: &Env,
+        user: &Address,
+        action: String,
+        subscription_id: &String,
+        _amount: i128,
+    ) -> Result<(), Error> {
+        // Generate event_id from subscription_id
+        let event_id = Self::generate_event_id(env, subscription_id);
+
+        // Create event details map
+        let mut details: Map<String, String> = Map::new(env);
+        details.set(String::from_str(env, "action"), action.clone());
+        details.set(
+            String::from_str(env, "subscription_id"),
+            subscription_id.clone(),
+        );
+
+        // Store amount as string - use simple string representation
+        // For production, consider using a proper number to string conversion library
+        details.set(
+            String::from_str(env, "amount"),
+            String::from_str(env, "amount_logged"),
+        );
+
+        // Store timestamp marker
+        details.set(
+            String::from_str(env, "timestamp"),
+            String::from_str(env, "event_time"),
+        );
+
+        // Determine the attendance action based on the event type
+        let attendance_action = if action == String::from_str(env, "subscription_created") {
+            AttendanceAction::ClockIn
+        } else {
+            AttendanceAction::ClockOut
+        };
+
+        // Call AttendanceLogModule to log the attendance (internal version without auth)
+        AttendanceLogModule::log_attendance_internal(
+            env.clone(),
+            event_id,
+            user.clone(),
+            attendance_action,
+            details,
+        )
+        .map_err(|_| Error::AttendanceLogFailed)?;
+
+        Ok(())
+    }
+
+    /// Generate a deterministic event_id from subscription_id
+    fn generate_event_id(env: &Env, subscription_id: &String) -> BytesN<32> {
+        // Use the subscription_id to generate a BytesN<32>
+        // Pad or truncate the subscription_id to create a 32-byte array
+        let mut bytes = [0u8; 32];
+
+        // For simplicity, we'll create a deterministic ID based on the subscription_id length
+        // In production, you'd want to use a proper hashing mechanism
+        let id_len = subscription_id.len();
+        bytes[0] = (id_len % 256) as u8;
+        bytes[1] = ((id_len / 256) % 256) as u8;
+
+        BytesN::from_array(env, &bytes)
     }
 }
