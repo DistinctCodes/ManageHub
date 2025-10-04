@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -11,7 +11,6 @@ import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt.guard';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AuditsModule } from './audits/audits.module';  
-import { CostCentersModule } from './cost-centers/cost-centers.module';
 import { AuditLogsModule } from './audit-logs/audit-logs.module';
 
 @Module({
@@ -65,8 +64,7 @@ import { AuditLogsModule } from './audit-logs/audit-logs.module';
     EmailModule,
     NewsletterModule,
     AuditsModule,
-    CostCentersModule,
-    AuditLogsModule,  
+    AuditLogsModule,
   ],
   controllers: [AppController],
   providers: [
@@ -81,4 +79,8 @@ import { AuditLogsModule } from './audit-logs/audit-logs.module';
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(I18nMiddleware).forRoutes('*'); // Apply i18n middleware globally
+  }
+}
