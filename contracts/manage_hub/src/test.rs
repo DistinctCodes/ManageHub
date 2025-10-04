@@ -504,3 +504,290 @@ fn test_multiple_subscription_events_logged() {
     assert_eq!(action2, String::from_str(&env, "subscription_created"));
     assert_eq!(action3, String::from_str(&env, "subscription_renewed"));
 }
+
+#[test]
+fn test_cancel_subscription_success() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let payment_token = Address::generate(&env);
+    let subscription_id = String::from_str(&env, "sub_cancel_001");
+    let amount = 100_000i128;
+    let duration = 2_592_000u64;
+
+    // Setup and create subscription
+    client.set_usdc_contract(&admin, &payment_token);
+    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration);
+
+    // Verify subscription is active
+    let subscription = client.get_subscription(&subscription_id);
+    assert_eq!(subscription.status, MembershipStatus::Active);
+
+    // Cancel subscription
+    client.cancel_subscription(&subscription_id);
+
+    // Verify subscription is now inactive
+    let cancelled_subscription = client.get_subscription(&subscription_id);
+    assert_eq!(cancelled_subscription.status, MembershipStatus::Inactive);
+    assert_eq!(cancelled_subscription.id, subscription_id);
+    assert_eq!(cancelled_subscription.user, user);
+}
+
+#[test]
+#[should_panic(expected = "HostError: Error(Contract, #10)")]
+fn test_cancel_subscription_not_found() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let subscription_id = String::from_str(&env, "nonexistent_sub");
+
+    // Try to cancel non-existent subscription
+    client.cancel_subscription(&subscription_id);
+}
+
+#[test]
+#[should_panic(expected = "HostError: Error(Contract, #13)")]
+fn test_create_duplicate_subscription() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let payment_token = Address::generate(&env);
+    let subscription_id = String::from_str(&env, "sub_duplicate");
+    let amount = 100_000i128;
+    let duration = 2_592_000u64;
+
+    client.set_usdc_contract(&admin, &payment_token);
+    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration);
+
+    // Try to create duplicate subscription
+    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration);
+}
+
+#[test]
+fn test_subscription_renewal_extends_from_expiry() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let payment_token = Address::generate(&env);
+    let subscription_id = String::from_str(&env, "sub_extend");
+    let amount = 100_000i128;
+    let duration = 2_592_000u64; // 30 days
+
+    // Setup and create subscription
+    client.set_usdc_contract(&admin, &payment_token);
+    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration);
+
+    let initial_subscription = client.get_subscription(&subscription_id);
+    let initial_expires_at = initial_subscription.expires_at;
+
+    // Renew before expiry
+    client.renew_subscription(&subscription_id, &payment_token, &amount, &duration);
+
+    let renewed_subscription = client.get_subscription(&subscription_id);
+
+    // Should extend from original expiry, not current time
+    assert_eq!(
+        renewed_subscription.expires_at,
+        initial_expires_at + duration
+    );
+    assert_eq!(renewed_subscription.status, MembershipStatus::Active);
+}
+
+#[test]
+fn test_subscription_renewal_after_expiry() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let payment_token = Address::generate(&env);
+    let subscription_id = String::from_str(&env, "sub_expired");
+    let amount = 100_000i128;
+    let duration = 2_592_000u64;
+
+    // Setup and create subscription
+    client.set_usdc_contract(&admin, &payment_token);
+    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration);
+
+    let initial_subscription = client.get_subscription(&subscription_id);
+
+    // Advance time past expiry
+    env.ledger().with_mut(|l| l.timestamp = initial_subscription.expires_at + 1000);
+
+    // Renew after expiry
+    client.renew_subscription(&subscription_id, &payment_token, &amount, &duration);
+
+    let renewed_subscription = client.get_subscription(&subscription_id);
+    let current_time = env.ledger().timestamp();
+
+    // Should extend from current time since subscription expired
+    assert_eq!(renewed_subscription.expires_at, current_time + duration);
+    assert_eq!(renewed_subscription.status, MembershipStatus::Active);
+}
+
+#[test]
+fn test_get_subscription_retrieves_correct_data() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let payment_token = Address::generate(&env);
+    let subscription_id = String::from_str(&env, "sub_retrieve");
+    let amount = 250_000i128;
+    let duration = 5_184_000u64; // 60 days
+
+    client.set_usdc_contract(&admin, &payment_token);
+    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration);
+
+    let subscription = client.get_subscription(&subscription_id);
+
+    assert_eq!(subscription.id, subscription_id);
+    assert_eq!(subscription.user, user);
+    assert_eq!(subscription.payment_token, payment_token);
+    assert_eq!(subscription.amount, amount);
+    assert_eq!(subscription.status, MembershipStatus::Active);
+    assert_eq!(subscription.created_at, env.ledger().timestamp());
+    assert_eq!(
+        subscription.expires_at,
+        env.ledger().timestamp() + duration
+    );
+}
+
+#[test]
+#[should_panic(expected = "HostError: Error(Contract, #10)")]
+fn test_get_subscription_not_found() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let subscription_id = String::from_str(&env, "nonexistent");
+
+    // Try to get non-existent subscription
+    client.get_subscription(&subscription_id);
+}
+
+#[test]
+fn test_subscription_payment_validation() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let payment_token = Address::generate(&env);
+    let subscription_id = String::from_str(&env, "sub_payment");
+    let amount = 100_000i128;
+    let duration = 2_592_000u64;
+
+    // Setup USDC contract
+    client.set_usdc_contract(&admin, &payment_token);
+
+    // Creating subscription validates payment (amount > 0, correct token)
+    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration);
+
+    let subscription = client.get_subscription(&subscription_id);
+    assert_eq!(subscription.amount, amount);
+}
+
+#[test]
+fn test_multiple_users_multiple_subscriptions() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user1 = Address::generate(&env);
+    let user2 = Address::generate(&env);
+    let payment_token = Address::generate(&env);
+    let amount = 100_000i128;
+    let duration = 2_592_000u64;
+
+    client.set_usdc_contract(&admin, &payment_token);
+
+    // Create subscriptions for different users
+    let sub_id_1 = String::from_str(&env, "user1_sub1");
+    let sub_id_2 = String::from_str(&env, "user1_sub2");
+    let sub_id_3 = String::from_str(&env, "user2_sub1");
+
+    client.create_subscription(&sub_id_1, &user1, &payment_token, &amount, &duration);
+    client.create_subscription(&sub_id_2, &user1, &payment_token, &amount, &duration);
+    client.create_subscription(&sub_id_3, &user2, &payment_token, &amount, &duration);
+
+    // Verify each subscription is independent
+    let subscription1 = client.get_subscription(&sub_id_1);
+    let subscription2 = client.get_subscription(&sub_id_2);
+    let subscription3 = client.get_subscription(&sub_id_3);
+
+    assert_eq!(subscription1.user, user1);
+    assert_eq!(subscription2.user, user1);
+    assert_eq!(subscription3.user, user2);
+    assert_eq!(subscription1.id, sub_id_1);
+    assert_eq!(subscription2.id, sub_id_2);
+    assert_eq!(subscription3.id, sub_id_3);
+}
+
+#[test]
+fn test_subscription_amount_updates_on_renewal() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let payment_token = Address::generate(&env);
+    let subscription_id = String::from_str(&env, "sub_amount_update");
+    let initial_amount = 100_000i128;
+    let renewal_amount = 200_000i128;
+    let duration = 2_592_000u64;
+
+    client.set_usdc_contract(&admin, &payment_token);
+    client.create_subscription(
+        &subscription_id,
+        &user,
+        &payment_token,
+        &initial_amount,
+        &duration,
+    );
+
+    let initial_subscription = client.get_subscription(&subscription_id);
+    assert_eq!(initial_subscription.amount, initial_amount);
+
+    // Renew with different amount
+    client.renew_subscription(&subscription_id, &payment_token, &renewal_amount, &duration);
+
+    let renewed_subscription = client.get_subscription(&subscription_id);
+    assert_eq!(renewed_subscription.amount, renewal_amount);
+}
