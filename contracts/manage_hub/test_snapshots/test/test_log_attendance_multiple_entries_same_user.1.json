@@ -15,7 +15,7 @@
               "function_name": "log_attendance",
               "args": [
                 {
-                  "bytes": "dd444b230604a6226de67fb047aadf1d45bf2e3c143f72072ceea3f25aa0d7d7"
+                  "bytes": "f4f53e3a7057896d0125fdb2056b063cd0fa0b1573c6d30f77c299b2d65a667e"
                 },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
@@ -56,7 +56,7 @@
               "function_name": "log_attendance",
               "args": [
                 {
-                  "bytes": "f0b3e5016c2ef4353e0615761435924071414a539b9faf770044296809186415"
+                  "bytes": "8935705520411d45ff5f0714a35aaca0a1e82154f4bd4ba9b324ce3b1e38d26a"
                 },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
@@ -109,7 +109,7 @@
                   "symbol": "AttendanceLog"
                 },
                 {
-                  "bytes": "dd444b230604a6226de67fb047aadf1d45bf2e3c143f72072ceea3f25aa0d7d7"
+                  "bytes": "8935705520411d45ff5f0714a35aaca0a1e82154f4bd4ba9b324ce3b1e38d26a"
                 }
               ]
             },
@@ -129,106 +129,7 @@
                       "symbol": "AttendanceLog"
                     },
                     {
-                      "bytes": "dd444b230604a6226de67fb047aadf1d45bf2e3c143f72072ceea3f25aa0d7d7"
-                    }
-                  ]
-                },
-                "durability": "persistent",
-                "val": {
-                  "map": [
-                    {
-                      "key": {
-                        "symbol": "action"
-                      },
-                      "val": {
-                        "vec": [
-                          {
-                            "symbol": "ClockIn"
-                          }
-                        ]
-                      }
-                    },
-                    {
-                      "key": {
-                        "symbol": "details"
-                      },
-                      "val": {
-                        "map": [
-                          {
-                            "key": {
-                              "string": "location"
-                            },
-                            "val": {
-                              "string": "office"
-                            }
-                          }
-                        ]
-                      }
-                    },
-                    {
-                      "key": {
-                        "symbol": "id"
-                      },
-                      "val": {
-                        "bytes": "dd444b230604a6226de67fb047aadf1d45bf2e3c143f72072ceea3f25aa0d7d7"
-                      }
-                    },
-                    {
-                      "key": {
-                        "symbol": "timestamp"
-                      },
-                      "val": {
-                        "u64": 0
-                      }
-                    },
-                    {
-                      "key": {
-                        "symbol": "user_id"
-                      },
-                      "val": {
-                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
-                      }
-                    }
-                  ]
-                }
-              }
-            },
-            "ext": "v0"
-          },
-          4095
-        ]
-      ],
-      [
-        {
-          "contract_data": {
-            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-            "key": {
-              "vec": [
-                {
-                  "symbol": "AttendanceLog"
-                },
-                {
-                  "bytes": "f0b3e5016c2ef4353e0615761435924071414a539b9faf770044296809186415"
-                }
-              ]
-            },
-            "durability": "persistent"
-          }
-        },
-        [
-          {
-            "last_modified_ledger_seq": 0,
-            "data": {
-              "contract_data": {
-                "ext": "v0",
-                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-                "key": {
-                  "vec": [
-                    {
-                      "symbol": "AttendanceLog"
-                    },
-                    {
-                      "bytes": "f0b3e5016c2ef4353e0615761435924071414a539b9faf770044296809186415"
+                      "bytes": "8935705520411d45ff5f0714a35aaca0a1e82154f4bd4ba9b324ce3b1e38d26a"
                     }
                   ]
                 },
@@ -269,7 +170,106 @@
                         "symbol": "id"
                       },
                       "val": {
-                        "bytes": "f0b3e5016c2ef4353e0615761435924071414a539b9faf770044296809186415"
+                        "bytes": "8935705520411d45ff5f0714a35aaca0a1e82154f4bd4ba9b324ce3b1e38d26a"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "timestamp"
+                      },
+                      "val": {
+                        "u64": 0
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "user_id"
+                      },
+                      "val": {
+                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "ext": "v0"
+          },
+          4095
+        ]
+      ],
+      [
+        {
+          "contract_data": {
+            "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+            "key": {
+              "vec": [
+                {
+                  "symbol": "AttendanceLog"
+                },
+                {
+                  "bytes": "f4f53e3a7057896d0125fdb2056b063cd0fa0b1573c6d30f77c299b2d65a667e"
+                }
+              ]
+            },
+            "durability": "persistent"
+          }
+        },
+        [
+          {
+            "last_modified_ledger_seq": 0,
+            "data": {
+              "contract_data": {
+                "ext": "v0",
+                "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+                "key": {
+                  "vec": [
+                    {
+                      "symbol": "AttendanceLog"
+                    },
+                    {
+                      "bytes": "f4f53e3a7057896d0125fdb2056b063cd0fa0b1573c6d30f77c299b2d65a667e"
+                    }
+                  ]
+                },
+                "durability": "persistent",
+                "val": {
+                  "map": [
+                    {
+                      "key": {
+                        "symbol": "action"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "symbol": "ClockIn"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "details"
+                      },
+                      "val": {
+                        "map": [
+                          {
+                            "key": {
+                              "string": "location"
+                            },
+                            "val": {
+                              "string": "office"
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "id"
+                      },
+                      "val": {
+                        "bytes": "f4f53e3a7057896d0125fdb2056b063cd0fa0b1573c6d30f77c299b2d65a667e"
                       }
                     },
                     {
@@ -370,7 +370,7 @@
                             "symbol": "id"
                           },
                           "val": {
-                            "bytes": "dd444b230604a6226de67fb047aadf1d45bf2e3c143f72072ceea3f25aa0d7d7"
+                            "bytes": "f4f53e3a7057896d0125fdb2056b063cd0fa0b1573c6d30f77c299b2d65a667e"
                           }
                         },
                         {
@@ -427,7 +427,7 @@
                             "symbol": "id"
                           },
                           "val": {
-                            "bytes": "f0b3e5016c2ef4353e0615761435924071414a539b9faf770044296809186415"
+                            "bytes": "8935705520411d45ff5f0714a35aaca0a1e82154f4bd4ba9b324ce3b1e38d26a"
                           }
                         },
                         {

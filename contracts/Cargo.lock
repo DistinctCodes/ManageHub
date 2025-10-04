@@ -798,6 +798,7 @@ name = "manage_hub"
 version = "0.0.0"
 dependencies = [
  "common_types",
+ "membership_token",
  "soroban-sdk",
 ]
 

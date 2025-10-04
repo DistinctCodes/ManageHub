@@ -11,7 +11,7 @@ env:
 
 defaults:
   run:
-    working-directory: contracts   # 👈 all cargo commands run in contracts/
+    working-directory: contracts   # all cargo commands run in contracts/
 
 jobs:
   format:
@@ -21,6 +21,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        env:
+          RUSTUP_TOOLCHAIN: stable
         with:
           components: rustfmt
       - name: Check formatting
@@ -33,6 +35,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        env:
+          RUSTUP_TOOLCHAIN: stable
         with:
           components: clippy
       - name: Cache cargo registry
@@ -42,7 +46,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             contracts/target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('contracts/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('''contracts/Cargo.lock''') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
       - name: Run clippy
@@ -55,6 +59,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        env:
+          RUSTUP_TOOLCHAIN: stable
       - name: Cache cargo registry
         uses: actions/cache@v4
         with:
@@ -62,7 +68,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             contracts/target
-          key: ${{ runner.os }}-cargo-test-${{ hashFiles('contracts/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-test-${{ hashFiles('''contracts/Cargo.lock''') }}
           restore-keys: |
             ${{ runner.os }}-cargo-test-
             ${{ runner.os }}-cargo-
@@ -76,6 +82,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        env:
+          RUSTUP_TOOLCHAIN: stable
       - name: Cache cargo registry
         uses: actions/cache@v4
         with:
@@ -83,7 +91,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             contracts/target
-          key: ${{ runner.os }}-cargo-build-${{ hashFiles('contracts/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-build-${{ hashFiles('''contracts/Cargo.lock''') }}
           restore-keys: |
             ${{ runner.os }}-cargo-build-
             ${{ runner.os }}-cargo-
