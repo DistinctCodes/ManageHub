@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -10,8 +10,12 @@ import { NewsletterModule } from './newsletter/newsletter.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt.guard';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { AuditsModule } from './audits/audits.module';  
+import { AuditsModule } from './audits/audits.module';
 import { CostCentersModule } from './cost-centers/cost-centers.module';
+
+import { I18nModule, HeaderResolver, I18nJsonLoader } from 'nestjs-i18n';
+import * as path from 'path';
+import { I18nMiddleware } from './common/middleware/i18n.middleware'; // Adjust path if needed
 
 @Module({
   imports: [
@@ -59,12 +63,25 @@ import { CostCentersModule } from './cost-centers/cost-centers.module';
         };
       },
     }),
+
+    I18nModule.forRoot({
+      fallbackLanguage: 'en',
+      loader: I18nJsonLoader,
+      loaderOptions: {
+        path: path.join(__dirname, '/i18n/'),
+        watch: true,
+      },
+      resolvers: [
+        new HeaderResolver(['en', 'fr']), // Resolves language from 'Accept-Language' header
+      ],
+    }),
+
     AuthModule,
     UsersModule,
     EmailModule,
     NewsletterModule,
     AuditsModule,
-    CostCentersModule,  
+    CostCentersModule,
   ],
   controllers: [AppController],
   providers: [
@@ -79,4 +96,8 @@ import { CostCentersModule } from './cost-centers/cost-centers.module';
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(I18nMiddleware).forRoutes('*'); // Apply i18n middleware globally
+  }
+}
