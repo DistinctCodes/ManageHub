@@ -633,7 +633,8 @@ fn test_subscription_renewal_after_expiry() {
     let initial_subscription = client.get_subscription(&subscription_id);
 
     // Advance time past expiry
-    env.ledger().with_mut(|l| l.timestamp = initial_subscription.expires_at + 1000);
+    env.ledger()
+        .with_mut(|l| l.timestamp = initial_subscription.expires_at + 1000);
 
     // Renew after expiry
     client.renew_subscription(&subscription_id, &payment_token, &amount, &duration);
@@ -672,10 +673,7 @@ fn test_get_subscription_retrieves_correct_data() {
     assert_eq!(subscription.amount, amount);
     assert_eq!(subscription.status, MembershipStatus::Active);
     assert_eq!(subscription.created_at, env.ledger().timestamp());
-    assert_eq!(
-        subscription.expires_at,
-        env.ledger().timestamp() + duration
-    );
+    assert_eq!(subscription.expires_at, env.ledger().timestamp() + duration);
 }
 
 #[test]

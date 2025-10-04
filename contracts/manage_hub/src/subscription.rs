@@ -160,12 +160,7 @@ impl SubscriptionContract {
         subscription.user.require_auth();
 
         // Validate payment
-        Self::validate_payment(
-            &env,
-            &payment_token,
-            amount,
-            &subscription.user,
-        )?;
+        Self::validate_payment(&env, &payment_token, amount, &subscription.user)?;
 
         // Note: Token transfer is omitted in this implementation.
         // In production, you would transfer tokens using:
