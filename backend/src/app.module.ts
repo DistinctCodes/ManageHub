@@ -11,6 +11,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt.guard';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AuditsModule } from './audits/audits.module';  
+import { CostCentersModule } from './cost-centers/cost-centers.module';
 
 @Module({
   imports: [
@@ -62,7 +63,8 @@ import { AuditsModule } from './audits/audits.module';
     UsersModule,
     EmailModule,
     NewsletterModule,
-    AuditsModule,  
+    AuditsModule,
+    CostCentersModule,  
   ],
   controllers: [AppController],
   providers: [
