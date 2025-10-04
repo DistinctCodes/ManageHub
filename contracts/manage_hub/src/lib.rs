@@ -38,7 +38,7 @@ impl Contract {
     }
 
     pub fn get_token(env: Env, id: BytesN<32>) -> Result<MembershipToken, Error> {
-        Ok(MembershipTokenContract::get_token(env, id)?)
+        MembershipTokenContract::get_token(env, id)
     }
 
     pub fn set_admin(env: Env, admin: Address) -> Result<(), Error> {
