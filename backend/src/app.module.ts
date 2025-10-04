@@ -7,13 +7,10 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { EmailModule } from './email/email.module';
 import { NewsletterModule } from './newsletter/newsletter.module';
-import { AssetAuditsModule } from './asset-audits/asset-audits.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt.guard';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { InventoryItemsModule } from './inventory-items/inventory-items.module';
-import { CountriesCurrenciesModule } from './countries-currencies/countries-currencies.module';
-import { UserProfileModule } from './user-profile/user-profile.module';
+import { AuditsModule } from './audits/audits.module';  
 
 @Module({
   imports: [
@@ -65,10 +62,7 @@ import { UserProfileModule } from './user-profile/user-profile.module';
     UsersModule,
     EmailModule,
     NewsletterModule,
-    InventoryItemsModule,
-    CountriesCurrenciesModule,
-    AssetAuditsModule,
-    UserProfileModule,
+    AuditsModule,  
   ],
   controllers: [AppController],
   providers: [
