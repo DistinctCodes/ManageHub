@@ -22,7 +22,10 @@
     "typeorm:run-migrations": "npm run typeorm migration:run -- -d ./src/config/typeorm.config.ts",
     "typeorm:generate-migration": "npm run typeorm -- migration:generate ./src/migrations/$npm_config_name -d ./src/config/typeorm.config.ts",
     "typeorm:create-migration": "npm run typeorm -- migration:create ./src/migrations/$npm_config_name",
-    "typeorm:revert-migration": "npm run typeorm -- migration:revert -d ./src/config/typeorm.config.ts"
+    "typeorm:revert-migration": "npm run typeorm -- migration:revert -d ./src/config/typeorm.config.ts",
+    "demo:seed": "node scripts/demo-data.js seed",
+    "demo:clear": "node scripts/demo-data.js clear",
+    "demo:info": "node scripts/demo-data.js info"
   },
   "dependencies": {
     "@cloudinary-util/types": "^1.6.0",
@@ -45,7 +48,10 @@
     "cloudinary": "^2.7.0",
     "cookie-parser": "^1.4.7",
     "express": "^5.1.0",
+    "i18n": "^0.15.2",
     "multer": "^2.0.2",
+    "nestjs-command": "^3.1.5",
+    "nestjs-i18n": "^10.5.1",
     "nodemailer": "^7.0.6",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",

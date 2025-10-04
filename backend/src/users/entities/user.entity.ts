@@ -75,9 +75,10 @@ export class User {
   @Column({ nullable: true, type: 'varchar', length: 500 })
   profilePicture?: string;
 
+  @Column({ nullable: true, type: 'varchar', length: 15 })
+  phone?: string;
 
   @Exclude()
-
   @OneToMany(() => RefreshToken, (refreshToken) => refreshToken.user)
   refreshTokens: RefreshToken[];
 

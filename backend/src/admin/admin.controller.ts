@@ -1,4 +1,4 @@
-import { Controller, Patch, Delete, Param, Body, ParseUUIDPipe, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import { Controller, Patch, Delete, Param, Body, ParseUUIDPipe, HttpCode, HttpStatus, UseGuards, Get } from '@nestjs/common';
 import { UsersService } from '../users/providers/users.service';
 import { UpdateUserDto } from '../users/dto/updateUser.dto';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -12,6 +12,30 @@ import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 @UseGuards(RolesGuard)
 export class AdminController {
   constructor(private readonly usersService: UsersService) {}
+
+  // GET /admin
+  @Get()
+  @Roles(UserRole.ADMIN)
+  async getAdmins() {
+    const admins = await this.usersService.findAllAdmins();
+    return {
+      success: true,
+      message: 'Admins retrieved successfully',
+      data: admins,
+    };
+  }
+
+  // GET /admin/:id
+  @Get(':id')
+  @Roles(UserRole.ADMIN)
+  async getAdmin(@Param('id', ParseUUIDPipe) id: string) {
+    const admin = await this.usersService.findAdminById(id);
+    return {
+      success: true,
+      message: `Admin ${id} retrieved successfully`,
+      data: admin,
+    };
+  }
 
   // PATCH /admin/:id
   @Patch(':id')

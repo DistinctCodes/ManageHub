@@ -32,6 +32,17 @@ impl AttendanceLogModule {
         // Enforce initiator authentication
         user_id.require_auth();
 
+        Self::log_attendance_internal(env, id, user_id, action, details)
+    }
+
+    /// Internal version without auth check for cross-contract calls
+    pub(crate) fn log_attendance_internal(
+        env: Env,
+        id: BytesN<32>,
+        user_id: Address,
+        action: AttendanceAction,
+        details: Map<String, String>,
+    ) -> Result<(), Error> {
         // Validate details size
         if details.len() > 50 {
             return Err(Error::InvalidEventDetails);

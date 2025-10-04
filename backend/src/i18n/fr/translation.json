@@ -1,0 +1,9 @@
+{
+  "GREETING": "Bonjour, le Monde !",
+  "ERROR": {
+    "NOT_FOUND": "La ressource demandée n'a pas été trouvée."
+  },
+  "USER": {
+    "WELCOME": "Bienvenue, {name} !"
+  }
+}

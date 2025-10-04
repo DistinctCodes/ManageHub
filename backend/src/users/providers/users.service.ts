@@ -18,6 +18,8 @@ import { UploadProfilePictureProvider } from './uploadProfilePicture.provider';
 import { UserRole } from '../enums/userRoles.enum';
 import { ForgotPasswordProvider } from './forgotPassword.provider';
 import { ResetPasswordProvider } from './resetPassword.provider';
+import { FindAllAdminsProvider } from './findAllAdmins.provider';
+import { FindAdminByIdProvider } from './findAdminById.provider';
 
 @Injectable()
 export class UsersService {
@@ -38,6 +40,9 @@ export class UsersService {
 
     private readonly forgotPasswordProvider: ForgotPasswordProvider,
     private readonly resetPasswordProvider: ResetPasswordProvider,
+
+    private readonly findAllAdminsProvider: FindAllAdminsProvider,
+    private readonly findAdminByIdProvider: FindAdminByIdProvider,
   ) {}
 
   // CREATE USER
@@ -53,9 +58,19 @@ export class UsersService {
     return await this.findAllUsersProvider.getUsers();
   }
 
+  // FIND ALL ADMINS
+  async findAllAdmins(): Promise<User[]> {
+    return await this.findAllAdminsProvider.getAdmins();
+  }
+
   // FIND USER BY ID
   async findUserById(id: string): Promise<User> {
     return await this.findOneUserByIdProvider.getUser(id);
+  }
+
+  // FIND ADMIN BY ID
+  async findAdminById(id: string): Promise<User> {
+    return await this.findAdminByIdProvider.getAdmin(id);
   }
 
   // FIND USER BY EMAIL
