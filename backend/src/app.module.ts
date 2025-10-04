@@ -10,8 +10,6 @@ import { NewsletterModule } from './newsletter/newsletter.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt.guard';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { InventoryItemsModule } from './inventory-items/inventory-items.module';
-import { CountriesCurrenciesModule } from './countries-currencies/countries-currencies.module';
 import { AuditsModule } from './audits/audits.module';  
 
 @Module({
@@ -64,8 +62,6 @@ import { AuditsModule } from './audits/audits.module';
     UsersModule,
     EmailModule,
     NewsletterModule,
-    InventoryItemsModule,
-    CountriesCurrenciesModule,
     AuditsModule,  
   ],
   controllers: [AppController],
