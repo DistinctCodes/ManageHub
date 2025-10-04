@@ -15,7 +15,7 @@
               "function_name": "log_attendance",
               "args": [
                 {
-                  "bytes": "8286950d6de288bc5497dc2fd04d5ff1e383ae8f284b45fb0833dd99820559d2"
+                  "bytes": "f4f53e3a7057896d0125fdb2056b063cd0fa0b1573c6d30f77c299b2d65a667e"
                 },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
@@ -56,7 +56,7 @@
               "function_name": "log_attendance",
               "args": [
                 {
-                  "bytes": "69b2dd87b028ee051bb717f8e1f1a6196e7da5298279ff4d5585866084a4305f"
+                  "bytes": "8935705520411d45ff5f0714a35aaca0a1e82154f4bd4ba9b324ce3b1e38d26a"
                 },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
@@ -109,7 +109,7 @@
                   "symbol": "AttendanceLog"
                 },
                 {
-                  "bytes": "69b2dd87b028ee051bb717f8e1f1a6196e7da5298279ff4d5585866084a4305f"
+                  "bytes": "8935705520411d45ff5f0714a35aaca0a1e82154f4bd4ba9b324ce3b1e38d26a"
                 }
               ]
             },
@@ -129,7 +129,7 @@
                       "symbol": "AttendanceLog"
                     },
                     {
-                      "bytes": "69b2dd87b028ee051bb717f8e1f1a6196e7da5298279ff4d5585866084a4305f"
+                      "bytes": "8935705520411d45ff5f0714a35aaca0a1e82154f4bd4ba9b324ce3b1e38d26a"
                     }
                   ]
                 },
@@ -170,7 +170,7 @@
                         "symbol": "id"
                       },
                       "val": {
-                        "bytes": "69b2dd87b028ee051bb717f8e1f1a6196e7da5298279ff4d5585866084a4305f"
+                        "bytes": "8935705520411d45ff5f0714a35aaca0a1e82154f4bd4ba9b324ce3b1e38d26a"
                       }
                     },
                     {
@@ -208,7 +208,7 @@
                   "symbol": "AttendanceLog"
                 },
                 {
-                  "bytes": "8286950d6de288bc5497dc2fd04d5ff1e383ae8f284b45fb0833dd99820559d2"
+                  "bytes": "f4f53e3a7057896d0125fdb2056b063cd0fa0b1573c6d30f77c299b2d65a667e"
                 }
               ]
             },
@@ -228,7 +228,7 @@
                       "symbol": "AttendanceLog"
                     },
                     {
-                      "bytes": "8286950d6de288bc5497dc2fd04d5ff1e383ae8f284b45fb0833dd99820559d2"
+                      "bytes": "f4f53e3a7057896d0125fdb2056b063cd0fa0b1573c6d30f77c299b2d65a667e"
                     }
                   ]
                 },
@@ -269,7 +269,7 @@
                         "symbol": "id"
                       },
                       "val": {
-                        "bytes": "8286950d6de288bc5497dc2fd04d5ff1e383ae8f284b45fb0833dd99820559d2"
+                        "bytes": "f4f53e3a7057896d0125fdb2056b063cd0fa0b1573c6d30f77c299b2d65a667e"
                       }
                     },
                     {
@@ -370,7 +370,7 @@
                             "symbol": "id"
                           },
                           "val": {
-                            "bytes": "8286950d6de288bc5497dc2fd04d5ff1e383ae8f284b45fb0833dd99820559d2"
+                            "bytes": "f4f53e3a7057896d0125fdb2056b063cd0fa0b1573c6d30f77c299b2d65a667e"
                           }
                         },
                         {
@@ -427,7 +427,7 @@
                             "symbol": "id"
                           },
                           "val": {
-                            "bytes": "69b2dd87b028ee051bb717f8e1f1a6196e7da5298279ff4d5585866084a4305f"
+                            "bytes": "8935705520411d45ff5f0714a35aaca0a1e82154f4bd4ba9b324ce3b1e38d26a"
                           }
                         },
                         {

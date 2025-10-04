@@ -11,6 +11,11 @@ pub enum Error {
     TokenExpired = 5,
     InvalidExpiryDate = 6,
     InvalidEventDetails = 7,
+    InvalidPaymentAmount = 8,
+    InvalidPaymentToken = 9,
+    SubscriptionNotFound = 10,
+    UsdcContractNotSet = 11,
+    AttendanceLogFailed = 12,
 }
 
 impl From<MembershipTokenError> for Error {

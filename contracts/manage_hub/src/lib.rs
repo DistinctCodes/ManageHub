@@ -3,13 +3,15 @@ use soroban_sdk::{contract, contractimpl, vec, Address, BytesN, Env, String, Vec
 
 mod attendance_log;
 mod errors;
+mod membership_token;
+mod subscription;
 mod types;
 
 use attendance_log::{AttendanceLog, AttendanceLogModule};
 use errors::Error;
 use membership_token::{MembershipToken, MembershipTokenContract};
-
-use types::AttendanceAction;
+use subscription::SubscriptionContract;
+use types::{AttendanceAction, Subscription};
 
 #[contract]
 pub struct Contract;
@@ -60,6 +62,35 @@ impl Contract {
 
     pub fn get_attendance_log(env: Env, id: BytesN<32>) -> Option<AttendanceLog> {
         AttendanceLogModule::get_attendance_log(env, id)
+    }
+
+    pub fn create_subscription(
+        env: Env,
+        id: String,
+        user: Address,
+        payment_token: Address,
+        amount: i128,
+        duration: u64,
+    ) -> Result<(), Error> {
+        SubscriptionContract::create_subscription(env, id, user, payment_token, amount, duration)
+    }
+
+    pub fn renew_subscription(
+        env: Env,
+        id: String,
+        payment_token: Address,
+        amount: i128,
+        duration: u64,
+    ) -> Result<(), Error> {
+        SubscriptionContract::renew_subscription(env, id, payment_token, amount, duration)
+    }
+
+    pub fn get_subscription(env: Env, id: String) -> Result<Subscription, Error> {
+        SubscriptionContract::get_subscription(env, id)
+    }
+
+    pub fn set_usdc_contract(env: Env, admin: Address, usdc_address: Address) -> Result<(), Error> {
+        SubscriptionContract::set_usdc_contract(env, admin, usdc_address)
     }
 }
 

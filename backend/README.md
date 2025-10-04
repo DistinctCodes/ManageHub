@@ -100,6 +100,37 @@ This module manages consumable stock items (stationery, spare parts, printer car
 - `inventoryItem` - Reference to inventory item
 - `createdAt` - Movement timestamp
 
+## User Profile Management Module
+
+This module provides comprehensive user profile management capabilities with avatar upload support.
+
+### Features
+
+- **Profile Information Management**: Update personal details (name, email, phone, username)
+- **Avatar Management**: Upload, update, and remove profile pictures with Cloudinary integration
+- **Security & Validation**: JWT authentication, input validation, and file security
+- **API Documentation**: Complete Swagger documentation
+
+### API Endpoints
+
+- `GET /profile` - Get current user profile
+- `PATCH /profile` - Update profile information
+- `POST /profile/avatar` - Upload profile picture
+- `DELETE /profile/avatar` - Remove profile picture
+
+### Configuration
+
+Ensure the following environment variables are set for avatar upload functionality:
+
+```bash
+CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
+CLOUDINARY_API_KEY=your_cloudinary_api_key
+CLOUDINARY_API_SECRET=your_cloudinary_api_secret
+CLOUDINARY_FOLDER=profile-pictures
+```
+
+For detailed documentation, see [User Profile Module README](./src/user-profile/README.md).
+
 ## Deployment
 
 When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
