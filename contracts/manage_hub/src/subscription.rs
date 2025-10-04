@@ -2,7 +2,7 @@ use soroban_sdk::{contract, contractimpl, contracttype, Address, BytesN, Env, Ma
 
 use crate::attendance_log::AttendanceLogModule;
 use crate::errors::Error;
-use crate::types::{MembershipStatus, Subscription};
+use crate::types::{AttendanceAction, MembershipStatus, Subscription};
 
 #[contracttype]
 pub enum SubscriptionDataKey {
@@ -192,7 +192,7 @@ impl SubscriptionContract {
 
         // Create event details map
         let mut details: Map<String, String> = Map::new(env);
-        details.set(String::from_str(env, "action"), action);
+        details.set(String::from_str(env, "action"), action.clone());
         details.set(
             String::from_str(env, "subscription_id"),
             subscription_id.clone(),
@@ -211,9 +211,22 @@ impl SubscriptionContract {
             String::from_str(env, "event_time"),
         );
 
-        // Call AttendanceLogModule to log the event
-        AttendanceLogModule::log_event(env.clone(), event_id, user.clone(), details)
-            .map_err(|_| Error::AttendanceLogFailed)?;
+        // Determine the attendance action based on the event type
+        let attendance_action = if action == String::from_str(env, "subscription_created") {
+            AttendanceAction::ClockIn
+        } else {
+            AttendanceAction::ClockOut
+        };
+
+        // Call AttendanceLogModule to log the attendance (internal version without auth)
+        AttendanceLogModule::log_attendance_internal(
+            env.clone(),
+            event_id,
+            user.clone(),
+            attendance_action,
+            details,
+        )
+        .map_err(|_| Error::AttendanceLogFailed)?;
 
         Ok(())
     }

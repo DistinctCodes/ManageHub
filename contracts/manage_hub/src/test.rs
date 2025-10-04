@@ -4,6 +4,7 @@ extern crate alloc;
 use alloc::format;
 
 use super::*;
+use crate::types::MembershipStatus;
 use crate::AttendanceAction;
 use soroban_sdk::map;
 use soroban_sdk::{
@@ -276,11 +277,11 @@ fn test_create_subscription_success() {
     assert_eq!(subscription.status, MembershipStatus::Active);
 
     // Verify attendance log was created
-    let logs = client.get_events_by_user(&user);
+    let logs = client.get_logs_for_user(&user);
     assert_eq!(logs.len(), 1);
 
     let log = logs.get(0).unwrap();
-    assert_eq!(log.user, user);
+    assert_eq!(log.user_id, user);
 
     let details = log.details;
     let action = details.get(String::from_str(&env, "action")).unwrap();
@@ -322,7 +323,7 @@ fn test_renew_subscription_success() {
     assert_eq!(subscription.status, MembershipStatus::Active);
 
     // Verify two attendance logs exist (create + renew)
-    let logs = client.get_events_by_user(&user);
+    let logs = client.get_logs_for_user(&user);
     assert_eq!(logs.len(), 2);
 
     // Check renewal log
@@ -430,7 +431,7 @@ fn test_subscription_cross_contract_call_integration() {
     client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration);
 
     // Verify cross-contract call worked by checking attendance logs
-    let user_logs = client.get_events_by_user(&user);
+    let user_logs = client.get_logs_for_user(&user);
     assert_eq!(user_logs.len(), 1);
 
     let log = user_logs.get(0).unwrap();
@@ -476,7 +477,7 @@ fn test_multiple_subscription_events_logged() {
     client.renew_subscription(&sub_id_1, &payment_token, &amount, &duration);
 
     // Verify 3 events logged for user (2 creates + 1 renew)
-    let logs = client.get_events_by_user(&user);
+    let logs = client.get_logs_for_user(&user);
     assert_eq!(logs.len(), 3);
 
     // Verify action types - check each log directly

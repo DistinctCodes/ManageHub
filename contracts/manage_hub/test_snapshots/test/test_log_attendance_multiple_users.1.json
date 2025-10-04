@@ -15,7 +15,7 @@
               "function_name": "log_attendance",
               "args": [
                 {
-                  "bytes": "fd96c0642eb012804a49422c528ddf361716ac04c32ab17c7d534073c3730f8f"
+                  "bytes": "30215a2dd9095313f37e74e931c6d677bc4f411cc3ace682f755c1591a91a8b2"
                 },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
@@ -56,7 +56,7 @@
               "function_name": "log_attendance",
               "args": [
                 {
-                  "bytes": "790148f9d626d804bf100d9309f2c8804c039777273bbbd42f9e248f3eacb83f"
+                  "bytes": "d19d846654092fad6c7d6f705b1e78fce2c0d81d235d2151a180dfbfb7c1833e"
                 },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
@@ -110,7 +110,7 @@
                   "symbol": "AttendanceLog"
                 },
                 {
-                  "bytes": "790148f9d626d804bf100d9309f2c8804c039777273bbbd42f9e248f3eacb83f"
+                  "bytes": "30215a2dd9095313f37e74e931c6d677bc4f411cc3ace682f755c1591a91a8b2"
                 }
               ]
             },
@@ -130,7 +130,7 @@
                       "symbol": "AttendanceLog"
                     },
                     {
-                      "bytes": "790148f9d626d804bf100d9309f2c8804c039777273bbbd42f9e248f3eacb83f"
+                      "bytes": "30215a2dd9095313f37e74e931c6d677bc4f411cc3ace682f755c1591a91a8b2"
                     }
                   ]
                 },
@@ -171,7 +171,7 @@
                         "symbol": "id"
                       },
                       "val": {
-                        "bytes": "790148f9d626d804bf100d9309f2c8804c039777273bbbd42f9e248f3eacb83f"
+                        "bytes": "30215a2dd9095313f37e74e931c6d677bc4f411cc3ace682f755c1591a91a8b2"
                       }
                     },
                     {
@@ -187,7 +187,7 @@
                         "symbol": "user_id"
                       },
                       "val": {
-                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
                       }
                     }
                   ]
@@ -209,7 +209,7 @@
                   "symbol": "AttendanceLog"
                 },
                 {
-                  "bytes": "fd96c0642eb012804a49422c528ddf361716ac04c32ab17c7d534073c3730f8f"
+                  "bytes": "d19d846654092fad6c7d6f705b1e78fce2c0d81d235d2151a180dfbfb7c1833e"
                 }
               ]
             },
@@ -229,7 +229,7 @@
                       "symbol": "AttendanceLog"
                     },
                     {
-                      "bytes": "fd96c0642eb012804a49422c528ddf361716ac04c32ab17c7d534073c3730f8f"
+                      "bytes": "d19d846654092fad6c7d6f705b1e78fce2c0d81d235d2151a180dfbfb7c1833e"
                     }
                   ]
                 },
@@ -270,7 +270,7 @@
                         "symbol": "id"
                       },
                       "val": {
-                        "bytes": "fd96c0642eb012804a49422c528ddf361716ac04c32ab17c7d534073c3730f8f"
+                        "bytes": "d19d846654092fad6c7d6f705b1e78fce2c0d81d235d2151a180dfbfb7c1833e"
                       }
                     },
                     {
@@ -286,7 +286,7 @@
                         "symbol": "user_id"
                       },
                       "val": {
-                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
                       }
                     }
                   ]
@@ -371,7 +371,7 @@
                             "symbol": "id"
                           },
                           "val": {
-                            "bytes": "fd96c0642eb012804a49422c528ddf361716ac04c32ab17c7d534073c3730f8f"
+                            "bytes": "30215a2dd9095313f37e74e931c6d677bc4f411cc3ace682f755c1591a91a8b2"
                           }
                         },
                         {
@@ -474,7 +474,7 @@
                             "symbol": "id"
                           },
                           "val": {
-                            "bytes": "790148f9d626d804bf100d9309f2c8804c039777273bbbd42f9e248f3eacb83f"
+                            "bytes": "d19d846654092fad6c7d6f705b1e78fce2c0d81d235d2151a180dfbfb7c1833e"
                           }
                         },
                         {

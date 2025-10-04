@@ -112,7 +112,7 @@
             "key": {
               "vec": [
                 {
-                  "symbol": "EventLogsByEvent"
+                  "symbol": "AttendanceLog"
                 },
                 {
                   "bytes": "0700000000000000000000000000000000000000000000000000000000000000"
@@ -132,7 +132,7 @@
                 "key": {
                   "vec": [
                     {
-                      "symbol": "EventLogsByEvent"
+                      "symbol": "AttendanceLog"
                     },
                     {
                       "bytes": "0700000000000000000000000000000000000000000000000000000000000000"
@@ -141,144 +141,83 @@
                 },
                 "durability": "persistent",
                 "val": {
-                  "vec": [
+                  "map": [
                     {
-                      "map": [
-                        {
-                          "key": {
-                            "symbol": "details"
-                          },
-                          "val": {
-                            "map": [
-                              {
-                                "key": {
-                                  "string": "action"
-                                },
-                                "val": {
-                                  "string": "subscription_created"
-                                }
-                              },
-                              {
-                                "key": {
-                                  "string": "amount"
-                                },
-                                "val": {
-                                  "string": "amount_logged"
-                                }
-                              },
-                              {
-                                "key": {
-                                  "string": "subscription_id"
-                                },
-                                "val": {
-                                  "string": "sub_002"
-                                }
-                              },
-                              {
-                                "key": {
-                                  "string": "timestamp"
-                                },
-                                "val": {
-                                  "string": "event_time"
-                                }
-                              }
-                            ]
+                      "key": {
+                        "symbol": "action"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "symbol": "ClockOut"
                           }
-                        },
-                        {
-                          "key": {
-                            "symbol": "event_id"
-                          },
-                          "val": {
-                            "bytes": "0700000000000000000000000000000000000000000000000000000000000000"
-                          }
-                        },
-                        {
-                          "key": {
-                            "symbol": "timestamp"
-                          },
-                          "val": {
-                            "u64": 0
-                          }
-                        },
-                        {
-                          "key": {
-                            "symbol": "user"
-                          },
-                          "val": {
-                            "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
-                          }
-                        }
-                      ]
+                        ]
+                      }
                     },
                     {
-                      "map": [
-                        {
-                          "key": {
-                            "symbol": "details"
+                      "key": {
+                        "symbol": "details"
+                      },
+                      "val": {
+                        "map": [
+                          {
+                            "key": {
+                              "string": "action"
+                            },
+                            "val": {
+                              "string": "subscription_renewed"
+                            }
                           },
-                          "val": {
-                            "map": [
-                              {
-                                "key": {
-                                  "string": "action"
-                                },
-                                "val": {
-                                  "string": "subscription_renewed"
-                                }
-                              },
-                              {
-                                "key": {
-                                  "string": "amount"
-                                },
-                                "val": {
-                                  "string": "amount_logged"
-                                }
-                              },
-                              {
-                                "key": {
-                                  "string": "subscription_id"
-                                },
-                                "val": {
-                                  "string": "sub_002"
-                                }
-                              },
-                              {
-                                "key": {
-                                  "string": "timestamp"
-                                },
-                                "val": {
-                                  "string": "event_time"
-                                }
-                              }
-                            ]
-                          }
-                        },
-                        {
-                          "key": {
-                            "symbol": "event_id"
+                          {
+                            "key": {
+                              "string": "amount"
+                            },
+                            "val": {
+                              "string": "amount_logged"
+                            }
                           },
-                          "val": {
-                            "bytes": "0700000000000000000000000000000000000000000000000000000000000000"
-                          }
-                        },
-                        {
-                          "key": {
-                            "symbol": "timestamp"
+                          {
+                            "key": {
+                              "string": "subscription_id"
+                            },
+                            "val": {
+                              "string": "sub_002"
+                            }
                           },
-                          "val": {
-                            "u64": 0
+                          {
+                            "key": {
+                              "string": "timestamp"
+                            },
+                            "val": {
+                              "string": "event_time"
+                            }
                           }
-                        },
-                        {
-                          "key": {
-                            "symbol": "user"
-                          },
-                          "val": {
-                            "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
-                          }
-                        }
-                      ]
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "id"
+                      },
+                      "val": {
+                        "bytes": "0700000000000000000000000000000000000000000000000000000000000000"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "timestamp"
+                      },
+                      "val": {
+                        "u64": 0
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "user_id"
+                      },
+                      "val": {
+                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                      }
                     }
                   ]
                 }
@@ -296,7 +235,7 @@
             "key": {
               "vec": [
                 {
-                  "symbol": "EventLogsByUser"
+                  "symbol": "AttendanceLogsByUser"
                 },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
@@ -316,7 +255,7 @@
                 "key": {
                   "vec": [
                     {
-                      "symbol": "EventLogsByUser"
+                      "symbol": "AttendanceLogsByUser"
                     },
                     {
                       "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
@@ -328,6 +267,18 @@
                   "vec": [
                     {
                       "map": [
+                        {
+                          "key": {
+                            "symbol": "action"
+                          },
+                          "val": {
+                            "vec": [
+                              {
+                                "symbol": "ClockIn"
+                              }
+                            ]
+                          }
+                        },
                         {
                           "key": {
                             "symbol": "details"
@@ -371,7 +322,7 @@
                         },
                         {
                           "key": {
-                            "symbol": "event_id"
+                            "symbol": "id"
                           },
                           "val": {
                             "bytes": "0700000000000000000000000000000000000000000000000000000000000000"
@@ -387,7 +338,7 @@
                         },
                         {
                           "key": {
-                            "symbol": "user"
+                            "symbol": "user_id"
                           },
                           "val": {
                             "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
@@ -397,6 +348,18 @@
                     },
                     {
                       "map": [
+                        {
+                          "key": {
+                            "symbol": "action"
+                          },
+                          "val": {
+                            "vec": [
+                              {
+                                "symbol": "ClockOut"
+                              }
+                            ]
+                          }
+                        },
                         {
                           "key": {
                             "symbol": "details"
@@ -440,7 +403,7 @@
                         },
                         {
                           "key": {
-                            "symbol": "event_id"
+                            "symbol": "id"
                           },
                           "val": {
                             "bytes": "0700000000000000000000000000000000000000000000000000000000000000"
@@ -456,7 +419,7 @@
                         },
                         {
                           "key": {
-                            "symbol": "user"
+                            "symbol": "user_id"
                           },
                           "val": {
                             "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"

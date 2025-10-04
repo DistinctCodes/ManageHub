@@ -10,7 +10,8 @@ mod types;
 use attendance_log::{AttendanceLog, AttendanceLogModule};
 use errors::Error;
 use membership_token::{MembershipToken, MembershipTokenContract};
-use types::AttendanceAction;
+use subscription::SubscriptionContract;
+use types::{AttendanceAction, Subscription};
 
 #[contract]
 pub struct Contract;
