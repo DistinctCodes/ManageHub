@@ -15,4 +15,7 @@ pub enum Error {
     SubscriptionNotFound = 10,
     UsdcContractNotSet = 11,
     AttendanceLogFailed = 12,
+    SubscriptionAlreadyExists = 13,
+    InsufficientBalance = 14,
+    TimestampOverflow = 15,
 }
