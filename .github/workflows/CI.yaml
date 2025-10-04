@@ -11,12 +11,14 @@ env:
 
 defaults:
   run:
-    working-directory: contracts   # 👈 all cargo commands run in contracts/
+    working-directory: contracts   # all cargo commands run in contracts/
 
 jobs:
   format:
     name: Format Check
     runs-on: ubuntu-latest
+    env:
+      toolchain: stable
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust toolchain
@@ -30,6 +32,8 @@ jobs:
   clippy:
     name: Clippy Lint
     runs-on: ubuntu-latest
+    env:
+      toolchain: stable
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust toolchain
@@ -44,7 +48,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             contracts/target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('contracts/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('''contracts/Cargo.lock''') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
       - name: Run clippy
@@ -53,6 +57,8 @@ jobs:
   test:
     name: Test Suite
     runs-on: ubuntu-latest
+    env:
+      toolchain: stable
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust toolchain
@@ -66,7 +72,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             contracts/target
-          key: ${{ runner.os }}-cargo-test-${{ hashFiles('contracts/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-test-${{ hashFiles('''contracts/Cargo.lock''') }}
           restore-keys: |
             ${{ runner.os }}-cargo-test-
             ${{ runner.os }}-cargo-
@@ -76,6 +82,8 @@ jobs:
   build:
     name: Build Check
     runs-on: ubuntu-latest
+    env:
+      toolchain: stable
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust toolchain
@@ -89,7 +97,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             contracts/target
-          key: ${{ runner.os }}-cargo-build-${{ hashFiles('contracts/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-build-${{ hashFiles('''contracts/Cargo.lock''') }}
           restore-keys: |
             ${{ runner.os }}-cargo-build-
             ${{ runner.os }}-cargo-
