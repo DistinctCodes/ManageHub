@@ -265,12 +265,12 @@ fn test_create_subscription_success() {
 
     // Set USDC contract address
     client.set_usdc_contract(&admin, &payment_token);
-
+    let hub1_id = String::from_str(&env, "hub_sf");
     // Create subscription
-    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration);
+    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration,&hub1_id);
 
     // Verify subscription was created
-    let subscription = client.get_subscription(&subscription_id);
+    let subscription = client.get_subscription(&subscription_id,&hub1_id);
     assert_eq!(subscription.id, subscription_id);
     assert_eq!(subscription.user, user);
     assert_eq!(subscription.amount, amount);
@@ -306,19 +306,21 @@ fn test_renew_subscription_success() {
 
     // Set USDC contract and create initial subscription
     client.set_usdc_contract(&admin, &payment_token);
+    let hub1_id = String::from_str(&env, "hub_sf");
     client.create_subscription(
         &subscription_id,
         &user,
         &payment_token,
         &initial_amount,
         &duration,
+        &hub1_id,
     );
 
     // Renew subscription
-    client.renew_subscription(&subscription_id, &payment_token, &renewal_amount, &duration);
+    client.renew_subscription(&subscription_id, &payment_token, &renewal_amount, &duration,&hub1_id);
 
     // Verify subscription was renewed
-    let subscription = client.get_subscription(&subscription_id);
+    let subscription = client.get_subscription(&subscription_id,&hub1_id);
     assert_eq!(subscription.amount, renewal_amount);
     assert_eq!(subscription.status, MembershipStatus::Active);
 
@@ -349,9 +351,9 @@ fn test_renew_subscription_not_found() {
     let duration = 2_592_000u64;
 
     client.set_usdc_contract(&admin, &payment_token);
-
+    let hub1_id = String::from_str(&env, "hub_sf");
     // Try to renew non-existent subscription
-    client.renew_subscription(&subscription_id, &payment_token, &amount, &duration);
+    client.renew_subscription(&subscription_id, &payment_token, &amount, &duration,&hub1_id);
 }
 
 #[test]
@@ -371,7 +373,7 @@ fn test_create_subscription_invalid_amount() {
     let duration = 2_592_000u64;
 
     client.set_usdc_contract(&admin, &payment_token);
-
+    let hub1_id = String::from_str(&env, "hub_sf");
     // Try to create subscription with invalid amount
     client.create_subscription(
         &subscription_id,
@@ -379,6 +381,7 @@ fn test_create_subscription_invalid_amount() {
         &payment_token,
         &invalid_amount,
         &duration,
+        &hub1_id
     );
 }
 
@@ -400,7 +403,7 @@ fn test_create_subscription_invalid_token() {
     let duration = 2_592_000u64;
 
     client.set_usdc_contract(&admin, &usdc_token);
-
+    let hub1_id = String::from_str(&env, "hub_sf");
     // Try to create subscription with wrong payment token
     client.create_subscription(
         &subscription_id,
@@ -408,6 +411,7 @@ fn test_create_subscription_invalid_token() {
         &wrong_token, // Wrong token
         &amount,
         &duration,
+        &hub1_id
     );
 }
 
@@ -425,10 +429,10 @@ fn test_subscription_cross_contract_call_integration() {
     let subscription_id = String::from_str(&env, "sub_005");
     let amount = 100_000i128;
     let duration = 2_592_000u64;
-
+    let hub1_id = String::from_str(&env, "hub_sf");
     // Setup and create subscription
     client.set_usdc_contract(&admin, &payment_token);
-    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration);
+    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration,&hub1_id);
 
     // Verify cross-contract call worked by checking attendance logs
     let user_logs = client.get_logs_for_user(&user);
@@ -469,12 +473,12 @@ fn test_multiple_subscription_events_logged() {
     // Create multiple subscriptions
     let sub_id_1 = String::from_str(&env, "sub_multi_001");
     let sub_id_2 = String::from_str(&env, "sub_multi_002");
-
-    client.create_subscription(&sub_id_1, &user, &payment_token, &amount, &duration);
-    client.create_subscription(&sub_id_2, &user, &payment_token, &amount, &duration);
+    let hub1_id = String::from_str(&env, "hub_sf");
+    client.create_subscription(&sub_id_1, &user, &payment_token, &amount, &duration,&hub1_id);
+    client.create_subscription(&sub_id_2, &user, &payment_token, &amount, &duration,&hub1_id);
 
     // Renew first subscription
-    client.renew_subscription(&sub_id_1, &payment_token, &amount, &duration);
+    client.renew_subscription(&sub_id_1, &payment_token, &amount, &duration,&hub1_id);
 
     // Verify 3 events logged for user (2 creates + 1 renew)
     let logs = client.get_logs_for_user(&user);
@@ -519,20 +523,20 @@ fn test_cancel_subscription_success() {
     let subscription_id = String::from_str(&env, "sub_cancel_001");
     let amount = 100_000i128;
     let duration = 2_592_000u64;
-
+    let hub1_id = String::from_str(&env, "hub_sf");
     // Setup and create subscription
     client.set_usdc_contract(&admin, &payment_token);
-    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration);
+    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration,&hub1_id);
 
     // Verify subscription is active
-    let subscription = client.get_subscription(&subscription_id);
+    let subscription = client.get_subscription(&subscription_id,&hub1_id);
     assert_eq!(subscription.status, MembershipStatus::Active);
 
     // Cancel subscription
-    client.cancel_subscription(&subscription_id);
+    client.cancel_subscription(&subscription_id,&hub1_id);
 
     // Verify subscription is now inactive
-    let cancelled_subscription = client.get_subscription(&subscription_id);
+    let cancelled_subscription = client.get_subscription(&subscription_id,&hub1_id);
     assert_eq!(cancelled_subscription.status, MembershipStatus::Inactive);
     assert_eq!(cancelled_subscription.id, subscription_id);
     assert_eq!(cancelled_subscription.user, user);
@@ -548,9 +552,9 @@ fn test_cancel_subscription_not_found() {
     let client = ContractClient::new(&env, &contract_id);
 
     let subscription_id = String::from_str(&env, "nonexistent_sub");
-
+    let hub1_id = String::from_str(&env, "hub_sf");
     // Try to cancel non-existent subscription
-    client.cancel_subscription(&subscription_id);
+    client.cancel_subscription(&subscription_id,&hub1_id);
 }
 
 #[test]
@@ -568,12 +572,12 @@ fn test_create_duplicate_subscription() {
     let subscription_id = String::from_str(&env, "sub_duplicate");
     let amount = 100_000i128;
     let duration = 2_592_000u64;
-
+    let hub1_id = String::from_str(&env, "hub_sf");
     client.set_usdc_contract(&admin, &payment_token);
-    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration);
+    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration,&hub1_id);
 
     // Try to create duplicate subscription
-    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration);
+    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration,&hub1_id);
 }
 
 #[test]
@@ -590,18 +594,18 @@ fn test_subscription_renewal_extends_from_expiry() {
     let subscription_id = String::from_str(&env, "sub_extend");
     let amount = 100_000i128;
     let duration = 2_592_000u64; // 30 days
-
+    let hub1_id = String::from_str(&env, "hub_sf");
     // Setup and create subscription
     client.set_usdc_contract(&admin, &payment_token);
-    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration);
+    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration,&hub1_id);
 
-    let initial_subscription = client.get_subscription(&subscription_id);
+    let initial_subscription = client.get_subscription(&subscription_id,&hub1_id);
     let initial_expires_at = initial_subscription.expires_at;
 
     // Renew before expiry
-    client.renew_subscription(&subscription_id, &payment_token, &amount, &duration);
+    client.renew_subscription(&subscription_id, &payment_token, &amount, &duration,&hub1_id);
 
-    let renewed_subscription = client.get_subscription(&subscription_id);
+    let renewed_subscription = client.get_subscription(&subscription_id,&hub1_id);
 
     // Should extend from original expiry, not current time
     assert_eq!(
@@ -625,21 +629,21 @@ fn test_subscription_renewal_after_expiry() {
     let subscription_id = String::from_str(&env, "sub_expired");
     let amount = 100_000i128;
     let duration = 2_592_000u64;
-
+    let hub1_id = String::from_str(&env, "hub_sf");
     // Setup and create subscription
     client.set_usdc_contract(&admin, &payment_token);
-    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration);
+    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration,&hub1_id);
 
-    let initial_subscription = client.get_subscription(&subscription_id);
+    let initial_subscription = client.get_subscription(&subscription_id,&hub1_id);
 
     // Advance time past expiry
     env.ledger()
         .with_mut(|l| l.timestamp = initial_subscription.expires_at + 1000);
 
     // Renew after expiry
-    client.renew_subscription(&subscription_id, &payment_token, &amount, &duration);
+    client.renew_subscription(&subscription_id, &payment_token, &amount, &duration,&hub1_id);
 
-    let renewed_subscription = client.get_subscription(&subscription_id);
+    let renewed_subscription = client.get_subscription(&subscription_id,&hub1_id);
     let current_time = env.ledger().timestamp();
 
     // Should extend from current time since subscription expired
@@ -661,11 +665,11 @@ fn test_get_subscription_retrieves_correct_data() {
     let subscription_id = String::from_str(&env, "sub_retrieve");
     let amount = 250_000i128;
     let duration = 5_184_000u64; // 60 days
-
+    let hub1_id = String::from_str(&env, "hub_sf");
     client.set_usdc_contract(&admin, &payment_token);
-    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration);
+    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration,&hub1_id);
 
-    let subscription = client.get_subscription(&subscription_id);
+    let subscription = client.get_subscription(&subscription_id,&hub1_id);
 
     assert_eq!(subscription.id, subscription_id);
     assert_eq!(subscription.user, user);
@@ -686,9 +690,9 @@ fn test_get_subscription_not_found() {
     let client = ContractClient::new(&env, &contract_id);
 
     let subscription_id = String::from_str(&env, "nonexistent");
-
+    let hub1_id = String::from_str(&env, "hub_sf");
     // Try to get non-existent subscription
-    client.get_subscription(&subscription_id);
+    client.get_subscription(&subscription_id,&hub1_id);
 }
 
 #[test]
@@ -708,11 +712,11 @@ fn test_subscription_payment_validation() {
 
     // Setup USDC contract
     client.set_usdc_contract(&admin, &payment_token);
-
+    let hub1_id = String::from_str(&env, "hub_sf");
     // Creating subscription validates payment (amount > 0, correct token)
-    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration);
+    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration,&hub1_id);
 
-    let subscription = client.get_subscription(&subscription_id);
+    let subscription = client.get_subscription(&subscription_id,&hub1_id);
     assert_eq!(subscription.amount, amount);
 }
 
@@ -737,15 +741,15 @@ fn test_multiple_users_multiple_subscriptions() {
     let sub_id_1 = String::from_str(&env, "user1_sub1");
     let sub_id_2 = String::from_str(&env, "user1_sub2");
     let sub_id_3 = String::from_str(&env, "user2_sub1");
-
-    client.create_subscription(&sub_id_1, &user1, &payment_token, &amount, &duration);
-    client.create_subscription(&sub_id_2, &user1, &payment_token, &amount, &duration);
-    client.create_subscription(&sub_id_3, &user2, &payment_token, &amount, &duration);
+    let hub1_id = String::from_str(&env, "hub_sf");
+    client.create_subscription(&sub_id_1, &user1, &payment_token, &amount, &duration,&hub1_id);
+    client.create_subscription(&sub_id_2, &user1, &payment_token, &amount, &duration,&hub1_id);
+    client.create_subscription(&sub_id_3, &user2, &payment_token, &amount, &duration,&hub1_id);
 
     // Verify each subscription is independent
-    let subscription1 = client.get_subscription(&sub_id_1);
-    let subscription2 = client.get_subscription(&sub_id_2);
-    let subscription3 = client.get_subscription(&sub_id_3);
+    let subscription1 = client.get_subscription(&sub_id_1,&hub1_id);
+    let subscription2 = client.get_subscription(&sub_id_2,&hub1_id);
+    let subscription3 = client.get_subscription(&sub_id_3,&hub1_id);
 
     assert_eq!(subscription1.user, user1);
     assert_eq!(subscription2.user, user1);
@@ -770,7 +774,7 @@ fn test_subscription_amount_updates_on_renewal() {
     let initial_amount = 100_000i128;
     let renewal_amount = 200_000i128;
     let duration = 2_592_000u64;
-
+    let hub1_id = String::from_str(&env, "hub_sf");
     client.set_usdc_contract(&admin, &payment_token);
     client.create_subscription(
         &subscription_id,
@@ -778,14 +782,15 @@ fn test_subscription_amount_updates_on_renewal() {
         &payment_token,
         &initial_amount,
         &duration,
+        &hub1_id
     );
-
-    let initial_subscription = client.get_subscription(&subscription_id);
+    let hub1_id = String::from_str(&env, "hub_sf");
+    let initial_subscription = client.get_subscription(&subscription_id,&hub1_id);
     assert_eq!(initial_subscription.amount, initial_amount);
 
     // Renew with different amount
-    client.renew_subscription(&subscription_id, &payment_token, &renewal_amount, &duration);
+    client.renew_subscription(&subscription_id, &payment_token, &renewal_amount, &duration,&hub1_id);
 
-    let renewed_subscription = client.get_subscription(&subscription_id);
+    let renewed_subscription = client.get_subscription(&subscription_id,&hub1_id);
     assert_eq!(renewed_subscription.amount, renewal_amount);
 }

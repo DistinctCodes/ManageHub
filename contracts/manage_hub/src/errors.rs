@@ -19,6 +19,10 @@ pub enum Error {
     SubscriptionAlreadyExists = 13,
     InsufficientBalance = 14,
     TimestampOverflow = 15,
+    // New hub-related errors
+    HubNotFound = 16,
+    HubAlreadyExists = 17,
+    InvalidHubId = 18,
 }
 
 impl From<MembershipTokenError> for Error {

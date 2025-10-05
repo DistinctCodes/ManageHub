@@ -71,8 +71,9 @@ impl Contract {
         payment_token: Address,
         amount: i128,
         duration: u64,
+        hub_id:String,
     ) -> Result<(), Error> {
-        SubscriptionContract::create_subscription(env, id, user, payment_token, amount, duration)
+        SubscriptionContract::create_subscription(env,hub_id, id, user, payment_token, amount, duration)
     }
 
     pub fn renew_subscription(
@@ -81,16 +82,17 @@ impl Contract {
         payment_token: Address,
         amount: i128,
         duration: u64,
+        hub_id:String,
     ) -> Result<(), Error> {
-        SubscriptionContract::renew_subscription(env, id, payment_token, amount, duration)
+        SubscriptionContract::renew_subscription(env, hub_id,id, payment_token, amount, duration)
     }
 
-    pub fn get_subscription(env: Env, id: String) -> Result<Subscription, Error> {
-        SubscriptionContract::get_subscription(env, id)
+    pub fn get_subscription(env: Env, id: String,hub_id:String) -> Result<Subscription, Error> {
+        SubscriptionContract::get_subscription(env,hub_id,id)
     }
 
-    pub fn cancel_subscription(env: Env, id: String) -> Result<(), Error> {
-        SubscriptionContract::cancel_subscription(env, id)
+    pub fn cancel_subscription(env: Env, id: String,hub_id:String) -> Result<(), Error> {
+        SubscriptionContract::cancel_subscription(env, hub_id,id)
     }
 
     pub fn set_usdc_contract(env: Env, admin: Address, usdc_address: Address) -> Result<(), Error> {
