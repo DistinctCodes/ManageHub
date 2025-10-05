@@ -10,6 +10,7 @@ members = [
 [workspace.dependencies]
 soroban-sdk = "22.0.0"
 common_types = { path = "common_types" }
+membership_token = { path = "membership_token" }
 
 [profile.release]
 opt-level = "z"

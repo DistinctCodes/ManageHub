@@ -28,11 +28,13 @@ impl Contract {
         user: Address,
         expiry_date: u64,
     ) -> Result<(), Error> {
-        MembershipTokenContract::issue_token(env, id, user, expiry_date)
+        MembershipTokenContract::issue_token(env, id, user, expiry_date)?;
+        Ok(())
     }
 
     pub fn transfer_token(env: Env, id: BytesN<32>, new_user: Address) -> Result<(), Error> {
-        MembershipTokenContract::transfer_token(env, id, new_user)
+        MembershipTokenContract::transfer_token(env, id, new_user)?;
+        Ok(())
     }
 
     pub fn get_token(env: Env, id: BytesN<32>) -> Result<MembershipToken, Error> {
@@ -40,7 +42,8 @@ impl Contract {
     }
 
     pub fn set_admin(env: Env, admin: Address) -> Result<(), Error> {
-        MembershipTokenContract::set_admin(env, admin)
+        MembershipTokenContract::set_admin(env, admin)?;
+        Ok(())
     }
 
     pub fn log_attendance(
