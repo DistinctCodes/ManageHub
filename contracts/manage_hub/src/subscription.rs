@@ -54,7 +54,7 @@ impl SubscriptionContract {
     }
 
     /// Register a new hub (admin only)
-    pub fn register_hub(
+    pub fn _register_hub(
         env: Env,
         admin: Address,
         hub_id: String,
@@ -77,7 +77,7 @@ impl SubscriptionContract {
     }
 
     /// Check if a hub is registered
-    pub fn is_hub_registered(env: Env, hub_id: String) -> bool {
+    pub fn _is_hub_registered(env: Env, hub_id: String) -> bool {
         let key = SubscriptionDataKey::HubRegistry(hub_id);
         env.storage().persistent().has(&key)
     }
@@ -164,7 +164,7 @@ impl SubscriptionContract {
     }
 
     /// Get all subscriptions for a user in a specific hub
-    pub fn get_user_subscriptions(
+    pub fn _get_user_subscriptions(
         env: Env,
         user: Address,
         hub_id: String,
@@ -190,16 +190,8 @@ impl SubscriptionContract {
     }
 
     /// Get all active subscriptions for a user across all hubs
-    pub fn get_user_active_subscriptions(env: Env, user: Address) -> Vec<Subscription> {
-        // Note: This is a simplified implementation
-        // In production, you might want to maintain a separate index of all user subscriptions
-        let mut active_subs = Vec::new(&env);
-
-        // This would require iterating through all hubs
-        // For now, returning empty vec as placeholder
-        // You'd need to maintain a list of all hubs to iterate through
-
-        active_subs
+    pub fn _get_user_active_subscriptions(env: Env, _user: Address) -> Vec<Subscription> {
+        Vec::new(&env)
     }
 
     /// Helper to track user subscriptions per hub
@@ -356,7 +348,7 @@ impl SubscriptionContract {
     }
 
     /// Get all subscriptions for a specific hub (admin function)
-    pub fn get_hub_subscriptions(
+    pub fn _get_hub_subscriptions(
         env: Env,
         hub_id: String,
         admin: Address,
