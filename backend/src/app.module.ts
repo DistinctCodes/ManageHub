@@ -12,6 +12,7 @@ import { JwtAuthGuard } from './auth/guards/jwt.guard';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AuditsModule } from './audits/audits.module';  
 import { AuditLogsModule } from './audit-logs/audit-logs.module';
+import { ScheduledJobsModule } from './scheduled-jobs/scheduled-jobs.module';
 
 @Module({
   imports: [
@@ -64,6 +65,7 @@ import { AuditLogsModule } from './audit-logs/audit-logs.module';
     EmailModule,
     NewsletterModule,
     AuditsModule,
+    ScheduledJobsModule,
     AuditLogsModule,
   ],
   controllers: [AppController],
