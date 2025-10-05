@@ -15,7 +15,7 @@ pub enum AttendanceAction {
 pub struct Subscription {
     pub id: String,
     pub user: Address,
-    pub hub_id: String, 
+    pub hub_id: String,
     pub payment_token: Address,
     pub amount: i128,
     pub status: MembershipStatus,

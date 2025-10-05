@@ -9,7 +9,7 @@ pub enum SubscriptionDataKey {
     // Updated to include hub_id for hub-specific subscriptions
     Subscription(String, String), // (hub_id, subscription_id)
     UsdcContract,
-    HubRegistry(String), // Track registered hubs
+    HubRegistry(String),                // Track registered hubs
     UserSubscriptions(Address, String), // (user_address, hub_id) -> Vec<String> subscription_ids
 }
 
@@ -54,11 +54,16 @@ impl SubscriptionContract {
     }
 
     /// Register a new hub (admin only)
-    pub fn register_hub(env: Env, admin: Address, hub_id: String, hub_name: String) -> Result<(), Error> {
+    pub fn register_hub(
+        env: Env,
+        admin: Address,
+        hub_id: String,
+        hub_name: String,
+    ) -> Result<(), Error> {
         admin.require_auth();
 
         let key = SubscriptionDataKey::HubRegistry(hub_id.clone());
-        
+
         // Check if hub already exists
         if env.storage().persistent().has(&key) {
             return Err(Error::HubAlreadyExists);
@@ -159,7 +164,11 @@ impl SubscriptionContract {
     }
 
     /// Get all subscriptions for a user in a specific hub
-    pub fn get_user_subscriptions(env: Env, user: Address, hub_id: String) -> Result<Vec<Subscription>, Error> {
+    pub fn get_user_subscriptions(
+        env: Env,
+        user: Address,
+        hub_id: String,
+    ) -> Result<Vec<Subscription>, Error> {
         // Validate hub exists
         Self::validate_hub(&env, &hub_id)?;
 
@@ -185,16 +194,21 @@ impl SubscriptionContract {
         // Note: This is a simplified implementation
         // In production, you might want to maintain a separate index of all user subscriptions
         let mut active_subs = Vec::new(&env);
-        
+
         // This would require iterating through all hubs
         // For now, returning empty vec as placeholder
         // You'd need to maintain a list of all hubs to iterate through
-        
+
         active_subs
     }
 
     /// Helper to track user subscriptions per hub
-    fn add_user_subscription(env: &Env, user: &Address, hub_id: &String, subscription_id: &String) -> Result<(), Error> {
+    fn add_user_subscription(
+        env: &Env,
+        user: &Address,
+        hub_id: &String,
+        subscription_id: &String,
+    ) -> Result<(), Error> {
         let key = SubscriptionDataKey::UserSubscriptions(user.clone(), hub_id.clone());
         let mut subscription_ids: Vec<String> = env
             .storage()
@@ -203,7 +217,7 @@ impl SubscriptionContract {
             .unwrap_or(Vec::new(env));
 
         subscription_ids.push_back(subscription_id.clone());
-        
+
         env.storage().persistent().set(&key, &subscription_ids);
         env.storage().persistent().extend_ttl(&key, 100, 1000);
 
@@ -211,7 +225,12 @@ impl SubscriptionContract {
     }
 
     /// Helper to remove user subscription tracking
-    fn remove_user_subscription(env: &Env, user: &Address, hub_id: &String, subscription_id: &String) -> Result<(), Error> {
+    fn remove_user_subscription(
+        env: &Env,
+        user: &Address,
+        hub_id: &String,
+        subscription_id: &String,
+    ) -> Result<(), Error> {
         let key = SubscriptionDataKey::UserSubscriptions(user.clone(), hub_id.clone());
         let subscription_ids: Vec<String> = env
             .storage()
@@ -337,9 +356,13 @@ impl SubscriptionContract {
     }
 
     /// Get all subscriptions for a specific hub (admin function)
-    pub fn get_hub_subscriptions(env: Env, hub_id: String, admin: Address) -> Result<Vec<Subscription>, Error> {
+    pub fn get_hub_subscriptions(
+        env: Env,
+        hub_id: String,
+        admin: Address,
+    ) -> Result<Vec<Subscription>, Error> {
         admin.require_auth();
-        
+
         // Validate hub exists
         Self::validate_hub(&env, &hub_id)?;
 
@@ -411,7 +434,7 @@ impl SubscriptionContract {
 
         let hub_len = hub_id.len();
         let sub_len = subscription_id.len();
-        
+
         // Mix both IDs to create unique identifier
         bytes[0] = (hub_len % 256) as u8;
         bytes[1] = ((hub_len / 256) % 256) as u8;
