@@ -10,6 +10,8 @@ doctest = false
 
 [dependencies]
 soroban-sdk = { workspace = true }
+common_types = { workspace = true }
+membership_token = { workspace = true }
 
 [dev-dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }

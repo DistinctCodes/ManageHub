@@ -58,6 +58,79 @@ $ npm run test:e2e
 $ npm run test:cov
 ```
 
+## Inventory Items Module
+
+This module manages consumable stock items (stationery, spare parts, printer cartridges, etc.).
+
+### Features
+
+- CRUD operations for inventory items
+- Stock movement tracking (IN/OUT)
+- Reorder level monitoring
+- Stock adjustment with reason tracking
+
+### API Endpoints
+
+- `POST /inventory-items` - Create a new inventory item
+- `GET /inventory-items` - Get all inventory items
+- `GET /inventory-items/:id` - Get a specific inventory item
+- `PUT /inventory-items/:id` - Update an inventory item
+- `DELETE /inventory-items/:id` - Delete an inventory item
+- `PUT /inventory-items/:id/stock` - Update stock quantity
+- `POST /inventory-items/:id/stock/add` - Add stock
+- `POST /inventory-items/:id/stock/remove` - Remove stock
+- `GET /inventory-items/:id/reorder-status` - Check if item is below reorder level
+- `GET /inventory-items/:id/stock-movements` - Get stock movement history
+
+### Entities
+
+#### InventoryItem
+- `id` - Primary key
+- `name` - Item name
+- `quantity` - Current stock quantity
+- `reorderLevel` - Minimum stock level before reorder alert
+- `createdAt` - Creation timestamp
+- `updatedAt` - Last update timestamp
+
+#### StockMovement
+- `id` - Primary key
+- `type` - Movement type (IN/OUT)
+- `quantity` - Quantity moved
+- `reason` - Reason for movement
+- `inventoryItem` - Reference to inventory item
+- `createdAt` - Movement timestamp
+
+## User Profile Management Module
+
+This module provides comprehensive user profile management capabilities with avatar upload support.
+
+### Features
+
+- **Profile Information Management**: Update personal details (name, email, phone, username)
+- **Avatar Management**: Upload, update, and remove profile pictures with Cloudinary integration
+- **Security & Validation**: JWT authentication, input validation, and file security
+- **API Documentation**: Complete Swagger documentation
+
+### API Endpoints
+
+- `GET /profile` - Get current user profile
+- `PATCH /profile` - Update profile information
+- `POST /profile/avatar` - Upload profile picture
+- `DELETE /profile/avatar` - Remove profile picture
+
+### Configuration
+
+Ensure the following environment variables are set for avatar upload functionality:
+
+```bash
+CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
+CLOUDINARY_API_KEY=your_cloudinary_api_key
+CLOUDINARY_API_SECRET=your_cloudinary_api_secret
+CLOUDINARY_FOLDER=profile-pictures
+```
+
+For detailed documentation, see [User Profile Module README](./src/user-profile/README.md).
+
 ## Deployment
 
 When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.

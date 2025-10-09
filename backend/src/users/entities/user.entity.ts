@@ -47,6 +47,21 @@ export class User {
   @Column({ type: 'timestamptz', nullable: true })
   passwordResetExpiresIn?: Date;
 
+  @Exclude()
+  @Column({ nullable: true })
+  verificationToken?: string;
+
+  @Exclude()
+  @Column({ type: 'timestamptz', nullable: true })
+  verificationTokenExpiry?: Date;
+
+  @Exclude()
+  @Column({ type: 'timestamptz', nullable: true })
+  lastVerificationEmailSent?: Date;
+
+  @Column({ default: false })
+  isVerified: boolean;
+
   @Column({ default: true })
   isActive: boolean;
 
@@ -60,9 +75,10 @@ export class User {
   @Column({ nullable: true, type: 'varchar', length: 500 })
   profilePicture?: string;
 
+  @Column({ nullable: true, type: 'varchar', length: 15 })
+  phone?: string;
 
   @Exclude()
-
   @OneToMany(() => RefreshToken, (refreshToken) => refreshToken.user)
   refreshTokens: RefreshToken[];
 
@@ -74,4 +90,6 @@ export class User {
 
   @DeleteDateColumn()
   deletedAt: Date;
+  fullName: any;
+  name: any;
 }

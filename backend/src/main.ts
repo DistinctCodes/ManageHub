@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 
@@ -6,11 +7,13 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ValidationPipe, ClassSerializerInterceptor } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
+import { AuditLogsInterceptor } from './audit-logs/audit-logs.interceptor';
+import { AuditLogsService } from './audit-logs/audit-logs.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  //GLOBAL VALIDATION
+  // GLOBAL VALIDATION
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
@@ -19,10 +22,14 @@ async function bootstrap() {
     }),
   );
 
-  //GLOBAL SERIALIZATION
+  // GLOBAL SERIALIZATION
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
 
-  //ENABLE CORS
+  // GLOBAL AUDIT LOGGING INTERCEPTOR
+  const auditLogsService = app.get(AuditLogsService);
+  app.useGlobalInterceptors(new AuditLogsInterceptor(auditLogsService));
+
+  // ENABLE CORS
   app.enableCors({
     origin:
       process.env.NODE_ENV === 'production'
@@ -48,7 +55,7 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app as any, config);
   SwaggerModule.setup('swagger', app as any, document);
 
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
   console.log(`Server is listening at: ${await app.getUrl()}`);
 }
 bootstrap();

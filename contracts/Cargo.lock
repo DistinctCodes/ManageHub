@@ -243,6 +243,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "common_types"
+version = "0.1.0"
+dependencies = [
+ "soroban-sdk",
+]
+
+[[package]]
 name = "const-oid"
 version = "0.9.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -790,6 +797,8 @@ checksum = "34080505efa8e45a4b816c349525ebe327ceaa8559756f0356cba97ef3bf7432"
 name = "manage_hub"
 version = "0.0.0"
 dependencies = [
+ "common_types",
+ "membership_token",
  "soroban-sdk",
 ]
 

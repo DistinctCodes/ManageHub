@@ -4,11 +4,14 @@ use soroban_sdk::{contract, contractimpl, vec, Address, BytesN, Env, String, Vec
 mod attendance_log;
 mod errors;
 mod membership_token;
+mod subscription;
 mod types;
 
 pub use errors::Error;
 use attendance_log::{AttendanceLogModule, EventLog};
 use membership_token::{MembershipToken, MembershipTokenContract};
+use subscription::SubscriptionContract;
+use types::{AttendanceAction, Subscription};
 
 #[contract]
 pub struct Contract;
@@ -25,11 +28,13 @@ impl Contract {
         user: Address,
         expiry_date: u64,
     ) -> Result<(), Error> {
-        MembershipTokenContract::issue_token(env, id, user, expiry_date)
+        MembershipTokenContract::issue_token(env, id, user, expiry_date)?;
+        Ok(())
     }
 
     pub fn transfer_token(env: Env, id: BytesN<32>, new_user: Address) -> Result<(), Error> {
-        MembershipTokenContract::transfer_token(env, id, new_user)
+        MembershipTokenContract::transfer_token(env, id, new_user)?;
+        Ok(())
     }
 
     pub fn get_token(env: Env, id: BytesN<32>) -> Result<MembershipToken, Error> {
@@ -37,24 +42,59 @@ impl Contract {
     }
 
     pub fn set_admin(env: Env, admin: Address) -> Result<(), Error> {
-        MembershipTokenContract::set_admin(env, admin)
+        MembershipTokenContract::set_admin(env, admin)?;
+        Ok(())
     }
 
-    pub fn log_event(
+    pub fn log_attendance(
         env: Env,
-        event_id: BytesN<32>,
-        user: Address,
-        event_details: soroban_sdk::Map<String, String>,
+        id: BytesN<32>,
+        user_id: Address,
+        action: AttendanceAction,
+        details: soroban_sdk::Map<String, String>,
     ) -> Result<(), Error> {
-        AttendanceLogModule::log_event(env, event_id, user, event_details)
+        AttendanceLogModule::log_attendance(env, id, user_id, action, details)
     }
 
-    pub fn get_events_by_event(env: Env, event_id: BytesN<32>) -> Vec<EventLog> {
-        AttendanceLogModule::get_events_by_event(env, event_id)
+    pub fn get_logs_for_user(env: Env, user_id: Address) -> Vec<AttendanceLog> {
+        AttendanceLogModule::get_logs_for_user(env, user_id)
     }
 
-    pub fn get_events_by_user(env: Env, user: Address) -> Vec<EventLog> {
-        AttendanceLogModule::get_events_by_user(env, user)
+    pub fn get_attendance_log(env: Env, id: BytesN<32>) -> Option<AttendanceLog> {
+        AttendanceLogModule::get_attendance_log(env, id)
+    }
+
+    pub fn create_subscription(
+        env: Env,
+        id: String,
+        user: Address,
+        payment_token: Address,
+        amount: i128,
+        duration: u64,
+    ) -> Result<(), Error> {
+        SubscriptionContract::create_subscription(env, id, user, payment_token, amount, duration)
+    }
+
+    pub fn renew_subscription(
+        env: Env,
+        id: String,
+        payment_token: Address,
+        amount: i128,
+        duration: u64,
+    ) -> Result<(), Error> {
+        SubscriptionContract::renew_subscription(env, id, payment_token, amount, duration)
+    }
+
+    pub fn get_subscription(env: Env, id: String) -> Result<Subscription, Error> {
+        SubscriptionContract::get_subscription(env, id)
+    }
+
+    pub fn cancel_subscription(env: Env, id: String) -> Result<(), Error> {
+        SubscriptionContract::cancel_subscription(env, id)
+    }
+
+    pub fn set_usdc_contract(env: Env, admin: Address, usdc_address: Address) -> Result<(), Error> {
+        SubscriptionContract::set_usdc_contract(env, admin, usdc_address)
     }
 }
 
