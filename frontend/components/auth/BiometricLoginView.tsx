@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { Fingerprint } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import { cn } from '@/utils/cn';
+import { Fingerprint } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { cn } from "@/utils/cn";
 
 interface BiometricLoginViewProps {
   onStartScan: () => void;
@@ -15,10 +15,10 @@ export function BiometricLoginView({
   onStartScan,
   onSwitchToEmail,
   className,
-  isScanning = false
+  isScanning = false,
 }: BiometricLoginViewProps) {
   return (
-    <div className={cn('flex flex-col items-center space-y-8 py-8', className)}>
+    <div className={cn("flex flex-col items-center space-y-8 py-8", className)}>
       {/* Scanner Icon */}
       <div className="relative">
         <div className="flex h-20 w-20 items-center justify-center rounded-full bg-teal-100">
@@ -45,13 +45,13 @@ export function BiometricLoginView({
 
       {/* Start Scan Button */}
       <Button
-        variant="teal"
+        variant="default"
         size="lg"
         onClick={onStartScan}
         disabled={isScanning}
         className="px-8"
       >
-        {isScanning ? 'Scanning...' : 'Start Scan'}
+        {isScanning ? "Scanning..." : "Start Scan"}
       </Button>
 
       {/* Fallback Link */}
