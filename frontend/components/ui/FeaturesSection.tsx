@@ -1,9 +1,9 @@
-import FeatureCard from '@/components/ui/FeatureCard';
-import { Users, Shield, BarChart3, Smartphone, Zap, Globe } from 'lucide-react';
+import FeatureCard from "@/components/ui/FeatureCard";
+import { Users, Shield, BarChart3, Smartphone, Zap, Globe } from "lucide-react";
 
 const FeaturesSection = () => {
   return (
-    <section className="w-full py-12 px-4 bg-[#f8fafc]">
+    <section className="w-full py-40 px-4 bg-[#f8fafc]">
       {/* Feature title and subtitle */}
       <div className="max-w-4xl mx-auto text-center mb-12">
         <h2 className="text-3xl font-bold text-gray-900 mb-3">

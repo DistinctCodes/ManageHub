@@ -1,7 +1,6 @@
-"use client"
+"use client";
 import { Building2, X, Menu } from "lucide-react";
 import { useState } from "react";
-
 
 type NavItem = { label: string; href: string };
 
@@ -15,12 +14,12 @@ export function Navbar({ items = NAV_ITEMS }: { items?: NavItem[] }) {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 bg-white/70 backdrop-blur-md">
+    <header className="fixed inset-x-0 top-0 z-50 bg-[#f8fafc] backdrop-blur-md">
       <nav className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-            <span className="bg-[#155dfc] rounded-lg p-3">
-                <Building2 className="w-7 h-7" color="#ffffff" />
-            </span>
+          <span className="bg-[#155dfc] rounded-lg p-3">
+            <Building2 className="w-7 h-7" color="#ffffff" />
+          </span>
           <span className="font-bold text-gray-800 text-2xl">ManageHub</span>
         </div>
 
