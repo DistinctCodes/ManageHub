@@ -1,14 +1,9 @@
 /* eslint-disable prettier/prettier */
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-
 import { ValidationPipe, ClassSerializerInterceptor } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-
-import { AuditLogsInterceptor } from './audit-logs/audit-logs.interceptor';
-import { AuditLogsService } from './audit-logs/audit-logs.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -24,10 +19,6 @@ async function bootstrap() {
 
   // GLOBAL SERIALIZATION
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
-
-  // GLOBAL AUDIT LOGGING INTERCEPTOR
-  const auditLogsService = app.get(AuditLogsService);
-  app.useGlobalInterceptors(new AuditLogsInterceptor(auditLogsService));
 
   // ENABLE CORS
   app.enableCors({

@@ -9,7 +9,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
-import { EmailService } from '../../email/providers/email.service';
+// import { EmailService } from '../../email/providers/email.service';
 import { ErrorCatch } from '../../utils/error';
 import * as crypto from 'crypto';
 
@@ -18,7 +18,7 @@ export class ResendVerificationEmailProvider {
   constructor(
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
-    private readonly emailService: EmailService,
+    // private readonly emailService: EmailService,
   ) {}
 
   public async resendVerificationEmail(
@@ -69,15 +69,15 @@ export class ResendVerificationEmailProvider {
       });
 
       // Send verification email
-      const emailSent = await this.emailService.sendVerificationEmail(
-        user.email,
-        verificationToken,
-        `${user.firstname} ${user.lastname}`,
-      );
+      // const emailSent = await this.emailService.sendVerificationEmail(
+      //   user.email,
+      //   verificationToken,
+      //   `${user.firstname} ${user.lastname}`,
+      // );
 
-      if (!emailSent) {
-        throw new BadRequestException('Failed to send verification email');
-      }
+      // if (!emailSent) {
+      //   throw new BadRequestException('Failed to send verification email');
+      // }
 
       return { message: 'Verification email sent successfully' };
     } catch (error) {

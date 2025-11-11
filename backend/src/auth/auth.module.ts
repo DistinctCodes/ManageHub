@@ -19,13 +19,13 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { VerifyEmailProvider } from './providers/verifyEmail.provider';
 import { ResendVerificationEmailProvider } from './providers/resendVerificationEmail.provider';
-import { EmailModule } from '../email/email.module';
+// import { EmailModule } from '../email/email.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([RefreshToken, User]),
     forwardRef(() => UsersModule),
-    EmailModule,
+    // EmailModule,
     ConfigModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

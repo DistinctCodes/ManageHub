@@ -5,14 +5,10 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
-import { EmailModule } from './email/email.module';
 import { NewsletterModule } from './newsletter/newsletter.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt.guard';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { AuditsModule } from './audits/audits.module';  
-import { AuditLogsModule } from './audit-logs/audit-logs.module';
-import { ScheduledJobsModule } from './scheduled-jobs/scheduled-jobs.module';
 
 @Module({
   imports: [
@@ -62,11 +58,7 @@ import { ScheduledJobsModule } from './scheduled-jobs/scheduled-jobs.module';
     }),
     AuthModule,
     UsersModule,
-    EmailModule,
     NewsletterModule,
-    AuditsModule,
-    ScheduledJobsModule,
-    AuditLogsModule,
   ],
   controllers: [AppController],
   providers: [
@@ -81,8 +73,4 @@ import { ScheduledJobsModule } from './scheduled-jobs/scheduled-jobs.module';
     },
   ],
 })
-export class AppModule implements NestModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer.apply(I18nMiddleware).forRoutes('*'); // Apply i18n middleware globally
-  }
-}
+export class AppModule {}

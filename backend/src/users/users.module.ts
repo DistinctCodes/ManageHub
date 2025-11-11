@@ -8,10 +8,7 @@ import { FindOneUserByEmailProvider } from './providers/findOneUserByEmail.provi
 import { FindOneUserByIdProvider } from './providers/findOneUserById.provider';
 import { CreateUserProvider } from './providers/createUser.provider';
 import { ValidateUserProvider } from './providers/validateUser.provider';
-
 import { CloudinaryModule } from '../cloudinary/cloudinary.module';
-import { EmailModule } from '../email/email.module';
-
 import { FindAllUsersProvider } from './providers/findAllUsers.provider';
 import { UpdateUserProvider } from './providers/updateUser.provider';
 import { DeleteUserProvider } from './providers/deleteUser.provider';
@@ -22,7 +19,11 @@ import { FindAllAdminsProvider } from './providers/findAllAdmins.provider';
 import { FindAdminByIdProvider } from './providers/findAdminById.provider';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User]), forwardRef(() => AuthModule), CloudinaryModule, EmailModule],
+  imports: [
+    TypeOrmModule.forFeature([User]),
+    forwardRef(() => AuthModule),
+    CloudinaryModule,
+  ],
   controllers: [UsersController],
   providers: [
     UsersService,
