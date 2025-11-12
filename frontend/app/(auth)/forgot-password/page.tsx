@@ -163,13 +163,13 @@ const ForgotPasswordPage = () => {
                 </div>
               </div>
 
-              <a
-                href="#"
+              <Link
+                href="/login"
                 className="flex items-center justify-center text-blue-600 hover:text-blue-500 font-medium transition-colors"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Sign In
-              </a>
+              </Link>
             </div>
           ) : (
             /* Success State */
