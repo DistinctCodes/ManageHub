@@ -82,7 +82,7 @@ const ForgotPasswordPage = () => {
                 Forgot Password?
               </h2>
               <p className="mt-2 text-gray-600">
-                No worries, we'll send you reset instructions
+                No worries, we will send you reset instructions
               </p>
             </>
           ) : (
@@ -91,7 +91,7 @@ const ForgotPasswordPage = () => {
                 Check Your Email
               </h2>
               <p className="mt-2 text-gray-600">
-                We've sent password reset instructions to your email
+                We have sent password reset instructions to your email
               </p>
             </>
           )}
@@ -182,7 +182,7 @@ const ForgotPasswordPage = () => {
 
               <div className="space-y-2">
                 <p className="text-gray-700">
-                  We've sent a password reset link to
+                  We have sent a password reset link to
                 </p>
                 <p className="font-medium text-gray-900">{email}</p>
               </div>
@@ -192,7 +192,7 @@ const ForgotPasswordPage = () => {
                   <Mail className="h-5 w-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
                   <div className="text-left">
                     <p className="text-sm font-medium text-blue-900 mb-1">
-                      Didn't receive the email?
+                      Did not receive the email?
                     </p>
                     <p className="text-sm text-blue-700">
                       Check your spam folder or click the resend button below
@@ -242,7 +242,7 @@ const ForgotPasswordPage = () => {
                   Need help?
                 </h3>
                 <p className="mt-1 text-sm text-blue-700">
-                  If you're having trouble accessing your account, contact our
+                  If you are having trouble accessing your account, contact our
                   support team at{" "}
                   <a
                     href="mailto:support@managehub.com"
@@ -259,7 +259,7 @@ const ForgotPasswordPage = () => {
         {/* Sign Up Link */}
         <div className="text-center">
           <p className="text-gray-600">
-            Don't have an account?{" "}
+            Dont have an account?{" "}
             <Link
               href="/register"
               className="text-blue-600 hover:text-blue-500 font-medium"
