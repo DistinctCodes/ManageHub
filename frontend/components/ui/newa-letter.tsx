@@ -24,8 +24,11 @@ export default function Newsletter() {
   };
 
   return (
-    <div className="w-full flex justify-center px-4 py-30">
-      <div className="max-w-lg w-full bg-white/20 backdrop-blur-lg rounded-2xl shadow-lg p-8 text-center">
+    <div
+      className="w-full flex justify-center px-4 pt-30 pb-10 bg-[#f8fafc]"
+      id="notify"
+    >
+      <div className="max-w-lg w-full bg-white backdrop-blur-lg rounded-2xl shadow-lg p-8 text-center">
         {/* Title */}
         <h2 className="text-2xl font-bold text-gray-900 mb-2">
           Be the First to Know

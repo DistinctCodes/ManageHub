@@ -7,7 +7,7 @@ export function Hero({
   launchDate?: Date | string;
 }) {
   return (
-    <section className="min-h-screen flex flex-col items-center justify-center text-center bg-[#f8fafc] px-6 pt-20 md:mt-8">
+    <section className="min-h-screen flex flex-col items-center justify-center text-center bg-[#f8fafc] px-6 pt-40">
       <div className="flex gap-2 items-center justify-center mb-4 px-4 py-1 rounded-full border border-gray-300 text-sm text-[#155dfc] shadow-sm">
         <Star color="#fea419" size={16} /> Something Amazing is Coming
       </div>
