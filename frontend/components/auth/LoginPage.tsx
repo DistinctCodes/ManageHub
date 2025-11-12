@@ -1,36 +1,45 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { Mail, Fingerprint } from 'lucide-react';
-import { ToggleBar } from '@/components/ui/ToggleBar';
-import { EmailLoginForm } from '@/components/auth/EmailLoginForm';
-import { BiometricLoginView } from '@/components/auth/BiometricLoginView';
+import { useState } from "react";
+import { Mail, Fingerprint } from "lucide-react";
+import { ToggleBar } from "@/components/ui/ToggleBar";
+import { EmailLoginForm } from "@/components/auth/EmailLoginForm";
+import { BiometricLoginView } from "@/components/auth/BiometricLoginView";
+import Link from "next/link";
 
-type LoginMode = 'email' | 'biometric';
+type LoginMode = "email" | "biometric";
 
 interface LoginPageProps {
-  onEmailLogin?: (data: { email: string; password: string; rememberMe?: boolean }) => void;
+  onEmailLogin?: (data: {
+    email: string;
+    password: string;
+    rememberMe?: boolean;
+  }) => void;
   onBiometricScan?: () => void;
 }
 
 export function LoginPage({ onEmailLogin, onBiometricScan }: LoginPageProps) {
-  const [loginMode, setLoginMode] = useState<LoginMode>('email');
+  const [loginMode, setLoginMode] = useState<LoginMode>("email");
   const [isScanning, setIsScanning] = useState(false);
 
   const toggleOptions = [
     {
-      id: 'email',
-      label: 'Email Login',
+      id: "email",
+      label: "Email Login",
       icon: <Mail className="h-4 w-4" />,
     },
     {
-      id: 'biometric',
-      label: 'Biometric',
+      id: "biometric",
+      label: "Biometric",
       icon: <Fingerprint className="h-4 w-4" />,
     },
   ];
 
-  const handleEmailLogin = (data: { email: string; password: string; rememberMe?: boolean }) => {
+  const handleEmailLogin = (data: {
+    email: string;
+    password: string;
+    rememberMe?: boolean;
+  }) => {
     onEmailLogin?.(data);
   };
 
@@ -42,7 +51,7 @@ export function LoginPage({ onEmailLogin, onBiometricScan }: LoginPageProps) {
   };
 
   const switchToEmail = () => {
-    setLoginMode('email');
+    setLoginMode("email");
   };
 
   return (
@@ -50,8 +59,12 @@ export function LoginPage({ onEmailLogin, onBiometricScan }: LoginPageProps) {
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         {/* Header */}
         <div className="text-center mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">ManageHub</h1>
-          <p className="text-gray-600 text-sm sm:text-base">Sign in to your workspace</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+            ManageHub
+          </h1>
+          <p className="text-gray-600 text-sm sm:text-base">
+            Sign in to your workspace
+          </p>
         </div>
 
         {/* Login Toggle */}
@@ -70,7 +83,7 @@ export function LoginPage({ onEmailLogin, onBiometricScan }: LoginPageProps) {
           id={`${loginMode}-panel`}
           aria-labelledby={`${loginMode}-tab`}
         >
-          {loginMode === 'email' ? (
+          {loginMode === "email" ? (
             <EmailLoginForm onSubmit={handleEmailLogin} />
           ) : (
             <BiometricLoginView
@@ -84,10 +97,13 @@ export function LoginPage({ onEmailLogin, onBiometricScan }: LoginPageProps) {
         {/* Sign Up Link */}
         <div className="mt-6 sm:mt-8 text-center">
           <p className="text-gray-600 text-sm sm:text-base">
-            Don&apos;t have an account?{' '}
-            <button className="text-[#2563EB] hover:text-blue-700 focus:outline-none focus:underline font-medium transition-colors">
+            Don&apos;t have an account?{" "}
+            <Link
+              href={"/register"}
+              className="text-[#2563EB] hover:text-blue-700 focus:outline-none focus:underline font-medium transition-colors"
+            >
               Sign up here
-            </button>
+            </Link>
           </p>
         </div>
       </div>

@@ -1,14 +1,15 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { cn } from '@/utils/cn';
-import { loginSchema, type LoginSchema } from '@/lib/schemas/loginSchema';
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { cn } from "@/utils/cn";
+import { loginSchema, type LoginSchema } from "@/lib/schemas/loginSchema";
+import Link from "next/link";
 
 type EmailLoginFormData = LoginSchema & { rememberMe?: boolean };
 
@@ -32,10 +33,10 @@ export function EmailLoginForm({ onSubmit, className }: EmailLoginFormProps) {
         })
       )
     ),
-    mode: 'onBlur', // Validate on blur for better UX
+    mode: "onBlur", // Validate on blur for better UX
     defaultValues: {
-      email: '',
-      password: '',
+      email: "",
+      password: "",
       rememberMe: false,
     },
   });
@@ -43,7 +44,7 @@ export function EmailLoginForm({ onSubmit, className }: EmailLoginFormProps) {
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
-      className={cn('space-y-6', className)}
+      className={cn("space-y-6", className)}
     >
       <div className="space-y-2">
         <label htmlFor="email" className="text-sm font-medium text-gray-700">
@@ -57,7 +58,7 @@ export function EmailLoginForm({ onSubmit, className }: EmailLoginFormProps) {
             placeholder="Enter your email"
             className="pl-10"
             error={errors.email?.message}
-            {...register('email')}
+            {...register("email")}
           />
         </div>
       </div>
@@ -70,11 +71,11 @@ export function EmailLoginForm({ onSubmit, className }: EmailLoginFormProps) {
           <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
           <Input
             id="password"
-            type={showPassword ? 'text' : 'password'}
+            type={showPassword ? "text" : "password"}
             placeholder="Enter your password"
             className="pl-10 pr-10"
             error={errors.password?.message}
-            {...register('password')}
+            {...register("password")}
           />
           <button
             type="button"
@@ -95,16 +96,16 @@ export function EmailLoginForm({ onSubmit, className }: EmailLoginFormProps) {
           <input
             type="checkbox"
             className="h-4 w-4 rounded border-gray-300 text-[#2563EB] focus:ring-[#2563EB]"
-            {...register('rememberMe')}
+            {...register("rememberMe")}
           />
           <span className="text-sm text-gray-600">Remember me</span>
         </label>
-        <button
-          type="button"
+        <Link
+          href={"/forgot-password"}
           className="text-sm text-[#2563EB] hover:text-blue-700 focus:outline-none focus:underline"
         >
           Forgot password?
-        </button>
+        </Link>
       </div>
 
       <Button
@@ -113,7 +114,7 @@ export function EmailLoginForm({ onSubmit, className }: EmailLoginFormProps) {
         className="w-full"
         disabled={isSubmitting}
       >
-        {isSubmitting ? 'Signing in...' : 'Sign In'}
+        {isSubmitting ? "Signing in..." : "Sign In"}
       </Button>
     </form>
   );

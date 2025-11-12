@@ -1,5 +1,5 @@
 import { Navbar } from "@/components/ui/Navbar";
-import Newsletter from "../components/newa-letter";
+import Newsletter from "../components/ui/newa-letter";
 import Footer from "../components/ui/Footer";
 import { useMemo } from "react";
 import { Hero } from "@/components/ui/Hero";
@@ -14,8 +14,8 @@ export default function Home() {
     <main>
       <Navbar />
       <Hero launchDate={launchDate} />
-      <FeaturesSection />
       <Newsletter />
+      <FeaturesSection />
       <Footer />
     </main>
   );
