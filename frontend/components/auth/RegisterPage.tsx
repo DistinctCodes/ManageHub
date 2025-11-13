@@ -1,20 +1,31 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Building2, User, Mail, Phone, MapPin, Lock, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { cn } from '@/lib/utils';
-import { 
-  personalInfoSchema, 
-  accountSetupSchema, 
-  type PersonalInfoForm, 
-  type AccountSetupForm 
-} from '@/lib/schemas/auth';
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  Building2,
+  User,
+  Mail,
+  Phone,
+  MapPin,
+  Lock,
+  Eye,
+  EyeOff,
+  CheckCircle2,
+} from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { cn } from "@/lib/utils";
+import {
+  personalInfoSchema,
+  accountSetupSchema,
+  type PersonalInfoForm,
+  type AccountSetupForm,
+} from "@/lib/schemas/auth";
+import Link from "next/link";
 
-type RegisterStep = 'personal-info' | 'account-setup';
+type RegisterStep = "personal-info" | "account-setup";
 
 interface RegisterPageProps {
   onRegister?: (data: PersonalInfoForm & AccountSetupForm) => void;
@@ -23,19 +34,19 @@ interface RegisterPageProps {
 
 const userTypeOptions = [
   {
-    id: 'member' as const,
-    title: 'Member',
-    description: 'Regular workspace user',
+    id: "member" as const,
+    title: "Member",
+    description: "Regular workspace user",
   },
   {
-    id: 'staff' as const,
-    title: 'Staff',
-    description: 'Hub staff member',
+    id: "staff" as const,
+    title: "Staff",
+    description: "Hub staff member",
   },
   {
-    id: 'visitor' as const,
-    title: 'Visitor',
-    description: 'Temporary access',
+    id: "visitor" as const,
+    title: "Visitor",
+    description: "Temporary access",
   },
 ];
 
@@ -43,35 +54,35 @@ export function RegisterPage({ onRegister, isLoading }: RegisterPageProps) {
   const [currentStep, setCurrentStep] = useState<RegisterStep>('personal-info');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  // const [isSubmitting, setIsSubmitting] = useState(false);
+ 
   
   // Personal Info Form
   const personalInfoForm = useForm<PersonalInfoForm>({
     resolver: zodResolver(personalInfoSchema),
-    mode: 'onChange',
+    mode: "onChange",
     defaultValues: {
-      fullName: '',
-      email: '',
-      phoneNumber: '',
-      location: '',
+      fullName: "",
+      email: "",
+      phoneNumber: "",
+      location: "",
     },
   });
-  
+
   // Account Setup Form
   const accountSetupForm = useForm<AccountSetupForm>({
     resolver: zodResolver(accountSetupSchema),
-    mode: 'onChange',
+    mode: "onChange",
     defaultValues: {
-      userType: 'member',
-      organizationName: '',
-      password: '',
-      confirmPassword: '',
+      userType: "member",
+      organizationName: "",
+      password: "",
+      confirmPassword: "",
       agreeToTerms: false,
     },
   });
 
   const handlePersonalInfoSubmit = (_data: PersonalInfoForm) => {
-    setCurrentStep('account-setup');
+    setCurrentStep("account-setup");
   };
 
   const handleAccountSetupSubmit = async (data: AccountSetupForm) => {
@@ -79,7 +90,7 @@ export function RegisterPage({ onRegister, isLoading }: RegisterPageProps) {
     
     // Get personal info data
     const personalInfoData = personalInfoForm.getValues();
-    
+
     // Simulate API call
     // await new Promise(resolve => setTimeout(resolve, 2000));
     
@@ -124,46 +135,60 @@ export function RegisterPage({ onRegister, isLoading }: RegisterPageProps) {
           <div className="flex items-center space-x-4">
             {/* Step 1 */}
             <div className="flex items-center">
-              <div className={cn(
-                "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium",
-                currentStep === 'personal-info' 
-                  ? "bg-blue-600 text-white" 
-                  : "bg-blue-100 text-blue-600"
-              )}>
-                {currentStep === 'account-setup' ? (
+              <div
+                className={cn(
+                  "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium",
+                  currentStep === "personal-info"
+                    ? "bg-blue-600 text-white"
+                    : "bg-blue-100 text-blue-600"
+                )}
+              >
+                {currentStep === "account-setup" ? (
                   <CheckCircle2 className="w-4 h-4" />
                 ) : (
                   "1"
                 )}
               </div>
-              <span className={cn(
-                "ml-2 text-sm font-medium",
-                currentStep === 'personal-info' ? "text-gray-900" : "text-gray-500"
-              )}>
+              <span
+                className={cn(
+                  "ml-2 text-sm font-medium",
+                  currentStep === "personal-info"
+                    ? "text-gray-900"
+                    : "text-gray-500"
+                )}
+              >
                 Personal Info
               </span>
             </div>
-            
+
             {/* Connector */}
-            <div className={cn(
-              "w-12 h-0.5",
-              currentStep === 'account-setup' ? "bg-blue-600" : "bg-gray-300"
-            )} />
-            
+            <div
+              className={cn(
+                "w-12 h-0.5",
+                currentStep === "account-setup" ? "bg-blue-600" : "bg-gray-300"
+              )}
+            />
+
             {/* Step 2 */}
             <div className="flex items-center">
-              <div className={cn(
-                "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium",
-                currentStep === 'account-setup' 
-                  ? "bg-blue-600 text-white" 
-                  : "bg-gray-200 text-gray-500"
-              )}>
+              <div
+                className={cn(
+                  "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium",
+                  currentStep === "account-setup"
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-200 text-gray-500"
+                )}
+              >
                 2
               </div>
-              <span className={cn(
-                "ml-2 text-sm font-medium",
-                currentStep === 'account-setup' ? "text-gray-900" : "text-gray-500"
-              )}>
+              <span
+                className={cn(
+                  "ml-2 text-sm font-medium",
+                  currentStep === "account-setup"
+                    ? "text-gray-900"
+                    : "text-gray-500"
+                )}
+              >
                 Account Setup
               </span>
             </div>
@@ -172,7 +197,7 @@ export function RegisterPage({ onRegister, isLoading }: RegisterPageProps) {
 
         {/* Form Card */}
         <div className="bg-white py-6 px-4 sm:py-8 sm:px-6 shadow-sm rounded-lg border border-gray-200">
-          {currentStep === 'personal-info' ? (
+          {currentStep === "personal-info" ? (
             <PersonalInfoStep
               form={personalInfoForm}
               onSubmit={handlePersonalInfoSubmit}
@@ -195,10 +220,13 @@ export function RegisterPage({ onRegister, isLoading }: RegisterPageProps) {
         {/* Sign In Link */}
         <div className="mt-6 sm:mt-8 text-center">
           <p className="text-gray-600 text-sm sm:text-base">
-            Already have an account?{' '}
-            <button className="text-[#2563EB] hover:text-blue-700 focus:outline-none focus:underline font-medium transition-colors">
+            Already have an account?{" "}
+            <Link
+              href="/login"
+              className="text-[#2563EB] hover:text-blue-700 focus:outline-none focus:underline font-medium transition-colors"
+            >
               Sign in here
-            </button>
+            </Link>
           </p>
         </div>
       </div>
@@ -231,21 +259,28 @@ interface PersonalInfoStepProps {
 }
 
 function PersonalInfoStep({ form, onSubmit }: PersonalInfoStepProps) {
-  const { register, handleSubmit, formState: { errors } } = form;
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = form;
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {/* Full Name */}
       <div>
-        <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-2">
+        <label
+          htmlFor="fullName"
+          className="block text-sm font-medium text-gray-700 mb-2"
+        >
           Full Name *
         </label>
         <Input
           id="fullName"
-          className='text-black'
+          className="text-black"
           type="text"
           placeholder="Yusuf N M"
-          {...register('fullName')}
+          {...register("fullName")}
           error={errors.fullName?.message}
           icon={<User className="w-5 h-5" />}
         />
@@ -253,14 +288,17 @@ function PersonalInfoStep({ form, onSubmit }: PersonalInfoStepProps) {
 
       {/* Email */}
       <div>
-        <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+        <label
+          htmlFor="email"
+          className="block text-sm font-medium text-gray-700 mb-2"
+        >
           Email Address *
         </label>
         <Input
           id="email"
           type="email"
           placeholder="faladeyusuf54@gmail.com"
-          {...register('email')}
+          {...register("email")}
           error={errors.email?.message}
           icon={<Mail className="w-5 h-5" />}
         />
@@ -268,14 +306,17 @@ function PersonalInfoStep({ form, onSubmit }: PersonalInfoStepProps) {
 
       {/* Phone Number */}
       <div>
-        <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 mb-2">
+        <label
+          htmlFor="phoneNumber"
+          className="block text-sm font-medium text-gray-700 mb-2"
+        >
           Phone Number *
         </label>
         <Input
           id="phoneNumber"
           type="tel"
           placeholder="+234800033156218"
-          {...register('phoneNumber')}
+          {...register("phoneNumber")}
           error={errors.phoneNumber?.message}
           icon={<Phone className="w-5 h-5" />}
         />
@@ -283,14 +324,17 @@ function PersonalInfoStep({ form, onSubmit }: PersonalInfoStepProps) {
 
       {/* Location */}
       <div>
-        <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-2">
+        <label
+          htmlFor="location"
+          className="block text-sm font-medium text-gray-700 mb-2"
+        >
           Location (Optional)
         </label>
         <Input
           id="location"
           type="text"
           placeholder="City, Country"
-          {...register('location')}
+          {...register("location")}
           error={errors.location?.message}
           icon={<MapPin className="w-5 h-5" />}
         />
@@ -330,8 +374,14 @@ function AccountSetupStep({
   setShowConfirmPassword,
   isSubmitting,
 }: AccountSetupStepProps) {
-  const { register, handleSubmit, formState: { errors }, watch, setValue } = form;
-  const userType = watch('userType');
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    watch,
+    setValue,
+  } = form;
+  const userType = watch("userType");
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -345,7 +395,7 @@ function AccountSetupStep({
             <button
               key={option.id}
               type="button"
-              onClick={() => setValue('userType', option.id)}
+              onClick={() => setValue("userType", option.id)}
               className={cn(
                 "p-4 border rounded-lg text-left transition-all",
                 userType === option.id
@@ -354,7 +404,9 @@ function AccountSetupStep({
               )}
             >
               <div className="font-medium text-gray-900">{option.title}</div>
-              <div className="text-sm text-gray-500 mt-1">{option.description}</div>
+              <div className="text-sm text-gray-500 mt-1">
+                {option.description}
+              </div>
             </button>
           ))}
         </div>
@@ -365,14 +417,17 @@ function AccountSetupStep({
 
       {/* Organization Name */}
       <div>
-        <label htmlFor="organizationName" className="block text-sm font-medium text-gray-700 mb-2">
+        <label
+          htmlFor="organizationName"
+          className="block text-sm font-medium text-gray-700 mb-2"
+        >
           Organization/Hub Name *
         </label>
         <Input
           id="organizationName"
           type="text"
           placeholder="Your organization name"
-          {...register('organizationName')}
+          {...register("organizationName")}
           error={errors.organizationName?.message}
           icon={<Building2 className="w-5 h-5" />}
         />
@@ -380,15 +435,18 @@ function AccountSetupStep({
 
       {/* Password */}
       <div>
-        <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+        <label
+          htmlFor="password"
+          className="block text-sm font-medium text-gray-700 mb-2"
+        >
           Password *
         </label>
         <div className="relative">
           <Input
             id="password"
-            type={showPassword ? 'text' : 'password'}
+            type={showPassword ? "text" : "password"}
             placeholder="Create a strong password"
-            {...register('password')}
+            {...register("password")}
             error={errors.password?.message}
             icon={<Lock className="w-5 h-5" />}
           />
@@ -397,22 +455,29 @@ function AccountSetupStep({
             onClick={() => setShowPassword(!showPassword)}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
           >
-            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            {showPassword ? (
+              <EyeOff className="w-5 h-5" />
+            ) : (
+              <Eye className="w-5 h-5" />
+            )}
           </button>
         </div>
       </div>
 
       {/* Confirm Password */}
       <div>
-        <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+        <label
+          htmlFor="confirmPassword"
+          className="block text-sm font-medium text-gray-700 mb-2"
+        >
           Confirm Password *
         </label>
         <div className="relative">
           <Input
             id="confirmPassword"
-            type={showConfirmPassword ? 'text' : 'password'}
+            type={showConfirmPassword ? "text" : "password"}
             placeholder="Re-enter your password"
-            {...register('confirmPassword')}
+            {...register("confirmPassword")}
             error={errors.confirmPassword?.message}
             icon={<Lock className="w-5 h-5" />}
           />
@@ -421,7 +486,11 @@ function AccountSetupStep({
             onClick={() => setShowConfirmPassword(!showConfirmPassword)}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
           >
-            {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            {showConfirmPassword ? (
+              <EyeOff className="w-5 h-5" />
+            ) : (
+              <Eye className="w-5 h-5" />
+            )}
           </button>
         </div>
       </div>
@@ -432,22 +501,30 @@ function AccountSetupStep({
           <input
             id="agreeToTerms"
             type="checkbox"
-            {...register('agreeToTerms')}
+            {...register("agreeToTerms")}
             className="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
           />
           <label htmlFor="agreeToTerms" className="text-sm text-gray-700">
-            I agree to the{' '}
-            <button type="button" className="text-blue-600 hover:text-blue-700 focus:outline-none focus:underline">
+            I agree to the{" "}
+            <button
+              type="button"
+              className="text-blue-600 hover:text-blue-700 focus:outline-none focus:underline"
+            >
               Terms and Conditions
-            </button>
-            {' '}and{' '}
-            <button type="button" className="text-blue-600 hover:text-blue-700 focus:outline-none focus:underline">
+            </button>{" "}
+            and{" "}
+            <button
+              type="button"
+              className="text-blue-600 hover:text-blue-700 focus:outline-none focus:underline"
+            >
               Privacy Policy
             </button>
           </label>
         </div>
         {errors.agreeToTerms && (
-          <p className="text-sm text-red-600 mt-1">{errors.agreeToTerms.message}</p>
+          <p className="text-sm text-red-600 mt-1">
+            {errors.agreeToTerms.message}
+          </p>
         )}
       </div>
 

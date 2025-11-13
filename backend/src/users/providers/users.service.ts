@@ -89,10 +89,7 @@ export class UsersService {
   }
 
   // VALIDATE USER
-  async validateUser(
-    email: string,
-    password: string,
-  ): Promise<Partial<User>> {
+  async validateUser(email: string, password: string): Promise<Partial<User>> {
     return await this.validateUserProvider.validateUser(email, password);
   }
 
@@ -112,7 +109,10 @@ export class UsersService {
   }
 
   // UPDATE PROFILE PICTURE (legacy save method if needed elsewhere)
-  async updateProfilePicture(userId: string, profilePictureUrl: string): Promise<User & { oldProfilePicture?: string }> {
+  async updateProfilePicture(
+    userId: string,
+    profilePictureUrl: string,
+  ): Promise<User & { oldProfilePicture?: string }> {
     const user = await this.findUserById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
@@ -120,7 +120,9 @@ export class UsersService {
     const oldProfilePicture = user.profilePicture;
     user.profilePicture = profilePictureUrl;
     const updatedUser = await this.usersRepository.save(user);
-    return { ...updatedUser, oldProfilePicture } as User & { oldProfilePicture?: string };
+    return { ...updatedUser, oldProfilePicture } as User & {
+      oldProfilePicture?: string;
+    };
   }
 
   // FIND ONE BY ID (EXCLUDE PASSWORD) - service-level method for controller

@@ -20,20 +20,29 @@ export class UploadProfilePictureProvider {
     currentUserRole: UserRole,
   ): Promise<{ id: string; profilePicture: string }> {
     if (currentUserId !== targetUserId && currentUserRole !== UserRole.ADMIN) {
-      throw new BadRequestException('You can only update your own profile picture');
+      throw new BadRequestException(
+        'You can only update your own profile picture',
+      );
     }
 
     try {
-      const targetUser = await this.usersRepository.findOne({ where: { id: targetUserId } });
+      const targetUser = await this.usersRepository.findOne({
+        where: { id: targetUserId },
+      });
       if (!targetUser) {
         throw new BadRequestException('User not found');
       }
 
-      const uploadResult: any = await this.cloudinaryService.uploadImage(file, 'profile-pictures');
+      const uploadResult: any = await this.cloudinaryService.uploadImage(
+        file,
+        'profile-pictures',
+      );
 
       if (targetUser.profilePicture) {
         try {
-          const publicId = this.cloudinaryService.extractPublicIdFromUrl(targetUser.profilePicture);
+          const publicId = this.cloudinaryService.extractPublicIdFromUrl(
+            targetUser.profilePicture,
+          );
           await this.cloudinaryService.deleteImage(publicId);
         } catch {}
       }
@@ -47,4 +56,3 @@ export class UploadProfilePictureProvider {
     }
   }
 }
-

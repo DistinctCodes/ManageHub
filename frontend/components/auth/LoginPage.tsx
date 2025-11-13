@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { useState } from 'react';
 import { Mail, Fingerprint } from 'lucide-react';
@@ -7,10 +7,14 @@ import { EmailLoginForm } from '@/components/auth/EmailLoginForm';
 import { BiometricLoginView } from '@/components/auth/BiometricLoginView';
 import { Button } from '../ui/Button';
 
-type LoginMode = 'email' | 'biometric';
+type LoginMode = "email" | "biometric";
 
 interface LoginPageProps {
-  onEmailLogin?: (data: { email: string; password: string; rememberMe?: boolean }) => void;
+  onEmailLogin?: (data: {
+    email: string;
+    password: string;
+    rememberMe?: boolean;
+  }) => void;
   onBiometricScan?: () => void;
   isLoading?: boolean;
 }
@@ -21,19 +25,18 @@ export function LoginPage({ onEmailLogin, onBiometricScan, isLoading }: LoginPag
 
   const toggleOptions = [
     {
-      id: 'email',
-      label: 'Email Login',
+      id: "email",
+      label: "Email Login",
       icon: <Mail className="h-4 w-4" />,
     },
     {
-      id: 'biometric',
-      label: 'Biometric',
+      id: "biometric",
+      label: "Biometric",
       icon: <Fingerprint className="h-4 w-4" />,
     },
   ];
 
   const handleEmailLogin = (data: { email: string; password: string; rememberMe?: boolean }) => {
-    console.log("first")
     onEmailLogin?.(data);
   };
 
@@ -45,7 +48,7 @@ export function LoginPage({ onEmailLogin, onBiometricScan, isLoading }: LoginPag
   };
 
   const switchToEmail = () => {
-    setLoginMode('email');
+    setLoginMode("email");
   };
 
   return (
@@ -53,8 +56,12 @@ export function LoginPage({ onEmailLogin, onBiometricScan, isLoading }: LoginPag
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         {/* Header */}
         <div className="text-center mb-6 sm:mb-8">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">ManageHub</h1>
-          <p className="text-gray-600 text-sm sm:text-base">Sign in to your workspace</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+            ManageHub
+          </h1>
+          <p className="text-gray-600 text-sm sm:text-base">
+            Sign in to your workspace
+          </p>
         </div>
 
         {/* Login Toggle */}
@@ -86,10 +93,13 @@ export function LoginPage({ onEmailLogin, onBiometricScan, isLoading }: LoginPag
         {/* Sign Up Link */}
         <div className="mt-6 sm:mt-8 text-center">
           <p className="text-gray-600 text-sm sm:text-base">
-            Don&apos;t have an account?{' '}
-            <button className="text-[#2563EB] hover:text-blue-700 focus:outline-none focus:underline font-medium transition-colors">
+            Don&apos;t have an account?{" "}
+            <Link
+              href={"/register"}
+              className="text-[#2563EB] hover:text-blue-700 focus:outline-none focus:underline font-medium transition-colors"
+            >
               Sign up here
-            </button>
+            </Link>
           </p>
         </div>
       </div>

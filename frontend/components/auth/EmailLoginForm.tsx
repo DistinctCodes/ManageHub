@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -36,8 +36,8 @@ export function EmailLoginForm({ onSubmit, className, isLoading }: EmailLoginFor
     ),
     mode: 'onBlur',
     defaultValues: {
-      email: '',
-      password: '',
+      email: "",
+      password: "",
       rememberMe: false,
     },
   });
@@ -72,7 +72,7 @@ export function EmailLoginForm({ onSubmit, className, isLoading }: EmailLoginFor
             placeholder="Enter your email"
             className="pl-10"
             error={errors.email?.message}
-            {...register('email')}
+            {...register("email")}
           />
         </div>
       </div>
@@ -85,11 +85,11 @@ export function EmailLoginForm({ onSubmit, className, isLoading }: EmailLoginFor
           <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
           <Input
             id="password"
-            type={showPassword ? 'text' : 'password'}
+            type={showPassword ? "text" : "password"}
             placeholder="Enter your password"
             className="pl-10 pr-10 text-black"
             error={errors.password?.message}
-            {...register('password')}
+            {...register("password")}
           />
           <button
             type="button"
@@ -110,16 +110,16 @@ export function EmailLoginForm({ onSubmit, className, isLoading }: EmailLoginFor
           <input
             type="checkbox"
             className="h-4 w-4 rounded border-gray-300 text-[#2563EB] focus:ring-[#2563EB]"
-            {...register('rememberMe')}
+            {...register("rememberMe")}
           />
           <span className="text-sm text-gray-600">Remember me</span>
         </label>
-        <button
-          type="button"
+        <Link
+          href={"/forgot-password"}
           className="text-sm text-[#2563EB] hover:text-blue-700 focus:outline-none focus:underline"
         >
           Forgot password?
-        </button>
+        </Link>
       </div>
 
       <button
