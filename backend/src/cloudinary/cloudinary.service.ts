@@ -5,16 +5,13 @@ import {
   v2 as cloudinary,
 } from 'cloudinary';
 import { ConfigService } from '@nestjs/config';
-import type { Express } from 'express';
-
-type MulterFile = Express.Multer.File;
 
 @Injectable()
 export class CloudinaryService {
   constructor(private configService: ConfigService) {}
 
   async uploadImage(
-    file: MulterFile,
+    file: Express.Multer.File,
     folder?: string,
   ): Promise<UploadApiResponse | UploadApiErrorResponse> {
     return new Promise((resolve, reject) => {

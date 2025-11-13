@@ -20,9 +20,6 @@ import { ForgotPasswordProvider } from './forgotPassword.provider';
 import { ResetPasswordProvider } from './resetPassword.provider';
 import { FindAllAdminsProvider } from './findAllAdmins.provider';
 import { FindAdminByIdProvider } from './findAdminById.provider';
-import { Multer } from 'multer';
-
-type MulterFile = Express.Multer.File;
 
 @Injectable()
 export class UsersService {
@@ -99,7 +96,7 @@ export class UsersService {
   // UPDATE PROFILE PICTURE (delegates to provider)
   async uploadUserProfilePicture(
     targetUserId: string,
-    file: MulterFile,
+    file: Express.Multer.File,
     currentUserId: string,
     currentUserRole: UserRole,
   ): Promise<{ id: string; profilePicture: string }> {

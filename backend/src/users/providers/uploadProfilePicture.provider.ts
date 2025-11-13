@@ -4,10 +4,6 @@ import { Repository } from 'typeorm';
 import { User } from '../entities/user.entity';
 import { UserRole } from '../enums/userRoles.enum';
 import { CloudinaryService } from '../../cloudinary/cloudinary.service';
-import type { Express } from 'express';
-import { Multer } from 'multer';
-
-type MulterFile = Express.Multer.File;
 
 @Injectable()
 export class UploadProfilePictureProvider {
@@ -19,7 +15,7 @@ export class UploadProfilePictureProvider {
 
   async uploadProfilePicture(
     targetUserId: string,
-    file: MulterFile,
+    file: Express.Multer.File,
     currentUserId: string,
     currentUserRole: UserRole,
   ): Promise<{ id: string; profilePicture: string }> {
