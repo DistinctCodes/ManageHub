@@ -1,30 +1,31 @@
 "use client";
 
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { Mail, Lock, Eye, EyeOff } from "lucide-react";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { cn } from "@/utils/cn";
-import { loginSchema, type LoginSchema } from "@/lib/schemas/loginSchema";
-import Link from "next/link";
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { cn } from '@/utils/cn';
+import { loginSchema, type LoginSchema } from '@/lib/schemas/loginSchema';
+import { toast } from 'sonner';
 
 type EmailLoginFormData = LoginSchema & { rememberMe?: boolean };
 
 interface EmailLoginFormProps {
   onSubmit: (data: EmailLoginFormData) => void;
   className?: string;
+  isLoading?:boolean;
 }
 
-export function EmailLoginForm({ onSubmit, className }: EmailLoginFormProps) {
+export function EmailLoginForm({ onSubmit, className, isLoading }: EmailLoginFormProps) {
   const [showPassword, setShowPassword] = useState(false);
 
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useForm<EmailLoginFormData>({
     resolver: zodResolver(
       loginSchema.and(
@@ -33,7 +34,7 @@ export function EmailLoginForm({ onSubmit, className }: EmailLoginFormProps) {
         })
       )
     ),
-    mode: "onBlur", // Validate on blur for better UX
+    mode: 'onBlur',
     defaultValues: {
       email: "",
       password: "",
@@ -41,17 +42,30 @@ export function EmailLoginForm({ onSubmit, className }: EmailLoginFormProps) {
     },
   });
 
+  useEffect(() => {
+    if (errors.email?.message) {
+      toast.error(errors.email.message);
+    }
+    if (errors.password?.message) {
+      toast.error(errors.password.message);
+    }
+  }, [errors.email, errors.password]);
+
+  const handleLocalSubmit = (data: EmailLoginFormData) => {
+    onSubmit?.(data);
+  };
+
   return (
     <form
-      onSubmit={handleSubmit(onSubmit)}
-      className={cn("space-y-6", className)}
+      onSubmit={handleSubmit(handleLocalSubmit)}
+      className={cn('space-y-6', className)}
     >
       <div className="space-y-2">
-        <label htmlFor="email" className="text-sm font-medium text-gray-700">
+        <label htmlFor="email" className="text-sm font-medium">
           Email Address
         </label>
         <div className="relative">
-          <Mail className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+          <Mail className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2" />
           <Input
             id="email"
             type="email"
@@ -73,14 +87,14 @@ export function EmailLoginForm({ onSubmit, className }: EmailLoginFormProps) {
             id="password"
             type={showPassword ? "text" : "password"}
             placeholder="Enter your password"
-            className="pl-10 pr-10"
+            className="pl-10 pr-10 text-black"
             error={errors.password?.message}
             {...register("password")}
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+            className="absolute right-3 top-1/2 -translate-y-1/2 hover:text-gray-600 focus:outline-none"
           >
             {showPassword ? (
               <EyeOff className="h-5 w-5" />
@@ -108,14 +122,32 @@ export function EmailLoginForm({ onSubmit, className }: EmailLoginFormProps) {
         </Link>
       </div>
 
-      <Button
-        type="submit"
-        size="lg"
-        className="w-full"
-        disabled={isSubmitting}
-      >
-        {isSubmitting ? "Signing in..." : "Sign In"}
-      </Button>
+      <button
+  type="submit"
+  disabled={isLoading}
+  className={`
+    w-full 
+    bg-blue-500 
+    text-white 
+    font-semibold 
+    py-2 px-4 
+    rounded-md 
+    shadow-sm 
+    hover:bg-blue-600 
+    hover:cursor-pointer 
+    focus:outline-none 
+    focus:ring-2 
+    focus:ring-blue-400 
+    focus:ring-offset-1 
+    transition-colors 
+    duration-200 
+    disabled:opacity-50 
+    disabled:cursor-not-allowed
+  `}
+>
+  {isLoading ? 'Signing in...' : 'Sign In'}
+</button>
+
     </form>
   );
 }

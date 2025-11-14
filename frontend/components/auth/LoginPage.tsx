@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { Mail, Fingerprint } from "lucide-react";
-import { ToggleBar } from "@/components/ui/ToggleBar";
-import { EmailLoginForm } from "@/components/auth/EmailLoginForm";
-import { BiometricLoginView } from "@/components/auth/BiometricLoginView";
-import Link from "next/link";
+import { useState } from 'react';
+import { Mail, Fingerprint } from 'lucide-react';
+import { ToggleBar } from '@/components/ui/ToggleBar';
+import { EmailLoginForm } from '@/components/auth/EmailLoginForm';
+import { BiometricLoginView } from '@/components/auth/BiometricLoginView';
+import { Button } from '../ui/Button';
 
 type LoginMode = "email" | "biometric";
 
@@ -16,10 +16,11 @@ interface LoginPageProps {
     rememberMe?: boolean;
   }) => void;
   onBiometricScan?: () => void;
+  isLoading?: boolean;
 }
 
-export function LoginPage({ onEmailLogin, onBiometricScan }: LoginPageProps) {
-  const [loginMode, setLoginMode] = useState<LoginMode>("email");
+export function LoginPage({ onEmailLogin, onBiometricScan, isLoading }: LoginPageProps) {
+  const [loginMode, setLoginMode] = useState<LoginMode>('email');
   const [isScanning, setIsScanning] = useState(false);
 
   const toggleOptions = [
@@ -35,11 +36,7 @@ export function LoginPage({ onEmailLogin, onBiometricScan }: LoginPageProps) {
     },
   ];
 
-  const handleEmailLogin = (data: {
-    email: string;
-    password: string;
-    rememberMe?: boolean;
-  }) => {
+  const handleEmailLogin = (data: { email: string; password: string; rememberMe?: boolean }) => {
     onEmailLogin?.(data);
   };
 
@@ -78,14 +75,13 @@ export function LoginPage({ onEmailLogin, onBiometricScan }: LoginPageProps) {
 
         {/* Login Card */}
         <div
-          className="bg-white py-6 px-4 sm:py-8 sm:px-6 shadow-sm rounded-lg border border-gray-200"
+          className="py-6 px-4 sm:py-8 sm:px-6 shadow-sm rounded-lg border border-gray-200"
           role="tabpanel"
           id={`${loginMode}-panel`}
           aria-labelledby={`${loginMode}-tab`}
         >
-          {loginMode === "email" ? (
-            <EmailLoginForm onSubmit={handleEmailLogin} />
-          ) : (
+          {loginMode === 'email' ? (
+            <EmailLoginForm onSubmit={handleEmailLogin} isLoading={isLoading} />) : (
             <BiometricLoginView
               onStartScan={handleBiometricScan}
               onSwitchToEmail={switchToEmail}

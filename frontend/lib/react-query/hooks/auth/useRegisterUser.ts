@@ -19,14 +19,17 @@ export const useRegisterUser = () => {
   const { register } = useAuthActions();
 
   return useMutation({
+    
     mutationKey: mutationKeys.auth.registerUser,
+    
     mutationFn: async (data: RegisterUser) => {
+
       return await register(data);
     },
     onSuccess: (data) => {
       console.log("Register success:", data);
       toast.success("User created successfully");
-      router.push("/");
+      // router.push("/");
     },
     onError: (error) => {
       console.error("Register failed:", error);
