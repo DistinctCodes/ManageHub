@@ -9,6 +9,7 @@ import { NewsletterModule } from './newsletter/newsletter.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt.guard';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { AttendanceModule } from './attendance/attendance.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
     AuthModule,
     UsersModule,
     NewsletterModule,
+    AttendanceModule,
   ],
   controllers: [AppController],
   providers: [
