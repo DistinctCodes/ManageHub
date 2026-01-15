@@ -7,8 +7,8 @@ mod membership_token;
 mod subscription;
 mod types;
 
-use attendance_log::{AttendanceLog, AttendanceLogModule};
-use errors::Error;
+pub use errors::Error;
+use attendance_log::{AttendanceLogModule, EventLog};
 use membership_token::{MembershipToken, MembershipTokenContract};
 use subscription::SubscriptionContract;
 use types::{AttendanceAction, Subscription};
