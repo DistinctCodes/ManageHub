@@ -1,4 +1,4 @@
-# 📌 **ManageHub**
+#  **ManageHub**
 
 **A Comprehensive Management System for Tech Hubs**
 
@@ -6,7 +6,7 @@ ManageHub is a full-stack platform designed to streamline **user and workspace m
 
 ---
 
-## 📦 Table of Contents
+##  Table of Contents
 
 1. **About**
 2. **Features**
@@ -25,7 +25,7 @@ ManageHub is a full-stack platform designed to streamline **user and workspace m
 
 ---
 
-## 🧠 About
+##  About
 
 ManageHub is structured to handle everyday operational needs of tech hubs, from managing members to tracking workspace usage and attendance using biometric authentication. The platform is modular, scalable, and designed with real-world enterprise needs in mind.
 
@@ -33,18 +33,18 @@ Live Demo: [https://managehub.vercel.app/](https://managehub.vercel.app/)
 
 ---
 
-## 🚀 Key Features
+##  Key Features
 
-* 🔐 **Biometric Authentication** — Supports biometric clock-ins/outs for users and staff.
-* 🧑‍💼 **User & Role Management** — Manage accounts, roles, and permissions.
-* 🏢 **Workspace Tracking** — Monitor usage of workspaces, seats, and resources.
-* 📊 **Analytics & Logs** — View attendance and activity logs.
-* 🧑‍🤝‍🧑 **Team Collaboration** — Support for teams with admin roles.
-* ⚙️ **Modular Architecture** — Easy to extend or customize for future needs.
+*  **Biometric Authentication** — Supports biometric clock-ins/outs for users and staff.
+* **User & Role Management** — Manage accounts, roles, and permissions.
+*  **Workspace Tracking** — Monitor usage of workspaces, seats, and resources.
+*  **Analytics & Logs** — View attendance and activity logs.
+*  **Team Collaboration** — Support for teams with admin roles.
+*  **Modular Architecture** — Easy to extend or customize for future needs.
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 ManageHub uses a modern full-stack technology stack:
 
@@ -60,11 +60,11 @@ ManageHub uses a modern full-stack technology stack:
 
 ---
 
-## 🧩 Getting Started
+##  Getting Started
 
 These instructions help you run the project locally for development or testing.
 
-### 🧰 Prerequisites
+###  Prerequisites
 
 Make sure you have the following installed:
 
@@ -75,7 +75,7 @@ Make sure you have the following installed:
 
 ---
 
-### 📥 Installation
+###  Installation
 
 1. **Clone the repository**
 
@@ -98,7 +98,7 @@ npm install
 
 ---
 
-### 🧪 Environment Variables
+### Environment Variables
 
 Copy the example environment variables and configure them:
 
@@ -114,7 +114,7 @@ Update variables such as:
 
 ---
 
-## ▶️ Usage
+##  Usage
 
 **Run backend:**
 
@@ -134,7 +134,7 @@ Open `http://localhost:3000` in your browser.
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```plaintext
 ManageHub/
@@ -151,7 +151,7 @@ ManageHub/
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 We love contributions! Whether it’s documentation, bug fixes, new features, or tests — your help is appreciated.
 
@@ -164,6 +164,6 @@ Please follow the existing code style and architecture when contributing.
 
 ---
 
-## 🙌 Acknowledgements
+## Acknowledgements
 
 Thanks to all contributors and maintainers on this project — there are **96+ contributors** helping shape this repository.
