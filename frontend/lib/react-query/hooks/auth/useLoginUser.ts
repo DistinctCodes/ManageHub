@@ -6,6 +6,7 @@ import { mutationKeys } from "../../keys/mutationKeys";
 import { LoginUser } from "@/lib/types/user";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
+import { resolve } from "path";
 
 /**
  * Custom hook for user login
@@ -22,6 +23,8 @@ export const useLoginUser = () => {
   return useMutation({
     mutationKey: mutationKeys.auth.loginUser,
     mutationFn: async (data: LoginUser) => {
+      // console.log("Simulating Backend Call...",data)
+      
       return await login(data);
     },
     onSuccess: (data) => {
