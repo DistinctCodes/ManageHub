@@ -29,6 +29,7 @@ type RegisterStep = "personal-info" | "account-setup";
 
 interface RegisterPageProps {
   onRegister?: (data: PersonalInfoForm & AccountSetupForm) => void;
+  isLoading?: boolean;
 }
 
 const userTypeOptions = [
@@ -49,12 +50,12 @@ const userTypeOptions = [
   },
 ];
 
-export function RegisterPage({ onRegister }: RegisterPageProps) {
-  const [currentStep, setCurrentStep] = useState<RegisterStep>("personal-info");
+export function RegisterPage({ onRegister, isLoading }: RegisterPageProps) {
+  const [currentStep, setCurrentStep] = useState<RegisterStep>('personal-info');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
+ 
+  
   // Personal Info Form
   const personalInfoForm = useForm<PersonalInfoForm>({
     resolver: zodResolver(personalInfoSchema),
@@ -85,25 +86,31 @@ export function RegisterPage({ onRegister }: RegisterPageProps) {
   };
 
   const handleAccountSetupSubmit = async (data: AccountSetupForm) => {
-    setIsSubmitting(true);
-
+    
+    
     // Get personal info data
     const personalInfoData = personalInfoForm.getValues();
 
     // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
-    onRegister?.({
+    // await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // onRegister?.({
+    //   ...personalInfoData,
+    //   ...data,
+    // });
+    const finalData = {
       ...personalInfoData,
       ...data,
-    });
+    };
 
-    setIsSubmitting(false);
+    // 3. Send it to the parent (page.tsx)
+    // We do NOT set loading state here. The parent's hook handles that.
+    onRegister?.(finalData);
   };
 
-  const handleBack = () => {
-    setCurrentStep("personal-info");
-  };
+  // const handleBack = () => {
+  //   setCurrentStep('personal-info');
+  // };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-6 px-4 sm:py-12 sm:px-6 lg:px-8">
@@ -194,17 +201,18 @@ export function RegisterPage({ onRegister }: RegisterPageProps) {
             <PersonalInfoStep
               form={personalInfoForm}
               onSubmit={handlePersonalInfoSubmit}
+              
             />
           ) : (
             <AccountSetupStep
               form={accountSetupForm}
               onSubmit={handleAccountSetupSubmit}
-              onBack={handleBack}
+              onBack={() => setCurrentStep('personal-info')}
               showPassword={showPassword}
               setShowPassword={setShowPassword}
               showConfirmPassword={showConfirmPassword}
               setShowConfirmPassword={setShowConfirmPassword}
-              isSubmitting={isSubmitting}
+              isSubmitting={isLoading || false}
             />
           )}
         </div>
