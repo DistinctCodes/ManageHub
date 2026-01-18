@@ -1,34 +1,35 @@
+/* frontend/src/app/globals.css */
 @import "tailwindcss";
 
-::-webkit-scrollar {
-  width: 8px;
-  height: 8px;
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
 }
 
-::-webkit-scrollbar-thumb {
-  border-radius: 6px;
-  background-color: #9ca3af;
-}
-
-::-webkit-scrollbar-track {
-  background-color: transparent;
-}
-
-/* Dark mode */
-@media (prefers-color-scheme: dark) {
-  ::-webkit-scrollbar-thumb {
-    background-color: #4b5563;
+/* Custom animations */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
-/* Firefox */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: #9ca3af transparent;
+@utility animate-fade-in-up {
+  animation: fade-in-up 0.6s ease-out;
 }
 
-@media (prefers-color-scheme: dark) {
-  * {
-    scrollbar-color: #4b5563 transparent;
-  }
+/* Gradient text utility */
+@utility gradient-text {
+  background-image: linear-gradient(
+    to right,
+    var(--color-blue-600),
+    var(--color-purple-600)
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
 }

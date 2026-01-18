@@ -1,52 +1,34 @@
-/* eslint-disable prettier/prettier */
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { ValidationPipe, ClassSerializerInterceptor } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
+import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // GLOBAL VALIDATION
-  app.useGlobalPipes(
-    new ValidationPipe({
-      transform: true,
-      whitelist: true,
-      forbidNonWhitelisted: true,
-    }),
-  );
+  // Security
+  app.use(helmet());
 
-  // GLOBAL SERIALIZATION
-  app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
-
-  // ENABLE CORS
+  // CORS
   app.enableCors({
-    origin:
-      process.env.NODE_ENV === 'production'
-        ? [
-            'https://managehub.vercel.app',
-            'https://www.managehub.vercel.app',
-            'http://localhost:3000',
-            'http://localhost:3001',
-            'http://localhost:3002',
-            'http://localhost:3003',
-          ]
-        : true,
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
     credentials: true,
   });
 
-  // SWAGGER SETUP
-  const config = new DocumentBuilder()
-    .setTitle('ManageHub API')
-    .setDescription('API documentation for ManageHub backend')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
-  const document = SwaggerModule.createDocument(app as any, config);
-  SwaggerModule.setup('swagger', app as any, document);
+  // Global validation pipe
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
 
-  await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
-  console.log(`Server is listening at: ${await app.getUrl()}`);
+  // API prefix
+  app.setGlobalPrefix('api');
+
+  const port = process.env.PORT || 6001;
+  await app.listen(port);
+  console.log(`🚀 ManageHub API running on http://localhost:${port}/api`);
 }
 bootstrap();
