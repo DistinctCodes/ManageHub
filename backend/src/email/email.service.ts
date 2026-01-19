@@ -3,6 +3,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import { Transporter } from 'nodemailer';
+import { getVerificationEmailTemplate } from './templates/verification-email.template';
+import { getWelcomeEmailTemplate } from './templates/welcome-email.template';
+import { getPasswordResetEmailTemplate } from './templates/password-reset-email.template';
+import { getPasswordChangeConfirmationTemplate } from './templates/password-change-confirmation.template';
 
 @Injectable()
 export class EmailService {
@@ -90,6 +94,83 @@ export class EmailService {
       return true;
     } catch (error) {
       this.logger.error(`Failed to send verification email to ${to}:`, error);
+      return false;
+    }
+  }
+
+  async sendWelcomeEmail(to: string, name: string): Promise<boolean> {
+    const frontendUrl = this.configService.get('FRONTEND_URL');
+    const loginLink = `${frontendUrl}/auth/login`;
+
+    const mailOptions = {
+      from: `"ManageHub" <${this.configService.get('EMAIL_FROM')}>`,
+      to,
+      subject: 'Welcome to ManageHub - Get Started!',
+      html: getWelcomeEmailTemplate(name, loginLink, new Date().getFullYear()),
+    };
+
+    try {
+      await this.transporter.sendMail(mailOptions);
+      this.logger.log(`Welcome email sent to ${to}`);
+      return true;
+    } catch (error) {
+      this.logger.error(`Failed to send welcome email to ${to}:`, error);
+      return false;
+    }
+  }
+
+  async sendPasswordResetEmail(
+    to: string,
+    name: string,
+    token: string,
+  ): Promise<boolean> {
+    const frontendUrl = this.configService.get('FRONTEND_URL');
+    const resetLink = `${frontendUrl}/auth/reset-password?token=${token}`;
+
+    const mailOptions = {
+      from: `"ManageHub" <${this.configService.get('EMAIL_FROM')}>`,
+      to,
+      subject: 'Reset Your Password - ManageHub',
+      html: getPasswordResetEmailTemplate(
+        name,
+        resetLink,
+        new Date().getFullYear(),
+      ),
+    };
+
+    try {
+      await this.transporter.sendMail(mailOptions);
+      this.logger.log(`Password reset email sent to ${to}`);
+      return true;
+    } catch (error) {
+      this.logger.error(`Failed to send password reset email to ${to}:`, error);
+      return false;
+    }
+  }
+
+  async sendPasswordChangeConfirmationEmail(
+    to: string,
+    name: string,
+  ): Promise<boolean> {
+    const mailOptions = {
+      from: `"ManageHub" <${this.configService.get('EMAIL_FROM')}>`,
+      to,
+      subject: 'Your ManageHub Password Has Been Changed',
+      html: getPasswordChangeConfirmationTemplate(
+        name,
+        new Date().getFullYear(),
+      ),
+    };
+
+    try {
+      await this.transporter.sendMail(mailOptions);
+      this.logger.log(`Password change confirmation email sent to ${to}`);
+      return true;
+    } catch (error) {
+      this.logger.error(
+        `Failed to send password change confirmation to ${to}:`,
+        error,
+      );
       return false;
     }
   }

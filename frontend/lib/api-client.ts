@@ -4,6 +4,12 @@ import {
   RegisterPayload,
   RegisterResponse,
 } from "@/schemas/auth.schema";
+import {
+  ForgotPasswordFormData,
+  ForgotPasswordResponse,
+} from "@/schemas/forgot-password.schema";
+import { LoginFormData, LoginResponse } from "@/schemas/login.schema";
+import { ResetPasswordResponse } from "@/schemas/reset-password.schema";
 import ky from "ky";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:6001/api";
@@ -21,6 +27,23 @@ export const apiClient = ky.create({
       (request) => {
         // Add any default headers
         request.headers.set("Content-Type", "application/json");
+
+        if (typeof window !== "undefined") {
+          const authStorage = localStorage.getItem("auth-storage");
+          if (authStorage) {
+            try {
+              const { state } = JSON.parse(authStorage);
+              if (state?.tokens?.accessToken) {
+                request.headers.set(
+                  "Authorization",
+                  `Bearer ${state.tokens.accessToken}`,
+                );
+              }
+            } catch (error) {
+              console.error("Error parsing auth storage:", error);
+            }
+          }
+        }
       },
     ],
     afterResponse: [
@@ -35,6 +58,25 @@ export const apiClient = ky.create({
   },
 });
 
+// Response types
+interface ResendVerificationResponse {
+  success: boolean;
+  message: string;
+  data: {
+    emailSent: boolean;
+  };
+}
+
+// Add new response type
+interface VerifyEmailResponse {
+  success: boolean;
+  message: string;
+  data: {
+    email: string;
+    verified: boolean;
+  };
+}
+
 // API endpoints
 export const authApi = {
   register: async (data: RegisterPayload) => {
@@ -46,6 +88,34 @@ export const authApi = {
   resendVerification: async (email: string) => {
     return apiClient
       .post("auth/resend-verification", { json: { email } })
-      .json();
+      .json<ResendVerificationResponse>();
+  },
+
+  verifyEmail: async (token: string) => {
+    return apiClient
+      .post("auth/verify-email", {
+        json: { token },
+      })
+      .json<VerifyEmailResponse>();
+  },
+
+  login: async (data: LoginFormData) => {
+    return apiClient.post("auth/login", { json: data }).json<LoginResponse>();
+  },
+
+  forgotPassword: async (data: ForgotPasswordFormData) => {
+    return apiClient
+      .post("auth/forgot-password", {
+        json: data,
+      })
+      .json<ForgotPasswordResponse>();
+  },
+
+  resetPassword: async (token: string, password: string) => {
+    return apiClient
+      .post("auth/reset-password", {
+        json: { token, password },
+      })
+      .json<ResetPasswordResponse>();
   },
 };
