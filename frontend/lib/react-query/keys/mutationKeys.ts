@@ -4,6 +4,8 @@ export const mutationKeys = {
     loginUser: ["auth", "login"] as const,
     logoutUser: ["auth", "logout"] as const,
     refreshToken: ["auth", "refresh"] as const,
+    verifyEmail: ["auth", "verify-email"] as const,
+    resendVerification: ["auth", "resend-verification"] as const,
   },
 } as const;
 
