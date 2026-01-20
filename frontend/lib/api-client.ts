@@ -9,6 +9,10 @@ import {
   ForgotPasswordResponse,
 } from "@/schemas/forgot-password.schema";
 import { LoginFormData, LoginResponse } from "@/schemas/login.schema";
+import {
+  InitializePaymentResponse,
+  VerifyPaymentResponse,
+} from "@/schemas/payment.schema";
 import { ResetPasswordResponse } from "@/schemas/reset-password.schema";
 import ky from "ky";
 
@@ -117,5 +121,26 @@ export const authApi = {
         json: { token, password },
       })
       .json<ResetPasswordResponse>();
+  },
+};
+
+// payment API Endpoints
+export const paymentApi = {
+  initializePayment: async (params: {
+    membershipType: string;
+    paymentPlan: string;
+    amount: number;
+  }) => {
+    return apiClient
+      .post("payments/initialize", {
+        json: params,
+      })
+      .json<InitializePaymentResponse>();
+  },
+
+  verifyPayment: async (reference: string) => {
+    return apiClient
+      .get(`payments/verify/${reference}`)
+      .json<VerifyPaymentResponse>();
   },
 };

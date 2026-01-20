@@ -6,6 +6,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { EmailModule } from './email/email.module';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { PaymentsModule } from './payments/payments.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { ThrottlerModule } from '@nestjs/throttler';
     ]),
     AuthModule,
     EmailModule,
+    PaymentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -15,6 +15,7 @@ const typeorm_1 = require("@nestjs/typeorm");
 const auth_module_1 = require("./auth/auth.module");
 const email_module_1 = require("./email/email.module");
 const throttler_1 = require("@nestjs/throttler");
+const payments_module_1 = require("./payments/payments.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -50,6 +51,7 @@ exports.AppModule = AppModule = __decorate([
             ]),
             auth_module_1.AuthModule,
             email_module_1.EmailModule,
+            payments_module_1.PaymentsModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],
