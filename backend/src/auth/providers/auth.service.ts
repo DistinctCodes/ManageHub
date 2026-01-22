@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { UsersService } from '../../users/providers/users.service';
 import { CreateUserDto } from '../../users/dto/createUser.dto';
 import { User } from '../../users/entities/user.entity';
@@ -51,6 +51,24 @@ export class AuthService {
   // RESET PASSWORD
   public async resetPassword(token: string, newPassword: string) {
     return await this.usersService.resetPassword(token, newPassword);
+  }
+
+  // VALIDATE RESET TOKEN
+  public async validateResetToken(token: string) {
+    const user = await this.usersService.findByPasswordResetToken(token);
+
+    if (!user) {
+      throw new BadRequestException('Invalid reset token');
+    }
+
+    if (!user.passwordResetExpiresIn || user.passwordResetExpiresIn < new Date()) {
+      throw new BadRequestException('Reset token has expired');
+    }
+
+    return { 
+      message: 'Token is valid',
+      email: user.email 
+    };
   }
   public async verifyEmail(token: string): Promise<{ message: string }> {
     return await this.verifyEmailProvider.verifyEmail(token);

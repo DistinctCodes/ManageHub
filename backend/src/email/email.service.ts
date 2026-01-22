@@ -2,6 +2,8 @@ import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 import { ConfigService } from '@nestjs/config';
 import { getVerifyEmailTemplate } from './templates/verify-email-template';
+import { getResetPasswordTemplate } from './templates/reset-password.template';
+import { getPasswordChangedTemplate } from './templates/password-changed.template';
 
 @Injectable()
 export class EmailService {
@@ -39,6 +41,50 @@ export class EmailService {
       console.error('Error sending email:', error);
       throw new InternalServerErrorException(
         'Failed to send verification email',
+      );
+    }
+  }
+
+  async sendPasswordResetEmail(to: string, token: string): Promise<void> {
+    const baseUrl = this.configService.get<string>('FRONTEND_URL');
+    const resetLink = `${baseUrl}/reset-password?token=${token}`;
+    const companyName =
+      this.configService.get<string>('COMPANY_NAME') || 'Our Company';
+
+    const html = getResetPasswordTemplate(resetLink, companyName);
+
+    try {
+      await this.transporter.sendMail({
+        from: `"${companyName}" <${this.configService.get('SMTP_FROM_EMAIL')}>`,
+        to,
+        subject: 'Reset Your Password',
+        html,
+      });
+    } catch (error) {
+      console.error('Error sending password reset email:', error);
+      throw new InternalServerErrorException(
+        'Failed to send password reset email',
+      );
+    }
+  }
+
+  async sendPasswordChangedEmail(to: string): Promise<void> {
+    const companyName =
+      this.configService.get<string>('COMPANY_NAME') || 'Our Company';
+
+    const html = getPasswordChangedTemplate(companyName);
+
+    try {
+      await this.transporter.sendMail({
+        from: `"${companyName} Security Team" <${this.configService.get('SMTP_FROM_EMAIL')}>`,
+        to,
+        subject: 'Your Password Has Been Changed',
+        html,
+      });
+    } catch (error) {
+      console.error('Error sending password changed email:', error);
+      throw new InternalServerErrorException(
+        'Failed to send password changed email',
       );
     }
   }

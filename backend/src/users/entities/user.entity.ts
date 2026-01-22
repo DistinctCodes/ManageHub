@@ -48,6 +48,10 @@ export class User {
   passwordResetExpiresIn?: Date;
 
   @Exclude()
+  @Column({ type: 'timestamptz', nullable: true })
+  lastPasswordResetSentAt?: Date;
+
+  @Exclude()
   @Column({ nullable: true })
   verificationToken?: string;
 
