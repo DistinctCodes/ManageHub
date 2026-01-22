@@ -1,3 +1,6 @@
+// Allow deprecated events API until migration to #[contractevent] macro
+#![allow(deprecated)]
+
 use soroban_sdk::{contracttype, symbol_short, Address, BytesN, Env, Map, String};
 
 use crate::attendance_log::AttendanceLogModule;

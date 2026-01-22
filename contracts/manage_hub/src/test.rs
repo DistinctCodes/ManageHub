@@ -815,7 +815,7 @@ fn test_subscription_created_event_emitted() {
 
     // Verify events were emitted
     let events = env.events().all();
-    assert!(events.len() > 0, "Events should be emitted");
+    assert!(!events.is_empty(), "Events should be emitted");
 
     // Note: In production tests, you would verify specific event data
     // using event filtering and parsing capabilities of the SDK
@@ -895,7 +895,7 @@ fn test_usdc_contract_set_event_emitted() {
     // Verify event was emitted
     let events = env.events().all();
     assert!(
-        events.len() > 0,
+        !events.is_empty(),
         "USDC contract set event should be emitted"
     );
 }

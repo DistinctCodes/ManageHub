@@ -643,7 +643,7 @@ fn test_initialize_event_emitted() {
 
     // Verify events were emitted
     let events = env.events().all();
-    assert!(events.len() > 0, "Initialization event should be emitted");
+    assert!(!events.is_empty(), "Initialization event should be emitted");
 }
 
 #[test]
@@ -661,7 +661,7 @@ fn test_initialize_multisig_event_emitted() {
     // Verify events were emitted
     let events = env.events().all();
     assert!(
-        events.len() > 0,
+        !events.is_empty(),
         "Multisig initialization event should be emitted"
     );
 }
