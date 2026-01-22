@@ -789,3 +789,170 @@ fn test_subscription_amount_updates_on_renewal() {
     let renewed_subscription = client.get_subscription(&subscription_id);
     assert_eq!(renewed_subscription.amount, renewal_amount);
 }
+
+// ==================== Event Emission Tests ====================
+
+#[test]
+fn test_subscription_created_event_emitted() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let payment_token = Address::generate(&env);
+    let subscription_id = String::from_str(&env, "sub_event_001");
+    let amount = 100_000i128;
+    let duration = 2_592_000u64;
+
+    // Set USDC contract
+    client.set_usdc_contract(&admin, &payment_token);
+
+    // Create subscription
+    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration);
+
+    // Verify events were emitted
+    let events = env.events().all();
+    assert!(events.len() > 0, "Events should be emitted");
+
+    // Note: In production tests, you would verify specific event data
+    // using event filtering and parsing capabilities of the SDK
+}
+
+#[test]
+fn test_subscription_cancelled_event_emitted() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let payment_token = Address::generate(&env);
+    let subscription_id = String::from_str(&env, "sub_event_002");
+    let amount = 100_000i128;
+    let duration = 2_592_000u64;
+
+    // Set USDC contract and create subscription
+    client.set_usdc_contract(&admin, &payment_token);
+    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration);
+
+    // Get initial event count
+    let initial_events = env.events().all().len();
+
+    // Cancel subscription
+    client.cancel_subscription(&subscription_id);
+
+    // Verify new events were emitted
+    let final_events = env.events().all();
+    assert!(
+        final_events.len() > initial_events,
+        "Cancellation event should be emitted"
+    );
+}
+
+#[test]
+fn test_subscription_renewed_event_emitted() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let payment_token = Address::generate(&env);
+    let subscription_id = String::from_str(&env, "sub_event_003");
+    let amount = 100_000i128;
+    let duration = 2_592_000u64;
+
+    // Set USDC contract and create subscription
+    client.set_usdc_contract(&admin, &payment_token);
+    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration);
+
+    // Get initial event count
+    let initial_events = env.events().all().len();
+
+    // Renew subscription
+    client.renew_subscription(&subscription_id, &payment_token, &amount, &duration);
+
+    // Verify new events were emitted
+    let final_events = env.events().all();
+    assert!(
+        final_events.len() > initial_events,
+        "Renewal event should be emitted"
+    );
+}
+
+#[test]
+fn test_usdc_contract_set_event_emitted() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let payment_token = Address::generate(&env);
+
+    // Set USDC contract
+    client.set_usdc_contract(&admin, &payment_token);
+
+    // Verify event was emitted
+    let events = env.events().all();
+    assert!(events.len() > 0, "USDC contract set event should be emitted");
+}
+
+#[test]
+fn test_multiple_events_emitted_in_sequence() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let payment_token = Address::generate(&env);
+    let subscription_id = String::from_str(&env, "sub_event_004");
+    let amount = 100_000i128;
+    let duration = 2_592_000u64;
+
+    // Track event count at each step
+    let initial_events = env.events().all().len();
+
+    // Step 1: Set USDC contract
+    client.set_usdc_contract(&admin, &payment_token);
+    let after_usdc_set = env.events().all().len();
+    assert!(after_usdc_set > initial_events, "USDC set should emit event");
+
+    // Step 2: Create subscription
+    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration);
+    let after_create = env.events().all().len();
+    assert!(
+        after_create > after_usdc_set,
+        "Subscription creation should emit event"
+    );
+
+    // Step 3: Renew subscription
+    client.renew_subscription(&subscription_id, &payment_token, &amount, &duration);
+    let after_renew = env.events().all().len();
+    assert!(after_renew > after_create, "Renewal should emit event");
+
+    // Step 4: Cancel subscription
+    client.cancel_subscription(&subscription_id);
+    let after_cancel = env.events().all().len();
+    assert!(
+        after_cancel > after_renew,
+        "Cancellation should emit event"
+    );
+
+    // Verify we emitted at least 4 events (one for each operation)
+    assert!(
+        after_cancel >= initial_events + 4,
+        "Should emit at least 4 events for all operations"
+    );
+}
