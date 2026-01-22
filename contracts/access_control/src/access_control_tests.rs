@@ -625,3 +625,154 @@ fn test_insufficient_multisig_approvals() {
         );
     });
 }
+
+// ==================== Event Emission Tests ====================
+
+#[test]
+fn test_initialize_event_emitted() {
+    let env = Env::default();
+    let contract_id = env.register(crate::AccessControl, ());
+    let admin = Address::generate(&env);
+
+    env.as_contract(&contract_id, || {
+        AccessControlModule::initialize(&env, admin.clone(), None).unwrap();
+    });
+
+    // Verify events were emitted
+    let events = env.events().all();
+    assert!(events.len() > 0, "Initialization event should be emitted");
+}
+
+#[test]
+fn test_initialize_multisig_event_emitted() {
+    let env = Env::default();
+    let contract_id = env.register(crate::AccessControl, ());
+    let admin1 = Address::generate(&env);
+    let admin2 = Address::generate(&env);
+
+    env.as_contract(&contract_id, || {
+        let admins = Vec::from_array(&env, [admin1.clone(), admin2.clone()]);
+        AccessControlModule::initialize_multisig(&env, admins, 2, None).unwrap();
+    });
+
+    // Verify events were emitted
+    let events = env.events().all();
+    assert!(
+        events.len() > 0,
+        "Multisig initialization event should be emitted"
+    );
+}
+
+#[test]
+fn test_set_role_event_emitted() {
+    let (env, contract_id, admin, user1, _) = setup_initialized_env();
+
+    let initial_events = env.events().all().len();
+
+    env.as_contract(&contract_id, || {
+        AccessControlModule::set_role(&env, admin.clone(), user1.clone(), UserRole::Member)
+            .unwrap();
+    });
+
+    // Verify event was emitted
+    let final_events = env.events().all();
+    assert!(
+        final_events.len() > initial_events,
+        "Set role event should be emitted"
+    );
+}
+
+#[test]
+fn test_pause_unpause_events_emitted() {
+    let (env, contract_id, admin, _, _) = setup_initialized_env();
+
+    let initial_events = env.events().all().len();
+
+    env.as_contract(&contract_id, || {
+        // Pause should emit event
+        AccessControlModule::pause(&env, admin.clone()).unwrap();
+    });
+
+    let after_pause = env.events().all().len();
+    assert!(
+        after_pause > initial_events,
+        "Pause event should be emitted"
+    );
+
+    env.as_contract(&contract_id, || {
+        // Unpause should emit event
+        AccessControlModule::unpause(&env, admin.clone()).unwrap();
+    });
+
+    let after_unpause = env.events().all().len();
+    assert!(
+        after_unpause > after_pause,
+        "Unpause event should be emitted"
+    );
+}
+
+#[test]
+fn test_admin_transfer_events_emitted() {
+    let (env, contract_id, admin, user1, _) = setup_initialized_env();
+
+    let initial_events = env.events().all().len();
+
+    env.as_contract(&contract_id, || {
+        // Propose admin transfer should emit event
+        AccessControlModule::propose_admin_transfer(&env, admin.clone(), user1.clone()).unwrap();
+    });
+
+    let after_propose = env.events().all().len();
+    assert!(
+        after_propose > initial_events,
+        "Propose admin transfer event should be emitted"
+    );
+
+    env.as_contract(&contract_id, || {
+        // Accept admin transfer should emit event
+        AccessControlModule::accept_admin_transfer(&env, user1.clone()).unwrap();
+    });
+
+    let after_accept = env.events().all().len();
+    assert!(
+        after_accept > after_propose,
+        "Accept admin transfer event should be emitted"
+    );
+}
+
+#[test]
+fn test_proposal_events_emitted() {
+    let env = Env::default();
+    let contract_id = env.register(crate::AccessControl, ());
+    let admin1 = Address::generate(&env);
+    let admin2 = Address::generate(&env);
+    let user = Address::generate(&env);
+
+    env.as_contract(&contract_id, || {
+        let admins = Vec::from_array(&env, [admin1.clone(), admin2.clone()]);
+        AccessControlModule::initialize_multisig(&env, admins, 2, None).unwrap();
+    });
+
+    let after_init = env.events().all().len();
+
+    env.as_contract(&contract_id, || {
+        let action = ProposalAction::SetRole(user.clone(), UserRole::Member);
+        let proposal_id =
+            AccessControlModule::create_proposal(&env, admin1.clone(), action).unwrap();
+
+        let after_create = env.events().all().len();
+        assert!(
+            after_create > after_init,
+            "Create proposal event should be emitted"
+        );
+
+        // Approve proposal should emit event
+        AccessControlModule::approve_proposal(&env, admin2.clone(), proposal_id).unwrap();
+
+        let after_approve = env.events().all().len();
+        assert!(
+            after_approve > after_create,
+            "Approve proposal event should be emitted"
+        );
+    });
+}
