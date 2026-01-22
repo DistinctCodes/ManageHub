@@ -1,7 +1,10 @@
 use crate::access_control::AccessControlModule;
 use crate::errors::AccessControlError;
 use crate::types::{AccessControlConfig, ProposalAction, UserRole};
-use soroban_sdk::{testutils::Address as _, Address, Env, Vec};
+use soroban_sdk::{
+    testutils::{Address as _, Events},
+    Address, Env, Vec,
+};
 
 fn setup_test_env() -> (Env, Address, Address, Address, Address) {
     let env = Env::default();

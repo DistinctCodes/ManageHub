@@ -53,10 +53,8 @@ impl AccessControlModule {
             .set(&DataKey::ProposalCounter, &0u64);
 
         // Emit initialization event
-        env.events().publish(
-            (symbol_short!("init"), admin.clone()),
-            config.clone()
-        );
+        env.events()
+            .publish((symbol_short!("init"), admin.clone()), config.clone());
 
         Ok(())
     }
@@ -104,7 +102,7 @@ impl AccessControlModule {
         // Emit multisig initialization event
         env.events().publish(
             (symbol_short!("ms_init"), required_signatures),
-            (admins.clone(), config.clone())
+            (admins.clone(), config.clone()),
         );
 
         Ok(())

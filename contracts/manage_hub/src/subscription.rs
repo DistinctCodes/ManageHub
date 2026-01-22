@@ -92,7 +92,7 @@ impl SubscriptionContract {
         // Emit subscription created event
         env.events().publish(
             (symbol_short!("sub_creat"), id.clone(), user.clone()),
-            (payment_token.clone(), amount, current_time, expires_at)
+            (payment_token.clone(), amount, current_time, expires_at),
         );
 
         // Log attendance event for subscription creation
@@ -126,7 +126,7 @@ impl SubscriptionContract {
         // Emit USDC contract set event
         env.events().publish(
             (symbol_short!("usdc_set"), usdc_address.clone()),
-            (admin.clone(), env.ledger().timestamp())
+            (admin.clone(), env.ledger().timestamp()),
         );
 
         Ok(())
@@ -159,8 +159,16 @@ impl SubscriptionContract {
 
         // Emit subscription cancelled event
         env.events().publish(
-            (symbol_short!("sub_cancl"), id.clone(), subscription.user.clone()),
-            (env.ledger().timestamp(), old_status, MembershipStatus::Inactive)
+            (
+                symbol_short!("sub_cancl"),
+                id.clone(),
+                subscription.user.clone(),
+            ),
+            (
+                env.ledger().timestamp(),
+                old_status,
+                MembershipStatus::Inactive,
+            ),
         );
 
         Ok(())
@@ -212,8 +220,17 @@ impl SubscriptionContract {
 
         // Emit subscription renewed event
         env.events().publish(
-            (symbol_short!("sub_renew"), id.clone(), subscription.user.clone()),
-            (payment_token.clone(), amount, old_expiry, subscription.expires_at)
+            (
+                symbol_short!("sub_renew"),
+                id.clone(),
+                subscription.user.clone(),
+            ),
+            (
+                payment_token.clone(),
+                amount,
+                old_expiry,
+                subscription.expires_at,
+            ),
         );
 
         // Log attendance event for subscription renewal

@@ -54,12 +54,19 @@ impl MembershipTokenContract {
             issue_date: current_time,
             expiry_date,
         };
-        env.storage().persistent().set(&DataKey::Token(id.clone()), &token);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Token(id.clone()), &token);
 
         // Emit token issued event
         env.events().publish(
             (symbol_short!("token_iss"), id.clone(), user.clone()),
-            (admin.clone(), current_time, expiry_date, MembershipStatus::Active)
+            (
+                admin.clone(),
+                current_time,
+                expiry_date,
+                MembershipStatus::Active,
+            ),
         );
 
         Ok(())
@@ -86,12 +93,14 @@ impl MembershipTokenContract {
 
         // Update token owner
         token.user = new_user.clone();
-        env.storage().persistent().set(&DataKey::Token(id.clone()), &token);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Token(id.clone()), &token);
 
         // Emit token transferred event
         env.events().publish(
             (symbol_short!("token_xfr"), id.clone(), new_user.clone()),
-            (old_user, env.ledger().timestamp())
+            (old_user, env.ledger().timestamp()),
         );
 
         Ok(())
@@ -121,7 +130,7 @@ impl MembershipTokenContract {
         // Emit admin set event
         env.events().publish(
             (symbol_short!("admin_set"), admin.clone()),
-            env.ledger().timestamp()
+            env.ledger().timestamp(),
         );
 
         Ok(())

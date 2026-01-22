@@ -8,7 +8,7 @@ use crate::types::MembershipStatus;
 use crate::AttendanceAction;
 use soroban_sdk::map;
 use soroban_sdk::{
-    testutils::{Address as _, BytesN as BytesNTestUtils, Ledger as LedgerTestUtils},
+    testutils::{Address as _, BytesN as BytesNTestUtils, Events, Ledger as LedgerTestUtils},
     Address, BytesN, Env, String,
 };
 
@@ -903,7 +903,10 @@ fn test_usdc_contract_set_event_emitted() {
 
     // Verify event was emitted
     let events = env.events().all();
-    assert!(events.len() > 0, "USDC contract set event should be emitted");
+    assert!(
+        events.len() > 0,
+        "USDC contract set event should be emitted"
+    );
 }
 
 #[test]
@@ -927,7 +930,10 @@ fn test_multiple_events_emitted_in_sequence() {
     // Step 1: Set USDC contract
     client.set_usdc_contract(&admin, &payment_token);
     let after_usdc_set = env.events().all().len();
-    assert!(after_usdc_set > initial_events, "USDC set should emit event");
+    assert!(
+        after_usdc_set > initial_events,
+        "USDC set should emit event"
+    );
 
     // Step 2: Create subscription
     client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration);
@@ -945,10 +951,7 @@ fn test_multiple_events_emitted_in_sequence() {
     // Step 4: Cancel subscription
     client.cancel_subscription(&subscription_id);
     let after_cancel = env.events().all().len();
-    assert!(
-        after_cancel > after_renew,
-        "Cancellation should emit event"
-    );
+    assert!(after_cancel > after_renew, "Cancellation should emit event");
 
     // Verify we emitted at least 4 events (one for each operation)
     assert!(
