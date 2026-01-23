@@ -1,4 +1,7 @@
-use soroban_sdk::{contracttype, Address, BytesN, Env, Map, String};
+// Allow deprecated events API until migration to #[contractevent] macro
+#![allow(deprecated)]
+
+use soroban_sdk::{contracttype, symbol_short, Address, BytesN, Env, Map, String};
 
 use crate::attendance_log::AttendanceLogModule;
 use crate::errors::Error;
@@ -89,6 +92,12 @@ impl SubscriptionContract {
         env.storage().persistent().set(&key, &subscription);
         env.storage().persistent().extend_ttl(&key, 100, 1000);
 
+        // Emit subscription created event
+        env.events().publish(
+            (symbol_short!("sub_creat"), id.clone(), user.clone()),
+            (payment_token.clone(), amount, current_time, expires_at),
+        );
+
         // Log attendance event for subscription creation
         Self::log_subscription_event(
             &env,
@@ -117,6 +126,12 @@ impl SubscriptionContract {
             .instance()
             .set(&SubscriptionDataKey::UsdcContract, &usdc_address);
 
+        // Emit USDC contract set event
+        env.events().publish(
+            (symbol_short!("usdc_set"), usdc_address.clone()),
+            (admin.clone(), env.ledger().timestamp()),
+        );
+
         Ok(())
     }
 
@@ -138,9 +153,26 @@ impl SubscriptionContract {
         // Require authorization from the subscription owner
         subscription.user.require_auth();
 
+        // Capture old status for event emission
+        let old_status = subscription.status.clone();
+
         // Update status to inactive
         subscription.status = MembershipStatus::Inactive;
         env.storage().persistent().set(&key, &subscription);
+
+        // Emit subscription cancelled event
+        env.events().publish(
+            (
+                symbol_short!("sub_cancl"),
+                id.clone(),
+                subscription.user.clone(),
+            ),
+            (
+                env.ledger().timestamp(),
+                old_status,
+                MembershipStatus::Inactive,
+            ),
+        );
 
         Ok(())
     }
@@ -155,6 +187,9 @@ impl SubscriptionContract {
         // Get existing subscription
         let key = SubscriptionDataKey::Subscription(id.clone());
         let mut subscription = Self::get_subscription(env.clone(), id.clone())?;
+
+        // Capture old expiry for event emission
+        let old_expiry = subscription.expires_at;
 
         // Require authorization from subscription owner
         subscription.user.require_auth();
@@ -185,6 +220,21 @@ impl SubscriptionContract {
         // Store updated subscription and extend TTL
         env.storage().persistent().set(&key, &subscription);
         env.storage().persistent().extend_ttl(&key, 100, 1000);
+
+        // Emit subscription renewed event
+        env.events().publish(
+            (
+                symbol_short!("sub_renew"),
+                id.clone(),
+                subscription.user.clone(),
+            ),
+            (
+                payment_token.clone(),
+                amount,
+                old_expiry,
+                subscription.expires_at,
+            ),
+        );
 
         // Log attendance event for subscription renewal
         Self::log_subscription_event(

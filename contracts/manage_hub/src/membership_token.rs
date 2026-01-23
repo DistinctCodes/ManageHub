@@ -1,6 +1,9 @@
+// Allow deprecated events API until migration to #[contractevent] macro
+#![allow(deprecated)]
+
 use crate::errors::Error;
 use crate::types::MembershipStatus;
-use soroban_sdk::{contracttype, Address, BytesN, Env};
+use soroban_sdk::{contracttype, symbol_short, Address, BytesN, Env};
 
 #[contracttype]
 pub enum DataKey {
@@ -54,7 +57,20 @@ impl MembershipTokenContract {
             issue_date: current_time,
             expiry_date,
         };
-        env.storage().persistent().set(&DataKey::Token(id), &token);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Token(id.clone()), &token);
+
+        // Emit token issued event
+        env.events().publish(
+            (symbol_short!("token_iss"), id.clone(), user.clone()),
+            (
+                admin.clone(),
+                current_time,
+                expiry_date,
+                MembershipStatus::Active,
+            ),
+        );
 
         Ok(())
     }
@@ -75,9 +91,20 @@ impl MembershipTokenContract {
         // Require current user authorization
         token.user.require_auth();
 
+        // Capture old user for event emission
+        let old_user = token.user.clone();
+
         // Update token owner
-        token.user = new_user;
-        env.storage().persistent().set(&DataKey::Token(id), &token);
+        token.user = new_user.clone();
+        env.storage()
+            .persistent()
+            .set(&DataKey::Token(id.clone()), &token);
+
+        // Emit token transferred event
+        env.events().publish(
+            (symbol_short!("token_xfr"), id.clone(), new_user.clone()),
+            (old_user, env.ledger().timestamp()),
+        );
 
         Ok(())
     }
@@ -102,6 +129,13 @@ impl MembershipTokenContract {
     pub fn set_admin(env: Env, admin: Address) -> Result<(), Error> {
         admin.require_auth();
         env.storage().instance().set(&DataKey::Admin, &admin);
+
+        // Emit admin set event
+        env.events().publish(
+            (symbol_short!("admin_set"), admin.clone()),
+            env.ledger().timestamp(),
+        );
+
         Ok(())
     }
 }
