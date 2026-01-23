@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/Input';
 import { cn } from '@/utils/cn';
 import { loginSchema, type LoginSchema } from '@/lib/schemas/loginSchema';
 import { toast } from 'sonner';
+import Link from 'next/link';
 
 type EmailLoginFormData = LoginSchema & { rememberMe?: boolean };
 
