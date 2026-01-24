@@ -4,7 +4,7 @@
 //! across all ManageHub smart contracts, including subscription management,
 //! attendance tracking, and user role definitions.
 
-use soroban_sdk::{contracttype, Address, Map, String};
+use soroban_sdk::{contracttype, Address, Map, String, Vec};
 
 // ============================================================================
 // Metadata Types for Token Metadata System
@@ -184,6 +184,218 @@ pub enum MembershipStatus {
 }
 
 // ============================================================================
+// Subscription Tier Types
+// ============================================================================
+
+/// Subscription tier level representing different access levels.
+///
+/// Defines the hierarchy of subscription tiers from free to enterprise.
+///
+/// # Variants
+/// * `Free` - Basic free tier with limited features
+/// * `Basic` - Entry-level paid tier
+/// * `Pro` - Professional tier with advanced features
+/// * `Enterprise` - Full-featured enterprise tier
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum TierLevel {
+    /// Free tier with limited features
+    Free,
+    /// Basic paid tier
+    Basic,
+    /// Professional tier
+    Pro,
+    /// Enterprise tier with all features
+    Enterprise,
+}
+
+/// Feature flags for subscription tiers.
+///
+/// Defines the available features that can be enabled/disabled per tier.
+///
+/// # Variants
+/// * `BasicAccess` - Basic platform access
+/// * `PrioritySupport` - Priority customer support
+/// * `AdvancedAnalytics` - Advanced analytics and reporting
+/// * `CustomBranding` - Custom branding options
+/// * `ApiAccess` - API access for integrations
+/// * `UnlimitedStorage` - Unlimited data storage
+/// * `TeamManagement` - Team/organization management
+/// * `WhiteLabel` - White-label capabilities
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum TierFeature {
+    /// Basic platform access
+    BasicAccess,
+    /// Priority customer support
+    PrioritySupport,
+    /// Advanced analytics and reporting
+    AdvancedAnalytics,
+    /// Custom branding options
+    CustomBranding,
+    /// API access for integrations
+    ApiAccess,
+    /// Unlimited data storage
+    UnlimitedStorage,
+    /// Team/organization management
+    TeamManagement,
+    /// White-label capabilities
+    WhiteLabel,
+}
+
+/// Subscription tier definition with pricing and features.
+///
+/// Defines a complete subscription tier including its level, pricing,
+/// features, and usage limits.
+///
+/// # Fields
+/// * `id` - Unique tier identifier
+/// * `name` - Human-readable tier name
+/// * `level` - Tier level (Free, Basic, Pro, Enterprise)
+/// * `price` - Monthly price in smallest token unit
+/// * `annual_price` - Annual price (discounted) in smallest token unit
+/// * `features` - List of enabled features for this tier
+/// * `max_users` - Maximum number of users allowed (0 = unlimited)
+/// * `max_storage` - Maximum storage in bytes (0 = unlimited)
+/// * `is_active` - Whether this tier is currently available for purchase
+/// * `created_at` - Timestamp when tier was created
+/// * `updated_at` - Timestamp of last update
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SubscriptionTier {
+    /// Unique tier identifier
+    pub id: String,
+    /// Human-readable tier name
+    pub name: String,
+    /// Tier level
+    pub level: TierLevel,
+    /// Monthly price in smallest token unit
+    pub price: i128,
+    /// Annual price (discounted) in smallest token unit
+    pub annual_price: i128,
+    /// List of enabled features
+    pub features: Vec<TierFeature>,
+    /// Maximum number of users (0 = unlimited)
+    pub max_users: u32,
+    /// Maximum storage in bytes (0 = unlimited)
+    pub max_storage: u64,
+    /// Whether tier is active for purchase
+    pub is_active: bool,
+    /// Creation timestamp
+    pub created_at: u64,
+    /// Last update timestamp
+    pub updated_at: u64,
+}
+
+/// Promotional pricing for subscription tiers.
+///
+/// Allows temporary discounts or special pricing for tiers.
+///
+/// # Fields
+/// * `tier_id` - The tier this promotion applies to
+/// * `discount_percent` - Discount percentage (0-100)
+/// * `promo_price` - Fixed promotional price (if set, overrides discount)
+/// * `start_date` - Promotion start timestamp
+/// * `end_date` - Promotion end timestamp
+/// * `promo_code` - Optional promotion code required
+/// * `max_redemptions` - Maximum number of times this can be used (0 = unlimited)
+/// * `current_redemptions` - Current redemption count
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TierPromotion {
+    /// The tier this promotion applies to
+    pub tier_id: String,
+    /// Discount percentage (0-100)
+    pub discount_percent: u32,
+    /// Fixed promotional price (0 means use discount_percent instead)
+    pub promo_price: i128,
+    /// Promotion start timestamp
+    pub start_date: u64,
+    /// Promotion end timestamp
+    pub end_date: u64,
+    /// Optional promotion code
+    pub promo_code: String,
+    /// Maximum redemptions (0 = unlimited)
+    pub max_redemptions: u32,
+    /// Current redemption count
+    pub current_redemptions: u32,
+}
+
+/// Tier change request for upgrades/downgrades.
+///
+/// Tracks pending or completed tier changes with proration details.
+///
+/// # Fields
+/// * `user` - User requesting the change
+/// * `from_tier` - Current tier ID
+/// * `to_tier` - Target tier ID
+/// * `change_type` - Type of change (upgrade/downgrade)
+/// * `prorated_amount` - Prorated credit/charge amount
+/// * `effective_date` - When the change takes effect
+/// * `status` - Current status of the change request
+/// * `created_at` - When the request was created
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TierChangeRequest {
+    /// User requesting the change
+    pub user: Address,
+    /// Current tier ID
+    pub from_tier: String,
+    /// Target tier ID
+    pub to_tier: String,
+    /// Type of change
+    pub change_type: TierChangeType,
+    /// Prorated credit/charge amount
+    pub prorated_amount: i128,
+    /// When the change takes effect
+    pub effective_date: u64,
+    /// Status of the change request
+    pub status: TierChangeStatus,
+    /// Request creation timestamp
+    pub created_at: u64,
+}
+
+/// Type of tier change.
+///
+/// # Variants
+/// * `Upgrade` - Moving to a higher tier
+/// * `Downgrade` - Moving to a lower tier
+/// * `Lateral` - Same level tier switch
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum TierChangeType {
+    /// Upgrading to a higher tier
+    Upgrade,
+    /// Downgrading to a lower tier
+    Downgrade,
+    /// Lateral move to same-level tier
+    Lateral,
+}
+
+/// Status of a tier change request.
+///
+/// # Variants
+/// * `Pending` - Awaiting processing or payment
+/// * `Approved` - Approved and awaiting effective date
+/// * `Completed` - Change has been applied
+/// * `Cancelled` - Change was cancelled
+/// * `Rejected` - Change was rejected
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum TierChangeStatus {
+    /// Awaiting processing
+    Pending,
+    /// Approved, awaiting effective date
+    Approved,
+    /// Change completed
+    Completed,
+    /// Change cancelled
+    Cancelled,
+    /// Change rejected
+    Rejected,
+}
+
+// ============================================================================
 // Metadata Validation Functions
 // ============================================================================
 
@@ -310,5 +522,57 @@ mod tests {
         let plan = SubscriptionPlan::Monthly;
         let cloned = plan.clone();
         assert_eq!(plan, cloned);
+    }
+
+    #[test]
+    fn test_tier_level_variants() {
+        let free = TierLevel::Free;
+        let basic = TierLevel::Basic;
+        let pro = TierLevel::Pro;
+        let enterprise = TierLevel::Enterprise;
+
+        assert_eq!(free, TierLevel::Free);
+        assert_eq!(basic, TierLevel::Basic);
+        assert_eq!(pro, TierLevel::Pro);
+        assert_eq!(enterprise, TierLevel::Enterprise);
+    }
+
+    #[test]
+    fn test_tier_feature_variants() {
+        let basic_access = TierFeature::BasicAccess;
+        let priority_support = TierFeature::PrioritySupport;
+        let advanced_analytics = TierFeature::AdvancedAnalytics;
+        let api_access = TierFeature::ApiAccess;
+
+        assert_eq!(basic_access, TierFeature::BasicAccess);
+        assert_eq!(priority_support, TierFeature::PrioritySupport);
+        assert_eq!(advanced_analytics, TierFeature::AdvancedAnalytics);
+        assert_eq!(api_access, TierFeature::ApiAccess);
+    }
+
+    #[test]
+    fn test_tier_change_type_variants() {
+        let upgrade = TierChangeType::Upgrade;
+        let downgrade = TierChangeType::Downgrade;
+        let lateral = TierChangeType::Lateral;
+
+        assert_eq!(upgrade, TierChangeType::Upgrade);
+        assert_eq!(downgrade, TierChangeType::Downgrade);
+        assert_eq!(lateral, TierChangeType::Lateral);
+    }
+
+    #[test]
+    fn test_tier_change_status_variants() {
+        let pending = TierChangeStatus::Pending;
+        let approved = TierChangeStatus::Approved;
+        let completed = TierChangeStatus::Completed;
+        let cancelled = TierChangeStatus::Cancelled;
+        let rejected = TierChangeStatus::Rejected;
+
+        assert_eq!(pending, TierChangeStatus::Pending);
+        assert_eq!(approved, TierChangeStatus::Approved);
+        assert_eq!(completed, TierChangeStatus::Completed);
+        assert_eq!(cancelled, TierChangeStatus::Cancelled);
+        assert_eq!(rejected, TierChangeStatus::Rejected);
     }
 }
