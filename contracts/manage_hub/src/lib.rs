@@ -1,5 +1,5 @@
 #![no_std]
-use soroban_sdk::{contract, contractimpl, vec, Address, BytesN, Env, String, Vec};
+use soroban_sdk::{contract, contractimpl, vec, Address, BytesN, Env, Map, String, Vec};
 
 mod attendance_log;
 mod errors;
@@ -8,6 +8,7 @@ mod subscription;
 mod types;
 
 use attendance_log::{AttendanceLog, AttendanceLogModule};
+use common_types::{MetadataUpdate, MetadataValue, TokenMetadata};
 use errors::Error;
 use membership_token::{MembershipToken, MembershipTokenContract};
 use subscription::SubscriptionContract;
@@ -95,6 +96,106 @@ impl Contract {
 
     pub fn set_usdc_contract(env: Env, admin: Address, usdc_address: Address) -> Result<(), Error> {
         SubscriptionContract::set_usdc_contract(env, admin, usdc_address)
+    }
+
+    // ============================================================================
+    // Token Metadata Endpoints
+    // ============================================================================
+
+    /// Sets metadata for a membership token.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `token_id` - The token ID to set metadata for
+    /// * `description` - Token description (max 500 chars)
+    /// * `attributes` - Custom attributes map (max 20 attributes)
+    ///
+    /// # Errors
+    /// * `TokenNotFound` - Token doesn't exist
+    /// * `Unauthorized` - Caller is not admin or token owner
+    /// * `MetadataValidationFailed` - Metadata validation failed
+    pub fn set_token_metadata(
+        env: Env,
+        token_id: BytesN<32>,
+        description: String,
+        attributes: Map<String, MetadataValue>,
+    ) -> Result<(), Error> {
+        MembershipTokenContract::set_token_metadata(env, token_id, description, attributes)
+    }
+
+    /// Gets metadata for a membership token.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `token_id` - The token ID to get metadata for
+    ///
+    /// # Returns
+    /// * `Ok(TokenMetadata)` - The token metadata
+    /// * `Err(Error)` - If token or metadata not found
+    pub fn get_token_metadata(env: Env, token_id: BytesN<32>) -> Result<TokenMetadata, Error> {
+        MembershipTokenContract::get_token_metadata(env, token_id)
+    }
+
+    /// Updates specific attributes in token metadata.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `token_id` - The token ID to update metadata for
+    /// * `updates` - Map of attributes to add or update
+    ///
+    /// # Errors
+    /// * `TokenNotFound` - Token doesn't exist
+    /// * `MetadataNotFound` - Metadata doesn't exist
+    /// * `Unauthorized` - Caller is not admin or token owner
+    pub fn update_token_metadata(
+        env: Env,
+        token_id: BytesN<32>,
+        updates: Map<String, MetadataValue>,
+    ) -> Result<(), Error> {
+        MembershipTokenContract::update_token_metadata(env, token_id, updates)
+    }
+
+    /// Gets the metadata update history for a token.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `token_id` - The token ID to get history for
+    ///
+    /// # Returns
+    /// * Vector of metadata updates in chronological order
+    pub fn get_metadata_history(env: Env, token_id: BytesN<32>) -> Vec<MetadataUpdate> {
+        MembershipTokenContract::get_metadata_history(env, token_id)
+    }
+
+    /// Removes specific attributes from token metadata.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `token_id` - The token ID to remove attributes from
+    /// * `attribute_keys` - Vector of attribute keys to remove
+    pub fn remove_metadata_attributes(
+        env: Env,
+        token_id: BytesN<32>,
+        attribute_keys: Vec<String>,
+    ) -> Result<(), Error> {
+        MembershipTokenContract::remove_metadata_attributes(env, token_id, attribute_keys)
+    }
+
+    /// Queries tokens by metadata attribute.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `attribute_key` - The attribute key to search for
+    /// * `attribute_value` - The attribute value to match
+    ///
+    /// # Returns
+    /// * Vector of token IDs that have the matching attribute
+    pub fn query_tokens_by_attribute(
+        env: Env,
+        attribute_key: String,
+        attribute_value: MetadataValue,
+    ) -> Vec<BytesN<32>> {
+        MembershipTokenContract::query_tokens_by_attribute(env, attribute_key, attribute_value)
     }
 }
 
