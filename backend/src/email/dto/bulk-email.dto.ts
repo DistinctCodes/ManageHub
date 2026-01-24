@@ -1,4 +1,12 @@
-import { IsArray, IsString, IsOptional, IsEnum, ValidateNested, IsObject, ArrayMinSize } from 'class-validator';
+import {
+  IsArray,
+  IsString,
+  IsOptional,
+  IsEnum,
+  ValidateNested,
+  IsObject,
+  ArrayMinSize,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { EmailType } from '../entities/email-log.entity';
 

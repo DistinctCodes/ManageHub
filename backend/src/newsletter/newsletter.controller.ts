@@ -1,4 +1,11 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, Logger } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  HttpCode,
+  HttpStatus,
+  Logger,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import { Public } from '../auth/decorators/public.decorator';
 import { ConvertKitService } from './services/convertkit.service';
@@ -26,7 +33,10 @@ export class NewsletterController {
       type: 'object',
       properties: {
         success: { type: 'boolean', example: true },
-        message: { type: 'string', example: 'Successfully subscribed to newsletter!' },
+        message: {
+          type: 'string',
+          example: 'Successfully subscribed to newsletter!',
+        },
         data: {
           type: 'object',
           properties: {
@@ -44,7 +54,10 @@ export class NewsletterController {
       type: 'object',
       properties: {
         success: { type: 'boolean', example: false },
-        message: { type: 'string', example: 'Please provide a valid email address' },
+        message: {
+          type: 'string',
+          example: 'Please provide a valid email address',
+        },
         error: { type: 'string', example: 'BAD_REQUEST' },
       },
     },
@@ -56,7 +69,10 @@ export class NewsletterController {
       type: 'object',
       properties: {
         success: { type: 'boolean', example: false },
-        message: { type: 'string', example: 'This email is already subscribed' },
+        message: {
+          type: 'string',
+          example: 'This email is already subscribed',
+        },
         error: { type: 'string', example: 'CONFLICT' },
       },
     },
@@ -80,21 +96,28 @@ export class NewsletterController {
       type: 'object',
       properties: {
         success: { type: 'boolean', example: false },
-        message: { type: 'string', example: 'Newsletter service is temporarily unavailable' },
+        message: {
+          type: 'string',
+          example: 'Newsletter service is temporarily unavailable',
+        },
         error: { type: 'string', example: 'SERVICE_UNAVAILABLE' },
       },
     },
   })
   async subscribe(@Body() subscribeDto: SubscribeDto) {
     try {
-      this.logger.log(`Newsletter subscription request for: ${subscribeDto.email}`);
+      this.logger.log(
+        `Newsletter subscription request for: ${subscribeDto.email}`,
+      );
 
       const result = await this.convertKitService.subscribeToNewsletter(
         subscribeDto.email,
         subscribeDto.name,
       );
 
-      this.logger.log(`Newsletter subscription successful for: ${subscribeDto.email}`);
+      this.logger.log(
+        `Newsletter subscription successful for: ${subscribeDto.email}`,
+      );
 
       return {
         success: true,

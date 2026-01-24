@@ -14,6 +14,7 @@ import { AttendanceModule } from './attendance/attendance.module';
 import { StaffModule } from './staff/staff.module';
 import { BullModule } from '@nestjs/bull';
 import { ScheduleModule } from '@nestjs/schedule';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -80,6 +81,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     EmailModule,
     AttendanceModule,
     StaffModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [

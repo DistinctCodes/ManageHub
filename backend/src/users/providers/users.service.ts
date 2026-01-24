@@ -80,15 +80,15 @@ export class UsersService {
 
   // FIND USER BY VERIFICATION TOKEN
   async findByVerificationToken(token: string): Promise<User> {
-    return await this.usersRepository.findOne({ 
-      where: { verificationToken: token } 
+    return await this.usersRepository.findOne({
+      where: { verificationToken: token },
     });
   }
 
   // FIND USER BY PASSWORD RESET TOKEN
   async findByPasswordResetToken(token: string): Promise<User> {
-    return await this.usersRepository.findOne({ 
-      where: { passwordResetToken: token } 
+    return await this.usersRepository.findOne({
+      where: { passwordResetToken: token },
     });
   }
 

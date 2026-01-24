@@ -1,4 +1,9 @@
-import { Injectable, InternalServerErrorException, Logger, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan, MoreThan } from 'typeorm';
 import { InjectQueue } from '@nestjs/bull';
@@ -14,7 +19,6 @@ import { EmailPreference } from './entities/email-preference.entity';
 import { SendEmailDto } from './dto/send-email.dto';
 import { BulkEmailDto } from './dto/bulk-email.dto';
 import * as crypto from 'crypto';
-
 
 @Injectable()
 export class EmailService {
@@ -38,8 +42,11 @@ export class EmailService {
 
   private initializeTransporter() {
     const nodeEnv = this.configService.get<string>('NODE_ENV');
-    
-    if (nodeEnv === 'development' && this.configService.get<string>('MAILTRAP_HOST')) {
+
+    if (
+      nodeEnv === 'development' &&
+      this.configService.get<string>('MAILTRAP_HOST')
+    ) {
       // Use Mailtrap for development
       this.transporter = nodemailer.createTransport({
         host: this.configService.get<string>('MAILTRAP_HOST'),
@@ -49,7 +56,9 @@ export class EmailService {
           pass: this.configService.get<string>('MAILTRAP_PASS'),
         },
       });
-      this.logger.log('Email transporter initialized with Mailtrap for development');
+      this.logger.log(
+        'Email transporter initialized with Mailtrap for development',
+      );
     } else {
       // Production SMTP
       this.transporter = nodemailer.createTransport({
@@ -99,7 +108,10 @@ export class EmailService {
 
     // Check user preferences
     if (emailData.userId && emailData.emailType) {
-      const canSend = await this.checkEmailPreferences(emailData.userId, emailData.emailType);
+      const canSend = await this.checkEmailPreferences(
+        emailData.userId,
+        emailData.emailType,
+      );
       if (!canSend) {
         throw new BadRequestException('User has opted out of this email type');
       }
@@ -158,7 +170,7 @@ export class EmailService {
       await this.emailLogRepository.save(emailLog);
 
       let htmlContent = emailData.htmlContent;
-      let textContent = emailData.textContent;
+      const textContent = emailData.textContent;
 
       // Render template if provided
       if (emailData.templateName) {
@@ -169,7 +181,8 @@ export class EmailService {
         );
       }
 
-      const companyName = this.configService.get<string>('COMPANY_NAME') || 'ManageHub';
+      const companyName =
+        this.configService.get<string>('COMPANY_NAME') || 'ManageHub';
       const fromEmail = this.configService.get<string>('SMTP_FROM_EMAIL');
 
       const mailOptions: nodemailer.SendMailOptions = {
@@ -225,7 +238,8 @@ export class EmailService {
     // Add common variables
     const templateData: Record<string, any> = {
       ...data,
-      companyName: this.configService.get<string>('COMPANY_NAME') || 'ManageHub',
+      companyName:
+        this.configService.get<string>('COMPANY_NAME') || 'ManageHub',
       supportEmail: this.configService.get<string>('SUPPORT_EMAIL'),
       frontendUrl: this.configService.get<string>('FRONTEND_URL'),
       year: new Date().getFullYear(),
@@ -261,7 +275,10 @@ export class EmailService {
           to: recipient.email,
           subject: bulkEmailDto.subject,
           templateName: bulkEmailDto.templateName,
-          templateData: { ...bulkEmailDto.templateData, ...recipient.customData },
+          templateData: {
+            ...bulkEmailDto.templateData,
+            ...recipient.customData,
+          },
           htmlContent: bulkEmailDto.htmlContent,
           textContent: bulkEmailDto.textContent,
           emailType: bulkEmailDto.emailType || EmailType.MARKETING,
@@ -279,7 +296,9 @@ export class EmailService {
       }
     }
 
-    this.logger.log(`Bulk email queued: ${bulkEmailDto.recipients.length} recipients`);
+    this.logger.log(
+      `Bulk email queued: ${bulkEmailDto.recipients.length} recipients`,
+    );
   }
 
   async checkRateLimit(userId: string): Promise<void> {
@@ -299,8 +318,10 @@ export class EmailService {
     }
   }
 
-
-  async checkEmailPreferences(userId: string, emailType: EmailType): Promise<boolean> {
+  async checkEmailPreferences(
+    userId: string,
+    emailType: EmailType,
+  ): Promise<boolean> {
     const preferences = await this.emailPreferenceRepository.findOne({
       where: { userId },
     });
@@ -333,7 +354,7 @@ export class EmailService {
 
   async generateUnsubscribeToken(userId: string): Promise<string> {
     const token = crypto.randomBytes(32).toString('hex');
-    
+
     await this.emailPreferenceRepository.upsert(
       {
         userId,
@@ -450,7 +471,8 @@ export class EmailService {
     const stats = {
       total,
       sent: emails.filter((e) => e.status === EmailStatus.SENT).length,
-      delivered: emails.filter((e) => e.status === EmailStatus.DELIVERED).length,
+      delivered: emails.filter((e) => e.status === EmailStatus.DELIVERED)
+        .length,
       opened: emails.filter((e) => e.status === EmailStatus.OPENED).length,
       clicked: emails.filter((e) => e.status === EmailStatus.CLICKED).length,
       failed: emails.filter((e) => e.status === EmailStatus.FAILED).length,
