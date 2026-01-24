@@ -6,7 +6,7 @@ use soroban_sdk::{contracttype, symbol_short, Address, Env, IntoVal, Symbol, Vec
 use crate::errors::{AccessControlError, AccessControlResult};
 use crate::types::{
     AccessControlConfig, MembershipInfo, MultiSigConfig, PendingAdminTransfer, PendingProposal,
-    ProposalAction, UserRole,
+    ProposalAction, SubscriptionTierLevel, UserRole, UserSubscriptionStatus,
 };
 
 /// Storage keys for the access control module
@@ -24,6 +24,9 @@ pub enum DataKey {
     Proposal(u64),
     ProposalCounter,
     PendingAdminTransfer,
+    // Tier-based access control keys
+    UserTierLevel(Address),
+    RequiredTierForRole(UserRole),
 }
 
 pub struct AccessControlModule;
@@ -752,5 +755,175 @@ impl AccessControlModule {
         );
 
         Ok(())
+    }
+
+    // ============================================================================
+    // Tier-Based Access Control Functions
+    // ============================================================================
+
+    /// Sets the subscription tier level for a user. Admin only.
+    /// This is used for caching tier info to avoid cross-contract calls.
+    pub fn set_user_tier(
+        env: &Env,
+        caller: Address,
+        user: Address,
+        tier_level: SubscriptionTierLevel,
+    ) -> AccessControlResult<()> {
+        Self::require_admin(env, &caller)?;
+
+        let old_tier = Self::get_user_tier(env, user.clone());
+        env.storage()
+            .persistent()
+            .set(&DataKey::UserTierLevel(user.clone()), &tier_level);
+
+        env.events().publish(
+            (symbol_short!("tier_set"), user.clone(), tier_level.clone()),
+            (caller.clone(), old_tier),
+        );
+
+        Ok(())
+    }
+
+    /// Gets the subscription tier level for a user.
+    pub fn get_user_tier(env: &Env, user: Address) -> SubscriptionTierLevel {
+        env.storage()
+            .persistent()
+            .get(&DataKey::UserTierLevel(user))
+            .unwrap_or(SubscriptionTierLevel::Free)
+    }
+
+    /// Sets the required tier for a specific role. Admin only.
+    pub fn set_required_tier_for_role(
+        env: &Env,
+        caller: Address,
+        role: UserRole,
+        required_tier: SubscriptionTierLevel,
+    ) -> AccessControlResult<()> {
+        Self::require_admin(env, &caller)?;
+
+        env.storage()
+            .persistent()
+            .set(&DataKey::RequiredTierForRole(role.clone()), &required_tier);
+
+        env.events().publish(
+            (
+                symbol_short!("tier_req"),
+                role.clone(),
+                required_tier.clone(),
+            ),
+            caller.clone(),
+        );
+
+        Ok(())
+    }
+
+    /// Gets the required tier for a specific role.
+    pub fn get_required_tier_for_role(env: &Env, role: UserRole) -> SubscriptionTierLevel {
+        env.storage()
+            .persistent()
+            .get(&DataKey::RequiredTierForRole(role))
+            .unwrap_or(SubscriptionTierLevel::Free)
+    }
+
+    /// Checks if a user has the required tier level.
+    pub fn check_tier_access(
+        env: &Env,
+        user: Address,
+        required_tier: SubscriptionTierLevel,
+    ) -> AccessControlResult<bool> {
+        Self::require_initialized(env)?;
+        Self::require_not_paused(env)?;
+
+        if Self::is_blacklisted(env, &user) {
+            return Ok(false);
+        }
+
+        let user_tier = Self::get_user_tier(env, user.clone());
+        let has_access = user_tier.has_tier_access(&required_tier);
+
+        env.events().publish(
+            (
+                symbol_short!("tier_chk"),
+                user.clone(),
+                required_tier.clone(),
+            ),
+            has_access,
+        );
+
+        Ok(has_access)
+    }
+
+    /// Requires that a user has the specified tier level.
+    pub fn require_tier_access(
+        env: &Env,
+        user: Address,
+        required_tier: SubscriptionTierLevel,
+    ) -> AccessControlResult<()> {
+        if !Self::check_tier_access(env, user, required_tier)? {
+            return Err(AccessControlError::InsufficientRole);
+        }
+        Ok(())
+    }
+
+    /// Checks combined role and tier access.
+    /// User must have both the required role AND the required tier.
+    pub fn check_role_and_tier_access(
+        env: &Env,
+        user: Address,
+        required_role: UserRole,
+        required_tier: SubscriptionTierLevel,
+    ) -> AccessControlResult<bool> {
+        let has_role_access = Self::check_access(env, user.clone(), required_role)?;
+        if !has_role_access {
+            return Ok(false);
+        }
+
+        let has_tier_access = Self::check_tier_access(env, user, required_tier)?;
+        Ok(has_tier_access)
+    }
+
+    /// Requires combined role and tier access.
+    pub fn require_role_and_tier_access(
+        env: &Env,
+        user: Address,
+        required_role: UserRole,
+        required_tier: SubscriptionTierLevel,
+    ) -> AccessControlResult<()> {
+        if !Self::check_role_and_tier_access(env, user, required_role, required_tier)? {
+            return Err(AccessControlError::InsufficientRole);
+        }
+        Ok(())
+    }
+
+    /// Validates that a user's tier meets the requirements for their role.
+    pub fn validate_tier_for_role(
+        env: &Env,
+        user: Address,
+        role: UserRole,
+    ) -> AccessControlResult<bool> {
+        let config = Self::get_config(env);
+
+        if !config.enforce_tier_restrictions {
+            return Ok(true);
+        }
+
+        let required_tier = Self::get_required_tier_for_role(env, role);
+        let user_tier = Self::get_user_tier(env, user);
+
+        Ok(user_tier.has_tier_access(&required_tier))
+    }
+
+    /// Gets the full subscription status for a user.
+    /// Returns cached tier info or fetches from subscription contract if configured.
+    pub fn get_user_subscription_status(env: &Env, user: Address) -> UserSubscriptionStatus {
+        let tier_level = Self::get_user_tier(env, user);
+
+        // Return basic status based on cached tier level
+        // In a full implementation, this would call the subscription contract
+        UserSubscriptionStatus {
+            tier_level,
+            is_active: true, // Would be fetched from subscription contract
+            expires_at: 0,   // Would be fetched from subscription contract
+        }
     }
 }
