@@ -39,4 +39,29 @@ export class UpdateUserDto {
   @IsOptional()
   role?: UserRole;
 
+  @IsOptional()
+  @IsString()
+  verificationToken?: string;
+
+  @IsOptional()
+  verificationTokenExpiry?: Date;
+
+  @IsOptional()
+  @IsString()
+  passwordResetToken?: string;
+
+  @IsOptional()
+  passwordResetExpiresIn?: Date;
+
+  @IsOptional()
+  lastPasswordResetSentAt?: Date;
+
+  @IsOptional()
+  lastVerificationEmailSent?: Date;
+
+  @IsOptional()
+  isVerified?: boolean;
+
+  @IsOptional()
+  isActive?: boolean;
 }

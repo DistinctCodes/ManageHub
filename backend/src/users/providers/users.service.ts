@@ -78,6 +78,20 @@ export class UsersService {
     return await this.findOneUserByEmailProvider.getUser(email);
   }
 
+  // FIND USER BY VERIFICATION TOKEN
+  async findByVerificationToken(token: string): Promise<User> {
+    return await this.usersRepository.findOne({ 
+      where: { verificationToken: token } 
+    });
+  }
+
+  // FIND USER BY PASSWORD RESET TOKEN
+  async findByPasswordResetToken(token: string): Promise<User> {
+    return await this.usersRepository.findOne({ 
+      where: { passwordResetToken: token } 
+    });
+  }
+
   // UPDATE USER
   async updateUser(id: string, updateData: UpdateUserDto): Promise<User> {
     return await this.updateUserProvider.updateUser(id, updateData);
