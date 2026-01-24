@@ -220,14 +220,9 @@ pub fn validate_metadata(metadata: &TokenMetadata) -> Result<(), &'static str> {
         }
 
         // Validate value based on type
-        if let Some(value) = metadata.attributes.get(key.clone()) {
-            match value {
-                MetadataValue::Text(text) => {
-                    if text.len() > MAX_TEXT_VALUE_LENGTH {
-                        return Err("Text value exceeds maximum length");
-                    }
-                }
-                _ => {} // Other types don't need length validation
+        if let Some(MetadataValue::Text(text)) = metadata.attributes.get(key.clone()) {
+            if text.len() > MAX_TEXT_VALUE_LENGTH {
+                return Err("Text value exceeds maximum length");
             }
         }
     }
@@ -251,13 +246,10 @@ pub fn validate_attribute(key: &String, value: &MetadataValue) -> Result<(), &'s
     }
 
     // Validate value based on type
-    match value {
-        MetadataValue::Text(text) => {
-            if text.len() > MAX_TEXT_VALUE_LENGTH {
-                return Err("Text value exceeds maximum length");
-            }
+    if let MetadataValue::Text(text) = value {
+        if text.len() > MAX_TEXT_VALUE_LENGTH {
+            return Err("Text value exceeds maximum length");
         }
-        _ => {} // Other types are valid by default
     }
 
     Ok(())

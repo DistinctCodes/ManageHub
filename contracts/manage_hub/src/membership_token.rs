@@ -3,7 +3,9 @@
 
 use crate::errors::Error;
 use crate::types::MembershipStatus;
-use common_types::{validate_attribute, validate_metadata, MetadataUpdate, MetadataValue, TokenMetadata};
+use common_types::{
+    validate_attribute, validate_metadata, MetadataUpdate, MetadataValue, TokenMetadata,
+};
 use soroban_sdk::{contracttype, symbol_short, Address, BytesN, Env, Map, String, Vec};
 
 #[contracttype]
