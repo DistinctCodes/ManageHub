@@ -123,7 +123,7 @@ impl AttendanceLogModule {
         }
 
         let logs = Self::get_logs_for_user(env.clone(), user_id.clone());
-        
+
         if logs.is_empty() {
             return Err(Error::NoAttendanceRecords);
         }
@@ -144,7 +144,7 @@ impl AttendanceLogModule {
         let mut i = 0;
         while i < filtered_logs.len() {
             let log = filtered_logs.get(i).unwrap();
-            
+
             match log.action {
                 AttendanceAction::ClockIn => {
                     total_clock_ins += 1;
@@ -250,7 +250,7 @@ impl AttendanceLogModule {
         }
 
         let total_attendances = filtered_logs.len();
-        
+
         // Calculate number of days in range
         let days_in_range = ((date_range.end_time - date_range.start_time) / 86400) + 1;
         let average_daily_attendance = if days_in_range > 0 {
@@ -306,7 +306,7 @@ impl AttendanceLogModule {
         // Parse sessions
         let sessions = Self::parse_sessions(&env, &filtered_logs);
         let total_sessions = sessions.len();
-        
+
         let mut total_duration = 0u64;
         let mut first_clock_in = u64::MAX;
         let mut last_clock_out = 0u64;
@@ -315,7 +315,7 @@ impl AttendanceLogModule {
         for i in 0..sessions.len() {
             let session = sessions.get(i).unwrap();
             total_duration += session.duration;
-            
+
             if session.clock_in_time < first_clock_in {
                 first_clock_in = session.clock_in_time;
             }
@@ -386,7 +386,7 @@ impl AttendanceLogModule {
         for i in 0..filtered_logs.len() {
             let log = filtered_logs.get(i).unwrap();
             let hour = ((log.timestamp % 86400) / 3600) as u32;
-            
+
             let count = hour_counts.get(hour).unwrap_or(0);
             hour_counts.set(hour, count + 1);
         }
@@ -447,7 +447,7 @@ impl AttendanceLogModule {
             // Adjust to 0 = Sunday
             let days_since_epoch = log.timestamp / 86400;
             let day_of_week = ((days_since_epoch + 4) % 7) as u32;
-            
+
             let count = day_counts.get(day_of_week).unwrap_or(0);
             day_counts.set(day_of_week, count + 1);
         }
@@ -483,7 +483,7 @@ impl AttendanceLogModule {
         date_range: &DateRange,
     ) -> Vec<AttendanceLog> {
         let env = logs.env();
-        let mut filtered: Vec<AttendanceLog> = Vec::new(&env);
+        let mut filtered: Vec<AttendanceLog> = Vec::new(env);
 
         for i in 0..logs.len() {
             let log = logs.get(i).unwrap();
