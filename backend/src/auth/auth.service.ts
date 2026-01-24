@@ -63,9 +63,7 @@ export class AuthService {
       user.lastVerificationEmailSent &&
       user.lastVerificationEmailSent > oneMinuteAgo
     ) {
-      throw new BadRequestException(
-        'Please wait 60 seconds before resending',
-      );
+      throw new BadRequestException('Please wait 60 seconds before resending');
     }
 
     // 5. Generate new token (24h expiry)
@@ -92,7 +90,10 @@ export class AuthService {
 
     if (!user) {
       // Don't reveal if email exists or not for security
-      return { message: 'If email is registered, password reset instructions have been sent' };
+      return {
+        message:
+          'If email is registered, password reset instructions have been sent',
+      };
     }
 
     // Rate limiting: 3 requests per hour per email
@@ -108,7 +109,7 @@ export class AuthService {
 
     // Generate 32-byte random hex token
     const token = randomBytes(32).toString('hex');
-    
+
     // Set token expiry to 1 hour
     const expiryDate = new Date();
     expiryDate.setHours(expiryDate.getHours() + 1);
@@ -128,33 +129,39 @@ export class AuthService {
 
   async validateResetToken(validateResetTokenDto: ValidateResetTokenDto) {
     const { token } = validateResetTokenDto;
-    
+
     const user = await this.usersService.findByPasswordResetToken(token);
 
     if (!user) {
       throw new BadRequestException('Invalid reset token');
     }
 
-    if (!user.passwordResetExpiresIn || user.passwordResetExpiresIn < new Date()) {
+    if (
+      !user.passwordResetExpiresIn ||
+      user.passwordResetExpiresIn < new Date()
+    ) {
       throw new BadRequestException('Reset token has expired');
     }
 
-    return { 
+    return {
       message: 'Token is valid',
-      email: user.email 
+      email: user.email,
     };
   }
 
   async resetPassword(resetPasswordDto: ResetPasswordDto) {
     const { token, newPassword } = resetPasswordDto;
-    
+
     const user = await this.usersService.findByPasswordResetToken(token);
 
     if (!user) {
       throw new BadRequestException('Invalid reset token');
     }
 
-    if (!user.passwordResetExpiresIn || user.passwordResetExpiresIn < new Date()) {
+    if (
+      !user.passwordResetExpiresIn ||
+      user.passwordResetExpiresIn < new Date()
+    ) {
       throw new BadRequestException('Reset token has expired');
     }
 

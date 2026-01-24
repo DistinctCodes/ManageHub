@@ -1,4 +1,4 @@
-                    import {
+import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
@@ -74,7 +74,6 @@ export class User {
 
   @Column({ default: false })
   isSuspended: boolean;
-
 
   @Column({ nullable: true, type: 'varchar', length: 500 })
   profilePicture?: string;

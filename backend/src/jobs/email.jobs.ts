@@ -111,7 +111,7 @@ export class EmailJobs {
 
       for (const job of failedJobs) {
         const { emailLogId } = job.data;
-        
+
         // Log the permanent failure
         const emailLog = await this.emailLogRepository.findOne({
           where: { id: emailLogId },
@@ -196,7 +196,9 @@ export class EmailJobs {
 
       // Alert if queue is backing up
       if (waiting > 1000) {
-        this.logger.warn(`Email queue is backing up: ${waiting} emails waiting`);
+        this.logger.warn(
+          `Email queue is backing up: ${waiting} emails waiting`,
+        );
       }
 
       if (failed > 100) {
