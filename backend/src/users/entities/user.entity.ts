@@ -1,4 +1,4 @@
-                    import {
+import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
@@ -48,6 +48,10 @@ export class User {
   passwordResetExpiresIn?: Date;
 
   @Exclude()
+  @Column({ type: 'timestamptz', nullable: true })
+  lastPasswordResetSentAt?: Date;
+
+  @Exclude()
   @Column({ nullable: true })
   verificationToken?: string;
 
@@ -70,7 +74,6 @@ export class User {
 
   @Column({ default: false })
   isSuspended: boolean;
-
 
   @Column({ nullable: true, type: 'varchar', length: 500 })
   profilePicture?: string;

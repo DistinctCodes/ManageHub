@@ -35,7 +35,7 @@ export class RefreshTokenRepositoryOperations {
   ): Promise<RefreshToken> {
     let savedRefreshTokenEntity: RefreshToken;
 
-    let raw = this.configService.get<string>('JWT_REFRESH_EXPIRATION'); // e.g. "604800" or "604800000"
+    const raw = this.configService.get<string>('JWT_REFRESH_EXPIRATION'); // e.g. "604800" or "604800000"
     let expirationSeconds: number;
 
     if (parseInt(raw) > 1000000) {

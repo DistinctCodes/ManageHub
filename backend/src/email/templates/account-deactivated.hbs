@@ -1,0 +1,64 @@
+<mjml>
+  <mj-head>
+    <mj-title>Account Deactivated</mj-title>
+  </mj-head>
+  <mj-body background-color="#F3F4F6">
+    <mj-section background-color="#ffffff" padding="20px">
+      <mj-column>
+        <mj-text font-size="24px" font-weight="700" color="#1F2937" align="center">
+          {{companyName}}
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-section background-color="#ffffff" padding="40px 30px">
+      <mj-column>
+        <mj-text font-size="28px" font-weight="700" color="#EF4444" padding-bottom="20px">
+          Account Deactivated
+        </mj-text>
+        <mj-text font-size="16px" color="#4B5563" padding-bottom="20px">
+          Hi {{username}},
+        </mj-text>
+        <mj-text font-size="14px" color="#6B7280" padding-bottom="20px">
+          Your account has been deactivated at {{timestamp}}.
+        </mj-text>
+        
+        {{#if reason}}
+        <mj-text font-size="14px" color="#6B7280" padding-bottom="20px">
+          <strong>Reason:</strong> {{reason}}
+        </mj-text>
+        {{/if}}
+
+        <mj-text font-size="14px" color="#6B7280" padding-bottom="20px">
+          {{#if canReactivate}}
+          If you'd like to reactivate your account, you can do so within the next {{reactivationDays}} days by clicking the button below:
+          {{else}}
+          If you believe this was done in error, please contact our support team immediately.
+          {{/if}}
+        </mj-text>
+
+        {{#if canReactivate}}
+        <mj-button href="{{reactivationUrl}}" padding-top="20px" background-color="#10B981">
+          Reactivate Account
+        </mj-button>
+        {{/if}}
+
+        <mj-text font-size="14px" color="#EF4444" background-color="#FEF2F2" padding="15px" border-radius="6px">
+          <strong>Important:</strong> After {{deletionDays}} days, your account and all associated data will be permanently deleted and cannot be recovered.
+        </mj-text>
+
+        <mj-text font-size="14px" color="#6B7280" padding-top="20px">
+          If you have any questions or concerns, please contact us at {{supportEmail}}.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-section background-color="#F9FAFB" padding="30px">
+      <mj-column>
+        <mj-text font-size="12px" color="#6B7280" align="center">
+          © {{year}} {{companyName}}. All rights reserved.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>
