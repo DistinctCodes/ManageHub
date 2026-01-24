@@ -8,11 +8,14 @@ mod subscription;
 mod types;
 
 use attendance_log::{AttendanceLog, AttendanceLogModule};
-use common_types::{MetadataUpdate, MetadataValue, TokenMetadata};
+use common_types::{
+    AttendanceFrequency, DateRange, DayPattern, MetadataUpdate, MetadataValue, PeakHourData,
+    TimePeriod, TokenMetadata, UserAttendanceStats,
+};
 use errors::Error;
 use membership_token::{MembershipToken, MembershipTokenContract};
 use subscription::SubscriptionContract;
-use types::{AttendanceAction, Subscription};
+use types::{AttendanceAction, AttendanceSummary, Subscription};
 
 #[contract]
 pub struct Contract;
@@ -196,6 +199,180 @@ impl Contract {
         attribute_value: MetadataValue,
     ) -> Vec<BytesN<32>> {
         MembershipTokenContract::query_tokens_by_attribute(env, attribute_key, attribute_value)
+    }
+
+    // ============================================================================
+    // Attendance Analytics Endpoints
+    // ============================================================================
+
+    /// Get attendance summary for a user within a date range.
+    ///
+    /// # Arguments
+    /// * `env` - Contract environment
+    /// * `user_id` - User address to query
+    /// * `date_range` - Date range to filter records
+    ///
+    /// # Returns
+    /// * `Ok(AttendanceSummary)` - Summary with clock-ins, clock-outs, duration stats
+    /// * `Err(Error)` - If date range is invalid or no records found
+    ///
+    /// # Errors
+    /// * `InvalidDateRange` - Start time is after end time
+    /// * `NoAttendanceRecords` - No records found for user in range
+    pub fn get_attendance_summary(
+        env: Env,
+        user_id: Address,
+        date_range: DateRange,
+    ) -> Result<AttendanceSummary, Error> {
+        AttendanceLogModule::get_attendance_summary(env, user_id, date_range)
+    }
+
+    /// Get time-based attendance records (daily, weekly, monthly).
+    ///
+    /// # Arguments
+    /// * `env` - Contract environment
+    /// * `user_id` - User address to query
+    /// * `period` - Time period for grouping (Daily, Weekly, Monthly, Custom)
+    /// * `date_range` - Date range to filter records
+    ///
+    /// # Returns
+    /// * `Ok(Vec<AttendanceLog>)` - Filtered attendance logs for the period
+    /// * `Err(Error)` - If date range is invalid or no records found
+    ///
+    /// # Errors
+    /// * `InvalidDateRange` - Start time is after end time
+    /// * `NoAttendanceRecords` - No records found for user in range
+    pub fn get_time_based_attendance(
+        env: Env,
+        user_id: Address,
+        period: TimePeriod,
+        date_range: DateRange,
+    ) -> Result<Vec<AttendanceLog>, Error> {
+        AttendanceLogModule::get_time_based_attendance(env, user_id, period, date_range)
+    }
+
+    /// Calculate attendance frequency for a user.
+    ///
+    /// # Arguments
+    /// * `env` - Contract environment
+    /// * `user_id` - User address to query
+    /// * `date_range` - Date range to analyze
+    ///
+    /// # Returns
+    /// * `Ok(AttendanceFrequency)` - Frequency metrics including total, average daily
+    /// * `Err(Error)` - If date range is invalid or no records found
+    ///
+    /// # Errors
+    /// * `InvalidDateRange` - Start time is after end time
+    /// * `NoAttendanceRecords` - No records found for user in range
+    pub fn calculate_attendance_frequency(
+        env: Env,
+        user_id: Address,
+        date_range: DateRange,
+    ) -> Result<AttendanceFrequency, Error> {
+        AttendanceLogModule::calculate_attendance_frequency(env, user_id, date_range)
+    }
+
+    /// Get comprehensive user attendance statistics.
+    ///
+    /// # Arguments
+    /// * `env` - Contract environment
+    /// * `user_id` - User address to query
+    /// * `date_range` - Optional date range (None for all-time stats)
+    ///
+    /// # Returns
+    /// * `Ok(UserAttendanceStats)` - Comprehensive stats including total hours,
+    ///   average attendance, session counts, and date ranges
+    /// * `Err(Error)` - If date range is invalid or no records found
+    ///
+    /// # Errors
+    /// * `InvalidDateRange` - Start time is after end time (if range provided)
+    /// * `NoAttendanceRecords` - No records found for user
+    pub fn get_user_statistics(
+        env: Env,
+        user_id: Address,
+        date_range: Option<DateRange>,
+    ) -> Result<UserAttendanceStats, Error> {
+        AttendanceLogModule::get_user_statistics(env, user_id, date_range)
+    }
+
+    /// Analyze peak attendance hours for a user.
+    ///
+    /// # Arguments
+    /// * `env` - Contract environment
+    /// * `user_id` - User address to query
+    /// * `date_range` - Date range to analyze
+    ///
+    /// # Returns
+    /// * `Ok(Vec<PeakHourData>)` - Peak hour analysis showing attendance count
+    ///   and percentage per hour
+    /// * `Err(Error)` - If date range is invalid or no records found
+    ///
+    /// # Errors
+    /// * `InvalidDateRange` - Start time is after end time
+    /// * `NoAttendanceRecords` - No records found for user in range
+    pub fn analyze_peak_hours(
+        env: Env,
+        user_id: Address,
+        date_range: DateRange,
+    ) -> Result<Vec<PeakHourData>, Error> {
+        AttendanceLogModule::analyze_peak_hours(env, user_id, date_range)
+    }
+
+    /// Analyze attendance patterns by day of week.
+    ///
+    /// # Arguments
+    /// * `env` - Contract environment
+    /// * `user_id` - User address to query
+    /// * `date_range` - Date range to analyze
+    ///
+    /// # Returns
+    /// * `Ok(Vec<DayPattern>)` - Day patterns showing attendance distribution
+    ///   across days of the week with counts and percentages
+    /// * `Err(Error)` - If date range is invalid or no records found
+    ///
+    /// # Errors
+    /// * `InvalidDateRange` - Start time is after end time
+    /// * `NoAttendanceRecords` - No records found for user in range
+    pub fn analyze_day_patterns(
+        env: Env,
+        user_id: Address,
+        date_range: DateRange,
+    ) -> Result<Vec<DayPattern>, Error> {
+        AttendanceLogModule::analyze_day_patterns(env, user_id, date_range)
+    }
+
+    /// Calculate total hours from seconds.
+    ///
+    /// # Arguments
+    /// * `total_seconds` - Total seconds to convert
+    ///
+    /// # Returns
+    /// * Total hours (rounded down)
+    pub fn calculate_total_hours(total_seconds: u64) -> u64 {
+        AttendanceLogModule::calculate_total_hours(total_seconds)
+    }
+
+    /// Calculate average daily attendance for a user.
+    ///
+    /// # Arguments
+    /// * `env` - Contract environment
+    /// * `user_id` - User address to query
+    /// * `date_range` - Date range to analyze
+    ///
+    /// # Returns
+    /// * `Ok(u64)` - Average daily attendance count
+    /// * `Err(Error)` - If date range is invalid or no records found
+    ///
+    /// # Errors
+    /// * `InvalidDateRange` - Start time is after end time
+    /// * `NoAttendanceRecords` - No records found for user in range
+    pub fn get_avg_daily_attendance(
+        env: Env,
+        user_id: Address,
+        date_range: DateRange,
+    ) -> Result<u64, Error> {
+        AttendanceLogModule::calculate_average_daily_attendance(env, user_id, date_range)
     }
 }
 

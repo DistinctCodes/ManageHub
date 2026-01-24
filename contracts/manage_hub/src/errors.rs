@@ -25,4 +25,7 @@ pub enum Error {
     MetadataTextValueTooLong = 20,
     MetadataValidationFailed = 21,
     InvalidMetadataVersion = 22,
+    InvalidDateRange = 23,
+    NoAttendanceRecords = 24,
+    IncompleteSession = 25,
 }
