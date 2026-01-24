@@ -13,8 +13,9 @@ use errors::Error;
 use membership_token::{MembershipToken, MembershipTokenContract};
 use subscription::SubscriptionContract;
 use types::{
-    AttendanceAction, BillingCycle, Subscription, SubscriptionTier, TierAnalytics, TierFeature,
-    TierLevel, TierPromotion, UserSubscriptionInfo,
+    AttendanceAction, BillingCycle, CreatePromotionParams, CreateTierParams, Subscription,
+    SubscriptionTier, TierAnalytics, TierFeature, TierPromotion, UpdateTierParams,
+    UserSubscriptionInfo,
 };
 
 #[contract]
@@ -110,65 +111,19 @@ impl Contract {
     /// # Arguments
     /// * `env` - The contract environment
     /// * `admin` - Admin address (must be authorized)
-    /// * `id` - Unique tier identifier
-    /// * `name` - Human-readable tier name
-    /// * `level` - Tier level (Free, Basic, Pro, Enterprise)
-    /// * `price` - Monthly price in smallest token unit
-    /// * `annual_price` - Annual price (usually discounted)
-    /// * `features` - List of features enabled for this tier
-    /// * `max_users` - Maximum users allowed (0 = unlimited)
-    /// * `max_storage` - Maximum storage in bytes (0 = unlimited)
-    pub fn create_tier(
-        env: Env,
-        admin: Address,
-        id: String,
-        name: String,
-        level: TierLevel,
-        price: i128,
-        annual_price: i128,
-        features: Vec<TierFeature>,
-        max_users: u32,
-        max_storage: u64,
-    ) -> Result<(), Error> {
-        SubscriptionContract::create_tier(
-            env,
-            admin,
-            id,
-            name,
-            level,
-            price,
-            annual_price,
-            features,
-            max_users,
-            max_storage,
-        )
+    /// * `params` - Tier creation parameters (id, name, level, prices, features, limits)
+    pub fn create_tier(env: Env, admin: Address, params: CreateTierParams) -> Result<(), Error> {
+        SubscriptionContract::create_tier(env, admin, params)
     }
 
     /// Updates an existing subscription tier. Admin only.
-    pub fn update_tier(
-        env: Env,
-        admin: Address,
-        id: String,
-        name: Option<String>,
-        price: Option<i128>,
-        annual_price: Option<i128>,
-        features: Option<Vec<TierFeature>>,
-        max_users: Option<u32>,
-        max_storage: Option<u64>,
-        is_active: Option<bool>,
-    ) -> Result<(), Error> {
-        SubscriptionContract::update_tier(
-            env,
-            admin,
-            id,
-            name,
-            price,
-            annual_price,
-            features,
-            max_users,
-            max_storage,
-            is_active,
-        )
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `admin` - Admin address (must be authorized)
+    /// * `params` - Update parameters (id required, other fields optional)
+    pub fn update_tier(env: Env, admin: Address, params: UpdateTierParams) -> Result<(), Error> {
+        SubscriptionContract::update_tier(env, admin, params)
     }
 
     /// Gets a subscription tier by ID.
@@ -281,30 +236,17 @@ impl Contract {
     // ============================================================================
 
     /// Creates a promotional pricing for a tier. Admin only.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `admin` - Admin address (must be authorized)
+    /// * `params` - Promotion parameters (promo_id, tier_id, discount, dates, code, limits)
     pub fn create_promotion(
         env: Env,
         admin: Address,
-        promo_id: String,
-        tier_id: String,
-        discount_percent: u32,
-        promo_price: i128,
-        start_date: u64,
-        end_date: u64,
-        promo_code: String,
-        max_redemptions: u32,
+        params: CreatePromotionParams,
     ) -> Result<(), Error> {
-        SubscriptionContract::create_promotion(
-            env,
-            admin,
-            promo_id,
-            tier_id,
-            discount_percent,
-            promo_price,
-            start_date,
-            end_date,
-            promo_code,
-            max_redemptions,
-        )
+        SubscriptionContract::create_promotion(env, admin, params)
     }
 
     /// Gets a promotion by ID.
