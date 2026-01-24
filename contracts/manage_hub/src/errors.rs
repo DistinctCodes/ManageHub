@@ -19,6 +19,13 @@ pub enum Error {
     SubscriptionAlreadyExists = 13,
     InsufficientBalance = 14,
     TimestampOverflow = 15,
+    SubscriptionPaused = 16,
+    SubscriptionNotActive = 17,
+    SubscriptionNotPaused = 18,
+    PauseTooEarly = 19,
+    PauseCountExceeded = 20,
+    PauseDurationExceeded = 21,
+    InvalidPauseConfig = 22,
 }
 
 impl From<MembershipTokenError> for Error {
