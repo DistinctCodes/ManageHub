@@ -15,6 +15,7 @@ import { SendEmailDto } from './dto/send-email.dto';
 import { BulkEmailDto } from './dto/bulk-email.dto';
 import * as crypto from 'crypto';
 
+
 @Injectable()
 export class EmailService {
   private readonly logger = new Logger(EmailService.name);
@@ -298,6 +299,7 @@ export class EmailService {
     }
   }
 
+
   async checkEmailPreferences(userId: string, emailType: EmailType): Promise<boolean> {
     const preferences = await this.emailPreferenceRepository.findOne({
       where: { userId },
@@ -486,5 +488,58 @@ export class EmailService {
       },
       emailType: EmailType.EMAIL_VERIFICATION,
     });
+  }
+
+  async sendPasswordResetEmail(to: string, token: string): Promise<void> {
+    const baseUrl = this.configService.get<string>('FRONTEND_URL');
+    const resetLink = `${baseUrl}/reset-password?token=${token}`;
+    const companyName =
+      this.configService.get<string>('COMPANY_NAME') || 'Our Company';
+
+    const html = await this.renderTemplate('reset-password', {
+      username: to.split('@')[0],
+      resetLink,
+      companyName,
+      expiryHours: 24,
+    });
+
+    try {
+      await this.transporter.sendMail({
+        from: `"${companyName}" <${this.configService.get('SMTP_FROM_EMAIL')}>`,
+        to,
+        subject: 'Reset Your Password',
+        html,
+      });
+    } catch (error) {
+      console.error('Error sending password reset email:', error);
+      throw new InternalServerErrorException(
+        'Failed to send password reset email',
+      );
+    }
+  }
+
+  async sendPasswordChangedEmail(to: string): Promise<void> {
+    const companyName =
+      this.configService.get<string>('COMPANY_NAME') || 'Our Company';
+
+    const html = await this.renderTemplate('password-changed', {
+      username: to.split('@')[0],
+      companyName,
+      timestamp: new Date().toLocaleString(),
+    });
+
+    try {
+      await this.transporter.sendMail({
+        from: `"${companyName} Security Team" <${this.configService.get('SMTP_FROM_EMAIL')}>`,
+        to,
+        subject: 'Your Password Has Been Changed',
+        html,
+      });
+    } catch (error) {
+      console.error('Error sending password changed email:', error);
+      throw new InternalServerErrorException(
+        'Failed to send password changed email',
+      );
+    }
   }
 }
