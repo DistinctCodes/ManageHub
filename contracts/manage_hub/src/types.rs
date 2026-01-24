@@ -1,6 +1,6 @@
 use soroban_sdk::{contracttype, Address, String};
 
-// Re-export MembershipStatus from common_types for consistency
+// Re-export types from common_types for consistency
 pub use common_types::MembershipStatus;
 
 #[contracttype]

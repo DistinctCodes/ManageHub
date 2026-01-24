@@ -58,23 +58,29 @@ export class ConvertKitService {
         ...(firstName && { first_name: firstName }),
       };
 
-      this.logger.log(`Subscribing email: ${email} to ConvertKit form: ${this.formId}`);
-
-      const response: AxiosResponse<ConvertKitSubscribeResponse> = await axios.post(
-        `${this.baseUrl}/forms/${this.formId}/subscribe`,
-        payload,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          timeout: 10000, // 10 seconds timeout
-        },
+      this.logger.log(
+        `Subscribing email: ${email} to ConvertKit form: ${this.formId}`,
       );
+
+      const response: AxiosResponse<ConvertKitSubscribeResponse> =
+        await axios.post(
+          `${this.baseUrl}/forms/${this.formId}/subscribe`,
+          payload,
+          {
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            timeout: 10000, // 10 seconds timeout
+          },
+        );
 
       this.logger.log(`Successfully subscribed ${email} to newsletter`);
       return response.data;
     } catch (error) {
-      this.logger.error(`Failed to subscribe ${email} to ConvertKit:`, error.message);
+      this.logger.error(
+        `Failed to subscribe ${email} to ConvertKit:`,
+        error.message,
+      );
 
       if (error.response) {
         const status = error.response.status;
@@ -114,20 +120,20 @@ export class ConvertKitService {
     }
 
     try {
-      const response = await axios.get(
-        `${this.baseUrl}/subscribers`,
-        {
-          params: {
-            api_key: this.apiKey,
-            email_address: email,
-          },
-          timeout: 5000,
+      const response = await axios.get(`${this.baseUrl}/subscribers`, {
+        params: {
+          api_key: this.apiKey,
+          email_address: email,
         },
-      );
+        timeout: 5000,
+      });
 
       return response.data.total_subscribers > 0;
     } catch (error) {
-      this.logger.warn(`Failed to check subscription status for ${email}:`, error.message);
+      this.logger.warn(
+        `Failed to check subscription status for ${email}:`,
+        error.message,
+      );
       return false;
     }
   }

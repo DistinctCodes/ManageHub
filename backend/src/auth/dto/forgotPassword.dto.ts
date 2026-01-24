@@ -5,7 +5,7 @@ export class ForgotPasswordDto {
   @ApiProperty({
     description: 'Email address to send password reset instructions to',
     example: 'user@example.com',
-    format: 'email'
+    format: 'email',
   })
   @IsEmail()
   email: string;

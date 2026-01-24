@@ -27,16 +27,16 @@ export class StaffController {
 
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.staffService.findOne(+id);
+    return this.staffService.findOne(id);
   }
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateStaffDto: UpdateStaffDto) {
-    return this.staffService.update(+id, updateStaffDto);
+    return this.staffService.update(id, updateStaffDto);
   }
 
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.staffService.remove(+id);
+    return this.staffService.remove(id);
   }
 }

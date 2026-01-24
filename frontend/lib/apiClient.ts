@@ -43,7 +43,10 @@ class ApiClient {
 
       return await response.json();
     } catch (error) {
-      throw new Error("Network error occured");
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error("Network error occurred");
     }
   }
 

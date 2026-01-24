@@ -1,7 +1,10 @@
 use crate::access_control::AccessControlModule;
 use crate::errors::AccessControlError;
 use crate::types::{AccessControlConfig, ProposalAction, UserRole};
-use soroban_sdk::{testutils::Address as _, Address, Env, Vec};
+use soroban_sdk::{
+    testutils::{Address as _, Events},
+    Address, Env, Vec,
+};
 
 fn setup_test_env() -> (Env, Address, Address, Address, Address) {
     let env = Env::default();
@@ -624,4 +627,124 @@ fn test_insufficient_multisig_approvals() {
             UserRole::Member
         );
     });
+}
+
+// ==================== Event Emission Tests ====================
+
+#[test]
+fn test_initialize_event_emitted() {
+    let env = Env::default();
+    let contract_id = env.register(crate::AccessControl, ());
+    let admin = Address::generate(&env);
+
+    env.as_contract(&contract_id, || {
+        AccessControlModule::initialize(&env, admin.clone(), None).unwrap();
+    });
+
+    // Verify events were emitted
+    let events = env.events().all();
+    assert!(!events.is_empty(), "Initialization event should be emitted");
+}
+
+#[test]
+fn test_initialize_multisig_event_emitted() {
+    let env = Env::default();
+    let contract_id = env.register(crate::AccessControl, ());
+    let admin1 = Address::generate(&env);
+    let admin2 = Address::generate(&env);
+
+    env.as_contract(&contract_id, || {
+        let admins = Vec::from_array(&env, [admin1.clone(), admin2.clone()]);
+        AccessControlModule::initialize_multisig(&env, admins, 2, None).unwrap();
+    });
+
+    // Verify events were emitted
+    let events = env.events().all();
+    assert!(
+        !events.is_empty(),
+        "Multisig initialization event should be emitted"
+    );
+}
+
+#[test]
+fn test_set_role_event_emitted() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let contract_id = env.register(crate::AccessControl, ());
+    let client = crate::AccessControlClient::new(&env, &contract_id);
+    let admin = Address::generate(&env);
+    let user1 = Address::generate(&env);
+
+    client.initialize(&admin);
+    client.set_role(&admin, &user1, &UserRole::Member);
+
+    // Verify role was set
+    let role = client.get_role(&user1);
+    assert_eq!(
+        role,
+        UserRole::Member,
+        "Role should have been set to Member"
+    );
+}
+
+#[test]
+fn test_pause_unpause_events_emitted() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let contract_id = env.register(crate::AccessControl, ());
+    let client = crate::AccessControlClient::new(&env, &contract_id);
+    let admin = Address::generate(&env);
+
+    client.initialize(&admin);
+    client.pause(&admin);
+
+    // Verify contract is paused
+    assert!(env.as_contract(&contract_id, || { AccessControlModule::is_paused(&env) }));
+
+    client.unpause(&admin);
+
+    // Verify contract is unpaused
+    assert!(!env.as_contract(&contract_id, || { AccessControlModule::is_paused(&env) }));
+}
+
+#[test]
+fn test_admin_transfer_events_emitted() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let contract_id = env.register(crate::AccessControl, ());
+    let client = crate::AccessControlClient::new(&env, &contract_id);
+    let admin = Address::generate(&env);
+    let user1 = Address::generate(&env);
+
+    client.initialize(&admin);
+    client.propose_admin_transfer(&admin, &user1);
+
+    // Verify proposal was created
+    client.accept_admin_transfer(&user1);
+
+    // Verify admin was transferred
+    assert!(client.is_admin(&user1));
+}
+
+#[test]
+fn test_proposal_events_emitted() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let contract_id = env.register(crate::AccessControl, ());
+    let client = crate::AccessControlClient::new(&env, &contract_id);
+    let admin1 = Address::generate(&env);
+    let admin2 = Address::generate(&env);
+    let user = Address::generate(&env);
+
+    let admins = Vec::from_array(&env, [admin1.clone(), admin2.clone()]);
+    client.initialize_multisig(&admins, &2);
+
+    let action = ProposalAction::SetRole(user.clone(), UserRole::Member);
+    let proposal_id = client.create_proposal(&admin1, &action);
+
+    // Approve proposal
+    client.approve_proposal(&admin2, &proposal_id);
+
+    // Verify role was set after approval
+    assert_eq!(client.get_role(&user), UserRole::Member);
 }

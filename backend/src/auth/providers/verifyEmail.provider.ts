@@ -1,4 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
@@ -21,7 +25,10 @@ export class VerifyEmailProvider {
         throw new BadRequestException('Invalid verification token');
       }
 
-      if (user.verificationTokenExpiry && new Date() > user.verificationTokenExpiry) {
+      if (
+        user.verificationTokenExpiry &&
+        new Date() > user.verificationTokenExpiry
+      ) {
         throw new BadRequestException('Verification token has expired');
       }
 
