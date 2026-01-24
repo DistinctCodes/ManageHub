@@ -23,6 +23,9 @@ import { FindAdminByIdProvider } from './findAdminById.provider';
 
 @Injectable()
 export class UsersService {
+  update(userId: string, arg1: { twoFactorEnabled: boolean; }) {
+      throw new Error('Method not implemented.');
+  }
   constructor(
     private readonly createUserProvider: CreateUserProvider,
     private readonly findOneUserByIdProvider: FindOneUserByIdProvider,

@@ -91,6 +91,10 @@ export class User {
   @UpdateDateColumn()
   updatedAt: Date;
 
+  @Column({ default: false })
+twoFactorEnabled: boolean;
+
+
   @DeleteDateColumn()
   deletedAt: Date;
   fullName: any;
