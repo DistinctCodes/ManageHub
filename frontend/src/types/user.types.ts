@@ -4,14 +4,10 @@
  */
 
 export enum UserRole {
-  USER = 'user',
-  ADMIN = 'admin',
+  USER = "user",
+  ADMIN = "admin",
 }
 
-/**
- * Core User interface
- * Represents authenticated user data
- */
 export interface User {
   id: string;
   email: string;
@@ -28,10 +24,6 @@ export interface User {
   deletedAt?: string | Date | null;
 }
 
-/**
- * Authentication State
- * Tracks all auth-related state in Zustand store
- */
 export interface AuthState {
   accessToken: string | null;
   refreshToken: string | null;
@@ -41,10 +33,6 @@ export interface AuthState {
   _hasHydrated: boolean;
 }
 
-/**
- * Authentication Response from API
- * Expected shape from login/register endpoints
- */
 export interface AuthResponse {
   user: User;
   accessToken: string;
@@ -52,10 +40,6 @@ export interface AuthResponse {
   expiresIn?: number; // Token TTL in seconds (optional)
 }
 
-/**
- * SetAuth Action Payload
- * Data structure for updating auth state
- */
 export interface SetAuthPayload {
   accessToken: string;
   refreshToken: string;

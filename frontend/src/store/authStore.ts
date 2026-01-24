@@ -1,11 +1,8 @@
-import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import Cookies from 'js-cookie';
-import type { AuthState, User, SetAuthPayload } from '../types/user.types';
+import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
+import Cookies from "js-cookie";
+import type { AuthState, User, SetAuthPayload } from "../types/user.types";
 
-/**
- * Authentication Store Actions
- */
 interface AuthActions {
   setAuth: (data: SetAuthPayload) => void;
   updateUser: (userData: Partial<User>) => void;
@@ -15,9 +12,6 @@ interface AuthActions {
 
 type AuthStore = AuthState & AuthActions;
 
-/**
- * Initial authentication state
- */
 const initialState: AuthState = {
   accessToken: null,
   refreshToken: null,
@@ -27,66 +21,37 @@ const initialState: AuthState = {
   _hasHydrated: false,
 };
 
-/**
- * Cookie configuration constants
- */
 const COOKIE_OPTIONS = {
   expires: 7, // 7 days
-  sameSite: 'strict' as const,
+  sameSite: "strict" as const,
   secure: true,
-  path: '/',
+  path: "/",
 };
 
-const ACCESS_TOKEN_COOKIE = 'accessToken';
-const USER_DATA_COOKIE = 'authUser';
+const ACCESS_TOKEN_COOKIE = "accessToken";
+const USER_DATA_COOKIE = "authUser";
 
-/**
- * Sync authentication data to cookies
- * Called when auth state is updated
- */
 const syncToCookies = (accessToken: string, user: User): void => {
   // Sync access token to cookie
   Cookies.set(ACCESS_TOKEN_COOKIE, accessToken, COOKIE_OPTIONS);
-  
+
   // Sync user data to cookie (stringified JSON)
   Cookies.set(USER_DATA_COOKIE, JSON.stringify(user), COOKIE_OPTIONS);
 };
 
-/**
- * Remove authentication cookies
- * Called during logout/clearAuth
- */
 const removeAuthCookies = (): void => {
-  Cookies.remove(ACCESS_TOKEN_COOKIE, { path: '/' });
-  Cookies.remove(USER_DATA_COOKIE, { path: '/' });
+  Cookies.remove(ACCESS_TOKEN_COOKIE, { path: "/" });
+  Cookies.remove(USER_DATA_COOKIE, { path: "/" });
 };
 
-/**
- * Global Authentication Store
- * 
- * Features:
- * - Persistent storage using localStorage
- * - Cookie synchronization for SSR/middleware
- * - Hydration tracking to prevent Next.js mismatches
- * - Optimized selectors for minimal re-renders
- */
 export const useAuthStore = create<AuthStore>()(
   persist(
     (set, get) => ({
       ...initialState,
 
-      /**
-       * Set authentication state
-       * Automatically calculates tokenExpiresAt and syncs to cookies
-       * 
-       * @param data - Auth payload with tokens, user, and optional expiresIn
-       */
       setAuth: (data: SetAuthPayload) => {
         const { accessToken, refreshToken, user, expiresIn } = data;
 
-        // Calculate token expiration timestamp
-        // If expiresIn provided (in seconds), convert to timestamp
-        // Otherwise set to 7 days from now (matching cookie expiry)
         const tokenExpiresAt = expiresIn
           ? Date.now() + expiresIn * 1000
           : Date.now() + 7 * 24 * 60 * 60 * 1000;
@@ -104,18 +69,12 @@ export const useAuthStore = create<AuthStore>()(
         });
       },
 
-      /**
-       * Update user data only
-       * Merges partial user updates and re-syncs cookies
-       * 
-       * @param userData - Partial user object to merge
-       */
       updateUser: (userData: Partial<User>) => {
         const currentUser = get().user;
         const currentToken = get().accessToken;
 
         if (!currentUser) {
-          console.warn('Cannot update user: no user is authenticated');
+          console.warn("Cannot update user: no user is authenticated");
           return;
         }
 
@@ -131,10 +90,6 @@ export const useAuthStore = create<AuthStore>()(
         set({ user: updatedUser });
       },
 
-      /**
-       * Clear authentication state
-       * Removes all cookies and resets state to initial values
-       */
       clearAuth: () => {
         // Remove auth cookies
         removeAuthCookies();
@@ -146,18 +101,14 @@ export const useAuthStore = create<AuthStore>()(
         });
       },
 
-      /**
-       * Set hydration state
-       * Internal use for tracking when store has rehydrated
-       */
       setHasHydrated: (state: boolean) => {
         set({ _hasHydrated: state });
       },
     }),
     {
-      name: 'auth-storage', // localStorage key
+      name: "auth-storage", // localStorage key
       storage: createJSONStorage(() => localStorage),
-      
+
       // Only persist essential auth data (exclude _hasHydrated)
       partialize: (state) => ({
         accessToken: state.accessToken,
@@ -171,16 +122,16 @@ export const useAuthStore = create<AuthStore>()(
       onRehydrateStorage: () => {
         return (state, error) => {
           if (error) {
-            console.error('Auth store hydration error:', error);
+            console.error("Auth store hydration error:", error);
           } else {
-            console.log('Auth store hydrated successfully');
+            console.log("Auth store hydrated successfully");
             // Mark hydration as complete
             state?.setHasHydrated(true);
           }
         };
       },
-    }
-  )
+    },
+  ),
 );
 
 /**
@@ -201,18 +152,7 @@ export const useRefreshToken = () =>
 export const useTokenExpiresAt = () =>
   useAuthStore((state) => state.tokenExpiresAt);
 
-/**
- * Hydration Guard Hook
- * Use this to prevent rendering auth-dependent content before hydration
- * 
- * @example
- * ```tsx
- * const hasHydrated = useHasHydrated();
- * if (!hasHydrated) return <Skeleton />;
- * ```
- */
-export const useHasHydrated = () =>
-  useAuthStore((state) => state._hasHydrated);
+export const useHasHydrated = () => useAuthStore((state) => state._hasHydrated);
 
 /**
  * Auth Actions Hook
