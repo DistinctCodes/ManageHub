@@ -259,6 +259,8 @@ fn test_config_management() {
             membership_token_contract: Some(membership_contract.clone()),
             require_membership_for_roles: true,
             min_token_balance: 100,
+            subscription_contract: None,
+            enforce_tier_restrictions: false,
         };
 
         AccessControlModule::update_config(&env, admin.clone(), new_config.clone()).unwrap();
@@ -302,6 +304,8 @@ fn test_membership_token_integration() {
             membership_token_contract: Some(membership_token_id.clone()),
             require_membership_for_roles: true,
             min_token_balance: 500,
+            subscription_contract: None,
+            enforce_tier_restrictions: false,
         };
 
         AccessControlModule::update_config(&env, admin.clone(), config).unwrap();
@@ -331,6 +335,8 @@ fn test_membership_token_insufficient_balance() {
             membership_token_contract: Some(membership_token_id.clone()),
             require_membership_for_roles: true,
             min_token_balance: 2000, // Mock only returns 1000
+            subscription_contract: None,
+            enforce_tier_restrictions: false,
         };
 
         AccessControlModule::update_config(&env, admin.clone(), config).unwrap();
@@ -358,6 +364,8 @@ fn test_membership_not_required_for_guest_role() {
             membership_token_contract: Some(membership_token_id.clone()),
             require_membership_for_roles: true,
             min_token_balance: 2000, // More than mock provides
+            subscription_contract: None,
+            enforce_tier_restrictions: false,
         };
 
         AccessControlModule::update_config(&env, admin.clone(), config).unwrap();
