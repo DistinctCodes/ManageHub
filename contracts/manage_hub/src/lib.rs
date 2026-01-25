@@ -94,11 +94,7 @@ impl Contract {
         SubscriptionContract::cancel_subscription(env, id)
     }
 
-    pub fn pause_subscription(
-        env: Env,
-        id: String,
-        reason: Option<String>,
-    ) -> Result<(), Error> {
+    pub fn pause_subscription(env: Env, id: String, reason: Option<String>) -> Result<(), Error> {
         SubscriptionContract::pause_subscription(env, id, reason)
     }
 

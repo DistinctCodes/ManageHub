@@ -1,8 +1,4 @@
 use soroban_sdk::{contracttype, symbol_short, Address, BytesN, Env, Map, String, Vec};
-// Allow deprecated events API until migration to #[contractevent] macro
-#![allow(deprecated)]
-
-use soroban_sdk::{contracttype, symbol_short, Address, BytesN, Env, Map, String};
 
 use crate::attendance_log::AttendanceLogModule;
 use crate::errors::Error;
@@ -99,6 +95,7 @@ impl SubscriptionContract {
         Ok(true)
     }
 
+    #[allow(deprecated)]
     pub fn create_subscription(
         env: Env,
         id: String,
@@ -170,11 +167,7 @@ impl SubscriptionContract {
         Ok(())
     }
 
-    pub fn pause_subscription(
-        env: Env,
-        id: String,
-        reason: Option<String>,
-    ) -> Result<(), Error> {
+    pub fn pause_subscription(env: Env, id: String, reason: Option<String>) -> Result<(), Error> {
         let key = SubscriptionDataKey::Subscription(id.clone());
         let subscription: Subscription = env
             .storage()
@@ -205,6 +198,7 @@ impl SubscriptionContract {
         Self::pause_subscription_internal(env, id, subscription, admin, true, reason)
     }
 
+    #[allow(deprecated)]
     fn pause_subscription_internal(
         env: Env,
         id: String,
@@ -231,9 +225,7 @@ impl SubscriptionContract {
                 return Err(Error::PauseCountExceeded);
             }
 
-            let since_last_resume = current_time
-                .checked_sub(subscription.last_resumed_at)
-                .unwrap_or(0);
+            let since_last_resume = current_time.saturating_sub(subscription.last_resumed_at);
             if since_last_resume < config.min_active_time {
                 return Err(Error::PauseTooEarly);
             }
@@ -258,8 +250,14 @@ impl SubscriptionContract {
         env.storage().persistent().set(&key, &subscription);
         env.storage().persistent().extend_ttl(&key, 100, 1000);
 
-        env.events()
-            .publish((symbol_short!("subscr"), id.clone(), subscription.user.clone()), entry);
+        env.events().publish(
+            (
+                symbol_short!("subscr"),
+                id.clone(),
+                subscription.user.clone(),
+            ),
+            entry,
+        );
 
         Self::log_subscription_event(
             &env,
@@ -298,6 +296,7 @@ impl SubscriptionContract {
         Self::resume_subscription_internal(env, id, subscription, admin, true)
     }
 
+    #[allow(deprecated)]
     fn resume_subscription_internal(
         env: Env,
         id: String,
@@ -352,7 +351,11 @@ impl SubscriptionContract {
         env.storage().persistent().extend_ttl(&key, 100, 1000);
 
         env.events().publish(
-            (symbol_short!("subscr"), id.clone(), subscription.user.clone()),
+            (
+                symbol_short!("subscr"),
+                id.clone(),
+                subscription.user.clone(),
+            ),
             entry,
         );
 
@@ -389,6 +392,7 @@ impl SubscriptionContract {
             .ok_or(Error::SubscriptionNotFound)
     }
 
+    #[allow(deprecated)]
     pub fn set_usdc_contract(env: Env, admin: Address, usdc_address: Address) -> Result<(), Error> {
         admin.require_auth();
 
@@ -414,6 +418,7 @@ impl SubscriptionContract {
             .ok_or(Error::UsdcContractNotSet)
     }
 
+    #[allow(deprecated)]
     pub fn cancel_subscription(env: Env, id: String) -> Result<(), Error> {
         let key = SubscriptionDataKey::Subscription(id.clone());
         let mut subscription: Subscription = env
@@ -450,6 +455,7 @@ impl SubscriptionContract {
         Ok(())
     }
 
+    #[allow(deprecated)]
     pub fn renew_subscription(
         env: Env,
         id: String,

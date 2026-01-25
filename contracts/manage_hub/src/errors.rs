@@ -25,4 +25,11 @@ pub enum Error {
     MetadataTextValueTooLong = 20,
     MetadataValidationFailed = 21,
     InvalidMetadataVersion = 22,
+    // Pause/Resume related errors
+    InvalidPauseConfig = 23,
+    SubscriptionPaused = 24,
+    SubscriptionNotActive = 25,
+    PauseCountExceeded = 26,
+    PauseTooEarly = 27,
+    SubscriptionNotPaused = 28,
 }
