@@ -11,8 +11,8 @@ mod types;
 pub use types::{
     validate_attribute, validate_metadata, AttendanceAction, AttendanceFrequency, DateRange,
     DayPattern, MembershipStatus, MetadataUpdate, MetadataValue, PeakHourData, SubscriptionPlan,
-    SubscriptionTier, TimePeriod, TierChangeRequest, TierChangeStatus, TierChangeType, TierFeature,
-    TierLevel, TierPromotion, TokenMetadata, UserAttendanceStats, UserRole, MAX_ATTRIBUTES_COUNT,
+    SubscriptionTier, TierChangeRequest, TierChangeStatus, TierChangeType, TierFeature, TierLevel,
+    TierPromotion, TimePeriod, TokenMetadata, UserAttendanceStats, UserRole, MAX_ATTRIBUTES_COUNT,
     MAX_ATTRIBUTE_KEY_LENGTH, MAX_DESCRIPTION_LENGTH, MAX_TEXT_VALUE_LENGTH,
 };
 
