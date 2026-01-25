@@ -23,7 +23,8 @@ export class FilesController {
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
   async uploadSingle(@UploadedFile() file: Express.Multer.File) {
-    if (!file) throw new HttpException('No file provided', HttpStatus.BAD_REQUEST);
+    if (!file)
+      throw new HttpException('No file provided', HttpStatus.BAD_REQUEST);
     return this.filesService.uploadFile(file);
   }
 
@@ -42,7 +43,8 @@ export class FilesController {
 
   @Get(':id/download')
   async downloadFile(@Param('id') id: string, @Res() res: Response) {
-    const { stream, filename, mimeType } = await this.filesService.getFileStream(id);
+    const { stream, filename, mimeType } =
+      await this.filesService.getFileStream(id);
     res.set({
       'Content-Type': mimeType,
       'Content-Disposition': `attachment; filename="${filename}"`,

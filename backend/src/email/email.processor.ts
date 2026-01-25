@@ -1,4 +1,10 @@
-import { Process, Processor, OnQueueActive, OnQueueCompleted, OnQueueFailed } from '@nestjs/bull';
+import {
+  Process,
+  Processor,
+  OnQueueActive,
+  OnQueueCompleted,
+  OnQueueFailed,
+} from '@nestjs/bull';
 import { Logger } from '@nestjs/common';
 import { Job, DoneCallback } from 'bull';
 import { EmailService } from './email.service';
@@ -26,12 +32,14 @@ export class EmailProcessor {
       this.logger.log(`Email sent successfully: ${emailLogId}`);
     } catch (error) {
       this.logger.error(`Failed to send email ${emailLogId}:`, error);
-      
+
       // If this is the last retry, move to dead letter queue
       if (job.attemptsMade >= job.opts.attempts) {
-        this.logger.error(`Email ${emailLogId} moved to dead letter queue after ${job.attemptsMade} attempts`);
+        this.logger.error(
+          `Email ${emailLogId} moved to dead letter queue after ${job.attemptsMade} attempts`,
+        );
       }
-      
+
       throw error;
     }
   }
@@ -40,7 +48,9 @@ export class EmailProcessor {
   async handleBulkSend(job: Job): Promise<void> {
     const { recipients, ...emailData } = job.data;
 
-    this.logger.log(`Processing bulk email job ${job.id} with ${recipients.length} recipients`);
+    this.logger.log(
+      `Processing bulk email job ${job.id} with ${recipients.length} recipients`,
+    );
 
     let successCount = 0;
     let failureCount = 0;
@@ -55,16 +65,22 @@ export class EmailProcessor {
         });
         successCount++;
       } catch (error) {
-        this.logger.error(`Failed to queue email for ${recipient.email}:`, error);
+        this.logger.error(
+          `Failed to queue email for ${recipient.email}:`,
+          error,
+        );
         failureCount++;
       }
 
       // Update job progress
-      const progress = ((successCount + failureCount) / recipients.length) * 100;
+      const progress =
+        ((successCount + failureCount) / recipients.length) * 100;
       await job.progress(progress);
     }
 
-    this.logger.log(`Bulk email job ${job.id} completed: ${successCount} success, ${failureCount} failed`);
+    this.logger.log(
+      `Bulk email job ${job.id} completed: ${successCount} success, ${failureCount} failed`,
+    );
   }
 
   @OnQueueActive()
@@ -79,14 +95,21 @@ export class EmailProcessor {
 
   @OnQueueFailed()
   onFailed(job: Job, error: Error) {
-    this.logger.error(`Job ${job.id} of type ${job.name} failed with error:`, error);
-    
+    this.logger.error(
+      `Job ${job.id} of type ${job.name} failed with error:`,
+      error,
+    );
+
     // Check if job has exceeded max attempts
     if (job.attemptsMade >= job.opts.attempts) {
-      this.logger.error(`Job ${job.id} has reached maximum retry attempts (${job.attemptsMade}/${job.opts.attempts})`);
+      this.logger.error(
+        `Job ${job.id} has reached maximum retry attempts (${job.attemptsMade}/${job.opts.attempts})`,
+      );
       // Job will be moved to failed set and can be retrieved from dead letter queue
     } else {
-      this.logger.warn(`Job ${job.id} will be retried (attempt ${job.attemptsMade + 1}/${job.opts.attempts})`);
+      this.logger.warn(
+        `Job ${job.id} will be retried (attempt ${job.attemptsMade + 1}/${job.opts.attempts})`,
+      );
     }
   }
 }

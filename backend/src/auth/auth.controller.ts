@@ -30,13 +30,18 @@ export class AuthController {
 
   @Post('validate-reset-token')
   @HttpCode(HttpStatus.OK)
-  async validateResetToken(@Body() validateResetTokenDto: ValidateResetTokenDto) {
+  async validateResetToken(
+    @Body() validateResetTokenDto: ValidateResetTokenDto,
+  ) {
     return this.authService.validateResetToken(validateResetTokenDto.token);
   }
 
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
-    return this.authService.resetPassword(resetPasswordDto.token, resetPasswordDto.newPassword);
+    return this.authService.resetPassword(
+      resetPasswordDto.token,
+      resetPasswordDto.newPassword,
+    );
   }
 }

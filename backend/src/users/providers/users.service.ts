@@ -23,6 +23,9 @@ import { FindAdminByIdProvider } from './findAdminById.provider';
 
 @Injectable()
 export class UsersService {
+  update(userId: string, arg1: { twoFactorEnabled: boolean; }) {
+      throw new Error('Method not implemented.');
+  }
   constructor(
     private readonly createUserProvider: CreateUserProvider,
     private readonly findOneUserByIdProvider: FindOneUserByIdProvider,
@@ -80,15 +83,15 @@ export class UsersService {
 
   // FIND USER BY VERIFICATION TOKEN
   async findByVerificationToken(token: string): Promise<User> {
-    return await this.usersRepository.findOne({ 
-      where: { verificationToken: token } 
+    return await this.usersRepository.findOne({
+      where: { verificationToken: token },
     });
   }
 
   // FIND USER BY PASSWORD RESET TOKEN
   async findByPasswordResetToken(token: string): Promise<User> {
-    return await this.usersRepository.findOne({ 
-      where: { passwordResetToken: token } 
+    return await this.usersRepository.findOne({
+      where: { passwordResetToken: token },
     });
   }
 

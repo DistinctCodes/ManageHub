@@ -14,7 +14,7 @@ export const EMAIL_EVENT_KEY = 'email_event';
 /**
  * Decorator to mark methods that should trigger email notifications
  * @param metadata - Email event configuration
- * 
+ *
  * @example
  * ```typescript
  * @EmailEvent({

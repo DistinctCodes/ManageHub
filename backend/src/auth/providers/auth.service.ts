@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  BadRequestException,
+} from '@nestjs/common';
 import { UsersService } from '../../users/providers/users.service';
 import { CreateUserDto } from '../../users/dto/createUser.dto';
 import { User } from '../../users/entities/user.entity';
@@ -61,13 +65,16 @@ export class AuthService {
       throw new BadRequestException('Invalid reset token');
     }
 
-    if (!user.passwordResetExpiresIn || user.passwordResetExpiresIn < new Date()) {
+    if (
+      !user.passwordResetExpiresIn ||
+      user.passwordResetExpiresIn < new Date()
+    ) {
       throw new BadRequestException('Reset token has expired');
     }
 
-    return { 
+    return {
       message: 'Token is valid',
-      email: user.email 
+      email: user.email,
     };
   }
   public async verifyEmail(token: string): Promise<{ message: string }> {
@@ -110,9 +117,10 @@ export class AuthService {
     userId: string,
     response: Response,
   ): Promise<{ message: string }> {
-    const revoked = await this.refreshTokenRepositoryOperations.revokeAllRefreshTokens(
-      userId,
-    );
+    const revoked =
+      await this.refreshTokenRepositoryOperations.revokeAllRefreshTokens(
+        userId,
+      );
 
     if (!revoked.revokedCount) {
       throw new UnauthorizedException('No active sessions found');

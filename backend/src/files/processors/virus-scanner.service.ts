@@ -15,6 +15,7 @@ export class VirusScannerService {
   async scan(buffer: Buffer) {
     if (!this.scanner) return;
     const { is_infected } = await this.scanner.scan_buffer(buffer);
-    if (is_infected) throw new HttpException('Virus detected', HttpStatus.BAD_REQUEST);
+    if (is_infected)
+      throw new HttpException('Virus detected', HttpStatus.BAD_REQUEST);
   }
 }

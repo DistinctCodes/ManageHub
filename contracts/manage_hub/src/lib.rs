@@ -15,7 +15,11 @@ use common_types::{
 use errors::Error;
 use membership_token::{MembershipToken, MembershipTokenContract};
 use subscription::SubscriptionContract;
-use types::{AttendanceAction, AttendanceSummary, Subscription};
+use types::{
+    AttendanceAction, AttendanceSummary, BillingCycle, CreatePromotionParams, CreateTierParams,
+    Subscription, SubscriptionTier, TierAnalytics, TierFeature, TierPromotion, UpdateTierParams,
+    UserSubscriptionInfo,
+};
 
 #[contract]
 pub struct Contract;
@@ -99,6 +103,189 @@ impl Contract {
 
     pub fn set_usdc_contract(env: Env, admin: Address, usdc_address: Address) -> Result<(), Error> {
         SubscriptionContract::set_usdc_contract(env, admin, usdc_address)
+    }
+
+    // ============================================================================
+    // Tier Management Endpoints
+    // ============================================================================
+
+    /// Creates a new subscription tier. Admin only.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `admin` - Admin address (must be authorized)
+    /// * `params` - Tier creation parameters (id, name, level, prices, features, limits)
+    pub fn create_tier(env: Env, admin: Address, params: CreateTierParams) -> Result<(), Error> {
+        SubscriptionContract::create_tier(env, admin, params)
+    }
+
+    /// Updates an existing subscription tier. Admin only.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `admin` - Admin address (must be authorized)
+    /// * `params` - Update parameters (id required, other fields optional)
+    pub fn update_tier(env: Env, admin: Address, params: UpdateTierParams) -> Result<(), Error> {
+        SubscriptionContract::update_tier(env, admin, params)
+    }
+
+    /// Gets a subscription tier by ID.
+    pub fn get_tier(env: Env, id: String) -> Result<SubscriptionTier, Error> {
+        SubscriptionContract::get_tier(env, id)
+    }
+
+    /// Gets all subscription tiers.
+    pub fn get_all_tiers(env: Env) -> Vec<SubscriptionTier> {
+        SubscriptionContract::get_all_tiers(env)
+    }
+
+    /// Gets only active tiers available for purchase.
+    pub fn get_active_tiers(env: Env) -> Vec<SubscriptionTier> {
+        SubscriptionContract::get_active_tiers(env)
+    }
+
+    /// Deactivates a tier (soft delete). Admin only.
+    pub fn deactivate_tier(env: Env, admin: Address, id: String) -> Result<(), Error> {
+        SubscriptionContract::deactivate_tier(env, admin, id)
+    }
+
+    // ============================================================================
+    // Subscription with Tier Support Endpoints
+    // ============================================================================
+
+    /// Creates a subscription with tier support.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `id` - Unique subscription identifier
+    /// * `user` - User address
+    /// * `payment_token` - Token used for payment
+    /// * `tier_id` - ID of the tier to subscribe to
+    /// * `billing_cycle` - Monthly or Annual billing
+    /// * `promo_code` - Optional promotion code for discounts
+    pub fn create_subscription_with_tier(
+        env: Env,
+        id: String,
+        user: Address,
+        payment_token: Address,
+        tier_id: String,
+        billing_cycle: BillingCycle,
+        promo_code: Option<String>,
+    ) -> Result<(), Error> {
+        SubscriptionContract::create_subscription_with_tier(
+            env,
+            id,
+            user,
+            payment_token,
+            tier_id,
+            billing_cycle,
+            promo_code,
+        )
+    }
+
+    /// Gets detailed subscription info including tier details.
+    pub fn get_user_subscription_info(
+        env: Env,
+        subscription_id: String,
+    ) -> Result<UserSubscriptionInfo, Error> {
+        SubscriptionContract::get_user_subscription_info(env, subscription_id)
+    }
+
+    // ============================================================================
+    // Tier Change (Upgrade/Downgrade) Endpoints
+    // ============================================================================
+
+    /// Initiates a tier change request (upgrade or downgrade).
+    ///
+    /// # Returns
+    /// * `Ok(String)` - The change request ID
+    pub fn request_tier_change(
+        env: Env,
+        user: Address,
+        subscription_id: String,
+        new_tier_id: String,
+    ) -> Result<String, Error> {
+        SubscriptionContract::request_tier_change(env, user, subscription_id, new_tier_id)
+    }
+
+    /// Processes a tier change request.
+    pub fn process_tier_change(
+        env: Env,
+        caller: Address,
+        change_request_id: String,
+        subscription_id: String,
+        payment_token: Address,
+    ) -> Result<(), Error> {
+        SubscriptionContract::process_tier_change(
+            env,
+            caller,
+            change_request_id,
+            subscription_id,
+            payment_token,
+        )
+    }
+
+    /// Cancels a pending tier change request.
+    pub fn cancel_tier_change(
+        env: Env,
+        user: Address,
+        change_request_id: String,
+    ) -> Result<(), Error> {
+        SubscriptionContract::cancel_tier_change(env, user, change_request_id)
+    }
+
+    // ============================================================================
+    // Promotion Management Endpoints
+    // ============================================================================
+
+    /// Creates a promotional pricing for a tier. Admin only.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `admin` - Admin address (must be authorized)
+    /// * `params` - Promotion parameters (promo_id, tier_id, discount, dates, code, limits)
+    pub fn create_promotion(
+        env: Env,
+        admin: Address,
+        params: CreatePromotionParams,
+    ) -> Result<(), Error> {
+        SubscriptionContract::create_promotion(env, admin, params)
+    }
+
+    /// Gets a promotion by ID.
+    pub fn get_promotion(env: Env, promo_id: String) -> Result<TierPromotion, Error> {
+        SubscriptionContract::get_promotion(env, promo_id)
+    }
+
+    // ============================================================================
+    // Feature Access Control Endpoints
+    // ============================================================================
+
+    /// Checks if a subscription has access to a specific feature.
+    pub fn check_feature_access(
+        env: Env,
+        subscription_id: String,
+        feature: TierFeature,
+    ) -> Result<bool, Error> {
+        SubscriptionContract::check_feature_access(env, subscription_id, feature)
+    }
+
+    /// Enforces feature access, returns error if not available.
+    pub fn require_feature_access(
+        env: Env,
+        subscription_id: String,
+        feature: TierFeature,
+    ) -> Result<(), Error> {
+        SubscriptionContract::require_feature_access(env, subscription_id, feature)
+    }
+
+    // ============================================================================
+    // Tier Analytics Endpoints
+    // ============================================================================
+
+    /// Gets analytics for a specific tier.
+    pub fn get_tier_analytics(env: Env, tier_id: String) -> Result<TierAnalytics, Error> {
+        SubscriptionContract::get_tier_analytics(env, tier_id)
     }
 
     // ============================================================================

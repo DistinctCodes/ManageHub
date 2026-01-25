@@ -1,4 +1,7 @@
-export const getResetPasswordTemplate = (resetLink: string, companyName: string) => `
+export const getResetPasswordTemplate = (
+  resetLink: string,
+  companyName: string,
+) => `
 <!DOCTYPE html>
 <html lang="en">
 <head>

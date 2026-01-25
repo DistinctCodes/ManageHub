@@ -61,7 +61,9 @@ export class EmailController {
   @Get('preferences/:userId')
   @UseGuards(JwtAuthGuard)
   async getEmailPreferences(@Param('userId') userId: string) {
-    const preferences = await this.emailService['emailPreferenceRepository'].findOne({
+    const preferences = await this.emailService[
+      'emailPreferenceRepository'
+    ].findOne({
       where: { userId },
     });
     return preferences || { userId, unsubscribedFromAll: false };
@@ -73,7 +75,10 @@ export class EmailController {
     @Param('userId') userId: string,
     @Body() preferences: Partial<EmailPreference>,
   ) {
-    const updated = await this.emailService.updateEmailPreferences(userId, preferences);
+    const updated = await this.emailService.updateEmailPreferences(
+      userId,
+      preferences,
+    );
     return {
       success: true,
       preferences: updated,
@@ -97,16 +102,23 @@ export class EmailController {
 
   @Post('webhook/sendgrid')
   @Public()
-  async handleSendGridWebhook(@Body() events: any[], @Headers('x-twilio-email-event-webhook-signature') signature: string) {
+  async handleSendGridWebhook(
+    @Body() events: any[],
+    @Headers('x-twilio-email-event-webhook-signature') signature: string,
+  ) {
     // Verify webhook signature for security
     // Implementation depends on SendGrid's signature verification
 
     for (const event of events) {
       const emailLogId = event.email_log_id;
-      
+
       switch (event.event) {
         case 'delivered':
-          await this.emailService.trackEmailEvent(emailLogId, 'delivered', event);
+          await this.emailService.trackEmailEvent(
+            emailLogId,
+            'delivered',
+            event,
+          );
           break;
         case 'open':
           await this.emailService.trackEmailEvent(emailLogId, 'opened', event);
@@ -118,7 +130,11 @@ export class EmailController {
           await this.emailService.trackEmailEvent(emailLogId, 'bounced', event);
           break;
         case 'spamreport':
-          await this.emailService.trackEmailEvent(emailLogId, 'complained', event);
+          await this.emailService.trackEmailEvent(
+            emailLogId,
+            'complained',
+            event,
+          );
           break;
       }
     }
@@ -131,7 +147,7 @@ export class EmailController {
   async handleSESWebhook(@Body() notification: any) {
     // AWS SES SNS notification handler
     const message = JSON.parse(notification.Message);
-    
+
     if (message.eventType) {
       const emailLogId = message.mail?.headers?.find(
         (h: any) => h.name === 'X-Email-Log-Id',
@@ -140,19 +156,39 @@ export class EmailController {
       if (emailLogId) {
         switch (message.eventType) {
           case 'Delivery':
-            await this.emailService.trackEmailEvent(emailLogId, 'delivered', message);
+            await this.emailService.trackEmailEvent(
+              emailLogId,
+              'delivered',
+              message,
+            );
             break;
           case 'Open':
-            await this.emailService.trackEmailEvent(emailLogId, 'opened', message);
+            await this.emailService.trackEmailEvent(
+              emailLogId,
+              'opened',
+              message,
+            );
             break;
           case 'Click':
-            await this.emailService.trackEmailEvent(emailLogId, 'clicked', message);
+            await this.emailService.trackEmailEvent(
+              emailLogId,
+              'clicked',
+              message,
+            );
             break;
           case 'Bounce':
-            await this.emailService.trackEmailEvent(emailLogId, 'bounced', message);
+            await this.emailService.trackEmailEvent(
+              emailLogId,
+              'bounced',
+              message,
+            );
             break;
           case 'Complaint':
-            await this.emailService.trackEmailEvent(emailLogId, 'complained', message);
+            await this.emailService.trackEmailEvent(
+              emailLogId,
+              'complained',
+              message,
+            );
             break;
         }
       }
@@ -177,19 +213,39 @@ export class EmailController {
     if (emailLogId) {
       switch (eventData.event) {
         case 'delivered':
-          await this.emailService.trackEmailEvent(emailLogId, 'delivered', eventData);
+          await this.emailService.trackEmailEvent(
+            emailLogId,
+            'delivered',
+            eventData,
+          );
           break;
         case 'opened':
-          await this.emailService.trackEmailEvent(emailLogId, 'opened', eventData);
+          await this.emailService.trackEmailEvent(
+            emailLogId,
+            'opened',
+            eventData,
+          );
           break;
         case 'clicked':
-          await this.emailService.trackEmailEvent(emailLogId, 'clicked', eventData);
+          await this.emailService.trackEmailEvent(
+            emailLogId,
+            'clicked',
+            eventData,
+          );
           break;
         case 'bounced':
-          await this.emailService.trackEmailEvent(emailLogId, 'bounced', eventData);
+          await this.emailService.trackEmailEvent(
+            emailLogId,
+            'bounced',
+            eventData,
+          );
           break;
         case 'complained':
-          await this.emailService.trackEmailEvent(emailLogId, 'complained', eventData);
+          await this.emailService.trackEmailEvent(
+            emailLogId,
+            'complained',
+            eventData,
+          );
           break;
       }
     }
@@ -205,8 +261,9 @@ export class EmailController {
     @Req() req: Request,
     @Headers('user-agent') userAgent: string,
   ) {
-    const ipAddress = req.headers['x-forwarded-for'] || req.headers['x-real-ip'];
-    
+    const ipAddress =
+      req.headers['x-forwarded-for'] || req.headers['x-real-ip'];
+
     await this.emailService.trackEmailEvent(emailLogId, 'opened', {
       ipAddress,
       userAgent,
@@ -230,8 +287,9 @@ export class EmailController {
     @Req() req: Request,
     @Headers('user-agent') userAgent: string,
   ) {
-    const ipAddress = req.headers['x-forwarded-for'] || req.headers['x-real-ip'];
-    
+    const ipAddress =
+      req.headers['x-forwarded-for'] || req.headers['x-real-ip'];
+
     await this.emailService.trackEmailEvent(emailLogId, 'clicked', {
       ipAddress,
       userAgent,
