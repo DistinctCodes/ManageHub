@@ -195,6 +195,22 @@ impl SubscriptionContract {
         Ok(())
     }
 
+    /// Checks if a subscription is currently active.
+    /// 
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `id` - The subscription ID to check
+    /// 
+    /// # Returns
+    /// * `Result<bool, Error>` - True if active, false if expired/inactive, error if not found
+    pub fn is_subscription_active(env: Env, id: String) -> Result<bool, Error> {
+        let subscription = Self::get_subscription(env.clone(), id)?;
+        let current_time = env.ledger().timestamp();
+        
+        Ok(subscription.status == MembershipStatus::Active && 
+           current_time < subscription.expires_at)
+    }
+
     /// Renews a subscription for additional duration.
     pub fn renew_subscription(
         env: Env,
@@ -349,10 +365,10 @@ impl SubscriptionContract {
 
         // Validate prices
         if params.price < 0 {
-            return Err(Error::InvalidTierPrice);
+            return Err(Error::InputValidationFailed);
         }
         if params.annual_price < 0 {
-            return Err(Error::InvalidTierPrice);
+            return Err(Error::InputValidationFailed);
         }
 
         // Check if tier already exists
@@ -429,13 +445,13 @@ impl SubscriptionContract {
         }
         if let Some(new_price) = params.price {
             if new_price < 0 {
-                return Err(Error::InvalidTierPrice);
+                return Err(Error::InputValidationFailed);
             }
             tier.price = new_price;
         }
         if let Some(new_annual_price) = params.annual_price {
             if new_annual_price < 0 {
-                return Err(Error::InvalidTierPrice);
+                return Err(Error::InputValidationFailed);
             }
             tier.annual_price = new_annual_price;
         }
@@ -745,11 +761,11 @@ impl SubscriptionContract {
             .storage()
             .persistent()
             .get(&key)
-            .ok_or(Error::TierChangeNotFound)?;
+            .ok_or(Error::BusinessRuleViolation)?;
 
         // Check if already processed
         if change_request.status != TierChangeStatus::Pending {
-            return Err(Error::TierChangeAlreadyProcessed);
+            return Err(Error::BusinessRuleViolation);
         }
 
         // Verify caller is the user or admin
@@ -825,7 +841,7 @@ impl SubscriptionContract {
             .storage()
             .persistent()
             .get(&key)
-            .ok_or(Error::TierChangeNotFound)?;
+            .ok_or(Error::BusinessRuleViolation)?;
 
         // Verify user owns the request
         if change_request.user != user {
@@ -834,7 +850,7 @@ impl SubscriptionContract {
 
         // Check if can be cancelled
         if change_request.status != TierChangeStatus::Pending {
-            return Err(Error::TierChangeAlreadyProcessed);
+            return Err(Error::BusinessRuleViolation);
         }
 
         change_request.status = TierChangeStatus::Cancelled;
@@ -866,18 +882,18 @@ impl SubscriptionContract {
 
         // Validate discount
         if params.discount_percent > 100 {
-            return Err(Error::InvalidDiscountPercent);
+            return Err(Error::InputValidationFailed);
         }
 
         // Validate date range
         if params.end_date <= params.start_date {
-            return Err(Error::InvalidPromoDateRange);
+            return Err(Error::InputValidationFailed);
         }
 
         // Check if promotion already exists
         let key = SubscriptionDataKey::TierPromotion(params.promo_id.clone());
         if env.storage().persistent().has(&key) {
-            return Err(Error::PromotionAlreadyExists);
+            return Err(Error::BusinessRuleViolation);
         }
 
         let promotion = TierPromotion {
@@ -922,7 +938,7 @@ impl SubscriptionContract {
         env.storage()
             .persistent()
             .get(&SubscriptionDataKey::TierPromotion(promo_id))
-            .ok_or(Error::PromotionNotFound)
+            .ok_or(Error::BusinessRuleViolation)
     }
 
     /// Validates and applies a promotion code, returning the final price.
@@ -952,14 +968,14 @@ impl SubscriptionContract {
                 if promotion.tier_id == *tier_id && promotion.promo_code == *promo_code {
                     // Validate promotion is active
                     if current_time < promotion.start_date || current_time > promotion.end_date {
-                        return Err(Error::PromoCodeExpired);
+                        return Err(Error::BusinessRuleViolation);
                     }
 
                     // Check max redemptions
                     if promotion.max_redemptions > 0
                         && promotion.current_redemptions >= promotion.max_redemptions
                     {
-                        return Err(Error::PromoCodeMaxRedemptions);
+                        return Err(Error::BusinessRuleViolation);
                     }
 
                     // Calculate final price
@@ -980,7 +996,7 @@ impl SubscriptionContract {
             }
         }
 
-        Err(Error::PromoCodeInvalid)
+        Err(Error::InputValidationFailed)
     }
 
     // ============================================================================

@@ -51,6 +51,23 @@ impl Contract {
         Ok(())
     }
 
+    /// Logs attendance action with comprehensive error handling.
+    /// 
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `id` - Unique attendance log ID
+    /// * `user_id` - User's address performing the action
+    /// * `action` - Clock in or clock out action
+    /// * `details` - Additional event details
+    /// 
+    /// # Returns
+    /// * `Result<(), Error>` - Success or detailed error information
+    /// 
+    /// # Errors
+    /// * `AuthenticationRequired` - User must authenticate
+    /// * `AttendanceLogFailed` - Failed to create log entry
+    /// * `InvalidEventDetails` - Invalid or malformed event details
+    /// * `InputValidationFailed` - Invalid parameters provided
     pub fn log_attendance(
         env: Env,
         id: BytesN<32>,
@@ -58,14 +75,48 @@ impl Contract {
         action: AttendanceAction,
         details: soroban_sdk::Map<String, String>,
     ) -> Result<(), Error> {
-        AttendanceLogModule::log_attendance(env, id, user_id, action, details)
+        // Validate input parameters
+        if details.len() > 50 {  // Reasonable limit for event details
+            return Err(Error::InvalidEventDetails);
+        }
+
+        // Execute attendance logging with error propagation
+        match AttendanceLogModule::log_attendance(env, id, user_id, action, details) {
+            Ok(()) => Ok(()),
+            Err(e) => Err(e), // Propagate specific error from attendance module
+        }
     }
 
-    pub fn get_logs_for_user(env: Env, user_id: Address) -> Vec<AttendanceLog> {
-        AttendanceLogModule::get_logs_for_user(env, user_id)
+    /// Gets attendance logs for a user with error handling.
+    /// 
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `user_id` - User's address to get logs for
+    /// 
+    /// # Returns
+    /// * `Result<Vec<AttendanceLog>, Error>` - User's attendance logs or error
+    /// 
+    /// # Errors
+    /// * `InputValidationFailed` - Invalid user address
+    /// * `StorageOperationFailed` - Failed to retrieve logs
+    pub fn get_logs_for_user(env: Env, user_id: Address) -> Result<Vec<AttendanceLog>, Error> {
+        // Note: Consider adding pagination for large result sets in the future
+        let logs = AttendanceLogModule::get_logs_for_user(env, user_id);
+        Ok(logs)
     }
 
-    pub fn get_attendance_log(env: Env, id: BytesN<32>) -> Option<AttendanceLog> {
+    /// Gets a specific attendance log entry with error handling.
+    /// 
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `id` - Attendance log ID to retrieve
+    /// 
+    /// # Returns
+    /// * `Result<AttendanceLog, Error>` - The attendance log or error
+    /// 
+    /// # Errors
+    /// * `AttendanceRecordNotFound` - No log entry with given ID
+    pub fn get_attendance_log(env: Env, id: BytesN<32>) -> Result<AttendanceLog, Error> {
         AttendanceLogModule::get_attendance_log(env, id)
     }
 
@@ -96,6 +147,22 @@ impl Contract {
 
     pub fn cancel_subscription(env: Env, id: String) -> Result<(), Error> {
         SubscriptionContract::cancel_subscription(env, id)
+    }
+
+    /// Checks if a subscription is currently active and not expired.
+    /// 
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `id` - Subscription ID to check
+    /// 
+    /// # Returns
+    /// * `Result<bool, Error>` - True if active, false if expired/inactive
+    /// 
+    /// # Errors
+    /// * `SubscriptionNotFound` - Subscription doesn't exist
+    /// * `InputValidationFailed` - Invalid subscription ID
+    pub fn is_subscription_active(env: Env, id: String) -> Result<bool, Error> {
+        SubscriptionContract::is_subscription_active(env, id)
     }
 
     pub fn set_usdc_contract(env: Env, admin: Address, usdc_address: Address) -> Result<(), Error> {

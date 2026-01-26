@@ -6,6 +6,7 @@
 //! across all ManageHub smart contracts.
 
 mod types;
+mod errors;
 
 // Re-export all types
 pub use types::{
@@ -14,6 +15,9 @@ pub use types::{
     TierChangeType, TierFeature, TierLevel, TierPromotion, TokenMetadata, UserRole,
     MAX_ATTRIBUTES_COUNT, MAX_ATTRIBUTE_KEY_LENGTH, MAX_DESCRIPTION_LENGTH, MAX_TEXT_VALUE_LENGTH,
 };
+
+// Re-export unified error system
+pub use errors::{ErrorCategory, ManageHubError};
 
 #[cfg(test)]
 mod test_contract;
