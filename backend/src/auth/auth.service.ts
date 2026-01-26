@@ -4,7 +4,6 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { EmailService } from '../email/email.service';
 import { randomBytes } from 'crypto';
 import { UsersService } from 'src/users/providers/users.service';
 import { ForgotPasswordDto } from './dto/forgotPassword.dto';
@@ -17,7 +16,6 @@ import { RefreshTokenRepositoryOperations } from './providers/RefreshTokenCrud.r
 export class AuthService {
   constructor(
     private usersService: UsersService,
-    private emailService: EmailService,
     private hashingProvider: HashingProvider,
     private refreshTokenRepositoryOperations: RefreshTokenRepositoryOperations,
   ) {}
@@ -79,7 +77,7 @@ export class AuthService {
     });
 
     // 6. Send Email
-    await this.emailService.sendVerificationEmail(user.email, token);
+    // await this.emailService.sendVerificationEmail(user.email, token);
 
     return { message: 'Verification email sent' };
   }
@@ -122,7 +120,7 @@ export class AuthService {
     });
 
     // Send password reset email
-    await this.emailService.sendPasswordResetEmail(user.email, token);
+    // await this.emailService.sendPasswordResetEmail(user.email, token);
 
     return { message: 'Password reset instructions sent to email' };
   }
@@ -179,7 +177,7 @@ export class AuthService {
     await this.refreshTokenRepositoryOperations.revokeAllRefreshTokens(user.id);
 
     // Send confirmation email
-    await this.emailService.sendPasswordChangedEmail(user.email);
+    // await this.emailService.sendPasswordChangedEmail(user.email);
 
     return { message: 'Password reset successful' };
   }

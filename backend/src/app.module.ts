@@ -5,16 +5,11 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
-import { NewsletterModule } from './newsletter/newsletter.module';
-import { EmailModule } from './email/email.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guards/jwt.guard';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { AttendanceModule } from './attendance/attendance.module';
-import { StaffModule } from './staff/staff.module';
 import { BullModule } from '@nestjs/bull';
 import { ScheduleModule } from '@nestjs/schedule';
-import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
   imports: [
@@ -77,11 +72,6 @@ import { AnalyticsModule } from './analytics/analytics.module';
     }),
     AuthModule,
     UsersModule,
-    NewsletterModule,
-    EmailModule,
-    AttendanceModule,
-    StaffModule,
-    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [

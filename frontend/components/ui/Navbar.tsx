@@ -27,7 +27,7 @@ export function Navbar({ items = NAV_ITEMS }: { items?: NavItem[] }) {
 
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center gap-6">
-          {/* {items.map((it) => (
+          {items.map((it) => (
             <Link
               key={it.label}
               href={it.href}
@@ -35,7 +35,7 @@ export function Navbar({ items = NAV_ITEMS }: { items?: NavItem[] }) {
             >
               {it.label}
             </Link>
-          ))} */}
+          ))}
 
           <Link
             href="#notify"
@@ -78,7 +78,7 @@ export function Navbar({ items = NAV_ITEMS }: { items?: NavItem[] }) {
         {open && (
           <div className="absolute right-6 top-[72px] w-56 bg-white rounded-xl shadow-xl border border-gray-200 md:hidden overflow-hidden">
             <div className="p-2">
-              {/* {items.map((it) => (
+              {items.map((it) => (
                 <Link
                   key={it.label}
                   href={it.href}
@@ -87,7 +87,7 @@ export function Navbar({ items = NAV_ITEMS }: { items?: NavItem[] }) {
                 >
                   {it.label}
                 </Link>
-              ))} */}
+              ))}
 
               <Link
                 href="#notify"
