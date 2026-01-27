@@ -1140,7 +1140,7 @@ fn test_pause_stats() {
 }
 
 #[test]
-#[should_panic(expected = "HostError: Error(Contract, #24)")]
+#[should_panic(expected = "HostError: Error(Contract, #36)")]
 fn test_pause_already_paused_subscription() {
     let env = Env::default();
     env.mock_all_auths();
@@ -1169,7 +1169,7 @@ fn test_pause_already_paused_subscription() {
 }
 
 #[test]
-#[should_panic(expected = "HostError: Error(Contract, #28)")]
+#[should_panic(expected = "HostError: Error(Contract, #40)")]
 fn test_resume_not_paused_subscription() {
     let env = Env::default();
     env.mock_all_auths();
@@ -1193,7 +1193,7 @@ fn test_resume_not_paused_subscription() {
 }
 
 #[test]
-#[should_panic(expected = "HostError: Error(Contract, #24)")]
+#[should_panic(expected = "HostError: Error(Contract, #36)")]
 fn test_renew_paused_subscription() {
     let env = Env::default();
     env.mock_all_auths();

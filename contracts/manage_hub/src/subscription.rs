@@ -477,7 +477,6 @@ impl SubscriptionContract {
         Ok(())
     }
 
-
     /// Checks if a subscription is currently active.
     ///
     /// # Arguments
@@ -494,9 +493,7 @@ impl SubscriptionContract {
             && current_time < subscription.expires_at)
     }
 
-
     #[allow(deprecated)]
-
     /// Renews a subscription for additional duration.
     pub fn renew_subscription(
         env: Env,

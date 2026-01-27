@@ -150,7 +150,6 @@ impl Contract {
         SubscriptionContract::cancel_subscription(env, id)
     }
 
-
     /// Checks if a subscription is currently active and not expired.
     ///
     /// # Arguments
@@ -165,6 +164,7 @@ impl Contract {
     /// * `InputValidationFailed` - Invalid subscription ID
     pub fn is_subscription_active(env: Env, id: String) -> Result<bool, Error> {
         SubscriptionContract::is_subscription_active(env, id)
+    }
 
     pub fn pause_subscription(env: Env, id: String, reason: Option<String>) -> Result<(), Error> {
         SubscriptionContract::pause_subscription(env, id, reason)
@@ -201,7 +201,6 @@ impl Contract {
 
     pub fn get_pause_stats(env: Env, id: String) -> Result<PauseStats, Error> {
         SubscriptionContract::get_pause_stats(env, id)
-
     }
 
     pub fn set_usdc_contract(env: Env, admin: Address, usdc_address: Address) -> Result<(), Error> {

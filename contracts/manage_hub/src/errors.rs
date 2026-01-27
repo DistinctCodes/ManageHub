@@ -42,6 +42,32 @@ pub enum Error {
     StorageOperationFailed = 26,
     BusinessRuleViolation = 27,
     OperationFailed = 28,
+    // Metadata related errors
+    MetadataDescriptionTooLong = 29,
+    MetadataTooManyAttributes = 30,
+    MetadataAttributeKeyTooLong = 31,
+    MetadataTextValueTooLong = 32,
+    MetadataValidationFailed = 33,
+    InvalidMetadataVersion = 34,
+    // Pause/Resume related errors
+    InvalidPauseConfig = 35,
+    SubscriptionPaused = 36,
+    SubscriptionNotActive = 37,
+    PauseCountExceeded = 38,
+    PauseTooEarly = 39,
+    SubscriptionNotPaused = 40,
+    // Additional tier and feature related errors
+    TierChangeAlreadyProcessed = 41,
+    InvalidDiscountPercent = 42,
+    InvalidPromoDateRange = 43,
+    PromotionAlreadyExists = 44,
+    PromotionNotFound = 45,
+    PromoCodeExpired = 46,
+    PromoCodeMaxRedemptions = 47,
+    PromoCodeInvalid = 48,
+    // Tier management errors
+    InvalidTierPrice = 49,
+    TierChangeNotFound = 50,
 }
 
 impl Error {
@@ -91,6 +117,34 @@ impl Error {
             Error::BusinessRuleViolation => ManageHubError::BusinessRuleViolation,
             Error::OperationFailed => ManageHubError::OperationFailed,
             Error::AdminNotSet => ManageHubError::ConfigurationError,
+
+            // Additional Metadata
+            Error::MetadataDescriptionTooLong => ManageHubError::TokenMetadataValidationFailed,
+            Error::MetadataTooManyAttributes => ManageHubError::TokenMetadataValidationFailed,
+            Error::MetadataAttributeKeyTooLong => ManageHubError::TokenMetadataValidationFailed,
+            Error::MetadataTextValueTooLong => ManageHubError::TokenMetadataValidationFailed,
+            Error::MetadataValidationFailed => ManageHubError::TokenMetadataValidationFailed,
+            Error::InvalidMetadataVersion => ManageHubError::TokenMetadataValidationFailed,
+
+            // Pause/Resume functionality
+            Error::InvalidPauseConfig => ManageHubError::ConfigurationError,
+            Error::SubscriptionPaused => ManageHubError::SubscriptionInactive,
+            Error::SubscriptionNotActive => ManageHubError::SubscriptionInactive,
+            Error::PauseCountExceeded => ManageHubError::BusinessRuleViolation,
+            Error::PauseTooEarly => ManageHubError::BusinessRuleViolation,
+            Error::SubscriptionNotPaused => ManageHubError::OperationNotPermittedInCurrentState,
+
+            // Additional Tier functionality
+            Error::TierChangeAlreadyProcessed => ManageHubError::BusinessRuleViolation,
+            Error::InvalidDiscountPercent => ManageHubError::InputValidationFailed,
+            Error::InvalidPromoDateRange => ManageHubError::InputValidationFailed,
+            Error::PromotionAlreadyExists => ManageHubError::BusinessRuleViolation,
+            Error::PromotionNotFound => ManageHubError::DataNotFound,
+            Error::PromoCodeExpired => ManageHubError::BusinessRuleViolation,
+            Error::PromoCodeMaxRedemptions => ManageHubError::BusinessRuleViolation,
+            Error::PromoCodeInvalid => ManageHubError::InputValidationFailed,
+            Error::InvalidTierPrice => ManageHubError::InputValidationFailed,
+            Error::TierChangeNotFound => ManageHubError::DataNotFound,
         }
     }
 
@@ -103,34 +157,4 @@ impl Error {
     pub fn is_critical(self) -> bool {
         self.to_unified_error().is_critical()
     }
-    MetadataDescriptionTooLong = 17,
-    MetadataTooManyAttributes = 18,
-    MetadataAttributeKeyTooLong = 19,
-    MetadataTextValueTooLong = 20,
-    MetadataValidationFailed = 21,
-    InvalidMetadataVersion = 22,
-    // Pause/Resume related errors
-    InvalidPauseConfig = 23,
-    SubscriptionPaused = 24,
-    SubscriptionNotActive = 25,
-    PauseCountExceeded = 26,
-    PauseTooEarly = 27,
-    SubscriptionNotPaused = 28,
-    // Tier and feature related errors
-    TierNotFound = 29,
-    FeatureNotAvailable = 30,
-    // Tier change related errors
-    TierChangeAlreadyProcessed = 31,
-    InvalidDiscountPercent = 32,
-    InvalidPromoDateRange = 33,
-    PromotionAlreadyExists = 34,
-    PromotionNotFound = 35,
-    PromoCodeExpired = 36,
-    PromoCodeMaxRedemptions = 37,
-    PromoCodeInvalid = 38,
-    // Tier management errors
-    InvalidTierPrice = 39,
-    TierAlreadyExists = 40,
-    TierNotActive = 41,
-    TierChangeNotFound = 42,
 }
