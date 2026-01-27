@@ -28,6 +28,7 @@ pub enum Error {
     InsufficientBalance = 14,
     TimestampOverflow = 15,
     MetadataNotFound = 16,
+
     TierNotFound = 17,
     TierAlreadyExists = 18,
     TierNotActive = 19,
@@ -102,4 +103,34 @@ impl Error {
     pub fn is_critical(self) -> bool {
         self.to_unified_error().is_critical()
     }
+    MetadataDescriptionTooLong = 17,
+    MetadataTooManyAttributes = 18,
+    MetadataAttributeKeyTooLong = 19,
+    MetadataTextValueTooLong = 20,
+    MetadataValidationFailed = 21,
+    InvalidMetadataVersion = 22,
+    // Pause/Resume related errors
+    InvalidPauseConfig = 23,
+    SubscriptionPaused = 24,
+    SubscriptionNotActive = 25,
+    PauseCountExceeded = 26,
+    PauseTooEarly = 27,
+    SubscriptionNotPaused = 28,
+    // Tier and feature related errors
+    TierNotFound = 29,
+    FeatureNotAvailable = 30,
+    // Tier change related errors
+    TierChangeAlreadyProcessed = 31,
+    InvalidDiscountPercent = 32,
+    InvalidPromoDateRange = 33,
+    PromotionAlreadyExists = 34,
+    PromotionNotFound = 35,
+    PromoCodeExpired = 36,
+    PromoCodeMaxRedemptions = 37,
+    PromoCodeInvalid = 38,
+    // Tier management errors
+    InvalidTierPrice = 39,
+    TierAlreadyExists = 40,
+    TierNotActive = 41,
+    TierChangeNotFound = 42,
 }

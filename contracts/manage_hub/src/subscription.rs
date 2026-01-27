@@ -5,16 +5,19 @@ use soroban_sdk::{contracttype, symbol_short, Address, BytesN, Env, Map, String,
 
 // use crate::attendance_log::AttendanceLogModule;
 use crate::errors::Error;
+use crate::membership_token::DataKey as MembershipTokenDataKey;
 use crate::types::{
     AttendanceAction, BillingCycle, CreatePromotionParams, CreateTierParams, MembershipStatus,
-    Subscription, SubscriptionTier, TierAnalytics, TierChangeRequest, TierChangeStatus,
-    TierChangeType, TierFeature, TierLevel, TierPromotion, UpdateTierParams, UserSubscriptionInfo,
+    PauseAction, PauseConfig, PauseHistoryEntry, PauseStats, Subscription, SubscriptionTier,
+    TierAnalytics, TierChangeRequest, TierChangeStatus, TierChangeType, TierFeature, TierLevel,
+    TierPromotion, UpdateTierParams, UserSubscriptionInfo,
 };
 
 #[contracttype]
 pub enum SubscriptionDataKey {
     Subscription(String),
     UsdcContract,
+    PauseConfig,
     // Tier storage keys
     Tier(String),
     TierList,
@@ -29,6 +32,55 @@ pub enum SubscriptionDataKey {
 pub struct SubscriptionContract;
 
 impl SubscriptionContract {
+    fn require_admin(env: &Env, caller: &Address) -> Result<(), Error> {
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&MembershipTokenDataKey::Admin)
+            .ok_or(Error::AdminNotSet)?;
+
+        if caller != &admin {
+            return Err(Error::Unauthorized);
+        }
+
+        caller.require_auth();
+        Ok(())
+    }
+
+    fn get_pause_config_or_default(env: &Env) -> PauseConfig {
+        env.storage()
+            .instance()
+            .get(&SubscriptionDataKey::PauseConfig)
+            .unwrap_or(PauseConfig {
+                max_pause_duration: 2_592_000,
+                max_pause_count: 3,
+                min_active_time: 86_400,
+            })
+    }
+
+    fn validate_pause_config(config: &PauseConfig) -> Result<(), Error> {
+        if config.max_pause_duration == 0 {
+            return Err(Error::InvalidPauseConfig);
+        }
+        if config.max_pause_count == 0 {
+            return Err(Error::InvalidPauseConfig);
+        }
+        Ok(())
+    }
+
+    pub fn set_pause_config(env: Env, admin: Address, config: PauseConfig) -> Result<(), Error> {
+        Self::require_admin(&env, &admin)?;
+        Self::validate_pause_config(&config)?;
+        env.storage()
+            .instance()
+            .set(&SubscriptionDataKey::PauseConfig, &config);
+        Ok(())
+    }
+
+    pub fn get_pause_config(env: Env) -> PauseConfig {
+        Self::get_pause_config_or_default(&env)
+    }
+
     fn validate_payment(
         env: &Env,
         payment_token: &Address,
@@ -57,6 +109,7 @@ impl SubscriptionContract {
         Ok(true)
     }
 
+    #[allow(deprecated)]
     /// Creates a subscription without tier (legacy support).
     /// For new subscriptions, prefer `create_subscription_with_tier`.
     pub fn create_subscription(
@@ -102,6 +155,11 @@ impl SubscriptionContract {
             status: MembershipStatus::Active,
             created_at: current_time,
             expires_at,
+            paused_at: None,
+            last_resumed_at: current_time,
+            pause_count: 0,
+            total_paused_duration: 0,
+            pause_history: Vec::new(&env),
             tier_id: String::from_str(&env, ""),
             billing_cycle: BillingCycle::Monthly,
         };
@@ -129,6 +187,226 @@ impl SubscriptionContract {
         Ok(())
     }
 
+    pub fn pause_subscription(env: Env, id: String, reason: Option<String>) -> Result<(), Error> {
+        let key = SubscriptionDataKey::Subscription(id.clone());
+        let subscription: Subscription = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .ok_or(Error::SubscriptionNotFound)?;
+
+        subscription.user.require_auth();
+        let actor = subscription.user.clone();
+        Self::pause_subscription_internal(env, id, subscription, actor, false, reason)
+    }
+
+    pub fn pause_subscription_admin(
+        env: Env,
+        id: String,
+        admin: Address,
+        reason: Option<String>,
+    ) -> Result<(), Error> {
+        Self::require_admin(&env, &admin)?;
+
+        let key = SubscriptionDataKey::Subscription(id.clone());
+        let subscription: Subscription = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .ok_or(Error::SubscriptionNotFound)?;
+
+        Self::pause_subscription_internal(env, id, subscription, admin, true, reason)
+    }
+
+    #[allow(deprecated)]
+    fn pause_subscription_internal(
+        env: Env,
+        id: String,
+        mut subscription: Subscription,
+        actor: Address,
+        is_admin: bool,
+        reason: Option<String>,
+    ) -> Result<(), Error> {
+        let current_time = env.ledger().timestamp();
+
+        if subscription.status == MembershipStatus::Paused {
+            return Err(Error::SubscriptionPaused);
+        }
+        if subscription.status != MembershipStatus::Active {
+            return Err(Error::SubscriptionNotActive);
+        }
+        if current_time >= subscription.expires_at {
+            return Err(Error::SubscriptionNotActive);
+        }
+
+        let config = Self::get_pause_config_or_default(&env);
+        if !is_admin {
+            if subscription.pause_count >= config.max_pause_count {
+                return Err(Error::PauseCountExceeded);
+            }
+
+            let since_last_resume = current_time.saturating_sub(subscription.last_resumed_at);
+            if since_last_resume < config.min_active_time {
+                return Err(Error::PauseTooEarly);
+            }
+        }
+
+        subscription.status = MembershipStatus::Paused;
+        subscription.paused_at = Some(current_time);
+        subscription.pause_count = subscription.pause_count.saturating_add(1);
+
+        let entry = PauseHistoryEntry {
+            action: PauseAction::Pause,
+            timestamp: current_time,
+            actor: actor.clone(),
+            is_admin,
+            reason: reason.clone(),
+            paused_duration: None,
+            applied_extension: None,
+        };
+        subscription.pause_history.push_back(entry.clone());
+
+        let key = SubscriptionDataKey::Subscription(id.clone());
+        env.storage().persistent().set(&key, &subscription);
+        env.storage().persistent().extend_ttl(&key, 100, 1000);
+
+        env.events().publish(
+            (
+                symbol_short!("subscr"),
+                id.clone(),
+                subscription.user.clone(),
+            ),
+            entry,
+        );
+
+        Self::log_subscription_event(
+            &env,
+            &subscription.user,
+            String::from_str(&env, "subscription_paused"),
+            &id,
+            subscription.amount,
+        )?;
+
+        Ok(())
+    }
+
+    pub fn resume_subscription(env: Env, id: String) -> Result<(), Error> {
+        let key = SubscriptionDataKey::Subscription(id.clone());
+        let subscription: Subscription = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .ok_or(Error::SubscriptionNotFound)?;
+
+        subscription.user.require_auth();
+        let actor = subscription.user.clone();
+        Self::resume_subscription_internal(env, id, subscription, actor, false)
+    }
+
+    pub fn resume_subscription_admin(env: Env, id: String, admin: Address) -> Result<(), Error> {
+        Self::require_admin(&env, &admin)?;
+
+        let key = SubscriptionDataKey::Subscription(id.clone());
+        let subscription: Subscription = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .ok_or(Error::SubscriptionNotFound)?;
+
+        Self::resume_subscription_internal(env, id, subscription, admin, true)
+    }
+
+    #[allow(deprecated)]
+    fn resume_subscription_internal(
+        env: Env,
+        id: String,
+        mut subscription: Subscription,
+        actor: Address,
+        is_admin: bool,
+    ) -> Result<(), Error> {
+        if subscription.status != MembershipStatus::Paused {
+            return Err(Error::SubscriptionNotPaused);
+        }
+
+        let paused_at = subscription.paused_at.ok_or(Error::SubscriptionNotPaused)?;
+        let current_time = env.ledger().timestamp();
+        let paused_duration = current_time
+            .checked_sub(paused_at)
+            .ok_or(Error::TimestampOverflow)?;
+
+        let config = Self::get_pause_config_or_default(&env);
+        let applied_extension = if is_admin {
+            paused_duration
+        } else if paused_duration > config.max_pause_duration {
+            config.max_pause_duration
+        } else {
+            paused_duration
+        };
+
+        subscription.expires_at = subscription
+            .expires_at
+            .checked_add(applied_extension)
+            .ok_or(Error::TimestampOverflow)?;
+        subscription.status = MembershipStatus::Active;
+        subscription.paused_at = None;
+        subscription.last_resumed_at = current_time;
+        subscription.total_paused_duration = subscription
+            .total_paused_duration
+            .checked_add(paused_duration)
+            .ok_or(Error::TimestampOverflow)?;
+
+        let entry = PauseHistoryEntry {
+            action: PauseAction::Resume,
+            timestamp: current_time,
+            actor: actor.clone(),
+            is_admin,
+            reason: None,
+            paused_duration: Some(paused_duration),
+            applied_extension: Some(applied_extension),
+        };
+        subscription.pause_history.push_back(entry.clone());
+
+        let key = SubscriptionDataKey::Subscription(id.clone());
+        env.storage().persistent().set(&key, &subscription);
+        env.storage().persistent().extend_ttl(&key, 100, 1000);
+
+        env.events().publish(
+            (
+                symbol_short!("subscr"),
+                id.clone(),
+                subscription.user.clone(),
+            ),
+            entry,
+        );
+
+        Self::log_subscription_event(
+            &env,
+            &subscription.user,
+            String::from_str(&env, "subscription_resumed"),
+            &id,
+            subscription.amount,
+        )?;
+
+        Ok(())
+    }
+
+    pub fn get_pause_history(env: Env, id: String) -> Result<Vec<PauseHistoryEntry>, Error> {
+        let subscription = Self::get_subscription(env, id)?;
+        Ok(subscription.pause_history)
+    }
+
+    pub fn get_pause_stats(env: Env, id: String) -> Result<PauseStats, Error> {
+        let subscription = Self::get_subscription(env, id)?;
+        Ok(PauseStats {
+            pause_count: subscription.pause_count,
+            total_paused_duration: subscription.total_paused_duration,
+            is_paused: subscription.status == MembershipStatus::Paused,
+            paused_at: subscription.paused_at,
+            tier_id: subscription.tier_id,
+            billing_cycle: subscription.billing_cycle,
+        })
+    }
+
     pub fn get_subscription(env: Env, id: String) -> Result<Subscription, Error> {
         env.storage()
             .persistent()
@@ -136,6 +414,7 @@ impl SubscriptionContract {
             .ok_or(Error::SubscriptionNotFound)
     }
 
+    #[allow(deprecated)]
     pub fn set_usdc_contract(env: Env, admin: Address, usdc_address: Address) -> Result<(), Error> {
         admin.require_auth();
 
@@ -161,6 +440,7 @@ impl SubscriptionContract {
             .ok_or(Error::UsdcContractNotSet)
     }
 
+    #[allow(deprecated)]
     pub fn cancel_subscription(env: Env, id: String) -> Result<(), Error> {
         let key = SubscriptionDataKey::Subscription(id.clone());
         let mut subscription: Subscription = env
@@ -177,6 +457,7 @@ impl SubscriptionContract {
 
         // Update status to inactive
         subscription.status = MembershipStatus::Inactive;
+        subscription.paused_at = None;
         env.storage().persistent().set(&key, &subscription);
 
         // Emit subscription cancelled event
@@ -196,6 +477,7 @@ impl SubscriptionContract {
         Ok(())
     }
 
+
     /// Checks if a subscription is currently active.
     ///
     /// # Arguments
@@ -211,6 +493,9 @@ impl SubscriptionContract {
         Ok(subscription.status == MembershipStatus::Active
             && current_time < subscription.expires_at)
     }
+
+
+    #[allow(deprecated)]
 
     /// Renews a subscription for additional duration.
     pub fn renew_subscription(
@@ -229,6 +514,10 @@ impl SubscriptionContract {
 
         // Require authorization from subscription owner
         subscription.user.require_auth();
+
+        if subscription.status == MembershipStatus::Paused {
+            return Err(Error::SubscriptionPaused);
+        }
 
         // Validate payment
         Self::validate_payment(&env, &payment_token, amount, &subscription.user)?;
@@ -629,6 +918,11 @@ impl SubscriptionContract {
             expires_at,
             tier_id: tier_id.clone(),
             billing_cycle: billing_cycle.clone(),
+            paused_at: None,
+            last_resumed_at: current_time,
+            pause_count: 0,
+            total_paused_duration: 0,
+            pause_history: Vec::new(&env),
         };
 
         // Store subscription
