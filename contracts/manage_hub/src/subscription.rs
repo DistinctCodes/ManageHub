@@ -3,7 +3,7 @@
 
 use soroban_sdk::{contracttype, symbol_short, Address, BytesN, Env, Map, String, Vec};
 
-use crate::attendance_log::AttendanceLogModule;
+// use crate::attendance_log::AttendanceLogModule;
 use crate::errors::Error;
 use crate::types::{
     AttendanceAction, BillingCycle, CreatePromotionParams, CreateTierParams, MembershipStatus,
@@ -293,13 +293,13 @@ impl SubscriptionContract {
     /// Helper function to log subscription events to attendance log
     fn log_subscription_event(
         env: &Env,
-        user: &Address,
+        _user: &Address,
         action: String,
         subscription_id: &String,
         _amount: i128,
     ) -> Result<(), Error> {
         // Generate event_id from subscription_id
-        let event_id = Self::generate_event_id(env, subscription_id);
+        let _event_id = Self::generate_event_id(env, subscription_id);
 
         // Create event details map
         let mut details: Map<String, String> = Map::new(env);
@@ -323,7 +323,7 @@ impl SubscriptionContract {
         );
 
         // Determine the attendance action based on the event type
-        let attendance_action = if action == String::from_str(env, "subscription_created") {
+        let _attendance_action = if action == String::from_str(env, "subscription_created") {
             AttendanceAction::ClockIn
         } else {
             AttendanceAction::ClockOut

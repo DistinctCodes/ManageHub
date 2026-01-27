@@ -202,6 +202,7 @@ impl AttendanceLogModule {
     /// * `UserAlreadyClockedIn` - User trying to clock in when already clocked in
     /// * `UserNotClockedIn` - User trying to clock out when not clocked in
     /// * `AttendanceValidationFailed` - Other validation failures
+    #[allow(dead_code)]
     pub fn validate_attendance_action(
         env: Env,
         user_id: Address,
