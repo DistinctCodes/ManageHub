@@ -25,6 +25,9 @@ pub enum Error {
     MetadataTextValueTooLong = 20,
     MetadataValidationFailed = 21,
     InvalidMetadataVersion = 22,
+    InvalidDateRange = 23,
+    NoAttendanceRecords = 24,
+    IncompleteSession = 25,
     // Tier management errors (30-50)
     TierNotFound = 30,
     TierAlreadyExists = 31,
