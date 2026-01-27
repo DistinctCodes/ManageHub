@@ -216,7 +216,7 @@ impl MembershipTokenContract {
         };
 
         // Validate metadata
-        validate_metadata(&metadata).map_err(|_| Error::MetadataValidationFailed)?;
+        validate_metadata(&metadata).map_err(|_| Error::InputValidationFailed)?;
 
         // Store metadata
         env.storage()
@@ -317,13 +317,13 @@ impl MembershipTokenContract {
         // Validate and apply updates
         for key in updates.keys() {
             if let Some(value) = updates.get(key.clone()) {
-                validate_attribute(&key, &value).map_err(|_| Error::MetadataValidationFailed)?;
+                validate_attribute(&key, &value).map_err(|_| Error::InputValidationFailed)?;
                 metadata.attributes.set(key, value);
             }
         }
 
         // Validate updated metadata
-        validate_metadata(&metadata).map_err(|_| Error::MetadataValidationFailed)?;
+        validate_metadata(&metadata).map_err(|_| Error::InputValidationFailed)?;
 
         // Update version and timestamp
         metadata.version += 1;

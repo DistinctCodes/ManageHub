@@ -6,6 +6,7 @@ version = 4
 name = "access_control"
 version = "1.0.0"
 dependencies = [
+ "common_types",
  "soroban-sdk",
 ]
 
