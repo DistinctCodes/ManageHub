@@ -148,37 +148,16 @@ pub enum ManageHubError {
 impl ManageHubError {
     /// Returns whether this error is recoverable (can be retried or handled gracefully)
     pub fn is_recoverable(&self) -> bool {
-        match self {
-            // Critical errors are not recoverable
-            Self::ContractInitializationFailed
+        !matches!(self, Self::ContractInitializationFailed
             | Self::StorageCorruption
-            | Self::SystemMaintenanceMode => false,
-
-            // Authentication errors are recoverable through re-auth
-            Self::AuthenticationRequired | Self::SessionExpired => true,
-
-            // Most business logic errors are recoverable
-            Self::InsufficientBalance | Self::SubscriptionExpired | Self::TokenExpired => true,
-
-            // Validation errors are recoverable with correct input
-            Self::InputValidationFailed | Self::InvalidStringFormat => true,
-
-            // Network errors are typically recoverable
-            Self::NetworkCommunicationFailed | Self::ExternalServiceUnavailable => true,
-
-            // Default to recoverable for most errors
-            _ => true,
-        }
+            | Self::SystemMaintenanceMode)
     }
 
     /// Returns whether this error requires immediate admin attention
     pub fn is_critical(&self) -> bool {
-        match self {
-            Self::ContractInitializationFailed
+        matches!(self, Self::ContractInitializationFailed
             | Self::StorageCorruption
-            | Self::SystemMaintenanceMode => true,
-            _ => false,
-        }
+            | Self::SystemMaintenanceMode)
     }
 
     /// Returns the error category for logging and monitoring

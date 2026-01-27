@@ -47,12 +47,9 @@ impl AccessControlError {
     }
 
     pub fn is_recoverable(&self) -> bool {
-        match self {
-            AccessControlError::SessionExpired => true,
-            AccessControlError::Unauthorized => true,
-            AccessControlError::StorageError => true,
-            AccessControlError::MembershipTokenCallFailed => true,
-            _ => false,
-        }
+        matches!(self, AccessControlError::SessionExpired
+            | AccessControlError::Unauthorized
+            | AccessControlError::StorageError
+            | AccessControlError::MembershipTokenCallFailed)
     }
 }
