@@ -932,3 +932,345 @@ fn test_multiple_events_emitted_in_sequence() {
     let sub_after_cancel = client.get_subscription(&subscription_id);
     assert_eq!(sub_after_cancel.status, MembershipStatus::Inactive);
 }
+
+// ==================== Pause/Resume Tests ====================
+
+#[test]
+fn test_pause_subscription_success() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let payment_token = Address::generate(&env);
+    let subscription_id = String::from_str(&env, "sub_pause_001");
+    let amount = 100_000i128;
+    let duration = 2_592_000u64; // 30 days
+
+    // Setup admin and USDC contract
+    client.set_admin(&admin);
+    client.set_usdc_contract(&admin, &payment_token);
+    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration);
+
+    // Verify subscription is active
+    let subscription = client.get_subscription(&subscription_id);
+    assert_eq!(subscription.status, MembershipStatus::Active);
+    assert_eq!(subscription.pause_count, 0);
+
+    // Advance time to meet min_active_time requirement (1 day default)
+    env.ledger().with_mut(|l| l.timestamp += 86_400);
+
+    // Pause subscription
+    let reason = Some(String::from_str(&env, "vacation"));
+    client.pause_subscription(&subscription_id, &reason);
+
+    // Verify subscription is paused
+    let paused_subscription = client.get_subscription(&subscription_id);
+    assert_eq!(paused_subscription.status, MembershipStatus::Paused);
+    assert_eq!(paused_subscription.pause_count, 1);
+    assert!(paused_subscription.paused_at.is_some());
+
+    // Verify pause history
+    let history = client.get_pause_history(&subscription_id);
+    assert_eq!(history.len(), 1);
+    let entry = history.get(0).unwrap();
+    assert_eq!(entry.actor, user);
+    assert!(!entry.is_admin);
+    assert_eq!(entry.reason, reason);
+}
+
+#[test]
+fn test_resume_subscription_success() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let payment_token = Address::generate(&env);
+    let subscription_id = String::from_str(&env, "sub_resume_001");
+    let amount = 100_000i128;
+    let duration = 2_592_000u64;
+
+    // Setup admin and create subscription
+    client.set_admin(&admin);
+    client.set_usdc_contract(&admin, &payment_token);
+    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration);
+
+    let original_subscription = client.get_subscription(&subscription_id);
+    let original_expires_at = original_subscription.expires_at;
+
+    // Advance time to meet min_active_time, then pause
+    env.ledger().with_mut(|l| l.timestamp += 86_400);
+    client.pause_subscription(&subscription_id, &None);
+
+    // Advance time while paused
+    env.ledger().with_mut(|l| l.timestamp += 86400); // 1 day
+
+    // Resume subscription
+    client.resume_subscription(&subscription_id);
+
+    // Verify subscription is active again
+    let resumed_subscription = client.get_subscription(&subscription_id);
+    assert_eq!(resumed_subscription.status, MembershipStatus::Active);
+    assert!(resumed_subscription.paused_at.is_none());
+    assert!(resumed_subscription.expires_at > original_expires_at); // Extended due to pause
+
+    // Verify pause history shows both pause and resume
+    let history = client.get_pause_history(&subscription_id);
+    assert_eq!(history.len(), 2);
+
+    let pause_entry = history.get(0).unwrap();
+    let resume_entry = history.get(1).unwrap();
+
+    assert_eq!(pause_entry.action, types::PauseAction::Pause);
+    assert_eq!(resume_entry.action, types::PauseAction::Resume);
+    assert!(resume_entry.paused_duration.is_some());
+    assert!(resume_entry.applied_extension.is_some());
+}
+
+#[test]
+fn test_admin_pause_subscription() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let payment_token = Address::generate(&env);
+    let subscription_id = String::from_str(&env, "sub_admin_pause");
+    let amount = 100_000i128;
+    let duration = 2_592_000u64;
+
+    // Setup admin and create subscription
+    client.set_admin(&admin);
+    client.set_usdc_contract(&admin, &payment_token);
+    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration);
+
+    // Admin pauses subscription (no time restrictions for admin)
+    let reason = Some(String::from_str(&env, "policy violation"));
+    client.pause_subscription_admin(&subscription_id, &admin, &reason);
+
+    // Verify subscription is paused
+    let paused_subscription = client.get_subscription(&subscription_id);
+    assert_eq!(paused_subscription.status, MembershipStatus::Paused);
+
+    // Verify pause history shows admin action
+    let history = client.get_pause_history(&subscription_id);
+    assert_eq!(history.len(), 1);
+    let entry = history.get(0).unwrap();
+    assert_eq!(entry.actor, admin);
+    assert!(entry.is_admin);
+    assert_eq!(entry.reason, reason);
+}
+
+#[test]
+fn test_admin_resume_subscription() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let payment_token = Address::generate(&env);
+    let subscription_id = String::from_str(&env, "sub_admin_resume");
+    let amount = 100_000i128;
+    let duration = 2_592_000u64;
+
+    // Setup admin and create subscription
+    client.set_admin(&admin);
+    client.set_usdc_contract(&admin, &payment_token);
+    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration);
+
+    // Advance time and pause subscription
+    env.ledger().with_mut(|l| l.timestamp += 86_400);
+    client.pause_subscription(&subscription_id, &None);
+
+    // Admin resumes subscription
+    client.resume_subscription_admin(&subscription_id, &admin);
+
+    // Verify subscription is active
+    let resumed_subscription = client.get_subscription(&subscription_id);
+    assert_eq!(resumed_subscription.status, MembershipStatus::Active);
+
+    // Verify pause history shows admin resume
+    let history = client.get_pause_history(&subscription_id);
+    assert_eq!(history.len(), 2);
+    let resume_entry = history.get(1).unwrap();
+    assert_eq!(resume_entry.actor, admin);
+    assert!(resume_entry.is_admin);
+}
+
+#[test]
+fn test_pause_config_management() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+
+    // Set admin first
+    client.set_admin(&admin);
+
+    // Get default config
+    let default_config = client.get_pause_config();
+    assert_eq!(default_config.max_pause_duration, 2_592_000); // 30 days
+    assert_eq!(default_config.max_pause_count, 3);
+    assert_eq!(default_config.min_active_time, 86_400); // 1 day
+
+    // Set custom config
+    let custom_config = types::PauseConfig {
+        max_pause_duration: 1_296_000, // 15 days
+        max_pause_count: 2,
+        min_active_time: 172_800, // 2 days
+    };
+
+    client.set_pause_config(&admin, &custom_config);
+
+    // Verify config was updated
+    let updated_config = client.get_pause_config();
+    assert_eq!(updated_config.max_pause_duration, 1_296_000);
+    assert_eq!(updated_config.max_pause_count, 2);
+    assert_eq!(updated_config.min_active_time, 172_800);
+}
+
+#[test]
+fn test_pause_stats() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let payment_token = Address::generate(&env);
+    let subscription_id = String::from_str(&env, "sub_stats");
+    let amount = 100_000i128;
+    let duration = 2_592_000u64;
+
+    // Setup admin and create subscription
+    client.set_admin(&admin);
+    client.set_usdc_contract(&admin, &payment_token);
+    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration);
+
+    // Check initial stats
+    let initial_stats = client.get_pause_stats(&subscription_id);
+    assert_eq!(initial_stats.pause_count, 0);
+    assert_eq!(initial_stats.total_paused_duration, 0);
+    assert!(!initial_stats.is_paused);
+    assert!(initial_stats.paused_at.is_none());
+
+    // Advance time and pause
+    env.ledger().with_mut(|l| l.timestamp += 86_400);
+    client.pause_subscription(&subscription_id, &None);
+
+    let paused_stats = client.get_pause_stats(&subscription_id);
+    assert_eq!(paused_stats.pause_count, 1);
+    assert!(paused_stats.is_paused);
+    assert!(paused_stats.paused_at.is_some());
+
+    // Advance time and resume
+    env.ledger().with_mut(|l| l.timestamp += 86400); // 1 day
+    client.resume_subscription(&subscription_id);
+
+    // Check final stats
+    let final_stats = client.get_pause_stats(&subscription_id);
+    assert_eq!(final_stats.pause_count, 1);
+    assert_eq!(final_stats.total_paused_duration, 86400);
+    assert!(!final_stats.is_paused);
+    assert!(final_stats.paused_at.is_none());
+}
+
+#[test]
+#[should_panic(expected = "HostError: Error(Contract, #24)")]
+fn test_pause_already_paused_subscription() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let payment_token = Address::generate(&env);
+    let subscription_id = String::from_str(&env, "sub_double_pause");
+    let amount = 100_000i128;
+    let duration = 2_592_000u64;
+
+    // Setup admin and create subscription
+    client.set_admin(&admin);
+    client.set_usdc_contract(&admin, &payment_token);
+    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration);
+
+    // Advance time and pause subscription
+    env.ledger().with_mut(|l| l.timestamp += 86_400);
+    client.pause_subscription(&subscription_id, &None);
+
+    // Try to pause again - should fail
+    client.pause_subscription(&subscription_id, &None);
+}
+
+#[test]
+#[should_panic(expected = "HostError: Error(Contract, #28)")]
+fn test_resume_not_paused_subscription() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let payment_token = Address::generate(&env);
+    let subscription_id = String::from_str(&env, "sub_resume_active");
+    let amount = 100_000i128;
+    let duration = 2_592_000u64;
+
+    // Setup and create subscription (but don't pause)
+    client.set_usdc_contract(&admin, &payment_token);
+    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration);
+
+    // Try to resume active subscription - should fail
+    client.resume_subscription(&subscription_id);
+}
+
+#[test]
+#[should_panic(expected = "HostError: Error(Contract, #24)")]
+fn test_renew_paused_subscription() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let payment_token = Address::generate(&env);
+    let subscription_id = String::from_str(&env, "sub_renew_paused");
+    let amount = 100_000i128;
+    let duration = 2_592_000u64;
+
+    // Setup admin and create subscription
+    client.set_admin(&admin);
+    client.set_usdc_contract(&admin, &payment_token);
+    client.create_subscription(&subscription_id, &user, &payment_token, &amount, &duration);
+
+    // Advance time and pause subscription
+    env.ledger().with_mut(|l| l.timestamp += 86_400);
+    client.pause_subscription(&subscription_id, &None);
+
+    // Try to renew paused subscription - should fail
+    client.renew_subscription(&subscription_id, &payment_token, &amount, &duration);
+}

@@ -13,9 +13,9 @@ use errors::Error;
 use membership_token::{MembershipToken, MembershipTokenContract};
 use subscription::SubscriptionContract;
 use types::{
-    AttendanceAction, BillingCycle, CreatePromotionParams, CreateTierParams, Subscription,
-    SubscriptionTier, TierAnalytics, TierFeature, TierPromotion, UpdateTierParams,
-    UserSubscriptionInfo,
+    AttendanceAction, BillingCycle, CreatePromotionParams, CreateTierParams, PauseConfig,
+    PauseHistoryEntry, PauseStats, Subscription, SubscriptionTier, TierAnalytics, TierFeature,
+    TierPromotion, UpdateTierParams, UserSubscriptionInfo,
 };
 
 #[contract]
@@ -96,6 +96,43 @@ impl Contract {
 
     pub fn cancel_subscription(env: Env, id: String) -> Result<(), Error> {
         SubscriptionContract::cancel_subscription(env, id)
+    }
+
+    pub fn pause_subscription(env: Env, id: String, reason: Option<String>) -> Result<(), Error> {
+        SubscriptionContract::pause_subscription(env, id, reason)
+    }
+
+    pub fn resume_subscription(env: Env, id: String) -> Result<(), Error> {
+        SubscriptionContract::resume_subscription(env, id)
+    }
+
+    pub fn pause_subscription_admin(
+        env: Env,
+        id: String,
+        admin: Address,
+        reason: Option<String>,
+    ) -> Result<(), Error> {
+        SubscriptionContract::pause_subscription_admin(env, id, admin, reason)
+    }
+
+    pub fn resume_subscription_admin(env: Env, id: String, admin: Address) -> Result<(), Error> {
+        SubscriptionContract::resume_subscription_admin(env, id, admin)
+    }
+
+    pub fn set_pause_config(env: Env, admin: Address, config: PauseConfig) -> Result<(), Error> {
+        SubscriptionContract::set_pause_config(env, admin, config)
+    }
+
+    pub fn get_pause_config(env: Env) -> PauseConfig {
+        SubscriptionContract::get_pause_config(env)
+    }
+
+    pub fn get_pause_history(env: Env, id: String) -> Result<Vec<PauseHistoryEntry>, Error> {
+        SubscriptionContract::get_pause_history(env, id)
+    }
+
+    pub fn get_pause_stats(env: Env, id: String) -> Result<PauseStats, Error> {
+        SubscriptionContract::get_pause_stats(env, id)
     }
 
     pub fn set_usdc_contract(env: Env, admin: Address, usdc_address: Address) -> Result<(), Error> {
