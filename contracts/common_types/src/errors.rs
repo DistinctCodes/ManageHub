@@ -148,16 +148,22 @@ pub enum ManageHubError {
 impl ManageHubError {
     /// Returns whether this error is recoverable (can be retried or handled gracefully)
     pub fn is_recoverable(&self) -> bool {
-        !matches!(self, Self::ContractInitializationFailed
-            | Self::StorageCorruption
-            | Self::SystemMaintenanceMode)
+        !matches!(
+            self,
+            Self::ContractInitializationFailed
+                | Self::StorageCorruption
+                | Self::SystemMaintenanceMode
+        )
     }
 
     /// Returns whether this error requires immediate admin attention
     pub fn is_critical(&self) -> bool {
-        matches!(self, Self::ContractInitializationFailed
-            | Self::StorageCorruption
-            | Self::SystemMaintenanceMode)
+        matches!(
+            self,
+            Self::ContractInitializationFailed
+                | Self::StorageCorruption
+                | Self::SystemMaintenanceMode
+        )
     }
 
     /// Returns the error category for logging and monitoring
