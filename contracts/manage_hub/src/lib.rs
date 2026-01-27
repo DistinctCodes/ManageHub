@@ -12,11 +12,10 @@ use common_types::{MetadataUpdate, MetadataValue, TokenMetadata};
 use errors::Error;
 use membership_token::{MembershipToken, MembershipTokenContract};
 use subscription::SubscriptionContract;
-use types::{AttendanceAction, PauseConfig, PauseHistoryEntry, PauseStats, Subscription};
 use types::{
-    AttendanceAction, BillingCycle, CreatePromotionParams, CreateTierParams, Subscription,
-    SubscriptionTier, TierAnalytics, TierFeature, TierPromotion, UpdateTierParams,
-    UserSubscriptionInfo,
+    AttendanceAction, BillingCycle, CreatePromotionParams, CreateTierParams, PauseConfig,
+    PauseHistoryEntry, PauseStats, Subscription, SubscriptionTier, TierAnalytics, TierFeature,
+    TierPromotion, UpdateTierParams, UserSubscriptionInfo,
 };
 
 #[contract]

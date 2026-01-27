@@ -7,12 +7,10 @@ use crate::attendance_log::AttendanceLogModule;
 use crate::errors::Error;
 use crate::membership_token::DataKey as MembershipTokenDataKey;
 use crate::types::{
-    AttendanceAction, MembershipStatus, PauseAction, PauseConfig, PauseHistoryEntry, PauseStats,
-    Subscription,
-use crate::types::{
     AttendanceAction, BillingCycle, CreatePromotionParams, CreateTierParams, MembershipStatus,
-    Subscription, SubscriptionTier, TierAnalytics, TierChangeRequest, TierChangeStatus,
-    TierChangeType, TierFeature, TierLevel, TierPromotion, UpdateTierParams, UserSubscriptionInfo,
+    PauseAction, PauseConfig, PauseHistoryEntry, PauseStats, Subscription, SubscriptionTier,
+    TierAnalytics, TierChangeRequest, TierChangeStatus, TierChangeType, TierFeature, TierLevel,
+    TierPromotion, UpdateTierParams, UserSubscriptionInfo,
 };
 
 #[contracttype]
@@ -403,6 +401,8 @@ impl SubscriptionContract {
             total_paused_duration: subscription.total_paused_duration,
             is_paused: subscription.status == MembershipStatus::Paused,
             paused_at: subscription.paused_at,
+            tier_id: subscription.tier_id,
+            billing_cycle: subscription.billing_cycle,
         })
     }
 
@@ -884,6 +884,11 @@ impl SubscriptionContract {
             expires_at,
             tier_id: tier_id.clone(),
             billing_cycle: billing_cycle.clone(),
+            paused_at: None,
+            last_resumed_at: current_time,
+            pause_count: 0,
+            total_paused_duration: 0,
+            pause_history: Vec::new(&env),
         };
 
         // Store subscription

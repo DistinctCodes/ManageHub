@@ -32,4 +32,21 @@ pub enum Error {
     PauseCountExceeded = 26,
     PauseTooEarly = 27,
     SubscriptionNotPaused = 28,
+    // Tier and feature related errors
+    TierNotFound = 29,
+    FeatureNotAvailable = 30,
+    // Tier change related errors
+    TierChangeAlreadyProcessed = 31,
+    InvalidDiscountPercent = 32,
+    InvalidPromoDateRange = 33,
+    PromotionAlreadyExists = 34,
+    PromotionNotFound = 35,
+    PromoCodeExpired = 36,
+    PromoCodeMaxRedemptions = 37,
+    PromoCodeInvalid = 38,
+    // Tier management errors
+    InvalidTierPrice = 39,
+    TierAlreadyExists = 40,
+    TierNotActive = 41,
+    TierChangeNotFound = 42,
 }

@@ -34,6 +34,8 @@ pub struct Subscription {
     pub status: MembershipStatus,
     pub created_at: u64,
     pub expires_at: u64,
+    pub tier_id: String,
+    pub billing_cycle: BillingCycle,
     pub paused_at: Option<u64>,
     pub last_resumed_at: u64,
     pub pause_count: u32,
