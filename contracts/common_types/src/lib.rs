@@ -5,8 +5,8 @@
 //! This crate provides shared enums and structs to ensure consistency
 //! across all ManageHub smart contracts.
 
-mod types;
 mod errors;
+mod types;
 
 // Re-export all types
 pub use types::{

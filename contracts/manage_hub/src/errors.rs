@@ -1,11 +1,11 @@
 //! Error handling for ManageHub contracts.
-//! 
+//!
 //! This module provides error mapping between the unified ManageHubError system
 //! and local contract operations, enabling consistent error handling while
 //! maintaining backward compatibility.
 
-use soroban_sdk::contracterror;
 pub use common_types::ManageHubError;
+use soroban_sdk::contracterror;
 
 /// Local error enum for backward compatibility.
 /// Maps to ManageHubError for consistent error handling.
@@ -51,38 +51,38 @@ impl Error {
             Error::Unauthorized => ManageHubError::InsufficientPermissions,
             Error::AuthenticationRequired => ManageHubError::AuthenticationRequired,
             Error::InsufficientPermissions => ManageHubError::InsufficientPermissions,
-            
+
             // Subscription Management
             Error::SubscriptionNotFound => ManageHubError::SubscriptionNotFound,
             Error::SubscriptionAlreadyExists => ManageHubError::SubscriptionAlreadyExists,
             Error::SubscriptionExpired => ManageHubError::SubscriptionExpired,
-            
+
             // Payment Processing
             Error::InvalidPaymentAmount => ManageHubError::InvalidPaymentAmount,
             Error::InvalidPaymentToken => ManageHubError::InvalidPaymentToken,
             Error::InsufficientBalance => ManageHubError::InsufficientBalance,
             Error::UsdcContractNotSet => ManageHubError::UsdcContractNotSet,
             Error::PaymentTransactionFailed => ManageHubError::PaymentTransactionFailed,
-            
+
             // Token Management
             Error::TokenAlreadyIssued => ManageHubError::TokenAlreadyIssued,
             Error::TokenNotFound => ManageHubError::TokenNotFound,
             Error::TokenExpired => ManageHubError::TokenExpired,
             Error::InvalidExpiryDate => ManageHubError::InvalidExpiryDate,
-            
+
             // Metadata
             Error::MetadataNotFound => ManageHubError::MetadataNotFound,
-            
+
             // Attendance
             Error::AttendanceLogFailed => ManageHubError::AttendanceLogFailed,
             Error::InvalidEventDetails => ManageHubError::InvalidEventDetails,
-            
+
             // Tier Management
             Error::TierNotFound => ManageHubError::TierNotFound,
             Error::TierAlreadyExists => ManageHubError::TierAlreadyExists,
             Error::TierNotActive => ManageHubError::TierNotActive,
             Error::FeatureNotAvailable => ManageHubError::FeatureNotAvailable,
-            
+
             // Validation & General
             Error::TimestampOverflow => ManageHubError::TimestampOverflow,
             Error::InputValidationFailed => ManageHubError::InputValidationFailed,

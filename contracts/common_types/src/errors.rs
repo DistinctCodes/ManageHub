@@ -11,7 +11,6 @@ pub enum ManageHubError {
     // ============================================================================
     // CRITICAL ERRORS (1-5)
     // ============================================================================
-    
     /// Contract initialization failed
     ContractInitializationFailed = 1,
     /// Storage corruption detected
@@ -22,7 +21,6 @@ pub enum ManageHubError {
     // ============================================================================
     // AUTHENTICATION & AUTHORIZATION ERRORS (6-15)
     // ============================================================================
-    
     /// User authentication required
     AuthenticationRequired = 6,
     /// Insufficient permissions for operation
@@ -37,7 +35,6 @@ pub enum ManageHubError {
     // ============================================================================
     // SUBSCRIPTION ERRORS (11-20)
     // ============================================================================
-    
     /// Subscription not found
     SubscriptionNotFound = 11,
     /// Subscription already exists with this ID
@@ -52,7 +49,6 @@ pub enum ManageHubError {
     // ============================================================================
     // PAYMENT ERRORS (16-25)
     // ============================================================================
-    
     /// Invalid payment amount (must be positive)
     InvalidPaymentAmount = 16,
     /// Unsupported payment token
@@ -65,9 +61,8 @@ pub enum ManageHubError {
     UsdcContractNotSet = 20,
 
     // ============================================================================
-    // TOKEN & NFT ERRORS (21-30)  
+    // TOKEN & NFT ERRORS (21-30)
     // ============================================================================
-    
     /// Token not found
     TokenNotFound = 21,
     /// Token already issued with this ID
@@ -84,7 +79,6 @@ pub enum ManageHubError {
     // ============================================================================
     // ATTENDANCE & LOGGING ERRORS (27-32)
     // ============================================================================
-    
     /// Attendance logging failed
     AttendanceLogFailed = 27,
     /// Invalid event details provided
@@ -95,7 +89,6 @@ pub enum ManageHubError {
     // ============================================================================
     // TIER MANAGEMENT ERRORS (30-40)
     // ============================================================================
-    
     /// Tier not found
     TierNotFound = 30,
     /// Tier already exists
@@ -108,7 +101,6 @@ pub enum ManageHubError {
     // ============================================================================
     // ACCESS CONTROL ERRORS (34-39)
     // ============================================================================
-    
     /// Access control validation failed
     AccessControlValidationFailed = 34,
     /// Role not found
@@ -121,7 +113,6 @@ pub enum ManageHubError {
     // ============================================================================
     // VALIDATION & INPUT ERRORS (38-42)
     // ============================================================================
-    
     /// Input validation failed
     InputValidationFailed = 38,
     /// Invalid string format
@@ -134,7 +125,6 @@ pub enum ManageHubError {
     // ============================================================================
     // STORAGE & SYSTEM ERRORS (42-50)
     // ============================================================================
-    
     /// Storage operation failed
     StorageOperationFailed = 42,
     /// Data not found in storage
@@ -165,21 +155,16 @@ impl ManageHubError {
             | Self::SystemMaintenanceMode => false,
 
             // Authentication errors are recoverable through re-auth
-            Self::AuthenticationRequired
-            | Self::SessionExpired => true,
+            Self::AuthenticationRequired | Self::SessionExpired => true,
 
             // Most business logic errors are recoverable
-            Self::InsufficientBalance
-            | Self::SubscriptionExpired
-            | Self::TokenExpired => true,
+            Self::InsufficientBalance | Self::SubscriptionExpired | Self::TokenExpired => true,
 
             // Validation errors are recoverable with correct input
-            Self::InputValidationFailed
-            | Self::InvalidStringFormat => true,
+            Self::InputValidationFailed | Self::InvalidStringFormat => true,
 
             // Network errors are typically recoverable
-            Self::NetworkCommunicationFailed
-            | Self::ExternalServiceUnavailable => true,
+            Self::NetworkCommunicationFailed | Self::ExternalServiceUnavailable => true,
 
             // Default to recoverable for most errors
             _ => true,
@@ -203,28 +188,28 @@ impl ManageHubError {
             Self::ContractInitializationFailed
             | Self::StorageCorruption
             | Self::SystemMaintenanceMode => ErrorCategory::Critical,
-            
-            // Authentication errors  
+
+            // Authentication errors
             Self::AuthenticationRequired
             | Self::InsufficientPermissions
             | Self::AdminPrivilegesRequired
             | Self::AccountLocked
             | Self::SessionExpired => ErrorCategory::Authentication,
-            
+
             // Subscription errors
             Self::SubscriptionNotFound
             | Self::SubscriptionAlreadyExists
             | Self::SubscriptionExpired
             | Self::SubscriptionInactive
             | Self::SubscriptionRenewalFailed => ErrorCategory::Subscription,
-            
+
             // Payment errors
             Self::InvalidPaymentAmount
             | Self::InvalidPaymentToken
             | Self::InsufficientBalance
             | Self::PaymentTransactionFailed
             | Self::UsdcContractNotSet => ErrorCategory::Payment,
-            
+
             // Token errors
             Self::TokenNotFound
             | Self::TokenAlreadyIssued
@@ -232,30 +217,30 @@ impl ManageHubError {
             | Self::InvalidExpiryDate
             | Self::TokenMetadataValidationFailed
             | Self::MetadataNotFound => ErrorCategory::Token,
-            
+
             // Attendance errors
             Self::AttendanceLogFailed
             | Self::InvalidEventDetails
             | Self::AttendanceValidationFailed => ErrorCategory::Attendance,
-            
+
             // Tier errors
             Self::TierNotFound
             | Self::TierAlreadyExists
             | Self::TierNotActive
             | Self::FeatureNotAvailable => ErrorCategory::Tier,
-            
+
             // Access control errors
             Self::AccessControlValidationFailed
             | Self::RoleNotFound
             | Self::PermissionDenied
             | Self::RoleHierarchyViolation => ErrorCategory::AccessControl,
-            
+
             // Validation errors
             Self::InputValidationFailed
             | Self::InvalidStringFormat
             | Self::TimestampOverflow
             | Self::InvalidAddressFormat => ErrorCategory::Validation,
-            
+
             // Storage and system errors
             Self::StorageOperationFailed
             | Self::DataNotFound

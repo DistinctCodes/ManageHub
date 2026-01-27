@@ -52,17 +52,17 @@ impl Contract {
     }
 
     /// Logs attendance action with comprehensive error handling.
-    /// 
+    ///
     /// # Arguments
     /// * `env` - The contract environment
     /// * `id` - Unique attendance log ID
     /// * `user_id` - User's address performing the action
     /// * `action` - Clock in or clock out action
     /// * `details` - Additional event details
-    /// 
+    ///
     /// # Returns
     /// * `Result<(), Error>` - Success or detailed error information
-    /// 
+    ///
     /// # Errors
     /// * `AuthenticationRequired` - User must authenticate
     /// * `AttendanceLogFailed` - Failed to create log entry
@@ -76,7 +76,8 @@ impl Contract {
         details: soroban_sdk::Map<String, String>,
     ) -> Result<(), Error> {
         // Validate input parameters
-        if details.len() > 50 {  // Reasonable limit for event details
+        if details.len() > 50 {
+            // Reasonable limit for event details
             return Err(Error::InvalidEventDetails);
         }
 
@@ -88,14 +89,14 @@ impl Contract {
     }
 
     /// Gets attendance logs for a user with error handling.
-    /// 
+    ///
     /// # Arguments
     /// * `env` - The contract environment
     /// * `user_id` - User's address to get logs for
-    /// 
+    ///
     /// # Returns
     /// * `Result<Vec<AttendanceLog>, Error>` - User's attendance logs or error
-    /// 
+    ///
     /// # Errors
     /// * `InputValidationFailed` - Invalid user address
     /// * `StorageOperationFailed` - Failed to retrieve logs
@@ -106,14 +107,14 @@ impl Contract {
     }
 
     /// Gets a specific attendance log entry with error handling.
-    /// 
+    ///
     /// # Arguments
     /// * `env` - The contract environment
     /// * `id` - Attendance log ID to retrieve
-    /// 
+    ///
     /// # Returns
     /// * `Result<AttendanceLog, Error>` - The attendance log or error
-    /// 
+    ///
     /// # Errors
     /// * `AttendanceRecordNotFound` - No log entry with given ID
     pub fn get_attendance_log(env: Env, id: BytesN<32>) -> Result<AttendanceLog, Error> {
@@ -150,14 +151,14 @@ impl Contract {
     }
 
     /// Checks if a subscription is currently active and not expired.
-    /// 
+    ///
     /// # Arguments
     /// * `env` - The contract environment
     /// * `id` - Subscription ID to check
-    /// 
+    ///
     /// # Returns
     /// * `Result<bool, Error>` - True if active, false if expired/inactive
-    /// 
+    ///
     /// # Errors
     /// * `SubscriptionNotFound` - Subscription doesn't exist
     /// * `InputValidationFailed` - Invalid subscription ID

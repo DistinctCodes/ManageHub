@@ -188,9 +188,6 @@ fn test_get_attendance_log_by_id() {
 
     // Retrieve specific log by ID
     let log = client.get_attendance_log(&log_id);
-    assert!(log.is_some());
-
-    let log = log.unwrap();
     assert_eq!(log.id, log_id);
     assert_eq!(log.user_id, user);
     assert_eq!(log.action, AttendanceAction::ClockIn);
@@ -234,14 +231,14 @@ fn test_attendance_log_immutability() {
     client.log_attendance(&log_id, &user, &AttendanceAction::ClockIn, &details);
 
     // Get initial log
-    let initial_log = client.get_attendance_log(&log_id).unwrap();
+    let initial_log = client.get_attendance_log(&log_id);
     let initial_timestamp = initial_log.timestamp;
 
     // Advance time
     env.ledger().with_mut(|l| l.timestamp += 1000);
 
     // Log should remain unchanged (immutable)
-    let later_log = client.get_attendance_log(&log_id).unwrap();
+    let later_log = client.get_attendance_log(&log_id);
     assert_eq!(later_log.timestamp, initial_timestamp);
     assert_eq!(later_log.action, AttendanceAction::ClockIn);
 }

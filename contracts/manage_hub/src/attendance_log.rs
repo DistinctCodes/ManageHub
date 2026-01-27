@@ -26,17 +26,17 @@ pub struct AttendanceLogModule;
 
 impl AttendanceLogModule {
     /// Logs an attendance action with comprehensive validation and error handling.
-    /// 
+    ///
     /// # Arguments
     /// * `env` - The contract environment
     /// * `id` - Unique log entry identifier
     /// * `user_id` - Address of the user performing the action
     /// * `action` - Clock in or clock out action
     /// * `details` - Additional event details and metadata
-    /// 
+    ///
     /// # Returns
     /// * `Result<(), Error>` - Success or detailed error information
-    /// 
+    ///
     /// # Errors
     /// * `AuthenticationRequired` - User must authenticate
     /// * `InvalidEventDetails` - Details exceed size limit or contain invalid data
@@ -57,17 +57,17 @@ impl AttendanceLogModule {
 
     /// Internal attendance logging with validation but without auth check.
     /// Used for cross-contract calls where authentication is handled elsewhere.
-    /// 
+    ///
     /// # Arguments
     /// * `env` - The contract environment
     /// * `id` - Unique log entry identifier  
     /// * `user_id` - Address of the user performing the action
     /// * `action` - Clock in or clock out action
     /// * `details` - Additional event details and metadata
-    /// 
+    ///
     /// # Returns
     /// * `Result<(), Error>` - Success or detailed error information
-    /// 
+    ///
     /// # Errors
     /// * `InvalidEventDetails` - Details exceed size limit or contain invalid data
     /// * `AttendanceLogFailed` - Failed to store attendance record
@@ -92,7 +92,11 @@ impl AttendanceLogModule {
         }
 
         // Check if log entry already exists to prevent duplicates
-        if env.storage().persistent().has(&DataKey::AttendanceLog(id.clone())) {
+        if env
+            .storage()
+            .persistent()
+            .has(&DataKey::AttendanceLog(id.clone()))
+        {
             return Err(Error::AttendanceLogFailed);
         }
 
@@ -107,9 +111,15 @@ impl AttendanceLogModule {
         };
 
         // Store individual attendance log with error handling
-        env.storage().persistent().set(&DataKey::AttendanceLog(id.clone()), &log);
-        // Set reasonable TTL for attendance logs  
-        env.storage().persistent().extend_ttl(&DataKey::AttendanceLog(id.clone()), 100, 365 * 24 * 60 * 60); // 1 year
+        env.storage()
+            .persistent()
+            .set(&DataKey::AttendanceLog(id.clone()), &log);
+        // Set reasonable TTL for attendance logs
+        env.storage().persistent().extend_ttl(
+            &DataKey::AttendanceLog(id.clone()),
+            100,
+            365 * 24 * 60 * 60,
+        ); // 1 year
 
         // Append to user's attendance logs with error handling
         let user_logs_key = DataKey::AttendanceLogsByUser(user_id.clone());
@@ -130,7 +140,9 @@ impl AttendanceLogModule {
         // Update user logs with proper error handling
         env.storage().persistent().set(&user_logs_key, &user_logs);
         // Extend TTL for user logs
-        env.storage().persistent().extend_ttl(&user_logs_key, 100, 365 * 24 * 60 * 60); // 1 year
+        env.storage()
+            .persistent()
+            .extend_ttl(&user_logs_key, 100, 365 * 24 * 60 * 60); // 1 year
 
         // Emit event for off-chain indexing with error handling
         env.events()
@@ -140,14 +152,14 @@ impl AttendanceLogModule {
     }
 
     /// Retrieves attendance logs for a specific user.
-    /// 
+    ///
     /// # Arguments
     /// * `env` - The contract environment
     /// * `user_id` - User's address to get logs for
-    /// 
+    ///
     /// # Returns
     /// * `Vec<AttendanceLog>` - User's attendance logs (empty if none found)
-    /// 
+    ///
     /// # Note
     /// This function returns an empty vector rather than an error when no logs are found,
     /// as this is a valid state for new users.
@@ -159,14 +171,14 @@ impl AttendanceLogModule {
     }
 
     /// Retrieves a specific attendance log entry by ID.
-    /// 
+    ///
     /// # Arguments  
     /// * `env` - The contract environment
     /// * `id` - Attendance log ID to retrieve
-    /// 
+    ///
     /// # Returns
     /// * `Result<AttendanceLog, Error>` - The attendance log or error
-    /// 
+    ///
     /// # Errors
     /// * `AttendanceRecordNotFound` - No log entry with given ID exists
     pub fn get_attendance_log(env: Env, id: BytesN<32>) -> Result<AttendanceLog, Error> {
@@ -177,15 +189,15 @@ impl AttendanceLogModule {
     }
 
     /// Validates attendance action against business rules.
-    /// 
+    ///
     /// # Arguments
     /// * `env` - The contract environment
     /// * `user_id` - User performing the action
     /// * `action` - The attendance action to validate
-    /// 
+    ///
     /// # Returns
     /// * `Result<(), Error>` - Success or validation error
-    /// 
+    ///
     /// # Errors
     /// * `UserAlreadyClockedIn` - User trying to clock in when already clocked in
     /// * `UserNotClockedIn` - User trying to clock out when not clocked in
@@ -196,7 +208,7 @@ impl AttendanceLogModule {
         action: AttendanceAction,
     ) -> Result<(), Error> {
         let user_logs = Self::get_logs_for_user(env, user_id);
-        
+
         if user_logs.is_empty() {
             // First time user - only ClockIn is allowed
             if action == AttendanceAction::ClockOut {
@@ -215,10 +227,10 @@ impl AttendanceLogModule {
         match (&last_log.action, &action) {
             (AttendanceAction::ClockIn, AttendanceAction::ClockIn) => {
                 Err(Error::BusinessRuleViolation) // Already clocked in
-            },
+            }
             (AttendanceAction::ClockOut, AttendanceAction::ClockOut) => {
                 Err(Error::BusinessRuleViolation) // Already clocked out
-            },
+            }
             _ => Ok(()), // Valid transition
         }
     }

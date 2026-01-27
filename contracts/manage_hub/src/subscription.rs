@@ -196,19 +196,19 @@ impl SubscriptionContract {
     }
 
     /// Checks if a subscription is currently active.
-    /// 
+    ///
     /// # Arguments
     /// * `env` - The contract environment
     /// * `id` - The subscription ID to check
-    /// 
+    ///
     /// # Returns
     /// * `Result<bool, Error>` - True if active, false if expired/inactive, error if not found
     pub fn is_subscription_active(env: Env, id: String) -> Result<bool, Error> {
         let subscription = Self::get_subscription(env.clone(), id)?;
         let current_time = env.ledger().timestamp();
-        
-        Ok(subscription.status == MembershipStatus::Active && 
-           current_time < subscription.expires_at)
+
+        Ok(subscription.status == MembershipStatus::Active
+            && current_time < subscription.expires_at)
     }
 
     /// Renews a subscription for additional duration.
