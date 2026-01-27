@@ -6,10 +6,11 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { APP_GUARD } from '@nestjs/core';
-import { JwtAuthGuard } from './auth/guards/jwt.guard';
+import { JwtAuthGuard } from './auth/guard/jwt.auth.guard';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { BullModule } from '@nestjs/bull';
 import { ScheduleModule } from '@nestjs/schedule';
+import { NewsletterModule } from './newsletter/newsletter.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { ScheduleModule } from '@nestjs/schedule';
         ttl: 60000, // 1 minute
         limit: 100, // 100 requests per minute
       },
+      { name: 'newsletter', ttl: 60_000, limit: 10 },
     ]),
     BullModule.forRootAsync({
       imports: [ConfigModule],
@@ -72,6 +74,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     }),
     AuthModule,
     UsersModule,
+    NewsletterModule,
   ],
   controllers: [AppController],
   providers: [

@@ -2,12 +2,16 @@
 
 import { useState } from "react";
 import { ArrowRight } from "lucide-react";
+import { apiClient } from "@/lib/apiClient";
 
 export default function Newsletter() {
   const [email, setEmail] = useState<string>("");
   const [error, setError] = useState<string>("");
+  const [success, setSuccess] = useState<string>("");
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     // Basic email validation
@@ -18,9 +22,22 @@ export default function Newsletter() {
     }
 
     setError("");
-    // For now just log it – no backend integration
-    console.log("Subscribed:", email);
-    setEmail("");
+    setLoading(true)
+
+    try {
+      const res = await apiClient.post("/newsletter/subscribe", {
+        email,
+      });
+
+      setSuccess("Thanks! Check your email to confirm your subscription.");
+      setEmail("");
+      console.log("Subscribed response:", res);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Subscription failed.");
+    } finally {
+      setLoading(false);
+    }
+    
   };
 
   return (
@@ -53,15 +70,17 @@ export default function Newsletter() {
           />
           <button
             type="submit"
+            disabled={loading}
             className="flex items-center justify-center gap-2 bg-blue-600 text-white font-medium px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
           >
-            Notify Me
+            {loading ? "Submitting..." : "Notify Me"}
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
 
         {/* Error */}
         {error && <p className="text-red-500 text-sm mt-3">{error}</p>}
+        {success && <p className="text-green-600 text-sm mt-3">{success}</p>}
       </div>
     </div>
   );

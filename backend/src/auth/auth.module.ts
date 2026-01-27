@@ -10,10 +10,14 @@ import { RolesGuard } from './guard/roles.guard';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './strategy/jwt.strategy';
 import { EmailService } from './helper/email-sender';
+import { HashingProvider } from './providers/hashing.provider';
+import { GenerateTokensProvider } from './providers/generateTokens.provider';
+import { RefreshTokenRepositoryOperations } from './providers/refreshToken.repository';
+import { RefreshToken } from './entities/refreshToken.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User]),
+    TypeOrmModule.forFeature([User, RefreshToken]),
     JwtModule.register({}),
     PassportModule,
   ],
@@ -25,7 +29,15 @@ import { EmailService } from './helper/email-sender';
     JwtStrategy,
     RolesGuard,
     EmailService,
+    HashingProvider,
+    GenerateTokensProvider,
+    RefreshTokenRepositoryOperations,
   ],
-  exports: [AuthService, RolesGuard],
+  exports: [
+    AuthService,
+    HashingProvider,
+    GenerateTokensProvider,
+    RefreshTokenRepositoryOperations,
+  ],
 })
 export class AuthModule {}

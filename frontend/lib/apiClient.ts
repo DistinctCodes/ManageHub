@@ -18,6 +18,7 @@ class ApiClient {
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`;
+    console.log("Url", url);
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
@@ -43,6 +44,7 @@ class ApiClient {
 
       return await response.json();
     } catch (error) {
+      console.error("Error", error);
       if (error instanceof Error) {
         throw error;
       }
