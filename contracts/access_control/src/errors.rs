@@ -100,7 +100,9 @@ impl AccessControlError {
             AccessControlError::MaxRolesExceeded => "Maximum roles per user exceeded",
             AccessControlError::ContractPaused => "Contract is currently paused",
             AccessControlError::MultisigNotEnabled => "Multisig not enabled for this operation",
-            AccessControlError::InsufficientApprovals => "Insufficient approvals for proposal execution",
+            AccessControlError::InsufficientApprovals => {
+                "Insufficient approvals for proposal execution"
+            }
             AccessControlError::ProposalNotFound => "Proposal not found",
             AccessControlError::ProposalAlreadyExecuted => "Proposal already executed",
             AccessControlError::ProposalExpired => "Proposal has expired",

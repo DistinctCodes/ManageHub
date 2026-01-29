@@ -769,7 +769,15 @@ fn test_enhanced_multisig_with_thresholds() {
     let admin4 = Address::generate(&env);
 
     env.as_contract(&contract_id, || {
-        let admins = Vec::from_array(&env, [admin1.clone(), admin2.clone(), admin3.clone(), admin4.clone()]);
+        let admins = Vec::from_array(
+            &env,
+            [
+                admin1.clone(),
+                admin2.clone(),
+                admin3.clone(),
+                admin4.clone(),
+            ],
+        );
         AccessControlModule::initialize_multisig(&env, admins, 2, None).unwrap();
 
         let config = AccessControlModule::get_multisig_config(&env).unwrap();
@@ -784,22 +792,23 @@ fn test_enhanced_multisig_with_thresholds() {
 #[test]
 fn test_proposal_type_classification() {
     let env = Env::default();
-    
+
     let user = Address::generate(&env);
     let config = AccessControlConfig::default();
-    
+
     assert_eq!(
         ProposalAction::SetRole(user.clone(), UserRole::Member).classify_type(),
         ProposalType::Standard
     );
-    
+
     assert_eq!(
         ProposalAction::UpdateConfig(config).classify_type(),
         ProposalType::Critical
     );
-    
+
     assert_eq!(
-        ProposalAction::EmergencyPause(soroban_sdk::String::from_str(&env, "reason")).classify_type(),
+        ProposalAction::EmergencyPause(soroban_sdk::String::from_str(&env, "reason"))
+            .classify_type(),
         ProposalType::Emergency
     );
 }
@@ -814,12 +823,21 @@ fn test_critical_proposal_requires_higher_threshold() {
     let admin4 = Address::generate(&env);
 
     env.as_contract(&contract_id, || {
-        let admins = Vec::from_array(&env, [admin1.clone(), admin2.clone(), admin3.clone(), admin4.clone()]);
+        let admins = Vec::from_array(
+            &env,
+            [
+                admin1.clone(),
+                admin2.clone(),
+                admin3.clone(),
+                admin4.clone(),
+            ],
+        );
         AccessControlModule::initialize_multisig(&env, admins, 2, None).unwrap();
 
         // Create a critical proposal (Pause)
         let action = ProposalAction::Pause;
-        let proposal_id = AccessControlModule::create_proposal(&env, admin1.clone(), action).unwrap();
+        let proposal_id =
+            AccessControlModule::create_proposal(&env, admin1.clone(), action).unwrap();
 
         let proposal = AccessControlModule::get_proposal(&env, proposal_id).unwrap();
         assert_eq!(proposal.proposal_type, ProposalType::Critical);
@@ -827,14 +845,14 @@ fn test_critical_proposal_requires_higher_threshold() {
 
         // 2 approvals should not be enough (proposer already approved)
         AccessControlModule::approve_proposal(&env, admin2.clone(), proposal_id).unwrap();
-        
+
         // Proposal should still be pending
         let proposal = AccessControlModule::get_proposal(&env, proposal_id).unwrap();
         assert!(!proposal.executed);
 
         // 3rd approval should execute it
         AccessControlModule::approve_proposal(&env, admin3.clone(), proposal_id).unwrap();
-        
+
         let proposal = AccessControlModule::get_proposal(&env, proposal_id).unwrap();
         assert!(proposal.executed);
         assert!(AccessControlModule::is_paused(&env));
@@ -851,12 +869,22 @@ fn test_emergency_proposal_requires_all_signatures() {
     let admin4 = Address::generate(&env);
 
     env.as_contract(&contract_id, || {
-        let admins = Vec::from_array(&env, [admin1.clone(), admin2.clone(), admin3.clone(), admin4.clone()]);
+        let admins = Vec::from_array(
+            &env,
+            [
+                admin1.clone(),
+                admin2.clone(),
+                admin3.clone(),
+                admin4.clone(),
+            ],
+        );
         AccessControlModule::initialize_multisig(&env, admins, 2, None).unwrap();
 
         // Create an emergency proposal
-        let action = ProposalAction::EmergencyPause(soroban_sdk::String::from_str(&env, "Security breach"));
-        let proposal_id = AccessControlModule::create_proposal(&env, admin1.clone(), action).unwrap();
+        let action =
+            ProposalAction::EmergencyPause(soroban_sdk::String::from_str(&env, "Security breach"));
+        let proposal_id =
+            AccessControlModule::create_proposal(&env, admin1.clone(), action).unwrap();
 
         let proposal = AccessControlModule::get_proposal(&env, proposal_id).unwrap();
         assert_eq!(proposal.proposal_type, ProposalType::Emergency);
@@ -865,12 +893,12 @@ fn test_emergency_proposal_requires_all_signatures() {
         // Need all 4 approvals
         AccessControlModule::approve_proposal(&env, admin2.clone(), proposal_id).unwrap();
         AccessControlModule::approve_proposal(&env, admin3.clone(), proposal_id).unwrap();
-        
+
         let proposal = AccessControlModule::get_proposal(&env, proposal_id).unwrap();
         assert!(!proposal.executed);
 
         AccessControlModule::approve_proposal(&env, admin4.clone(), proposal_id).unwrap();
-        
+
         let proposal = AccessControlModule::get_proposal(&env, proposal_id).unwrap();
         assert!(proposal.executed);
         assert!(AccessControlModule::is_paused(&env));
@@ -892,7 +920,8 @@ fn test_proposal_rejection() {
 
         let user = Address::generate(&env);
         let action = ProposalAction::SetRole(user.clone(), UserRole::Member);
-        let proposal_id = AccessControlModule::create_proposal(&env, admin1.clone(), action).unwrap();
+        let proposal_id =
+            AccessControlModule::create_proposal(&env, admin1.clone(), action).unwrap();
 
         // Reject proposal
         let result = AccessControlModule::reject_proposal(&env, admin2.clone(), proposal_id);
@@ -924,7 +953,8 @@ fn test_proposal_cancellation() {
 
         let user = Address::generate(&env);
         let action = ProposalAction::SetRole(user.clone(), UserRole::Member);
-        let proposal_id = AccessControlModule::create_proposal(&env, admin1.clone(), action).unwrap();
+        let proposal_id =
+            AccessControlModule::create_proposal(&env, admin1.clone(), action).unwrap();
 
         // Proposer can cancel
         AccessControlModule::cancel_proposal(&env, admin1.clone(), proposal_id).unwrap();
@@ -947,7 +977,8 @@ fn test_non_proposer_cannot_cancel() {
 
         let user = Address::generate(&env);
         let action = ProposalAction::SetRole(user.clone(), UserRole::Member);
-        let proposal_id = AccessControlModule::create_proposal(&env, admin1.clone(), action).unwrap();
+        let proposal_id =
+            AccessControlModule::create_proposal(&env, admin1.clone(), action).unwrap();
 
         // Non-proposer cannot cancel
         let result = AccessControlModule::cancel_proposal(&env, admin2.clone(), proposal_id);
@@ -961,7 +992,7 @@ fn test_proposal_expiration_cleanup() {
     env.ledger().with_mut(|li| {
         li.timestamp = 1000;
     });
-    
+
     let contract_id = env.register(crate::AccessControl, ());
     let admin1 = Address::generate(&env);
     let admin2 = Address::generate(&env);
@@ -972,7 +1003,8 @@ fn test_proposal_expiration_cleanup() {
 
         let user = Address::generate(&env);
         let action = ProposalAction::SetRole(user.clone(), UserRole::Member);
-        let proposal_id = AccessControlModule::create_proposal(&env, admin1.clone(), action).unwrap();
+        let proposal_id =
+            AccessControlModule::create_proposal(&env, admin1.clone(), action).unwrap();
 
         // Fast forward time past expiry (7 days + 1)
         env.ledger().with_mut(|li| {
@@ -994,7 +1026,7 @@ fn test_cleanup_multiple_expired_proposals() {
     env.ledger().with_mut(|li| {
         li.timestamp = 1000;
     });
-    
+
     let contract_id = env.register(crate::AccessControl, ());
     let admin1 = Address::generate(&env);
     let admin2 = Address::generate(&env);
@@ -1006,10 +1038,13 @@ fn test_cleanup_multiple_expired_proposals() {
         // Create multiple proposals
         let user = Address::generate(&env);
         let action = ProposalAction::SetRole(user.clone(), UserRole::Member);
-        
-        let _proposal_id1 = AccessControlModule::create_proposal(&env, admin1.clone(), action.clone()).unwrap();
-        let _proposal_id2 = AccessControlModule::create_proposal(&env, admin1.clone(), action.clone()).unwrap();
-        let _proposal_id3 = AccessControlModule::create_proposal(&env, admin1.clone(), action.clone()).unwrap();
+
+        let _proposal_id1 =
+            AccessControlModule::create_proposal(&env, admin1.clone(), action.clone()).unwrap();
+        let _proposal_id2 =
+            AccessControlModule::create_proposal(&env, admin1.clone(), action.clone()).unwrap();
+        let _proposal_id3 =
+            AccessControlModule::create_proposal(&env, admin1.clone(), action.clone()).unwrap();
 
         let stats = AccessControlModule::get_proposal_stats(&env);
         assert_eq!(stats.pending_count, 3);
@@ -1042,9 +1077,10 @@ fn test_proposal_stats_tracking() {
 
         let user = Address::generate(&env);
         let action = ProposalAction::SetRole(user.clone(), UserRole::Member);
-        
+
         // Create proposal
-        let proposal_id = AccessControlModule::create_proposal(&env, admin1.clone(), action).unwrap();
+        let proposal_id =
+            AccessControlModule::create_proposal(&env, admin1.clone(), action).unwrap();
 
         let stats = AccessControlModule::get_proposal_stats(&env);
         assert_eq!(stats.total_created, 1);
@@ -1070,7 +1106,7 @@ fn test_max_pending_proposals_limit() {
 
     env.as_contract(&contract_id, || {
         let mut admins = Vec::from_array(&env, [admin1.clone(), admin2.clone()]);
-        
+
         // Create config with low max pending proposals for testing
         let mut ms_config = crate::types::MultiSigConfig {
             admins: admins.clone(),
@@ -1081,15 +1117,17 @@ fn test_max_pending_proposals_limit() {
             max_pending_proposals: 3,
             proposal_expiry_duration: 604800,
         };
-        
+
         AccessControlModule::initialize_multisig(&env, ms_config.admins.clone(), 2, None).unwrap();
-        
+
         // Update to set lower limit
-        env.storage().persistent().set(&crate::access_control::DataKey::MultiSigConfig, &ms_config);
+        env.storage()
+            .persistent()
+            .set(&crate::access_control::DataKey::MultiSigConfig, &ms_config);
 
         let user = Address::generate(&env);
         let action = ProposalAction::SetRole(user.clone(), UserRole::Member);
-        
+
         // Create 3 proposals (should succeed)
         AccessControlModule::create_proposal(&env, admin1.clone(), action.clone()).unwrap();
         AccessControlModule::create_proposal(&env, admin1.clone(), action.clone()).unwrap();
@@ -1115,7 +1153,8 @@ fn test_cannot_approve_twice() {
 
         let user = Address::generate(&env);
         let action = ProposalAction::SetRole(user.clone(), UserRole::Member);
-        let proposal_id = AccessControlModule::create_proposal(&env, admin1.clone(), action).unwrap();
+        let proposal_id =
+            AccessControlModule::create_proposal(&env, admin1.clone(), action).unwrap();
 
         // Proposer already approved, try to approve again
         let result = AccessControlModule::approve_proposal(&env, admin1.clone(), proposal_id);
@@ -1136,7 +1175,8 @@ fn test_cannot_approve_after_rejection() {
 
         let user = Address::generate(&env);
         let action = ProposalAction::SetRole(user.clone(), UserRole::Member);
-        let proposal_id = AccessControlModule::create_proposal(&env, admin1.clone(), action).unwrap();
+        let proposal_id =
+            AccessControlModule::create_proposal(&env, admin1.clone(), action).unwrap();
 
         // Reject proposal
         AccessControlModule::reject_proposal(&env, admin2.clone(), proposal_id).unwrap();
@@ -1162,12 +1202,14 @@ fn test_batch_blacklist_proposal() {
         let user1 = Address::generate(&env);
         let user2 = Address::generate(&env);
         let user3 = Address::generate(&env);
-        
-        let users_to_blacklist = Vec::from_array(&env, [user1.clone(), user2.clone(), user3.clone()]);
+
+        let users_to_blacklist =
+            Vec::from_array(&env, [user1.clone(), user2.clone(), user3.clone()]);
         let action = ProposalAction::BatchBlacklist(users_to_blacklist);
-        
-        let proposal_id = AccessControlModule::create_proposal(&env, admin1.clone(), action).unwrap();
-        
+
+        let proposal_id =
+            AccessControlModule::create_proposal(&env, admin1.clone(), action).unwrap();
+
         // This is a critical operation, needs critical_threshold (3)
         AccessControlModule::approve_proposal(&env, admin2.clone(), proposal_id).unwrap();
         AccessControlModule::approve_proposal(&env, admin3.clone(), proposal_id).unwrap();
@@ -1193,15 +1235,19 @@ fn test_add_remove_admin_via_proposal() {
 
         // Add new admin
         let action = ProposalAction::AddAdmin(admin3.clone());
-        let proposal_id = AccessControlModule::create_proposal(&env, admin1.clone(), action).unwrap();
-        
+        let proposal_id =
+            AccessControlModule::create_proposal(&env, admin1.clone(), action).unwrap();
+
         // Critical operation
         AccessControlModule::approve_proposal(&env, admin2.clone(), proposal_id).unwrap();
 
         // Verify admin3 was added
         let config = AccessControlModule::get_multisig_config(&env).unwrap();
         assert!(config.admins.contains(&admin3));
-        assert_eq!(AccessControlModule::get_role(&env, admin3.clone()), UserRole::Admin);
+        assert_eq!(
+            AccessControlModule::get_role(&env, admin3.clone()),
+            UserRole::Admin
+        );
     });
 }
 
@@ -1231,9 +1277,11 @@ fn test_get_pending_proposals_list() {
 
         let user = Address::generate(&env);
         let action = ProposalAction::SetRole(user.clone(), UserRole::Member);
-        
-        let id1 = AccessControlModule::create_proposal(&env, admin1.clone(), action.clone()).unwrap();
-        let id2 = AccessControlModule::create_proposal(&env, admin1.clone(), action.clone()).unwrap();
+
+        let id1 =
+            AccessControlModule::create_proposal(&env, admin1.clone(), action.clone()).unwrap();
+        let id2 =
+            AccessControlModule::create_proposal(&env, admin1.clone(), action.clone()).unwrap();
 
         let pending = AccessControlModule::get_pending_proposals(&env);
         assert_eq!(pending.len(), 2);

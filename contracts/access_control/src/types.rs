@@ -253,7 +253,7 @@ impl MultiSigConfig {
             required_signatures: 2,
             critical_threshold: 3,
             emergency_threshold: 4,
-            time_lock_duration: 86400,     // 24 hours
+            time_lock_duration: 86400, // 24 hours
             max_pending_proposals: 50,
             proposal_expiry_duration: 604800, // 7 days
         }

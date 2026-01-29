@@ -6,8 +6,7 @@ use soroban_sdk::{contracttype, symbol_short, Address, Env, IntoVal, Symbol, Vec
 use crate::errors::{AccessControlError, AccessControlResult};
 use crate::types::{
     AccessControlConfig, MembershipInfo, MultiSigConfig, PendingAdminTransfer, PendingProposal,
-    ProposalAction, ProposalStats, SubscriptionTierLevel, UserRole,
-    UserSubscriptionStatus,
+    ProposalAction, ProposalStats, SubscriptionTierLevel, UserRole, UserSubscriptionStatus,
 };
 
 /// Storage keys for the access control module
@@ -103,7 +102,7 @@ impl AccessControlModule {
             required_signatures,
             critical_threshold,
             emergency_threshold,
-            time_lock_duration: 86400,        // 24 hours default
+            time_lock_duration: 86400, // 24 hours default
             max_pending_proposals: 50,
             proposal_expiry_duration: 604800, // 7 days default
         };
@@ -653,8 +652,8 @@ impl AccessControlModule {
     ) -> AccessControlResult<u64> {
         Self::require_admin(env, &proposer)?;
 
-        let multisig_config = Self::get_multisig_config(env)
-            .ok_or(AccessControlError::MultisigNotEnabled)?;
+        let multisig_config =
+            Self::get_multisig_config(env).ok_or(AccessControlError::MultisigNotEnabled)?;
 
         // Check max pending proposals limit
         let mut stats: ProposalStats = env
@@ -741,7 +740,11 @@ impl AccessControlModule {
             .set(&DataKey::ProposalStats, &stats);
 
         env.events().publish(
-            (symbol_short!("proposal"), proposal_id, proposal_type.clone()),
+            (
+                symbol_short!("proposal"),
+                proposal_id,
+                proposal_type.clone(),
+            ),
             proposer.clone(),
         );
 
@@ -894,7 +897,9 @@ impl AccessControlModule {
             }
             ProposalAction::EmergencyPause(reason) => {
                 env.storage().persistent().set(&DataKey::Paused, &true);
-                env.storage().persistent().set(&DataKey::EmergencyMode, &true);
+                env.storage()
+                    .persistent()
+                    .set(&DataKey::EmergencyMode, &true);
 
                 env.events().publish(
                     (symbol_short!("emrg_pse"), reason),
@@ -948,9 +953,10 @@ impl AccessControlModule {
                     env.storage()
                         .persistent()
                         .set(&DataKey::MultiSigConfig, &multisig_config);
-                    env.storage()
-                        .persistent()
-                        .set(&DataKey::UserRole(admin_to_remove.clone()), &UserRole::Guest);
+                    env.storage().persistent().set(
+                        &DataKey::UserRole(admin_to_remove.clone()),
+                        &UserRole::Guest,
+                    );
 
                     env.events().publish(
                         (symbol_short!("rm_adm"), admin_to_remove),
@@ -1026,8 +1032,8 @@ impl AccessControlModule {
         proposal.rejections.push_back(rejecter.clone());
 
         // Check if rejection threshold reached (e.g., if more than 1/3 reject, proposal fails)
-        let multisig_config = Self::get_multisig_config(env)
-            .ok_or(AccessControlError::MultisigNotEnabled)?;
+        let multisig_config =
+            Self::get_multisig_config(env).ok_or(AccessControlError::MultisigNotEnabled)?;
         let rejection_threshold = (multisig_config.admins.len() / 3).max(1);
 
         if proposal.rejections.len() > rejection_threshold {
@@ -1054,10 +1060,8 @@ impl AccessControlModule {
                 .persistent()
                 .set(&DataKey::ProposalStats, &stats);
 
-            env.events().publish(
-                (symbol_short!("rejected"), proposal_id),
-                rejecter.clone(),
-            );
+            env.events()
+                .publish((symbol_short!("rejected"), proposal_id), rejecter.clone());
 
             return Err(AccessControlError::ProposalRejected);
         }
@@ -1240,7 +1244,7 @@ impl AccessControlModule {
         }
 
         // This should be done via proposal
-        return Err(AccessControlError::AdminRequired);
+        Err(AccessControlError::AdminRequired)
     }
 
     /// Check if emergency mode is active
