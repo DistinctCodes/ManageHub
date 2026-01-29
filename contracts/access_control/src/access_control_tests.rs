@@ -843,6 +843,18 @@ fn test_critical_proposal_requires_higher_threshold() {
         assert_eq!(proposal.proposal_type, ProposalType::Critical);
         assert_eq!(proposal.required_signatures, 3); // Critical threshold
 
+        // Fast forward time past time-lock (24 hours + 1 second)
+        env.ledger().set(LedgerInfo {
+            timestamp: env.ledger().timestamp() + 86401,
+            protocol_version: 22,
+            sequence_number: 10,
+            network_id: [0; 32],
+            base_reserve: 10,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 6312000,
+        });
+
         // 2 approvals should not be enough (proposer already approved)
         AccessControlModule::approve_proposal(&env, admin2.clone(), proposal_id).unwrap();
 
@@ -991,7 +1003,7 @@ fn test_proposal_expiration_cleanup() {
     let env = Env::default();
     env.ledger().set(LedgerInfo {
         timestamp: 1000,
-        protocol_version: 20,
+        protocol_version: 22,
         sequence_number: 10,
         network_id: [0; 32],
         base_reserve: 10,
@@ -1016,7 +1028,7 @@ fn test_proposal_expiration_cleanup() {
         // Fast forward time past expiry (7 days + 1)
         env.ledger().set(LedgerInfo {
             timestamp: 1000 + 604801,
-            protocol_version: 20,
+            protocol_version: 22,
             sequence_number: 10,
             network_id: [0; 32],
             base_reserve: 10,
@@ -1039,7 +1051,7 @@ fn test_cleanup_multiple_expired_proposals() {
     let env = Env::default();
     env.ledger().set(LedgerInfo {
         timestamp: 1000,
-        protocol_version: 20,
+        protocol_version: 22,
         sequence_number: 10,
         network_id: [0; 32],
         base_reserve: 10,
@@ -1073,7 +1085,7 @@ fn test_cleanup_multiple_expired_proposals() {
         // Fast forward time past expiry
         env.ledger().set(LedgerInfo {
             timestamp: 1000 + 604801,
-            protocol_version: 20,
+            protocol_version: 22,
             sequence_number: 10,
             network_id: [0; 32],
             base_reserve: 10,
@@ -1238,6 +1250,18 @@ fn test_batch_blacklist_proposal() {
         let proposal_id =
             AccessControlModule::create_proposal(&env, admin1.clone(), action).unwrap();
 
+        // Fast forward time past time-lock (24 hours + 1 second)
+        env.ledger().set(LedgerInfo {
+            timestamp: env.ledger().timestamp() + 86401,
+            protocol_version: 22,
+            sequence_number: 10,
+            network_id: [0; 32],
+            base_reserve: 10,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 6312000,
+        });
+
         // This is a critical operation, needs critical_threshold (3)
         AccessControlModule::approve_proposal(&env, admin2.clone(), proposal_id).unwrap();
         AccessControlModule::approve_proposal(&env, admin3.clone(), proposal_id).unwrap();
@@ -1265,6 +1289,18 @@ fn test_add_remove_admin_via_proposal() {
         let action = ProposalAction::AddAdmin(admin3.clone());
         let proposal_id =
             AccessControlModule::create_proposal(&env, admin1.clone(), action).unwrap();
+
+        // Fast forward time past time-lock (24 hours + 1 second)
+        env.ledger().set(LedgerInfo {
+            timestamp: env.ledger().timestamp() + 86401,
+            protocol_version: 22,
+            sequence_number: 10,
+            network_id: [0; 32],
+            base_reserve: 10,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 6312000,
+        });
 
         // Critical operation
         AccessControlModule::approve_proposal(&env, admin2.clone(), proposal_id).unwrap();
