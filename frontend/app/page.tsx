@@ -1,5 +1,5 @@
 import { Navbar } from "@/components/ui/Navbar";
-import Newsletter from "../components/ui/newsletter";
+import Newsletter from "../components/ui/Newsletter";
 import Footer from "../components/ui/Footer";
 import { useMemo } from "react";
 import { Hero } from "@/components/ui/Hero";

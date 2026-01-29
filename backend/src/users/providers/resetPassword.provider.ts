@@ -9,7 +9,7 @@ import { User } from '../entities/user.entity';
 import { ErrorCatch } from '../../utils/error';
 import { createHash } from 'crypto';
 import { HashingProvider } from 'src/auth/providers/hashing.provider';
-import { RefreshTokenRepositoryOperations } from 'src/auth/providers/RefreshTokenCrud.repository';
+import { RefreshTokenRepositoryOperations } from 'src/auth/providers/refreshToken.repository';
 // import { EmailService } from '../../email/providers/email.service';
 
 @Injectable()

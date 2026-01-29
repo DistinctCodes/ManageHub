@@ -44,6 +44,7 @@
     "@nestjs/swagger": "^7.4.2",
     "@nestjs/throttler": "^6.4.0",
     "@nestjs/typeorm": "^11.0.0",
+    "@sendgrid/mail": "^8.1.6",
     "@types/cookie-parser": "^1.4.9",
     "@types/handlebars": "^4.0.40",
     "@types/json2csv": "^5.0.7",
