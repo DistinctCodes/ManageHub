@@ -2,7 +2,7 @@ use crate::access_control::AccessControlModule;
 use crate::errors::AccessControlError;
 use crate::types::{AccessControlConfig, ProposalAction, ProposalType, UserRole};
 use soroban_sdk::{
-    testutils::{Address as _, Events, Ledger},
+    testutils::{Address as _, Events, Ledger, LedgerInfo},
     Address, Env, Vec,
 };
 
@@ -989,7 +989,7 @@ fn test_non_proposer_cannot_cancel() {
 #[test]
 fn test_proposal_expiration_cleanup() {
     let env = Env::default();
-    env.ledger().set(soroban_sdk::ledger::LedgerInfo {
+    env.ledger().set(LedgerInfo {
         timestamp: 1000,
         protocol_version: 20,
         sequence_number: 10,
@@ -1014,7 +1014,7 @@ fn test_proposal_expiration_cleanup() {
             AccessControlModule::create_proposal(&env, admin1.clone(), action).unwrap();
 
         // Fast forward time past expiry (7 days + 1)
-        env.ledger().set(soroban_sdk::ledger::LedgerInfo {
+        env.ledger().set(LedgerInfo {
             timestamp: 1000 + 604801,
             protocol_version: 20,
             sequence_number: 10,
@@ -1037,7 +1037,7 @@ fn test_proposal_expiration_cleanup() {
 #[test]
 fn test_cleanup_multiple_expired_proposals() {
     let env = Env::default();
-    env.ledger().set(soroban_sdk::ledger::LedgerInfo {
+    env.ledger().set(LedgerInfo {
         timestamp: 1000,
         protocol_version: 20,
         sequence_number: 10,
@@ -1071,7 +1071,7 @@ fn test_cleanup_multiple_expired_proposals() {
         assert_eq!(stats.pending_count, 3);
 
         // Fast forward time past expiry
-        env.ledger().set(soroban_sdk::ledger::LedgerInfo {
+        env.ledger().set(LedgerInfo {
             timestamp: 1000 + 604801,
             protocol_version: 20,
             sequence_number: 10,
