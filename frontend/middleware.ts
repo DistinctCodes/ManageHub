@@ -3,9 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 const publicRoutes = ["/", "/login", "/register", "/forgot-password"];
 
 const protectedRoutes = {
-  // "/dashboard": ["users", "admin"],
-  // "/users": ["admin"],
-  // "/admin": ["admin"],
+  "/dashboard": ["users", "admin"],
+  "/users": ["admin"],
+  "/admin": ["admin"],
 } as const;
 
 export function middleware(request: NextRequest) {

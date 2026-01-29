@@ -92,11 +92,11 @@ export class User {
   updatedAt: Date;
 
   @Column({ default: false })
-twoFactorEnabled: boolean;
-
+  twoFactorEnabled: boolean;
 
   @DeleteDateColumn()
   deletedAt: Date;
-  fullName: any;
-  name: any;
+  get fullName(): string {
+    return `${this.firstname} ${this.lastname}`.trim();
+  }
 }

@@ -9,7 +9,7 @@ import { ValidateUserProvider } from './validateUser.provider';
 import { FindAllUsersProvider } from './findAllUsers.provider';
 import { UpdateUserProvider } from './updateUser.provider';
 import { DeleteUserProvider } from './deleteUser.provider';
-import { AuthResponse } from 'src/auth/interfaces/authResponse.interface';
+import { AuthResponse } from '../../auth/interface/authResponse.interface';
 import { Response } from 'express';
 import { NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';

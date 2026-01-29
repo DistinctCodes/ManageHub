@@ -1,159 +1,69 @@
 import {
-  Controller,
-  Post,
   Body,
-  HttpCode,
-  HttpStatus,
-  Logger,
+  Controller,
+  Get,
+  Post,
+  Query,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
+import { Throttle, seconds } from '@nestjs/throttler';
+import { NewsletterService } from './newsletter.service';
+import {
+  ConfirmNewsletterDto,
+  SubscribeNewsletterDto,
+  UnsubscribeNewsletterDto,
+} from './dto/subscription.dto';
+import { PaginationQueryDto } from '../config/pagination/dto/pagination-query.dto';
+import { Roles } from '../auth/decorators/roles.decorators';
+import { UserRole } from '../auth/common/enum/user-role-enum';
+import { RolesGuard } from '../auth/guard/roles.guard';
 import { Public } from '../auth/decorators/public.decorator';
-import { ConvertKitService } from './services/convertkit.service';
-import { SubscribeDto } from './dto/subscribe.dto';
 
-@ApiTags('Newsletter')
+type AnyRequest = { ip?: string; headers?: Record<string, unknown> };
+
 @Controller('newsletter')
 export class NewsletterController {
-  private readonly logger = new Logger(NewsletterController.name);
-
-  constructor(private readonly convertKitService: ConvertKitService) {}
+  constructor(private readonly service: NewsletterService) {}
 
   @Public()
+  @Throttle({ newsletter: { ttl: seconds(60), limit: 5 } })
   @Post('subscribe')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Subscribe to newsletter',
-    description: 'Subscribe a user to the newsletter using ConvertKit API',
-  })
-  @ApiBody({ type: SubscribeDto })
-  @ApiResponse({
-    status: 200,
-    description: 'Successfully subscribed to newsletter',
-    schema: {
-      type: 'object',
-      properties: {
-        success: { type: 'boolean', example: true },
-        message: {
-          type: 'string',
-          example: 'Successfully subscribed to newsletter!',
-        },
-        data: {
-          type: 'object',
-          properties: {
-            email: { type: 'string', example: 'john.doe@example.com' },
-            subscribed_at: { type: 'string', example: '2024-01-01T12:00:00Z' },
-          },
-        },
-      },
-    },
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Invalid email or bad request',
-    schema: {
-      type: 'object',
-      properties: {
-        success: { type: 'boolean', example: false },
-        message: {
-          type: 'string',
-          example: 'Please provide a valid email address',
-        },
-        error: { type: 'string', example: 'BAD_REQUEST' },
-      },
-    },
-  })
-  @ApiResponse({
-    status: 409,
-    description: 'Email already subscribed or duplicate subscription',
-    schema: {
-      type: 'object',
-      properties: {
-        success: { type: 'boolean', example: false },
-        message: {
-          type: 'string',
-          example: 'This email is already subscribed',
-        },
-        error: { type: 'string', example: 'CONFLICT' },
-      },
-    },
-  })
-  @ApiResponse({
-    status: 500,
-    description: 'Internal server error',
-    schema: {
-      type: 'object',
-      properties: {
-        success: { type: 'boolean', example: false },
-        message: { type: 'string', example: 'Internal server error occurred' },
-        error: { type: 'string', example: 'INTERNAL_SERVER_ERROR' },
-      },
-    },
-  })
-  @ApiResponse({
-    status: 503,
-    description: 'Service unavailable - ConvertKit API error',
-    schema: {
-      type: 'object',
-      properties: {
-        success: { type: 'boolean', example: false },
-        message: {
-          type: 'string',
-          example: 'Newsletter service is temporarily unavailable',
-        },
-        error: { type: 'string', example: 'SERVICE_UNAVAILABLE' },
-      },
-    },
-  })
-  async subscribe(@Body() subscribeDto: SubscribeDto) {
-    try {
-      this.logger.log(
-        `Newsletter subscription request for: ${subscribeDto.email}`,
-      );
+  async subscribe(@Body() dto: SubscribeNewsletterDto, @Req() req: AnyRequest) {
+    const ip = this.getClientIp(req);
+    const data = await this.service.subscribe(dto.email, ip);
 
-      const result = await this.convertKitService.subscribeToNewsletter(
-        subscribeDto.email,
-        subscribeDto.name,
-      );
-
-      this.logger.log(
-        `Newsletter subscription successful for: ${subscribeDto.email}`,
-      );
-
-      return {
-        success: true,
-        message: 'Successfully subscribed to newsletter!',
-        data: {
-          email: subscribeDto.email,
-          subscribed_at: result.subscription.created_at,
-          subscriber_id: result.subscription.subscriber.id,
-        },
-      };
-    } catch (error) {
-      this.logger.error(
-        `Newsletter subscription failed for ${subscribeDto.email}:`,
-        error.message,
-      );
-
-      // Return structured error response
-      return {
-        success: false,
-        message: error.message || 'Subscription failed',
-        error: this.getErrorCode(error.status),
-      };
-    }
+    return {
+      success: true,
+      message: 'Subscribed successfully.',
+      data,
+    };
   }
 
-  private getErrorCode(httpStatus: number): string {
-    switch (httpStatus) {
-      case HttpStatus.BAD_REQUEST:
-        return 'BAD_REQUEST';
-      case HttpStatus.CONFLICT:
-        return 'CONFLICT';
-      case HttpStatus.SERVICE_UNAVAILABLE:
-        return 'SERVICE_UNAVAILABLE';
-      case HttpStatus.INTERNAL_SERVER_ERROR:
-      default:
-        return 'INTERNAL_SERVER_ERROR';
-    }
+  @Public()
+  @Throttle({ newsletter: { ttl: seconds(60), limit: 20 } })
+  @Post('confirm')
+  async confirm(@Body() dto: ConfirmNewsletterDto) {
+    return this.service.confirm(dto.token);
+  }
+
+  @Public()
+  @Throttle({ newsletter: { ttl: seconds(60), limit: 20 } })
+  @Post('unsubscribe')
+  async unsubscribe(@Body() dto: UnsubscribeNewsletterDto) {
+    return this.service.unsubscribe(dto.token);
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Get('subscribers')
+  async listSubscribers(@Query() query: PaginationQueryDto) {
+    return this.service.listSubscribers(query);
+  }
+
+  private getClientIp(req: AnyRequest): string | null {
+    const xff = req.headers?.['x-forwarded-for'];
+    if (typeof xff === 'string' && xff.length) return xff.split(',')[0].trim();
+    return req.ip ?? null;
   }
 }

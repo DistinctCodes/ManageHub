@@ -1,12 +1,14 @@
-/* eslint-disable prettier/prettier */
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ValidationPipe, ClassSerializerInterceptor } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { HttpLogger } from './common/middlewares/httpLogger.middleware';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  app.use(new HttpLogger().use);
 
   // GLOBAL VALIDATION
   app.useGlobalPipes(
@@ -45,6 +47,8 @@ async function bootstrap() {
     .build();
   const document = SwaggerModule.createDocument(app as any, config);
   SwaggerModule.setup('swagger', app as any, document);
+
+  app.setGlobalPrefix('/api');
 
   await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
   console.log(`Server is listening at: ${await app.getUrl()}`);

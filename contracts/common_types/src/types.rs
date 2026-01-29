@@ -175,6 +175,7 @@ pub enum UserRole {
 pub enum MembershipStatus {
     /// Active membership
     Active,
+    Paused,
     /// Expired membership
     Expired,
     /// Revoked membership
@@ -647,11 +648,13 @@ mod tests {
     #[test]
     fn test_membership_status_variants() {
         let active = MembershipStatus::Active;
+        let paused = MembershipStatus::Paused;
         let expired = MembershipStatus::Expired;
         let revoked = MembershipStatus::Revoked;
         let inactive = MembershipStatus::Inactive;
 
         assert_eq!(active, MembershipStatus::Active);
+        assert_eq!(paused, MembershipStatus::Paused);
         assert_eq!(expired, MembershipStatus::Expired);
         assert_eq!(revoked, MembershipStatus::Revoked);
         assert_eq!(inactive, MembershipStatus::Inactive);

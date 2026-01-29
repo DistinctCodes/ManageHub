@@ -1,55 +1,33 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
-import { User } from 'src/users/entities/user.entity';
+import { User } from '../../users/entities/user.entity';
 
 @Injectable()
 export class GenerateTokensProvider {
-  constructor(
-    private readonly jwtService: JwtService,
+  constructor(private readonly jwtService: JwtService) {}
 
-    private readonly configService: ConfigService,
-  ) {}
-
-  public async signSingleToken(
-    userId: string,
-    expiresIn: number,
-    userRole: string,
-    payload?: any,
-  ) {
-    return await this.jwtService.signAsync(
-      {
-        sub: userId,
-        role: userRole,
-        ...payload,
-      },
-      {
-        secret: this.configService.get('JWT_SECRET'),
-        expiresIn,
-      },
+  async generateAccessToken(user: User): Promise<string> {
+    return this.jwtService.signAsync(
+      { sub: user.id, role: user.role, email: user.email },
+      { expiresIn: process.env.JWT_ACCESS_EXPIRATION ?? '15m' },
     );
   }
 
-  public async generateBothTokens(user: User) {
+  async generateRefreshToken(user: User): Promise<string> {
+    return this.jwtService.signAsync(
+      { sub: user.id },
+      { expiresIn: process.env.JWT_REFRESH_EXPIRATION ?? '7d' },
+    );
+  }
+
+  async generateBothTokens(
+    user: User,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
     const [accessToken, refreshToken] = await Promise.all([
-      this.signSingleToken(
-        user.id,
-        this.configService.get('JWT_ACCESS_EXPIRATION'),
-        user.role,
-        {
-          email: user.email,
-        },
-      ),
-      this.signSingleToken(
-        user.id,
-        this.configService.get('JWT_REFRESH_EXPIRATION'),
-        user.role,
-      ),
+      this.generateAccessToken(user),
+      this.generateRefreshToken(user),
     ]);
 
-    return {
-      accessToken,
-      refreshToken,
-    };
+    return { accessToken, refreshToken };
   }
 }

@@ -17,7 +17,7 @@
 /* Dark mode */
 @media (prefers-color-scheme: dark) {
   ::-webkit-scrollbar-thumb {
-    background-color: #4b5563;
+    background-color: #f8fafc;
   }
 }
 
