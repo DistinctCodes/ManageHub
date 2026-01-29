@@ -9,10 +9,12 @@ mod types;
 
 // Re-export all types
 pub use types::{
-    validate_attribute, validate_metadata, AttendanceAction, MembershipStatus, MetadataUpdate,
-    MetadataValue, SubscriptionPlan, SubscriptionTier, TierChangeRequest, TierChangeStatus,
-    TierChangeType, TierFeature, TierLevel, TierPromotion, TokenMetadata, UserRole,
-    MAX_ATTRIBUTES_COUNT, MAX_ATTRIBUTE_KEY_LENGTH, MAX_DESCRIPTION_LENGTH, MAX_TEXT_VALUE_LENGTH,
+    validate_attribute, validate_metadata, AttendanceAction, AttendanceLogRequest,
+    BatchAttendanceResult, BatchIssueTokenResult, BatchOperationStatus, BatchSetRoleResult,
+    IssueTokenRequest, MembershipStatus, MetadataUpdate, MetadataValue, SetRoleRequest,
+    SubscriptionPlan, SubscriptionTier, TierChangeRequest, TierChangeStatus, TierChangeType,
+    TierFeature, TierLevel, TierPromotion, TokenMetadata, UserRole, MAX_ATTRIBUTES_COUNT,
+    MAX_ATTRIBUTE_KEY_LENGTH, MAX_DESCRIPTION_LENGTH, MAX_TEXT_VALUE_LENGTH,
 };
 
 #[cfg(test)]

@@ -10,8 +10,13 @@ pub mod types;
 mod access_control_tests;
 
 pub use access_control::AccessControlModule;
+pub use common_types::{
+    BatchOperationStatus, BatchSetRoleResult, SetRoleRequest, TierLevel, UserRole,
+};
 pub use errors::{AccessControlError, AccessControlResult};
-pub use types::{AccessControlConfig, MembershipInfo, MultiSigConfig, ProposalAction, UserRole};
+pub use types::{
+    AccessControlConfig, MembershipInfo, MultiSigConfig, ProposalAction, UserSubscriptionStatus,
+};
 
 #[contract]
 pub struct AccessControl;
@@ -24,6 +29,14 @@ impl AccessControl {
 
     pub fn set_role(env: Env, admin: Address, user: Address, role: UserRole) {
         AccessControlModule::set_role(&env, admin, user, role).unwrap()
+    }
+
+    pub fn batch_set_roles(
+        env: Env,
+        admin: Address,
+        roles: Vec<SetRoleRequest>,
+    ) -> Vec<BatchSetRoleResult> {
+        AccessControlModule::batch_set_roles(&env, admin, roles).unwrap()
     }
 
     pub fn get_role(env: Env, user: Address) -> UserRole {

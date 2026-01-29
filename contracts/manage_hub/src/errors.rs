@@ -49,4 +49,5 @@ pub enum Error {
     TierAlreadyExists = 40,
     TierNotActive = 41,
     TierChangeNotFound = 42,
+    InvalidBatchSize = 43,
 }

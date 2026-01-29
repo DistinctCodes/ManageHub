@@ -3,16 +3,9 @@ use soroban_sdk::{contracttype, Address, String, Vec};
 // Re-export types from common_types for consistency
 pub use common_types::MembershipStatus;
 pub use common_types::{
-    SubscriptionTier, TierChangeRequest, TierChangeStatus, TierChangeType, TierFeature, TierLevel,
-    TierPromotion,
+    AttendanceAction, SubscriptionTier, TierChangeRequest, TierChangeStatus, TierChangeType,
+    TierFeature, TierLevel, TierPromotion,
 };
-
-#[contracttype]
-#[derive(Clone, Debug, PartialEq)]
-pub enum AttendanceAction {
-    ClockIn,
-    ClockOut,
-}
 
 /// Billing cycle for subscriptions.
 #[contracttype]

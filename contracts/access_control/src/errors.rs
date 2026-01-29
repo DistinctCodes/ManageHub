@@ -37,6 +37,8 @@ pub enum AccessControlError {
     MaxRolesExceeded = 114,
     /// Contract is paused
     ContractPaused = 115,
+    /// Invalid batch size
+    InvalidBatchSize = 116,
 }
 
 impl AccessControlError {
@@ -62,7 +64,9 @@ impl AccessControlError {
             AccessControlError::InvalidAddress => "Invalid address provided",
             AccessControlError::RoleHierarchyViolation => "Role hierarchy violation",
             AccessControlError::MaxRolesExceeded => "Maximum roles per user exceeded",
+
             AccessControlError::ContractPaused => "Contract is currently paused",
+            AccessControlError::InvalidBatchSize => "Invalid batch size (max 25)",
         }
     }
 
@@ -132,5 +136,6 @@ mod tests {
         assert_eq!(AccessControlError::Unauthorized as u32, 100);
         assert_eq!(AccessControlError::AdminRequired as u32, 101);
         assert_eq!(AccessControlError::ContractPaused as u32, 115);
+        assert_eq!(AccessControlError::InvalidBatchSize as u32, 116);
     }
 }

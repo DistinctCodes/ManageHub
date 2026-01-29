@@ -8,6 +8,9 @@ mod subscription;
 mod types;
 
 use attendance_log::{AttendanceLog, AttendanceLogModule};
+use common_types::{
+    AttendanceLogRequest, BatchAttendanceResult, BatchIssueTokenResult, IssueTokenRequest,
+};
 use common_types::{MetadataUpdate, MetadataValue, TokenMetadata};
 use errors::Error;
 use membership_token::{MembershipToken, MembershipTokenContract};
@@ -37,6 +40,13 @@ impl Contract {
         Ok(())
     }
 
+    pub fn batch_issue_tokens(
+        env: Env,
+        requests: Vec<IssueTokenRequest>,
+    ) -> Result<Vec<BatchIssueTokenResult>, Error> {
+        MembershipTokenContract::batch_issue_tokens(env, requests)
+    }
+
     pub fn transfer_token(env: Env, id: BytesN<32>, new_user: Address) -> Result<(), Error> {
         MembershipTokenContract::transfer_token(env, id, new_user)?;
         Ok(())
@@ -59,6 +69,13 @@ impl Contract {
         details: soroban_sdk::Map<String, String>,
     ) -> Result<(), Error> {
         AttendanceLogModule::log_attendance(env, id, user_id, action, details)
+    }
+
+    pub fn batch_log_attendance(
+        env: Env,
+        logs: Vec<AttendanceLogRequest>,
+    ) -> Result<Vec<BatchAttendanceResult>, Error> {
+        AttendanceLogModule::batch_log_attendance(env, logs)
     }
 
     pub fn get_logs_for_user(env: Env, user_id: Address) -> Vec<AttendanceLog> {
