@@ -167,6 +167,7 @@ impl AccessControl {
         AccessControlModule::deactivate_emergency_mode(&env, caller).unwrap()
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn update_multisig_config_full(
         _env: Env,
         _admins: Vec<Address>,

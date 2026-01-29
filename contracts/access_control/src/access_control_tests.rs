@@ -2,7 +2,7 @@ use crate::access_control::AccessControlModule;
 use crate::errors::AccessControlError;
 use crate::types::{AccessControlConfig, ProposalAction, ProposalType, UserRole};
 use soroban_sdk::{
-    testutils::{Address as _, Events},
+    testutils::{Address as _, Events, Ledger},
     Address, Env, Vec,
 };
 
@@ -989,8 +989,15 @@ fn test_non_proposer_cannot_cancel() {
 #[test]
 fn test_proposal_expiration_cleanup() {
     let env = Env::default();
-    env.ledger().with_mut(|li| {
-        li.timestamp = 1000;
+    env.ledger().set(soroban_sdk::ledger::LedgerInfo {
+        timestamp: 1000,
+        protocol_version: 20,
+        sequence_number: 10,
+        network_id: [0; 32],
+        base_reserve: 10,
+        min_temp_entry_ttl: 10,
+        min_persistent_entry_ttl: 10,
+        max_entry_ttl: 6312000,
     });
 
     let contract_id = env.register(crate::AccessControl, ());
@@ -1007,8 +1014,15 @@ fn test_proposal_expiration_cleanup() {
             AccessControlModule::create_proposal(&env, admin1.clone(), action).unwrap();
 
         // Fast forward time past expiry (7 days + 1)
-        env.ledger().with_mut(|li| {
-            li.timestamp = 1000 + 604801;
+        env.ledger().set(soroban_sdk::ledger::LedgerInfo {
+            timestamp: 1000 + 604801,
+            protocol_version: 20,
+            sequence_number: 10,
+            network_id: [0; 32],
+            base_reserve: 10,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 6312000,
         });
 
         // Try to approve expired proposal
@@ -1023,8 +1037,15 @@ fn test_proposal_expiration_cleanup() {
 #[test]
 fn test_cleanup_multiple_expired_proposals() {
     let env = Env::default();
-    env.ledger().with_mut(|li| {
-        li.timestamp = 1000;
+    env.ledger().set(soroban_sdk::ledger::LedgerInfo {
+        timestamp: 1000,
+        protocol_version: 20,
+        sequence_number: 10,
+        network_id: [0; 32],
+        base_reserve: 10,
+        min_temp_entry_ttl: 10,
+        min_persistent_entry_ttl: 10,
+        max_entry_ttl: 6312000,
     });
 
     let contract_id = env.register(crate::AccessControl, ());
@@ -1050,8 +1071,15 @@ fn test_cleanup_multiple_expired_proposals() {
         assert_eq!(stats.pending_count, 3);
 
         // Fast forward time past expiry
-        env.ledger().with_mut(|li| {
-            li.timestamp = 1000 + 604801;
+        env.ledger().set(soroban_sdk::ledger::LedgerInfo {
+            timestamp: 1000 + 604801,
+            protocol_version: 20,
+            sequence_number: 10,
+            network_id: [0; 32],
+            base_reserve: 10,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 6312000,
         });
 
         // Clean up expired proposals
@@ -1105,10 +1133,10 @@ fn test_max_pending_proposals_limit() {
     let admin2 = Address::generate(&env);
 
     env.as_contract(&contract_id, || {
-        let mut admins = Vec::from_array(&env, [admin1.clone(), admin2.clone()]);
+        let admins = Vec::from_array(&env, [admin1.clone(), admin2.clone()]);
 
         // Create config with low max pending proposals for testing
-        let mut ms_config = crate::types::MultiSigConfig {
+        let ms_config = crate::types::MultiSigConfig {
             admins: admins.clone(),
             required_signatures: 2,
             critical_threshold: 2,
