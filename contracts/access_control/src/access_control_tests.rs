@@ -846,7 +846,7 @@ fn test_critical_proposal_requires_higher_threshold() {
         // Fast forward time past time-lock (24 hours + 1 second)
         env.ledger().set(LedgerInfo {
             timestamp: env.ledger().timestamp() + 86401,
-            protocol_version: 22,
+            protocol_version: 24,
             sequence_number: 10,
             network_id: [0; 32],
             base_reserve: 10,
@@ -1003,7 +1003,7 @@ fn test_proposal_expiration_cleanup() {
     let env = Env::default();
     env.ledger().set(LedgerInfo {
         timestamp: 1000,
-        protocol_version: 22,
+        protocol_version: 24,
         sequence_number: 10,
         network_id: [0; 32],
         base_reserve: 10,
@@ -1028,7 +1028,7 @@ fn test_proposal_expiration_cleanup() {
         // Fast forward time past expiry (7 days + 1)
         env.ledger().set(LedgerInfo {
             timestamp: 1000 + 604801,
-            protocol_version: 22,
+            protocol_version: 24,
             sequence_number: 10,
             network_id: [0; 32],
             base_reserve: 10,
@@ -1051,7 +1051,7 @@ fn test_cleanup_multiple_expired_proposals() {
     let env = Env::default();
     env.ledger().set(LedgerInfo {
         timestamp: 1000,
-        protocol_version: 22,
+        protocol_version: 24,
         sequence_number: 10,
         network_id: [0; 32],
         base_reserve: 10,
@@ -1085,7 +1085,7 @@ fn test_cleanup_multiple_expired_proposals() {
         // Fast forward time past expiry
         env.ledger().set(LedgerInfo {
             timestamp: 1000 + 604801,
-            protocol_version: 22,
+            protocol_version: 24,
             sequence_number: 10,
             network_id: [0; 32],
             base_reserve: 10,
@@ -1253,7 +1253,7 @@ fn test_batch_blacklist_proposal() {
         // Fast forward time past time-lock (24 hours + 1 second)
         env.ledger().set(LedgerInfo {
             timestamp: env.ledger().timestamp() + 86401,
-            protocol_version: 22,
+            protocol_version: 24,
             sequence_number: 10,
             network_id: [0; 32],
             base_reserve: 10,
@@ -1293,7 +1293,7 @@ fn test_add_remove_admin_via_proposal() {
         // Fast forward time past time-lock (24 hours + 1 second)
         env.ledger().set(LedgerInfo {
             timestamp: env.ledger().timestamp() + 86401,
-            protocol_version: 22,
+            protocol_version: 24,
             sequence_number: 10,
             network_id: [0; 32],
             base_reserve: 10,
