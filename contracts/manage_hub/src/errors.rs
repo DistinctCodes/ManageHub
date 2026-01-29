@@ -25,17 +25,17 @@ pub enum Error {
     MetadataTextValueTooLong = 20,
     MetadataValidationFailed = 21,
     InvalidMetadataVersion = 22,
-    // Attendance analytics errors
-    InvalidDateRange = 23,
-    NoAttendanceRecords = 24,
-    IncompleteSession = 25,
     // Pause/Resume related errors
-    InvalidPauseConfig = 26,
-    SubscriptionPaused = 27,
-    SubscriptionNotActive = 28,
-    PauseCountExceeded = 29,
-    PauseTooEarly = 30,
-    SubscriptionNotPaused = 31,
+    InvalidPauseConfig = 23,
+    SubscriptionPaused = 24,
+    SubscriptionNotActive = 25,
+    PauseCountExceeded = 26,
+    PauseTooEarly = 27,
+    SubscriptionNotPaused = 28,
+    // Attendance analytics errors
+    InvalidDateRange = 29,
+    NoAttendanceRecords = 30,
+    IncompleteSession = 31,
     // Tier and feature related errors
     TierNotFound = 32,
     FeatureNotAvailable = 33,
