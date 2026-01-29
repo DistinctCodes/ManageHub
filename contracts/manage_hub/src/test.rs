@@ -1274,3 +1274,186 @@ fn test_renew_paused_subscription() {
     // Try to renew paused subscription - should fail
     client.renew_subscription(&subscription_id, &payment_token, &amount, &duration);
 }
+
+// ==================== Batch Operation Tests ====================
+
+#[test]
+fn test_batch_issue_tokens_success() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    client.set_admin(&admin);
+
+    let user1 = Address::generate(&env);
+    let user2 = Address::generate(&env);
+    let user3 = Address::generate(&env);
+
+    let id1 = BytesN::<32>::random(&env);
+    let id2 = BytesN::<32>::random(&env);
+    let id3 = BytesN::<32>::random(&env);
+
+    let expiry = env.ledger().timestamp() + 86400;
+
+    let mut requests: Vec<common_types::IssueTokenRequest> = Vec::new(&env);
+
+    requests.push_back(common_types::IssueTokenRequest {
+        id: id1.clone(),
+        user: user1.clone(),
+        expiry_date: expiry,
+    });
+    requests.push_back(common_types::IssueTokenRequest {
+        id: id2.clone(),
+        user: user2.clone(),
+        expiry_date: expiry,
+    });
+    requests.push_back(common_types::IssueTokenRequest {
+        id: id3.clone(),
+        user: user3.clone(),
+        expiry_date: expiry,
+    });
+
+    let results = client.batch_issue_tokens(&requests);
+
+    assert_eq!(results.len(), 3);
+
+    for result in results.iter() {
+        assert_eq!(result.status, common_types::BatchOperationStatus::Success);
+    }
+}
+
+#[test]
+fn test_batch_issue_tokens_partial_failure() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    client.set_admin(&admin);
+
+    let user1 = Address::generate(&env);
+    let user2 = Address::generate(&env);
+
+    let id1 = BytesN::<32>::random(&env);
+    let id2 = BytesN::<32>::random(&env);
+
+    env.ledger().with_mut(|l| l.timestamp = 10000);
+    let valid_expiry = env.ledger().timestamp() + 86400;
+    let invalid_expiry = env.ledger().timestamp() - 100; // Past
+
+    let mut requests: Vec<common_types::IssueTokenRequest> = Vec::new(&env);
+
+    // Valid request
+    requests.push_back(common_types::IssueTokenRequest {
+        id: id1.clone(),
+        user: user1.clone(),
+        expiry_date: valid_expiry,
+    });
+
+    // Invalid request (expired)
+    requests.push_back(common_types::IssueTokenRequest {
+        id: id2.clone(),
+        user: user2.clone(),
+        expiry_date: invalid_expiry,
+    });
+
+    let results = client.batch_issue_tokens(&requests);
+
+    assert_eq!(results.len(), 2);
+
+    let res1 = results.get(0).unwrap();
+    let res2 = results.get(1).unwrap();
+
+    assert_eq!(res1.id, id1);
+    assert_eq!(res1.status, common_types::BatchOperationStatus::Success);
+
+    assert_eq!(res2.id, id2);
+    assert_eq!(res2.status, common_types::BatchOperationStatus::Failed);
+}
+
+#[test]
+fn test_batch_log_attendance_success() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let user1 = Address::generate(&env);
+    let user2 = Address::generate(&env);
+
+    let id1 = BytesN::<32>::random(&env);
+    let id2 = BytesN::<32>::random(&env);
+
+    let details = map![
+        &env,
+        (
+            String::from_str(&env, "location"),
+            String::from_str(&env, "office")
+        )
+    ];
+
+    let mut logs: Vec<common_types::AttendanceLogRequest> = Vec::new(&env);
+
+    logs.push_back(common_types::AttendanceLogRequest {
+        id: id1.clone(),
+        user_id: user1.clone(),
+        action: common_types::AttendanceAction::ClockIn,
+        details: details.clone(),
+    });
+
+    logs.push_back(common_types::AttendanceLogRequest {
+        id: id2.clone(),
+        user_id: user2.clone(),
+        action: common_types::AttendanceAction::ClockOut,
+        details: details.clone(),
+    });
+
+    let results = client.batch_log_attendance(&logs);
+
+    assert_eq!(results.len(), 2);
+
+    for result in results.iter() {
+        assert_eq!(result.status, common_types::BatchOperationStatus::Success);
+    }
+
+    // Verify logs exist
+    let user1_logs = client.get_logs_for_user(&user1);
+    assert_eq!(user1_logs.len(), 1);
+
+    let user2_logs = client.get_logs_for_user(&user2);
+    assert_eq!(user2_logs.len(), 1);
+}
+
+#[test]
+#[should_panic(expected = "HostError: Error(Contract, #43)")] // InvalidBatchSize
+fn test_batch_issue_tokens_limit_exceeded() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    client.set_admin(&admin);
+
+    let mut requests: Vec<common_types::IssueTokenRequest> = Vec::new(&env);
+    let user = Address::generate(&env);
+    let expiry = env.ledger().timestamp() + 86400;
+
+    // Create 51 requests (limit is 50)
+    for _ in 0..51 {
+        requests.push_back(common_types::IssueTokenRequest {
+            id: BytesN::<32>::random(&env),
+            user: user.clone(),
+            expiry_date: expiry,
+        });
+    }
+
+    client.batch_issue_tokens(&requests);
+}

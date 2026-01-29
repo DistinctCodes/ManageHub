@@ -1,13 +1,14 @@
 // Allow deprecated events API until migration to #[contractevent] macro
 #![allow(deprecated)]
 
-use soroban_sdk::{contracttype, symbol_short, Address, Env, IntoVal, Symbol, Vec};
+use soroban_sdk::{contracttype, symbol_short, Address, Env, IntoVal, String, Symbol, Vec};
 
 use crate::errors::{AccessControlError, AccessControlResult};
 use crate::types::{
     AccessControlConfig, MembershipInfo, MultiSigConfig, PendingAdminTransfer, PendingProposal,
-    ProposalAction, SubscriptionTierLevel, UserRole, UserSubscriptionStatus,
+    ProposalAction, UserSubscriptionStatus,
 };
+use common_types::{BatchOperationStatus, BatchSetRoleResult, SetRoleRequest, TierLevel, UserRole};
 
 /// Storage keys for the access control module
 #[contracttype]
@@ -138,6 +139,71 @@ impl AccessControlModule {
         );
 
         Ok(())
+    }
+
+    pub fn batch_set_roles(
+        env: &Env,
+        caller: Address,
+        roles: Vec<SetRoleRequest>,
+    ) -> AccessControlResult<Vec<BatchSetRoleResult>> {
+        // Enforce batch size limit
+        if roles.len() > 25 {
+            return Err(AccessControlError::InvalidBatchSize);
+        }
+
+        Self::require_initialized(env)?;
+        Self::require_not_paused(env)?;
+        Self::require_admin(env, &caller)?;
+
+        let mut results: Vec<BatchSetRoleResult> = Vec::new(env);
+
+        for req in roles.iter() {
+            if Self::is_blacklisted(env, &req.user) {
+                results.push_back(BatchSetRoleResult {
+                    user: req.user.clone(),
+                    status: BatchOperationStatus::Failed,
+                    error: String::from_str(env, "User is blacklisted"),
+                });
+                continue;
+            }
+
+            match Self::validate_role_assignment(env, &req.user, &req.role) {
+                Ok(_) => {
+                    let old_role = Self::get_role(env, req.user.clone());
+                    env.storage()
+                        .persistent()
+                        .set(&DataKey::UserRole(req.user.clone()), &req.role);
+
+                    env.events().publish(
+                        (
+                            symbol_short!("role_set"),
+                            req.user.clone(),
+                            req.role.clone(),
+                        ),
+                        (caller.clone(), old_role),
+                    );
+
+                    results.push_back(BatchSetRoleResult {
+                        user: req.user,
+                        status: BatchOperationStatus::Success,
+                        error: String::from_str(env, ""),
+                    });
+                }
+                Err(_) => {
+                    results.push_back(BatchSetRoleResult {
+                        user: req.user,
+                        status: BatchOperationStatus::Failed,
+                        error: String::from_str(env, "Validation failed"),
+                    });
+                }
+            }
+        }
+
+        // Emit batch summary event
+        env.events()
+            .publish((symbol_short!("batch_rol"), roles.len()), results.len());
+
+        Ok(results)
     }
 
     /// Get role for a user
@@ -761,13 +827,11 @@ impl AccessControlModule {
     // Tier-Based Access Control Functions
     // ============================================================================
 
-    /// Sets the subscription tier level for a user. Admin only.
-    /// This is used for caching tier info to avoid cross-contract calls.
     pub fn set_user_tier(
         env: &Env,
         caller: Address,
         user: Address,
-        tier_level: SubscriptionTierLevel,
+        tier_level: TierLevel,
     ) -> AccessControlResult<()> {
         Self::require_admin(env, &caller)?;
 
@@ -785,11 +849,11 @@ impl AccessControlModule {
     }
 
     /// Gets the subscription tier level for a user.
-    pub fn get_user_tier(env: &Env, user: Address) -> SubscriptionTierLevel {
+    pub fn get_user_tier(env: &Env, user: Address) -> TierLevel {
         env.storage()
             .persistent()
             .get(&DataKey::UserTierLevel(user))
-            .unwrap_or(SubscriptionTierLevel::Free)
+            .unwrap_or(TierLevel::Free)
     }
 
     /// Sets the required tier for a specific role. Admin only.
@@ -797,7 +861,7 @@ impl AccessControlModule {
         env: &Env,
         caller: Address,
         role: UserRole,
-        required_tier: SubscriptionTierLevel,
+        required_tier: TierLevel,
     ) -> AccessControlResult<()> {
         Self::require_admin(env, &caller)?;
 
@@ -818,18 +882,18 @@ impl AccessControlModule {
     }
 
     /// Gets the required tier for a specific role.
-    pub fn get_required_tier_for_role(env: &Env, role: UserRole) -> SubscriptionTierLevel {
+    pub fn get_required_tier_for_role(env: &Env, role: UserRole) -> TierLevel {
         env.storage()
             .persistent()
             .get(&DataKey::RequiredTierForRole(role))
-            .unwrap_or(SubscriptionTierLevel::Free)
+            .unwrap_or(TierLevel::Free)
     }
 
     /// Checks if a user has the required tier level.
     pub fn check_tier_access(
         env: &Env,
         user: Address,
-        required_tier: SubscriptionTierLevel,
+        required_tier: TierLevel,
     ) -> AccessControlResult<bool> {
         Self::require_initialized(env)?;
         Self::require_not_paused(env)?;
@@ -839,7 +903,7 @@ impl AccessControlModule {
         }
 
         let user_tier = Self::get_user_tier(env, user.clone());
-        let has_access = user_tier.has_tier_access(&required_tier);
+        let has_access = user_tier >= required_tier;
 
         env.events().publish(
             (
@@ -857,7 +921,7 @@ impl AccessControlModule {
     pub fn require_tier_access(
         env: &Env,
         user: Address,
-        required_tier: SubscriptionTierLevel,
+        required_tier: TierLevel,
     ) -> AccessControlResult<()> {
         if !Self::check_tier_access(env, user, required_tier)? {
             return Err(AccessControlError::InsufficientRole);
@@ -871,7 +935,7 @@ impl AccessControlModule {
         env: &Env,
         user: Address,
         required_role: UserRole,
-        required_tier: SubscriptionTierLevel,
+        required_tier: TierLevel,
     ) -> AccessControlResult<bool> {
         let has_role_access = Self::check_access(env, user.clone(), required_role)?;
         if !has_role_access {
@@ -887,7 +951,7 @@ impl AccessControlModule {
         env: &Env,
         user: Address,
         required_role: UserRole,
-        required_tier: SubscriptionTierLevel,
+        required_tier: TierLevel,
     ) -> AccessControlResult<()> {
         if !Self::check_role_and_tier_access(env, user, required_role, required_tier)? {
             return Err(AccessControlError::InsufficientRole);
@@ -910,7 +974,7 @@ impl AccessControlModule {
         let required_tier = Self::get_required_tier_for_role(env, role);
         let user_tier = Self::get_user_tier(env, user);
 
-        Ok(user_tier.has_tier_access(&required_tier))
+        Ok(user_tier >= required_tier)
     }
 
     /// Gets the full subscription status for a user.

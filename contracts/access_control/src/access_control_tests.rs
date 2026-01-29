@@ -1,6 +1,6 @@
 use crate::access_control::AccessControlModule;
 use crate::errors::AccessControlError;
-use crate::types::{AccessControlConfig, ProposalAction, UserRole};
+use crate::{AccessControlConfig, BatchOperationStatus, ProposalAction, SetRoleRequest, UserRole};
 use soroban_sdk::{
     testutils::{Address as _, Events},
     Address, Env, Vec,
@@ -755,4 +755,117 @@ fn test_proposal_events_emitted() {
 
     // Verify role was set after approval
     assert_eq!(client.get_role(&user), UserRole::Member);
+}
+
+#[test]
+fn test_batch_set_roles_success() {
+    let (env, contract_id, admin, _, _) = setup_initialized_env();
+
+    let user1 = Address::generate(&env);
+    let user2 = Address::generate(&env);
+    let user3 = Address::generate(&env);
+
+    let mut requests: Vec<SetRoleRequest> = Vec::new(&env);
+
+    requests.push_back(SetRoleRequest {
+        user: user1.clone(),
+        role: UserRole::Member,
+    });
+    requests.push_back(SetRoleRequest {
+        user: user2.clone(),
+        role: UserRole::Staff,
+    });
+    requests.push_back(SetRoleRequest {
+        user: user3.clone(),
+        role: UserRole::Visitor,
+    });
+
+    let results = env.as_contract(&contract_id, || {
+        AccessControlModule::batch_set_roles(&env, admin.clone(), requests).unwrap()
+    });
+
+    assert_eq!(results.len(), 3);
+
+    for result in results.iter() {
+        assert_eq!(result.status, BatchOperationStatus::Success);
+    }
+
+    // Verify roles were set
+    env.as_contract(&contract_id, || {
+        assert_eq!(AccessControlModule::get_role(&env, user1), UserRole::Member);
+        assert_eq!(AccessControlModule::get_role(&env, user2), UserRole::Staff);
+        assert_eq!(
+            AccessControlModule::get_role(&env, user3),
+            UserRole::Visitor
+        );
+    });
+}
+
+#[test]
+fn test_batch_set_roles_partial_failure() {
+    let (env, contract_id, admin, user1, user2) = setup_initialized_env();
+
+    env.as_contract(&contract_id, || {
+        // Blacklist user2
+        AccessControlModule::blacklist_user(&env, admin.clone(), user2.clone()).unwrap();
+
+        // Ensure user1 has no role initially
+        assert_eq!(
+            AccessControlModule::get_role(&env, user1.clone()),
+            UserRole::Guest
+        );
+
+        let mut requests: Vec<SetRoleRequest> = Vec::new(&env);
+
+        // Valid request for user1
+        requests.push_back(SetRoleRequest {
+            user: user1.clone(),
+            role: UserRole::Member,
+        });
+
+        // Invalid request for blacklisted user2
+        requests.push_back(SetRoleRequest {
+            user: user2.clone(),
+            role: UserRole::Member,
+        });
+
+        let results = AccessControlModule::batch_set_roles(&env, admin.clone(), requests).unwrap();
+
+        assert_eq!(results.len(), 2);
+
+        let res1 = results.get(0).unwrap();
+        let res2 = results.get(1).unwrap();
+
+        assert_eq!(res1.user, user1);
+        assert_eq!(res1.status, BatchOperationStatus::Success);
+
+        assert_eq!(res2.user, user2);
+        assert_eq!(res2.status, BatchOperationStatus::Failed);
+        assert!(res2.error.len() > 0);
+
+        // Verify user1 role set, user2 role unchanged
+        assert_eq!(AccessControlModule::get_role(&env, user1), UserRole::Member);
+        assert_eq!(AccessControlModule::get_role(&env, user2), UserRole::Guest);
+    });
+}
+
+#[test]
+fn test_batch_set_roles_limit_exceeded() {
+    let (env, contract_id, admin, _, _) = setup_initialized_env();
+
+    env.as_contract(&contract_id, || {
+        let mut requests: Vec<SetRoleRequest> = Vec::new(&env);
+        let user = Address::generate(&env);
+
+        // Create 26 requests (limit is 25)
+        for _ in 0..26 {
+            requests.push_back(SetRoleRequest {
+                user: user.clone(),
+                role: UserRole::Member,
+            });
+        }
+
+        let result = AccessControlModule::batch_set_roles(&env, admin.clone(), requests);
+        assert_eq!(result.unwrap_err(), AccessControlError::InvalidBatchSize);
+    });
 }
