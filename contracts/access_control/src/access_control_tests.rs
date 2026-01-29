@@ -1313,14 +1313,14 @@ fn test_get_pending_proposals_list() {
 
         let pending = AccessControlModule::get_pending_proposals(&env);
         assert_eq!(pending.len(), 2);
-        assert!(pending.contains(&id1));
-        assert!(pending.contains(&id2));
+        assert!(pending.contains(id1));
+        assert!(pending.contains(id2));
 
         // Execute one
         AccessControlModule::approve_proposal(&env, admin2.clone(), id1).unwrap();
 
         let pending = AccessControlModule::get_pending_proposals(&env);
         assert_eq!(pending.len(), 1);
-        assert!(pending.contains(&id2));
+        assert!(pending.contains(id2));
     });
 }
