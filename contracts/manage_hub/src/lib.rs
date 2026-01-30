@@ -17,8 +17,7 @@ use membership_token::{MembershipToken, MembershipTokenContract};
 use subscription::SubscriptionContract;
 use types::{
     AttendanceAction, AttendanceSummary, BillingCycle, CreatePromotionParams, CreateTierParams,
-    PauseConfig, PauseHistoryEntry, PauseStats, RenewalConfig, RenewalHistory, 
-    AutoRenewalSettings, Subscription, SubscriptionTier, TierAnalytics,
+    PauseConfig, PauseHistoryEntry, PauseStats, Subscription, SubscriptionTier, TierAnalytics,
     TierFeature, TierPromotion, UpdateTierParams, UserSubscriptionInfo,
 };
 

@@ -1297,7 +1297,7 @@ fn test_set_renewal_config_success() {
     let config = client.get_renewal_config();
     assert_eq!(config.grace_period_duration, grace_period);
     assert_eq!(config.auto_renewal_notice_days, notice_period);
-    assert_eq!(config.renewals_enabled, true);
+    assert!(config.renewals_enabled);
 }
 
 #[test]
@@ -1475,7 +1475,7 @@ fn test_renewal_history_tracking() {
 
     // Renew token twice
     client.renew_token(&token_id, &payment_token, &tier_id, &BillingCycle::Monthly);
-    
+
     env.ledger().with_mut(|l| l.timestamp += 1000);
     client.renew_token(&token_id, &payment_token, &tier_id, &BillingCycle::Annual);
 
@@ -1485,11 +1485,11 @@ fn test_renewal_history_tracking() {
 
     let first_renewal = history.get(0).unwrap();
     assert_eq!(first_renewal.tier_id, tier_id);
-    assert_eq!(first_renewal.success, true);
+    assert!(first_renewal.success);
 
     let second_renewal = history.get(1).unwrap();
     assert_eq!(second_renewal.tier_id, tier_id);
-    assert_eq!(second_renewal.success, true);
+    assert!(second_renewal.success);
 }
 
 #[test]
@@ -1518,9 +1518,9 @@ fn test_auto_renewal_settings() {
     // Get settings
     let settings = client.get_auto_renewal_settings(&user);
     assert!(settings.is_some());
-    
+
     let settings_unwrapped = settings.unwrap();
-    assert_eq!(settings_unwrapped.enabled, true);
+    assert!(settings_unwrapped.enabled);
     assert_eq!(settings_unwrapped.token_id, token_id);
     assert_eq!(settings_unwrapped.payment_token, payment_token);
 }
@@ -1549,14 +1549,14 @@ fn test_auto_renewal_eligibility() {
 
     // Not yet eligible (2 days until expiry, need to be within 1 day)
     let eligible_before = client.check_auto_renewal_eligibility(&token_id);
-    assert_eq!(eligible_before, false);
+    assert!(!eligible_before);
 
     // Advance time to 12 hours before expiry
     env.ledger().with_mut(|l| l.timestamp += 36 * 60 * 60);
 
     // Now eligible
     let eligible_after = client.check_auto_renewal_eligibility(&token_id);
-    assert_eq!(eligible_after, true);
+    assert!(eligible_after);
 }
 
 #[test]

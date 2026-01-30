@@ -525,12 +525,18 @@ impl MembershipTokenContract {
             renewals_enabled,
         };
 
-        env.storage().instance().set(&DataKey::RenewalConfig, &config);
+        env.storage()
+            .instance()
+            .set(&DataKey::RenewalConfig, &config);
 
         // Emit renewal config updated event
         env.events().publish(
             (symbol_short!("rnw_cfg"), admin),
-            (grace_period_duration, auto_renewal_notice_days, renewals_enabled),
+            (
+                grace_period_duration,
+                auto_renewal_notice_days,
+                renewals_enabled,
+            ),
         );
 
         Ok(())
@@ -549,7 +555,7 @@ impl MembershipTokenContract {
             .get(&DataKey::RenewalConfig)
             .unwrap_or(crate::types::RenewalConfig {
                 grace_period_duration: 7 * 24 * 60 * 60, // 7 days default
-                auto_renewal_notice_days: 1 * 24 * 60 * 60, // 1 day default
+                auto_renewal_notice_days: 24 * 60 * 60,  // 1 day default
                 renewals_enabled: true,
             })
     }
@@ -671,14 +677,17 @@ impl MembershipTokenContract {
         Self::record_renewal(
             &env,
             &id,
-            tier_id,
-            amount,
-            payment_token.clone(),
-            true,
-            crate::types::RenewalTrigger::Manual,
-            old_expiry,
-            Some(new_expiry),
-            None,
+            crate::types::RenewalHistory {
+                timestamp: env.ledger().timestamp(),
+                tier_id,
+                amount,
+                payment_token: payment_token.clone(),
+                success: true,
+                trigger: crate::types::RenewalTrigger::Manual,
+                old_expiry_date: old_expiry,
+                new_expiry_date: Some(new_expiry),
+                error: None,
+            },
         );
 
         // Emit token renewal event
@@ -694,14 +703,7 @@ impl MembershipTokenContract {
     fn record_renewal(
         env: &Env,
         token_id: &BytesN<32>,
-        tier_id: String,
-        amount: i128,
-        payment_token: Address,
-        success: bool,
-        trigger: crate::types::RenewalTrigger,
-        old_expiry_date: u64,
-        new_expiry_date: Option<u64>,
-        error: Option<String>,
+        entry: crate::types::RenewalHistory,
     ) {
         let history_key = DataKey::RenewalHistory(token_id.clone());
         let mut history: Vec<crate::types::RenewalHistory> = env
@@ -709,18 +711,6 @@ impl MembershipTokenContract {
             .persistent()
             .get(&history_key)
             .unwrap_or_else(|| Vec::new(env));
-
-        let entry = crate::types::RenewalHistory {
-            timestamp: env.ledger().timestamp(),
-            tier_id,
-            amount,
-            payment_token,
-            success,
-            trigger,
-            old_expiry_date,
-            new_expiry_date,
-            error,
-        };
 
         history.push_back(entry);
 
@@ -970,14 +960,17 @@ impl MembershipTokenContract {
         Self::record_renewal(
             &env,
             &id,
-            tier_id,
-            amount,
-            settings.payment_token.clone(),
-            true,
-            crate::types::RenewalTrigger::AutoRenewal,
-            old_expiry,
-            Some(new_expiry),
-            None,
+            crate::types::RenewalHistory {
+                timestamp: env.ledger().timestamp(),
+                tier_id,
+                amount,
+                payment_token: settings.payment_token.clone(),
+                success: true,
+                trigger: crate::types::RenewalTrigger::AutoRenewal,
+                old_expiry_date: old_expiry,
+                new_expiry_date: Some(new_expiry),
+                error: None,
+            },
         );
 
         // Emit auto-renewal success event
@@ -1023,4 +1016,3 @@ impl MembershipTokenContract {
         Ok(())
     }
 }
-
