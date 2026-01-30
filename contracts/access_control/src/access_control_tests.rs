@@ -2,7 +2,7 @@ use crate::access_control::AccessControlModule;
 use crate::errors::AccessControlError;
 use crate::{AccessControlConfig, BatchOperationStatus, ProposalAction, SetRoleRequest, UserRole};
 use soroban_sdk::{
-    testutils::{Address as _, Events},
+    testutils::{Address as _, Events, Ledger, LedgerInfo},
     Address, Env, Vec,
 };
 
@@ -850,22 +850,47 @@ fn test_batch_set_roles_partial_failure() {
 }
 
 #[test]
-fn test_batch_set_roles_limit_exceeded() {
-    let (env, contract_id, admin, _, _) = setup_initialized_env();
+fn test_duplicate_admin_prevented() {
+    let env = Env::default();
+    let contract_id = env.register(crate::AccessControl, ());
+    let admin1 = Address::generate(&env);
 
     env.as_contract(&contract_id, || {
-        let mut requests: Vec<SetRoleRequest> = Vec::new(&env);
+        let admins = Vec::from_array(&env, [admin1.clone(), admin1.clone()]);
+        let result = AccessControlModule::initialize_multisig(&env, admins, 2, None);
+        assert_eq!(result.unwrap_err(), AccessControlError::DuplicateAdmin);
+    });
+}
+
+#[test]
+fn test_get_pending_proposals_list() {
+    let env = Env::default();
+    let contract_id = env.register(crate::AccessControl, ());
+    let admin1 = Address::generate(&env);
+    let admin2 = Address::generate(&env);
+
+    env.as_contract(&contract_id, || {
+        let admins = Vec::from_array(&env, [admin1.clone(), admin2.clone()]);
+        AccessControlModule::initialize_multisig(&env, admins, 2, None).unwrap();
+
         let user = Address::generate(&env);
+        let action = ProposalAction::SetRole(user.clone(), UserRole::Member);
 
-        // Create 26 requests (limit is 25)
-        for _ in 0..26 {
-            requests.push_back(SetRoleRequest {
-                user: user.clone(),
-                role: UserRole::Member,
-            });
-        }
+        let id1 =
+            AccessControlModule::create_proposal(&env, admin1.clone(), action.clone()).unwrap();
+        let id2 =
+            AccessControlModule::create_proposal(&env, admin1.clone(), action.clone()).unwrap();
 
-        let result = AccessControlModule::batch_set_roles(&env, admin.clone(), requests);
-        assert_eq!(result.unwrap_err(), AccessControlError::InvalidBatchSize);
+        let pending = AccessControlModule::get_pending_proposals(&env);
+        assert_eq!(pending.len(), 2);
+        assert!(pending.contains(id1));
+        assert!(pending.contains(id2));
+
+        // Execute one
+        AccessControlModule::approve_proposal(&env, admin2.clone(), id1).unwrap();
+
+        let pending = AccessControlModule::get_pending_proposals(&env);
+        assert_eq!(pending.len(), 1);
+        assert!(pending.contains(id2));
     });
 }

@@ -49,9 +49,13 @@ pub enum Error {
     PromoCodeMaxRedemptions = 40,
     PromoCodeInvalid = 41,
     // Tier management errors
-    InvalidTierPrice = 39,
-    TierAlreadyExists = 40,
-    TierNotActive = 41,
-    TierChangeNotFound = 42,
-    InvalidBatchSize = 43,
+    InvalidTierPrice = 42,
+    TierAlreadyExists = 43,
+    TierNotActive = 44,
+    TierChangeNotFound = 45,
+    // Token renewal errors (reusing codes where applicable)
+    RenewalNotAllowed = 46,
+    TransferNotAllowedInGracePeriod = 47,
+    GracePeriodExpired = 48,
+    AutoRenewalFailed = 49,
 }
