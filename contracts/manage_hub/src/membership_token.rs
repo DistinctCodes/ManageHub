@@ -560,22 +560,6 @@ impl MembershipTokenContract {
             })
     }
 
-    /// Helper function to require admin authorization.
-    fn require_admin(env: &Env, caller: &Address) -> Result<(), Error> {
-        let admin: Address = env
-            .storage()
-            .instance()
-            .get(&DataKey::Admin)
-            .ok_or(Error::AdminNotSet)?;
-
-        if caller != &admin {
-            return Err(Error::Unauthorized);
-        }
-
-        caller.require_auth();
-        Ok(())
-    }
-
     /// Renews a membership token with payment validation and tier pricing.
     ///
     /// # Arguments
@@ -700,11 +684,7 @@ impl MembershipTokenContract {
     }
 
     /// Records a renewal attempt in history.
-    fn record_renewal(
-        env: &Env,
-        token_id: &BytesN<32>,
-        entry: crate::types::RenewalHistory,
-    ) {
+    fn record_renewal(env: &Env, token_id: &BytesN<32>, entry: crate::types::RenewalHistory) {
         let history_key = DataKey::RenewalHistory(token_id.clone());
         let mut history: Vec<crate::types::RenewalHistory> = env
             .storage()

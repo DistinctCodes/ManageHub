@@ -1290,7 +1290,7 @@ fn test_set_renewal_config_success() {
 
     // Set renewal config
     let grace_period = 7 * 24 * 60 * 60; // 7 days
-    let notice_period = 1 * 24 * 60 * 60; // 1 day
+    let notice_period = 24 * 60 * 60; // 1 day
     client.set_renewal_config(&grace_period, &notice_period, &true);
 
     // Get and verify config
@@ -1540,7 +1540,7 @@ fn test_auto_renewal_eligibility() {
     // Setup with 1 day notice period
     client.set_admin(&admin);
     let grace_period = 7 * 24 * 60 * 60;
-    let notice_period = 1 * 24 * 60 * 60;
+    let notice_period = 24 * 60 * 60;
     client.set_renewal_config(&grace_period, &notice_period, &true);
 
     // Issue token expiring in 2 days
