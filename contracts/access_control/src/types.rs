@@ -1,4 +1,4 @@
-use soroban_sdk::{contracttype, Address, Vec};
+use soroban_sdk::{contracttype, Address, String, Vec};
 
 /// User roles in the access control system
 /// Implements a hierarchical role system where Admin > Member > Guest
@@ -113,6 +113,16 @@ pub struct UserSubscriptionStatus {
 pub struct MultiSigConfig {
     pub admins: Vec<Address>,
     pub required_signatures: u32,
+    /// Higher threshold for critical operations
+    pub critical_threshold: u32,
+    /// Even higher threshold for emergency operations
+    pub emergency_threshold: u32,
+    /// Default time-lock duration in seconds (e.g., 24 hours)
+    pub time_lock_duration: u64,
+    /// Maximum number of pending proposals
+    pub max_pending_proposals: u32,
+    /// Proposal expiration duration in seconds
+    pub proposal_expiry_duration: u64,
 }
 
 #[contracttype]
@@ -121,9 +131,29 @@ pub struct PendingProposal {
     pub id: u64,
     pub proposer: Address,
     pub action: ProposalAction,
+    pub proposal_type: ProposalType,
     pub approvals: Vec<Address>,
+    pub rejections: Vec<Address>,
     pub executed: bool,
+    pub created_at: u64,
     pub expiry: u64,
+    /// For time-locked proposals: earliest execution time
+    pub time_lock_until: Option<u64>,
+    /// Number of signatures required (can override default based on type)
+    pub required_signatures: u32,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ProposalType {
+    /// Regular operations requiring standard approval
+    Standard,
+    /// Critical operations with higher security requirements
+    Critical,
+    /// Emergency operations with special override procedures
+    Emergency,
+    /// Time-locked operations with mandatory delay
+    TimeLocked,
 }
 
 #[contracttype]
@@ -136,6 +166,16 @@ pub enum ProposalAction {
     Pause,
     Unpause,
     TransferAdmin(Address),
+    /// Critical operation: Update multisig configuration
+    UpdateMultisigConfig(MultiSigConfig),
+    /// Critical operation: Emergency pause with reason
+    EmergencyPause(String),
+    /// Critical operation: Blacklist multiple users
+    BatchBlacklist(Vec<Address>),
+    /// Time-locked operation: Schedule contract upgrade
+    ScheduleUpgrade(Address, u64),
+    /// Emergency operation: Force admin transfer
+    EmergencyAdminTransfer(Address),
 }
 
 #[contracttype]
@@ -144,6 +184,102 @@ pub struct PendingAdminTransfer {
     pub proposed_admin: Address,
     pub proposer: Address,
     pub expiry: u64,
+}
+
+/// Proposal statistics for tracking and analytics
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProposalStats {
+    pub total_created: u64,
+    pub total_executed: u64,
+    pub total_rejected: u64,
+    pub total_expired: u64,
+    pub pending_count: u32,
+}
+
+impl ProposalType {
+    /// Determine if this proposal type requires time-lock
+    pub fn requires_time_lock(&self) -> bool {
+        matches!(self, ProposalType::TimeLocked | ProposalType::Critical)
+    }
+
+    /// Get the required threshold multiplier for this proposal type
+    pub fn get_threshold_multiplier(&self) -> u32 {
+        match self {
+            ProposalType::Standard => 1,
+            ProposalType::Critical => 2,
+            ProposalType::Emergency => 3,
+            ProposalType::TimeLocked => 1,
+        }
+    }
+}
+
+impl ProposalAction {
+    /// Classify the action type based on its security implications
+    pub fn classify_type(&self) -> ProposalType {
+        match self {
+            ProposalAction::SetRole(_, _) => ProposalType::Standard,
+            ProposalAction::UpdateConfig(_) => ProposalType::Critical,
+            ProposalAction::AddAdmin(_) => ProposalType::Critical,
+            ProposalAction::RemoveAdmin(_) => ProposalType::Critical,
+            ProposalAction::Pause => ProposalType::Critical,
+            ProposalAction::Unpause => ProposalType::Standard,
+            ProposalAction::TransferAdmin(_) => ProposalType::Critical,
+            ProposalAction::UpdateMultisigConfig(_) => ProposalType::Critical,
+            ProposalAction::EmergencyPause(_) => ProposalType::Emergency,
+            ProposalAction::BatchBlacklist(_) => ProposalType::Critical,
+            ProposalAction::ScheduleUpgrade(_, _) => ProposalType::TimeLocked,
+            ProposalAction::EmergencyAdminTransfer(_) => ProposalType::Emergency,
+        }
+    }
+
+    /// Check if this action is reversible
+    pub fn is_reversible(&self) -> bool {
+        matches!(
+            self,
+            ProposalAction::SetRole(_, _)
+                | ProposalAction::Pause
+                | ProposalAction::Unpause
+                | ProposalAction::BatchBlacklist(_)
+        )
+    }
+}
+
+impl MultiSigConfig {
+    /// Create a default configuration for testing
+    pub fn default_config() -> Self {
+        MultiSigConfig {
+            admins: Vec::new(&soroban_sdk::Env::default()),
+            required_signatures: 2,
+            critical_threshold: 3,
+            emergency_threshold: 4,
+            time_lock_duration: 86400, // 24 hours
+            max_pending_proposals: 50,
+            proposal_expiry_duration: 604800, // 7 days
+        }
+    }
+
+    /// Validate configuration parameters
+    pub fn validate(&self) -> bool {
+        !self.admins.is_empty()
+            && self.required_signatures > 0
+            && self.required_signatures <= self.admins.len()
+            && self.critical_threshold >= self.required_signatures
+            && self.emergency_threshold >= self.critical_threshold
+            && self.emergency_threshold <= self.admins.len()
+            && self.time_lock_duration > 0
+            && self.max_pending_proposals > 0
+            && self.proposal_expiry_duration > 0
+    }
+
+    /// Get required signatures for a specific proposal type
+    pub fn get_required_signatures(&self, proposal_type: &ProposalType) -> u32 {
+        match proposal_type {
+            ProposalType::Standard => self.required_signatures,
+            ProposalType::Critical | ProposalType::TimeLocked => self.critical_threshold,
+            ProposalType::Emergency => self.emergency_threshold,
+        }
+    }
 }
 
 #[cfg(test)]

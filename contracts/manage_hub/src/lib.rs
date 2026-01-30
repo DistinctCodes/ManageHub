@@ -1,4 +1,64 @@
 #![no_std]
+//! # ManageHub Contract
+//!
+//! ## Multisig Integration for Critical Operations
+//!
+//! This contract integrates with the access_control contract for multi-signature
+//! operations on critical functions. Critical operations that should require
+//! multisig approval include:
+//!
+//! - `set_admin`: Changing admin privileges
+//! - `set_usdc_contract`: Updating payment contracts
+//! - `set_pause_config`: Modifying pause configuration
+//! - `pause_subscription_admin`: Admin-level subscription actions
+//!
+//! ### Example Integration:
+//!
+//! ```rust,ignore
+//! use access_control::{AccessControl, ProposalAction, UserRole};
+//!
+//! // Instead of direct admin operations, create a proposal:
+//! pub fn set_admin_multisig(env: Env, proposer: Address, new_admin: Address) -> u64 {
+//!     let access_control = AccessControl::new(&env, &ACCESS_CONTROL_CONTRACT);
+//!     access_control.create_proposal(
+//!         &proposer,
+//!         &ProposalAction::SetRole(new_admin, UserRole::Admin)
+//!     )
+//! }
+//!
+//! // Critical operations can check if multisig is required:
+//! fn require_admin_or_multisig(env: &Env, caller: &Address) -> Result<(), Error> {
+//!     let access_control = AccessControl::new(env, &ACCESS_CONTROL_CONTRACT);
+//!
+//!     // Check if multisig is enabled
+//!     if access_control.is_multisig_enabled() {
+//!         // For multisig mode, require proposal-based execution
+//!         if !access_control.check_access(caller, &UserRole::Admin) {
+//!             return Err(Error::Unauthorized);
+//!         }
+//!     } else {
+//!         // Single admin mode
+//!         if !access_control.is_admin(caller) {
+//!             return Err(Error::Unauthorized);
+//!         }
+//!     }
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ### Time-Locked Operations:
+//!
+//! High-value operations like contract upgrades should use time-locked proposals:
+//!
+//! ```rust,ignore
+//! let proposal_id = access_control.create_proposal(
+//!     &proposer,
+//!     &ProposalAction::ScheduleUpgrade(new_contract_address, execution_time)
+//! );
+//! // This proposal will require critical_threshold approvals
+//! // and will be executable only after time_lock_duration
+//! ```
+//!
 use soroban_sdk::{contract, contractimpl, vec, Address, BytesN, Env, Map, String, Vec};
 
 mod attendance_log;

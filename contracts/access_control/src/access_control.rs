@@ -6,7 +6,7 @@ use soroban_sdk::{contracttype, symbol_short, Address, Env, IntoVal, Symbol, Vec
 use crate::errors::{AccessControlError, AccessControlResult};
 use crate::types::{
     AccessControlConfig, MembershipInfo, MultiSigConfig, PendingAdminTransfer, PendingProposal,
-    ProposalAction, SubscriptionTierLevel, UserRole, UserSubscriptionStatus,
+    ProposalAction, ProposalStats, SubscriptionTierLevel, UserRole, UserSubscriptionStatus,
 };
 
 /// Storage keys for the access control module
@@ -27,6 +27,11 @@ pub enum DataKey {
     // Tier-based access control keys
     UserTierLevel(Address),
     RequiredTierForRole(UserRole),
+    // Enhanced multisig keys
+    ProposalStats,
+    PendingProposalsList,
+    TimeLockExpiry(u64),
+    EmergencyMode,
 }
 
 pub struct AccessControlModule;
@@ -79,10 +84,32 @@ impl AccessControlModule {
             return Err(AccessControlError::InvalidAddress);
         }
 
+        // Validate no duplicate admins
+        for i in 0..admins.len() {
+            for j in (i + 1)..admins.len() {
+                if admins.get(i).unwrap() == admins.get(j).unwrap() {
+                    return Err(AccessControlError::DuplicateAdmin);
+                }
+            }
+        }
+
+        // Set reasonable defaults for thresholds
+        let critical_threshold = (required_signatures + 1).min(admins.len());
+        let emergency_threshold = (critical_threshold + 1).min(admins.len());
+
         let multisig_config = MultiSigConfig {
             admins: admins.clone(),
             required_signatures,
+            critical_threshold,
+            emergency_threshold,
+            time_lock_duration: 86400, // 24 hours default
+            max_pending_proposals: 50,
+            proposal_expiry_duration: 604800, // 7 days default
         };
+
+        if !multisig_config.validate() {
+            return Err(AccessControlError::InvalidMultisigConfig);
+        }
 
         env.storage()
             .persistent()
@@ -104,6 +131,24 @@ impl AccessControlModule {
         env.storage()
             .persistent()
             .set(&DataKey::ProposalCounter, &0u64);
+
+        // Initialize proposal stats
+        let stats = ProposalStats {
+            total_created: 0,
+            total_executed: 0,
+            total_rejected: 0,
+            total_expired: 0,
+            pending_count: 0,
+        };
+        env.storage()
+            .persistent()
+            .set(&DataKey::ProposalStats, &stats);
+
+        // Initialize pending proposals list
+        let pending_list: Vec<u64> = Vec::new(env);
+        env.storage()
+            .persistent()
+            .set(&DataKey::PendingProposalsList, &pending_list);
 
         // Emit multisig initialization event
         env.events().publish(
@@ -607,22 +652,65 @@ impl AccessControlModule {
     ) -> AccessControlResult<u64> {
         Self::require_admin(env, &proposer)?;
 
+        let multisig_config =
+            Self::get_multisig_config(env).ok_or(AccessControlError::MultisigNotEnabled)?;
+
+        // Check max pending proposals limit
+        let mut stats: ProposalStats = env
+            .storage()
+            .persistent()
+            .get(&DataKey::ProposalStats)
+            .unwrap_or(ProposalStats {
+                total_created: 0,
+                total_executed: 0,
+                total_rejected: 0,
+                total_expired: 0,
+                pending_count: 0,
+            });
+
+        if stats.pending_count >= multisig_config.max_pending_proposals {
+            return Err(AccessControlError::MaxProposalsReached);
+        }
+
         let proposal_id: u64 = env
             .storage()
             .persistent()
             .get(&DataKey::ProposalCounter)
             .unwrap_or(0);
 
+        // Classify proposal type
+        let proposal_type = action.classify_type();
+
+        // Determine required signatures based on proposal type
+        let required_signatures = multisig_config.get_required_signatures(&proposal_type);
+
         let mut approvals = Vec::new(env);
         approvals.push_back(proposer.clone()); // Proposer automatically approves
+
+        let rejections = Vec::new(env);
+
+        let current_time = env.ledger().timestamp();
+        let expiry = current_time + multisig_config.proposal_expiry_duration;
+
+        // Calculate time-lock if required
+        let time_lock_until = if proposal_type.requires_time_lock() {
+            Some(current_time + multisig_config.time_lock_duration)
+        } else {
+            None
+        };
 
         let new_proposal = PendingProposal {
             id: proposal_id,
             proposer: proposer.clone(),
-            action,
+            action: action.clone(),
+            proposal_type: proposal_type.clone(),
             approvals,
+            rejections,
             executed: false,
-            expiry: env.ledger().timestamp() + 86400, // 24 hours
+            created_at: current_time,
+            expiry,
+            time_lock_until,
+            required_signatures,
         };
 
         env.storage()
@@ -633,14 +721,36 @@ impl AccessControlModule {
             .persistent()
             .set(&DataKey::ProposalCounter, &(proposal_id + 1));
 
-        env.events()
-            .publish((symbol_short!("proposal"), proposal_id), proposer.clone());
+        // Add to pending proposals list
+        let mut pending_list: Vec<u64> = env
+            .storage()
+            .persistent()
+            .get(&DataKey::PendingProposalsList)
+            .unwrap_or_else(|| Vec::new(env));
+        pending_list.push_back(proposal_id);
+        env.storage()
+            .persistent()
+            .set(&DataKey::PendingProposalsList, &pending_list);
 
-        // Check if proposal can be executed immediately
-        if let Some(multisig_config) = Self::get_multisig_config(env) {
-            if new_proposal.approvals.len() >= multisig_config.required_signatures {
-                Self::execute_proposal(env, proposal_id)?;
-            }
+        // Update stats
+        stats.total_created += 1;
+        stats.pending_count += 1;
+        env.storage()
+            .persistent()
+            .set(&DataKey::ProposalStats, &stats);
+
+        env.events().publish(
+            (
+                symbol_short!("proposal"),
+                proposal_id,
+                proposal_type.clone(),
+            ),
+            proposer.clone(),
+        );
+
+        // Check if proposal can be executed immediately (only for non-time-locked proposals)
+        if time_lock_until.is_none() && new_proposal.approvals.len() >= required_signatures {
+            Self::execute_proposal(env, proposal_id)?;
         }
 
         Ok(proposal_id)
@@ -657,18 +767,24 @@ impl AccessControlModule {
             .storage()
             .persistent()
             .get(&DataKey::Proposal(proposal_id))
-            .ok_or(AccessControlError::InvalidAddress)?;
+            .ok_or(AccessControlError::ProposalNotFound)?;
 
         if proposal.executed {
-            return Err(AccessControlError::InvalidAddress);
+            return Err(AccessControlError::ProposalAlreadyExecuted);
         }
 
         if env.ledger().timestamp() > proposal.expiry {
-            return Err(AccessControlError::InvalidAddress);
+            // Clean up expired proposal
+            Self::cleanup_expired_proposal(env, proposal_id)?;
+            return Err(AccessControlError::ProposalExpired);
         }
 
         if proposal.approvals.contains(&approver) {
-            return Err(AccessControlError::InvalidAddress);
+            return Err(AccessControlError::AlreadyApproved);
+        }
+
+        if proposal.rejections.contains(&approver) {
+            return Err(AccessControlError::AlreadyRejected);
         }
 
         proposal.approvals.push_back(approver.clone());
@@ -680,10 +796,18 @@ impl AccessControlModule {
         env.events()
             .publish((symbol_short!("approve"), proposal_id), approver.clone());
 
-        if let Some(multisig_config) = Self::get_multisig_config(env) {
-            if proposal.approvals.len() >= multisig_config.required_signatures {
-                Self::execute_proposal(env, proposal_id)?;
-            }
+        // Check if we have enough approvals to execute
+        let can_execute = proposal.approvals.len() >= proposal.required_signatures;
+
+        // Check time-lock
+        let time_lock_passed = if let Some(time_lock_until) = proposal.time_lock_until {
+            env.ledger().timestamp() >= time_lock_until
+        } else {
+            true
+        };
+
+        if can_execute && time_lock_passed {
+            Self::execute_proposal(env, proposal_id)?;
         }
 
         Ok(())
@@ -694,16 +818,28 @@ impl AccessControlModule {
             .storage()
             .persistent()
             .get(&DataKey::Proposal(proposal_id))
-            .ok_or(AccessControlError::InvalidAddress)?;
+            .ok_or(AccessControlError::ProposalNotFound)?;
 
         if proposal.executed {
-            return Err(AccessControlError::InvalidAddress);
+            return Err(AccessControlError::ProposalAlreadyExecuted);
         }
 
-        if let Some(multisig_config) = Self::get_multisig_config(env) {
-            if proposal.approvals.len() < multisig_config.required_signatures {
-                return Err(AccessControlError::AdminRequired);
+        // Check if expired
+        if env.ledger().timestamp() > proposal.expiry {
+            Self::cleanup_expired_proposal(env, proposal_id)?;
+            return Err(AccessControlError::ProposalExpired);
+        }
+
+        // Check if time-lock has passed
+        if let Some(time_lock_until) = proposal.time_lock_until {
+            if env.ledger().timestamp() < time_lock_until {
+                return Err(AccessControlError::TimeLockActive);
             }
+        }
+
+        // Validate signatures
+        if proposal.approvals.len() < proposal.required_signatures {
+            return Err(AccessControlError::InsufficientApprovals);
         }
 
         proposal.executed = true;
@@ -746,13 +882,393 @@ impl AccessControlModule {
                     proposal.proposer.clone(),
                 );
             }
-            _ => return Err(AccessControlError::InvalidAddress),
+            ProposalAction::UpdateMultisigConfig(new_config) => {
+                if !new_config.validate() {
+                    return Err(AccessControlError::InvalidMultisigConfig);
+                }
+                env.storage()
+                    .persistent()
+                    .set(&DataKey::MultiSigConfig, &new_config);
+
+                env.events().publish(
+                    (symbol_short!("ms_upd"), new_config.clone()),
+                    proposal.proposer.clone(),
+                );
+            }
+            ProposalAction::EmergencyPause(reason) => {
+                env.storage().persistent().set(&DataKey::Paused, &true);
+                env.storage()
+                    .persistent()
+                    .set(&DataKey::EmergencyMode, &true);
+
+                env.events().publish(
+                    (symbol_short!("emrg_pse"), reason),
+                    proposal.proposer.clone(),
+                );
+            }
+            ProposalAction::BatchBlacklist(users) => {
+                for user in users.iter() {
+                    env.storage()
+                        .persistent()
+                        .set(&DataKey::Blacklisted(user.clone()), &true);
+                }
+
+                env.events().publish(
+                    (symbol_short!("batch_bl"), users.len()),
+                    proposal.proposer.clone(),
+                );
+            }
+            ProposalAction::AddAdmin(new_admin) => {
+                if let Some(mut multisig_config) = Self::get_multisig_config(env) {
+                    if multisig_config.admins.contains(&new_admin) {
+                        return Err(AccessControlError::DuplicateAdmin);
+                    }
+                    multisig_config.admins.push_back(new_admin.clone());
+                    env.storage()
+                        .persistent()
+                        .set(&DataKey::MultiSigConfig, &multisig_config);
+                    env.storage()
+                        .persistent()
+                        .set(&DataKey::UserRole(new_admin.clone()), &UserRole::Admin);
+
+                    env.events().publish(
+                        (symbol_short!("add_adm"), new_admin),
+                        proposal.proposer.clone(),
+                    );
+                }
+            }
+            ProposalAction::RemoveAdmin(admin_to_remove) => {
+                if let Some(mut multisig_config) = Self::get_multisig_config(env) {
+                    if multisig_config.admins.len() <= multisig_config.emergency_threshold {
+                        return Err(AccessControlError::CannotRemoveLastAdmin);
+                    }
+
+                    let mut new_admins = Vec::new(env);
+                    for admin in multisig_config.admins.iter() {
+                        if admin != admin_to_remove {
+                            new_admins.push_back(admin);
+                        }
+                    }
+                    multisig_config.admins = new_admins;
+                    env.storage()
+                        .persistent()
+                        .set(&DataKey::MultiSigConfig, &multisig_config);
+                    env.storage().persistent().set(
+                        &DataKey::UserRole(admin_to_remove.clone()),
+                        &UserRole::Guest,
+                    );
+
+                    env.events().publish(
+                        (symbol_short!("rm_adm"), admin_to_remove),
+                        proposal.proposer.clone(),
+                    );
+                }
+            }
+            _ => return Err(AccessControlError::InvalidProposalType),
         }
+
+        // Remove from pending list and update stats
+        Self::remove_from_pending_list(env, proposal_id);
+        let mut stats: ProposalStats = env
+            .storage()
+            .persistent()
+            .get(&DataKey::ProposalStats)
+            .unwrap_or(ProposalStats {
+                total_created: 0,
+                total_executed: 0,
+                total_rejected: 0,
+                total_expired: 0,
+                pending_count: 0,
+            });
+        stats.total_executed += 1;
+        stats.pending_count = stats.pending_count.saturating_sub(1);
+        env.storage()
+            .persistent()
+            .set(&DataKey::ProposalStats, &stats);
 
         env.events().publish(
             (symbol_short!("executed"), proposal_id),
             proposal.proposer.clone(),
         );
+
+        Ok(())
+    }
+
+    // ============================================================================
+    // Enhanced Multisig Helper Functions
+    // ============================================================================
+
+    /// Reject a proposal (vote against it)
+    pub fn reject_proposal(
+        env: &Env,
+        rejecter: Address,
+        proposal_id: u64,
+    ) -> AccessControlResult<()> {
+        Self::require_admin(env, &rejecter)?;
+
+        let mut proposal: PendingProposal = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Proposal(proposal_id))
+            .ok_or(AccessControlError::ProposalNotFound)?;
+
+        if proposal.executed {
+            return Err(AccessControlError::ProposalAlreadyExecuted);
+        }
+
+        if env.ledger().timestamp() > proposal.expiry {
+            Self::cleanup_expired_proposal(env, proposal_id)?;
+            return Err(AccessControlError::ProposalExpired);
+        }
+
+        if proposal.rejections.contains(&rejecter) {
+            return Err(AccessControlError::AlreadyRejected);
+        }
+
+        if proposal.approvals.contains(&rejecter) {
+            return Err(AccessControlError::AlreadyApproved);
+        }
+
+        proposal.rejections.push_back(rejecter.clone());
+
+        // Check if rejection threshold reached (e.g., if more than 1/3 reject, proposal fails)
+        let multisig_config =
+            Self::get_multisig_config(env).ok_or(AccessControlError::MultisigNotEnabled)?;
+        let rejection_threshold = (multisig_config.admins.len() / 3).max(1);
+
+        if proposal.rejections.len() > rejection_threshold {
+            // Proposal rejected - clean it up
+            Self::remove_from_pending_list(env, proposal_id);
+            env.storage()
+                .persistent()
+                .remove(&DataKey::Proposal(proposal_id));
+
+            let mut stats: ProposalStats = env
+                .storage()
+                .persistent()
+                .get(&DataKey::ProposalStats)
+                .unwrap_or(ProposalStats {
+                    total_created: 0,
+                    total_executed: 0,
+                    total_rejected: 0,
+                    total_expired: 0,
+                    pending_count: 0,
+                });
+            stats.total_rejected += 1;
+            stats.pending_count = stats.pending_count.saturating_sub(1);
+            env.storage()
+                .persistent()
+                .set(&DataKey::ProposalStats, &stats);
+
+            env.events()
+                .publish((symbol_short!("rejected"), proposal_id), rejecter.clone());
+
+            return Err(AccessControlError::ProposalRejected);
+        }
+
+        env.storage()
+            .persistent()
+            .set(&DataKey::Proposal(proposal_id), &proposal);
+
+        env.events()
+            .publish((symbol_short!("reject"), proposal_id), rejecter.clone());
+
+        Ok(())
+    }
+
+    /// Cancel a proposal (proposer only)
+    pub fn cancel_proposal(
+        env: &Env,
+        proposer: Address,
+        proposal_id: u64,
+    ) -> AccessControlResult<()> {
+        let proposal: PendingProposal = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Proposal(proposal_id))
+            .ok_or(AccessControlError::ProposalNotFound)?;
+
+        if proposal.proposer != proposer {
+            return Err(AccessControlError::Unauthorized);
+        }
+
+        if proposal.executed {
+            return Err(AccessControlError::ProposalAlreadyExecuted);
+        }
+
+        Self::remove_from_pending_list(env, proposal_id);
+        env.storage()
+            .persistent()
+            .remove(&DataKey::Proposal(proposal_id));
+
+        let mut stats: ProposalStats = env
+            .storage()
+            .persistent()
+            .get(&DataKey::ProposalStats)
+            .unwrap_or(ProposalStats {
+                total_created: 0,
+                total_executed: 0,
+                total_rejected: 0,
+                total_expired: 0,
+                pending_count: 0,
+            });
+        stats.pending_count = stats.pending_count.saturating_sub(1);
+        env.storage()
+            .persistent()
+            .set(&DataKey::ProposalStats, &stats);
+
+        env.events()
+            .publish((symbol_short!("cancelled"), proposal_id), proposer.clone());
+
+        Ok(())
+    }
+
+    /// Get proposal details
+    pub fn get_proposal(env: &Env, proposal_id: u64) -> Option<PendingProposal> {
+        env.storage()
+            .persistent()
+            .get(&DataKey::Proposal(proposal_id))
+    }
+
+    /// Get all pending proposal IDs
+    pub fn get_pending_proposals(env: &Env) -> Vec<u64> {
+        env.storage()
+            .persistent()
+            .get(&DataKey::PendingProposalsList)
+            .unwrap_or_else(|| Vec::new(env))
+    }
+
+    /// Get proposal statistics
+    pub fn get_proposal_stats(env: &Env) -> ProposalStats {
+        env.storage()
+            .persistent()
+            .get(&DataKey::ProposalStats)
+            .unwrap_or(ProposalStats {
+                total_created: 0,
+                total_executed: 0,
+                total_rejected: 0,
+                total_expired: 0,
+                pending_count: 0,
+            })
+    }
+
+    /// Clean up expired proposals (can be called by anyone)
+    pub fn cleanup_expired_proposals(env: &Env) -> AccessControlResult<u32> {
+        let pending_list: Vec<u64> = env
+            .storage()
+            .persistent()
+            .get(&DataKey::PendingProposalsList)
+            .unwrap_or_else(|| Vec::new(env));
+
+        let current_time = env.ledger().timestamp();
+        let mut cleaned_count = 0u32;
+
+        for proposal_id in pending_list.iter() {
+            if let Some(proposal) = env
+                .storage()
+                .persistent()
+                .get::<DataKey, PendingProposal>(&DataKey::Proposal(proposal_id))
+            {
+                if current_time > proposal.expiry && !proposal.executed {
+                    Self::cleanup_expired_proposal(env, proposal_id)?;
+                    cleaned_count += 1;
+                }
+            }
+        }
+
+        Ok(cleaned_count)
+    }
+
+    fn cleanup_expired_proposal(env: &Env, proposal_id: u64) -> AccessControlResult<()> {
+        Self::remove_from_pending_list(env, proposal_id);
+        env.storage()
+            .persistent()
+            .remove(&DataKey::Proposal(proposal_id));
+
+        let mut stats: ProposalStats = env
+            .storage()
+            .persistent()
+            .get(&DataKey::ProposalStats)
+            .unwrap_or(ProposalStats {
+                total_created: 0,
+                total_executed: 0,
+                total_rejected: 0,
+                total_expired: 0,
+                pending_count: 0,
+            });
+        stats.total_expired += 1;
+        stats.pending_count = stats.pending_count.saturating_sub(1);
+        env.storage()
+            .persistent()
+            .set(&DataKey::ProposalStats, &stats);
+
+        env.events()
+            .publish((symbol_short!("expired"), proposal_id), ());
+
+        Ok(())
+    }
+
+    fn remove_from_pending_list(env: &Env, proposal_id: u64) {
+        let pending_list: Vec<u64> = env
+            .storage()
+            .persistent()
+            .get(&DataKey::PendingProposalsList)
+            .unwrap_or_else(|| Vec::new(env));
+
+        let mut new_list = Vec::new(env);
+        for id in pending_list.iter() {
+            if id != proposal_id {
+                new_list.push_back(id);
+            }
+        }
+
+        env.storage()
+            .persistent()
+            .set(&DataKey::PendingProposalsList, &new_list);
+    }
+
+    /// Update multisig configuration (requires proposal in multisig mode)
+    pub fn update_multisig_config(
+        env: &Env,
+        caller: Address,
+        new_config: MultiSigConfig,
+    ) -> AccessControlResult<()> {
+        Self::require_admin(env, &caller)?;
+
+        if !Self::is_multisig_enabled(env) {
+            return Err(AccessControlError::MultisigNotEnabled);
+        }
+
+        if !new_config.validate() {
+            return Err(AccessControlError::InvalidMultisigConfig);
+        }
+
+        // This should be done via proposal
+        Err(AccessControlError::AdminRequired)
+    }
+
+    /// Check if emergency mode is active
+    pub fn is_emergency_mode(env: &Env) -> bool {
+        env.storage()
+            .persistent()
+            .get(&DataKey::EmergencyMode)
+            .unwrap_or(false)
+    }
+
+    /// Deactivate emergency mode (requires proposal)
+    pub fn deactivate_emergency_mode(env: &Env, caller: Address) -> AccessControlResult<()> {
+        Self::require_admin(env, &caller)?;
+
+        if Self::is_multisig_enabled(env) {
+            return Err(AccessControlError::AdminRequired);
+        }
+
+        env.storage()
+            .persistent()
+            .set(&DataKey::EmergencyMode, &false);
+
+        env.events()
+            .publish((symbol_short!("emrg_off"), false), caller.clone());
 
         Ok(())
     }
