@@ -14,6 +14,9 @@ pub enum DataKey {
     Admin,
     Metadata(BytesN<32>),
     MetadataHistory(BytesN<32>),
+    RenewalConfig,
+    RenewalHistory(BytesN<32>),
+    AutoRenewalSettings(Address),
 }
 
 #[contracttype]
@@ -24,6 +27,16 @@ pub struct MembershipToken {
     pub status: MembershipStatus,
     pub issue_date: u64,
     pub expiry_date: u64,
+    /// Tier ID for pricing lookup during renewals
+    pub tier_id: Option<String>,
+    /// Timestamp when grace period was entered (None if not in grace period)
+    pub grace_period_entered_at: Option<u64>,
+    /// Timestamp when grace period expires (None if not in grace period)
+    pub grace_period_expires_at: Option<u64>,
+    /// Number of renewal attempts (for tracking and limiting)
+    pub renewal_attempts: u32,
+    /// Timestamp of last renewal attempt
+    pub last_renewal_attempt_at: Option<u64>,
 }
 
 pub struct MembershipTokenContract;
@@ -61,6 +74,11 @@ impl MembershipTokenContract {
             status: MembershipStatus::Active,
             issue_date: current_time,
             expiry_date,
+            tier_id: None,
+            grace_period_entered_at: None,
+            grace_period_expires_at: None,
+            renewal_attempts: 0,
+            last_renewal_attempt_at: None,
         };
         env.storage()
             .persistent()
@@ -87,6 +105,11 @@ impl MembershipTokenContract {
             .persistent()
             .get(&DataKey::Token(id.clone()))
             .ok_or(Error::TokenNotFound)?;
+
+        // Check if token is in grace period - transfers not allowed
+        if token.status == MembershipStatus::GracePeriod {
+            return Err(Error::TransferNotAllowedInGracePeriod);
+        }
 
         // Check if token is active
         if token.status != MembershipStatus::Active {
@@ -465,5 +488,511 @@ impl MembershipTokenContract {
         // 1. Maintain an index of tokens by attribute
         // 2. Query the index instead of scanning all tokens
         // 3. Return matching token IDs
+    }
+
+    // ============================================================================
+    // Token Renewal System
+    // ============================================================================
+
+    /// Sets the renewal configuration. Admin only.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `grace_period_duration` - Grace period duration in seconds
+    /// * `auto_renewal_notice_days` - Days before expiry to trigger auto-renewal
+    /// * `renewals_enabled` - Whether renewals are enabled
+    ///
+    /// # Errors
+    /// * `AdminNotSet` - No admin configured
+    /// * `Unauthorized` - Caller is not admin
+    pub fn set_renewal_config(
+        env: Env,
+        grace_period_duration: u64,
+        auto_renewal_notice_days: u64,
+        renewals_enabled: bool,
+    ) -> Result<(), Error> {
+        // Get admin address and require authorization
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(Error::AdminNotSet)?;
+        admin.require_auth();
+
+        let config = crate::types::RenewalConfig {
+            grace_period_duration,
+            auto_renewal_notice_days,
+            renewals_enabled,
+        };
+
+        env.storage()
+            .instance()
+            .set(&DataKey::RenewalConfig, &config);
+
+        // Emit renewal config updated event
+        env.events().publish(
+            (symbol_short!("rnw_cfg"), admin),
+            (
+                grace_period_duration,
+                auto_renewal_notice_days,
+                renewals_enabled,
+            ),
+        );
+
+        Ok(())
+    }
+
+    /// Gets the renewal configuration.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    ///
+    /// # Returns
+    /// * The renewal configuration with defaults if not set
+    pub fn get_renewal_config(env: Env) -> crate::types::RenewalConfig {
+        env.storage()
+            .instance()
+            .get(&DataKey::RenewalConfig)
+            .unwrap_or(crate::types::RenewalConfig {
+                grace_period_duration: 7 * 24 * 60 * 60, // 7 days default
+                auto_renewal_notice_days: 24 * 60 * 60,  // 1 day default
+                renewals_enabled: true,
+            })
+    }
+
+    /// Renews a membership token with payment validation and tier pricing.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `id` - Token ID to renew
+    /// * `payment_token` - Payment token address (must be USDC)
+    /// * `tier_id` - Tier ID for pricing lookup
+    /// * `billing_cycle` - Billing cycle (Monthly or Annual)
+    ///
+    /// # Errors
+    /// * `TokenNotFound` - Token doesn't exist
+    /// * `RenewalNotAllowed` - Renewals are disabled
+    /// * `TierNotFound` - Tier doesn't exist
+    /// * `InvalidPaymentAmount` - Invalid payment amount
+    /// * `InvalidPaymentToken` - Invalid payment token
+    /// * `Unauthorized` - Caller is not token owner
+    pub fn renew_token(
+        env: Env,
+        id: BytesN<32>,
+        payment_token: Address,
+        tier_id: String,
+        billing_cycle: crate::types::BillingCycle,
+    ) -> Result<(), Error> {
+        // Check if renewals are enabled
+        let config = Self::get_renewal_config(env.clone());
+        if !config.renewals_enabled {
+            return Err(Error::RenewalNotAllowed);
+        }
+
+        // Get token
+        let mut token: MembershipToken = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Token(id.clone()))
+            .ok_or(Error::TokenNotFound)?;
+
+        // Require token owner authorization
+        token.user.require_auth();
+
+        // Get tier pricing
+        use crate::subscription::SubscriptionContract;
+        let tier = SubscriptionContract::get_tier(env.clone(), tier_id.clone())?;
+
+        // Calculate amount based on billing cycle
+        let amount = match billing_cycle {
+            crate::types::BillingCycle::Monthly => tier.price,
+            crate::types::BillingCycle::Annual => tier.annual_price,
+        };
+
+        // Calculate duration based on billing cycle
+        let duration = match billing_cycle {
+            crate::types::BillingCycle::Monthly => 30 * 24 * 60 * 60, // 30 days
+            crate::types::BillingCycle::Annual => 365 * 24 * 60 * 60, // 365 days
+        };
+
+        // Validate payment
+        let usdc_contract = SubscriptionContract::get_usdc_contract_address(&env)?;
+        if payment_token != usdc_contract {
+            return Err(Error::InvalidPaymentToken);
+        }
+        if amount <= 0 {
+            return Err(Error::InvalidPaymentAmount);
+        }
+
+        // Capture old expiry for history
+        let old_expiry = token.expiry_date;
+        let current_time = env.ledger().timestamp();
+
+        // Determine renewal base (extend from expiry or current time if expired)
+        let renewal_base = if token.expiry_date > current_time {
+            token.expiry_date
+        } else {
+            current_time
+        };
+
+        // Calculate new expiry
+        let new_expiry = renewal_base
+            .checked_add(duration)
+            .ok_or(Error::TimestampOverflow)?;
+
+        // Update token
+        token.expiry_date = new_expiry;
+        token.status = MembershipStatus::Active;
+        token.tier_id = Some(tier_id.clone());
+        token.grace_period_entered_at = None;
+        token.grace_period_expires_at = None;
+        token.renewal_attempts = token.renewal_attempts.saturating_add(1);
+        token.last_renewal_attempt_at = Some(current_time);
+
+        // Store updated token
+        env.storage()
+            .persistent()
+            .set(&DataKey::Token(id.clone()), &token);
+        env.storage()
+            .persistent()
+            .extend_ttl(&DataKey::Token(id.clone()), 100, 1000);
+
+        // Record renewal in history
+        Self::record_renewal(
+            &env,
+            &id,
+            crate::types::RenewalHistory {
+                timestamp: env.ledger().timestamp(),
+                tier_id,
+                amount,
+                payment_token: payment_token.clone(),
+                success: true,
+                trigger: crate::types::RenewalTrigger::Manual,
+                old_expiry_date: old_expiry,
+                new_expiry_date: Some(new_expiry),
+                error: None,
+            },
+        );
+
+        // Emit token renewal event
+        env.events().publish(
+            (symbol_short!("token_rnw"), id.clone(), token.user.clone()),
+            (payment_token, amount, old_expiry, new_expiry),
+        );
+
+        Ok(())
+    }
+
+    /// Records a renewal attempt in history.
+    fn record_renewal(env: &Env, token_id: &BytesN<32>, entry: crate::types::RenewalHistory) {
+        let history_key = DataKey::RenewalHistory(token_id.clone());
+        let mut history: Vec<crate::types::RenewalHistory> = env
+            .storage()
+            .persistent()
+            .get(&history_key)
+            .unwrap_or_else(|| Vec::new(env));
+
+        history.push_back(entry);
+
+        env.storage().persistent().set(&history_key, &history);
+        env.storage()
+            .persistent()
+            .extend_ttl(&history_key, 100, 1000);
+    }
+
+    /// Gets the renewal history for a token.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `token_id` - Token ID
+    ///
+    /// # Returns
+    /// * Vector of renewal history entries
+    pub fn get_renewal_history(
+        env: Env,
+        token_id: BytesN<32>,
+    ) -> Vec<crate::types::RenewalHistory> {
+        let history_key = DataKey::RenewalHistory(token_id);
+        env.storage()
+            .persistent()
+            .get(&history_key)
+            .unwrap_or_else(|| Vec::new(&env))
+    }
+
+    /// Checks and applies grace period to an expired token.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `id` - Token ID
+    ///
+    /// # Returns
+    /// * Updated token if grace period was applied
+    pub fn check_and_apply_grace_period(
+        env: Env,
+        id: BytesN<32>,
+    ) -> Result<MembershipToken, Error> {
+        let mut token: MembershipToken = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Token(id.clone()))
+            .ok_or(Error::TokenNotFound)?;
+
+        let current_time = env.ledger().timestamp();
+        let config = Self::get_renewal_config(env.clone());
+
+        // Check if token is expired and not already in grace period
+        if token.status == MembershipStatus::Active && current_time > token.expiry_date {
+            // Enter grace period
+            token.status = MembershipStatus::GracePeriod;
+            token.grace_period_entered_at = Some(current_time);
+            token.grace_period_expires_at = Some(
+                current_time
+                    .checked_add(config.grace_period_duration)
+                    .ok_or(Error::TimestampOverflow)?,
+            );
+
+            env.storage()
+                .persistent()
+                .set(&DataKey::Token(id.clone()), &token);
+
+            // Emit grace period entered event
+            env.events().publish(
+                (symbol_short!("grace_in"), id, token.user.clone()),
+                (current_time, token.grace_period_expires_at.unwrap()),
+            );
+        }
+
+        // Check if grace period has expired
+        if token.status == MembershipStatus::GracePeriod {
+            if let Some(grace_expiry) = token.grace_period_expires_at {
+                if current_time > grace_expiry {
+                    return Err(Error::GracePeriodExpired);
+                }
+            }
+        }
+
+        Ok(token)
+    }
+
+    /// Sets auto-renewal settings for a user's token.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `token_id` - Token ID to enable auto-renewal for
+    /// * `enabled` - Whether to enable auto-renewal
+    /// * `payment_token` - Payment token to use for auto-renewal
+    pub fn set_auto_renewal(
+        env: Env,
+        token_id: BytesN<32>,
+        enabled: bool,
+        payment_token: Address,
+    ) -> Result<(), Error> {
+        // Get token to verify it exists and get user
+        let token: MembershipToken = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Token(token_id.clone()))
+            .ok_or(Error::TokenNotFound)?;
+
+        // Require token owner authorization
+        token.user.require_auth();
+
+        let settings = crate::types::AutoRenewalSettings {
+            enabled,
+            token_id: token_id.clone(),
+            payment_token: payment_token.clone(),
+            updated_at: env.ledger().timestamp(),
+        };
+
+        env.storage()
+            .persistent()
+            .set(&DataKey::AutoRenewalSettings(token.user.clone()), &settings);
+
+        // Emit auto-renewal settings updated event
+        env.events().publish(
+            (symbol_short!("auto_rnw"), token_id, token.user),
+            (enabled, payment_token),
+        );
+
+        Ok(())
+    }
+
+    /// Gets auto-renewal settings for a user.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `user` - User address
+    ///
+    /// # Returns
+    /// * Auto-renewal settings or None if not set
+    pub fn get_auto_renewal_settings(
+        env: Env,
+        user: Address,
+    ) -> Option<crate::types::AutoRenewalSettings> {
+        env.storage()
+            .persistent()
+            .get(&DataKey::AutoRenewalSettings(user))
+    }
+
+    /// Checks if a token is eligible for auto-renewal.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `id` - Token ID
+    ///
+    /// # Returns
+    /// * True if token is within auto-renewal window
+    pub fn check_auto_renewal_eligibility(env: Env, id: BytesN<32>) -> Result<bool, Error> {
+        let token: MembershipToken = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Token(id))
+            .ok_or(Error::TokenNotFound)?;
+
+        let config = Self::get_renewal_config(env.clone());
+        let current_time = env.ledger().timestamp();
+
+        // Calculate renewal threshold (notice period before expiry)
+        let renewal_threshold = token
+            .expiry_date
+            .checked_sub(config.auto_renewal_notice_days)
+            .ok_or(Error::TimestampOverflow)?;
+
+        // Token is eligible if:
+        // 1. Current time is past the renewal threshold
+        // 2. Current time is before expiry
+        // 3. Token status is Active
+        Ok(current_time >= renewal_threshold
+            && current_time < token.expiry_date
+            && token.status == MembershipStatus::Active)
+    }
+
+    /// Processes auto-renewal for a token. Enters grace period on failure.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `id` - Token ID
+    ///
+    /// # Returns
+    /// * Success or error
+    pub fn process_auto_renewal(env: Env, id: BytesN<32>) -> Result<(), Error> {
+        // Get token
+        let mut token: MembershipToken = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Token(id.clone()))
+            .ok_or(Error::TokenNotFound)?;
+
+        // Check if auto-renewal is enabled for this user
+        let settings = Self::get_auto_renewal_settings(env.clone(), token.user.clone())
+            .ok_or(Error::AutoRenewalFailed)?;
+
+        if !settings.enabled || settings.token_id != id {
+            return Err(Error::AutoRenewalFailed);
+        }
+
+        // Check eligibility
+        if !Self::check_auto_renewal_eligibility(env.clone(), id.clone())? {
+            return Err(Error::RenewalNotAllowed);
+        }
+
+        // Get tier (use stored tier_id or error)
+        let tier_id = token.tier_id.clone().ok_or(Error::TierNotFound)?;
+
+        use crate::subscription::SubscriptionContract;
+        let tier = SubscriptionContract::get_tier(env.clone(), tier_id.clone())?;
+
+        // Use monthly pricing for auto-renewal
+        let amount = tier.price;
+        let duration = 30 * 24 * 60 * 60; // 30 days
+
+        // Validate payment (but don't actually transfer - just validation)
+        let usdc_contract = SubscriptionContract::get_usdc_contract_address(&env)?;
+        if settings.payment_token != usdc_contract {
+            // Payment validation failed - enter grace period
+            Self::enter_grace_period_on_auto_renewal_failure(env, id, token)?;
+            return Err(Error::AutoRenewalFailed);
+        }
+
+        // Note: In production, check if user has sufficient balance
+        // For now, we assume payment would succeed
+
+        let old_expiry = token.expiry_date;
+        let current_time = env.ledger().timestamp();
+
+        // Calculate new expiry
+        let new_expiry = token
+            .expiry_date
+            .checked_add(duration)
+            .ok_or(Error::TimestampOverflow)?;
+
+        // Update token
+        token.expiry_date = new_expiry;
+        token.renewal_attempts = token.renewal_attempts.saturating_add(1);
+        token.last_renewal_attempt_at = Some(current_time);
+
+        // Store updated token
+        env.storage()
+            .persistent()
+            .set(&DataKey::Token(id.clone()), &token);
+
+        // Record successful auto-renewal
+        Self::record_renewal(
+            &env,
+            &id,
+            crate::types::RenewalHistory {
+                timestamp: env.ledger().timestamp(),
+                tier_id,
+                amount,
+                payment_token: settings.payment_token.clone(),
+                success: true,
+                trigger: crate::types::RenewalTrigger::AutoRenewal,
+                old_expiry_date: old_expiry,
+                new_expiry_date: Some(new_expiry),
+                error: None,
+            },
+        );
+
+        // Emit auto-renewal success event
+        env.events().publish(
+            (symbol_short!("auto_ok"), id, token.user),
+            (settings.payment_token, amount, old_expiry, new_expiry),
+        );
+
+        Ok(())
+    }
+
+    /// Helper function to enter grace period when auto-renewal fails.
+    fn enter_grace_period_on_auto_renewal_failure(
+        env: Env,
+        id: BytesN<32>,
+        mut token: MembershipToken,
+    ) -> Result<(), Error> {
+        let config = Self::get_renewal_config(env.clone());
+        let current_time = env.ledger().timestamp();
+
+        token.status = MembershipStatus::GracePeriod;
+        token.grace_period_entered_at = Some(current_time);
+        token.grace_period_expires_at = Some(
+            current_time
+                .checked_add(config.grace_period_duration)
+                .ok_or(Error::TimestampOverflow)?,
+        );
+
+        env.storage()
+            .persistent()
+            .set(&DataKey::Token(id.clone()), &token);
+
+        // Emit grace period entered due to auto-renewal failure
+        env.events().publish(
+            (symbol_short!("grace_ar"), id, token.user),
+            (
+                current_time,
+                token.grace_period_expires_at.unwrap(),
+                String::from_str(&env, "auto_renewal_failed"),
+            ),
+        );
+
+        Ok(())
     }
 }

@@ -1,4 +1,4 @@
-use soroban_sdk::{contracttype, Address, String, Vec};
+use soroban_sdk::{contracttype, Address, BytesN, String, Vec};
 
 // Re-export types from common_types for consistency
 pub use common_types::MembershipStatus;
@@ -222,4 +222,70 @@ pub struct SessionPair {
     pub clock_in_time: u64,
     pub clock_out_time: u64,
     pub duration: u64,
+}
+
+// ============================================================================
+// Token Renewal Types
+// ============================================================================
+
+/// Configuration for token renewal system.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct RenewalConfig {
+    /// Grace period duration in seconds (default 7 days)
+    pub grace_period_duration: u64,
+    /// Auto-renewal notice period in seconds (default 1 day before expiry)
+    pub auto_renewal_notice_days: u64,
+    /// Whether renewals are currently enabled
+    pub renewals_enabled: bool,
+}
+
+/// Trigger reason for token renewal.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub enum RenewalTrigger {
+    /// Manual renewal by user or admin
+    Manual,
+    /// Automatic renewal triggered by system
+    AutoRenewal,
+    /// Renewal during grace period
+    GracePeriod,
+}
+
+/// Record of a token renewal attempt.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct RenewalHistory {
+    /// Timestamp of renewal attempt
+    pub timestamp: u64,
+    /// Tier ID used for pricing
+    pub tier_id: String,
+    /// Amount paid for renewal
+    pub amount: i128,
+    /// Payment token address
+    pub payment_token: Address,
+    /// Whether renewal was successful
+    pub success: bool,
+    /// What triggered the renewal
+    pub trigger: RenewalTrigger,
+    /// Old expiry date before renewal
+    pub old_expiry_date: u64,
+    /// New expiry date after renewal (if successful)
+    pub new_expiry_date: Option<u64>,
+    /// Error message if renewal failed
+    pub error: Option<String>,
+}
+
+/// Auto-renewal settings for a user's token.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct AutoRenewalSettings {
+    /// Whether auto-renewal is enabled
+    pub enabled: bool,
+    /// Token ID to auto-renew
+    pub token_id: BytesN<32>,
+    /// Payment token to use for auto-renewal
+    pub payment_token: Address,
+    /// Timestamp when settings were last updated
+    pub updated_at: u64,
 }

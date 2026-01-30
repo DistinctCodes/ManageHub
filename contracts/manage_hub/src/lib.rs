@@ -426,6 +426,154 @@ impl Contract {
     }
 
     // ============================================================================
+    // Token Renewal System Endpoints
+    // ============================================================================
+
+    /// Sets the renewal configuration. Admin only.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `grace_period_duration` - Grace period duration in seconds
+    /// * `auto_renewal_notice_days` - Days before expiry to trigger auto-renewal
+    /// * `renewals_enabled` - Whether renewals are enabled
+    ///
+    /// # Errors
+    /// * `AdminNotSet` - No admin configured
+    /// * `Unauthorized` - Caller is not admin
+    pub fn set_renewal_config(
+        env: Env,
+        grace_period_duration: u64,
+        auto_renewal_notice_days: u64,
+        renewals_enabled: bool,
+    ) -> Result<(), Error> {
+        MembershipTokenContract::set_renewal_config(
+            env,
+            grace_period_duration,
+            auto_renewal_notice_days,
+            renewals_enabled,
+        )
+    }
+
+    /// Gets the renewal configuration.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    ///
+    /// # Returns
+    /// * The renewal configuration with defaults if not set
+    pub fn get_renewal_config(env: Env) -> types::RenewalConfig {
+        MembershipTokenContract::get_renewal_config(env)
+    }
+
+    /// Renews a membership token with payment validation and tier pricing.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `id` - Token ID to renew
+    /// * `payment_token` - Payment token address (must be USDC)
+    /// * `tier_id` - Tier ID for pricing lookup
+    /// * `billing_cycle` - Billing cycle (Monthly or Annual)
+    ///
+    /// # Errors
+    /// * `TokenNotFound` - Token doesn't exist
+    /// * `RenewalNotAllowed` - Renewals are disabled
+    /// * `TierNotFound` - Tier doesn't exist
+    /// * `InvalidPaymentAmount` - Invalid payment amount
+    /// * `InvalidPaymentToken` - Invalid payment token
+    /// * `Unauthorized` - Caller is not token owner
+    pub fn renew_token(
+        env: Env,
+        id: BytesN<32>,
+        payment_token: Address,
+        tier_id: String,
+        billing_cycle: BillingCycle,
+    ) -> Result<(), Error> {
+        MembershipTokenContract::renew_token(env, id, payment_token, tier_id, billing_cycle)
+    }
+
+    /// Gets the renewal history for a token.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `token_id` - Token ID
+    ///
+    /// # Returns
+    /// * Vector of renewal history entries
+    pub fn get_renewal_history(env: Env, token_id: BytesN<32>) -> Vec<types::RenewalHistory> {
+        MembershipTokenContract::get_renewal_history(env, token_id)
+    }
+
+    /// Checks and applies grace period to an expired token.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `id` - Token ID
+    ///
+    /// # Returns
+    /// * Updated token if grace period was applied
+    pub fn check_and_apply_grace_period(
+        env: Env,
+        id: BytesN<32>,
+    ) -> Result<MembershipToken, Error> {
+        MembershipTokenContract::check_and_apply_grace_period(env, id)
+    }
+
+    /// Sets auto-renewal settings for a user's token.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `token_id` - Token ID to enable auto-renewal for
+    /// * `enabled` - Whether to enable auto-renewal
+    /// * `payment_token` - Payment token to use for auto-renewal
+    pub fn set_auto_renewal(
+        env: Env,
+        token_id: BytesN<32>,
+        enabled: bool,
+        payment_token: Address,
+    ) -> Result<(), Error> {
+        MembershipTokenContract::set_auto_renewal(env, token_id, enabled, payment_token)
+    }
+
+    /// Gets auto-renewal settings for a user.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `user` - User address
+    ///
+    /// # Returns
+    /// * Auto-renewal settings or None if not set
+    pub fn get_auto_renewal_settings(
+        env: Env,
+        user: Address,
+    ) -> Option<types::AutoRenewalSettings> {
+        MembershipTokenContract::get_auto_renewal_settings(env, user)
+    }
+
+    /// Checks if a token is eligible for auto-renewal.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `id` - Token ID
+    ///
+    /// # Returns
+    /// * True if token is within auto-renewal window
+    pub fn check_auto_renewal_eligibility(env: Env, id: BytesN<32>) -> Result<bool, Error> {
+        MembershipTokenContract::check_auto_renewal_eligibility(env, id)
+    }
+
+    /// Processes auto-renewal for a token. Enters grace period on failure.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `id` - Token ID
+    ///
+    /// # Returns
+    /// * Success or error
+    pub fn process_auto_renewal(env: Env, id: BytesN<32>) -> Result<(), Error> {
+        MembershipTokenContract::process_auto_renewal(env, id)
+    }
+
+    // ============================================================================
     // Attendance Analytics Endpoints
     // ============================================================================
 

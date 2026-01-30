@@ -1274,3 +1274,469 @@ fn test_renew_paused_subscription() {
     // Try to renew paused subscription - should fail
     client.renew_subscription(&subscription_id, &payment_token, &amount, &duration);
 }
+
+// ==================== Token Renewal System Tests ====================
+
+#[test]
+fn test_set_renewal_config_success() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    client.set_admin(&admin);
+
+    // Set renewal config
+    let grace_period = 7 * 24 * 60 * 60; // 7 days
+    let notice_period = 24 * 60 * 60; // 1 day
+    client.set_renewal_config(&grace_period, &notice_period, &true);
+
+    // Get and verify config
+    let config = client.get_renewal_config();
+    assert_eq!(config.grace_period_duration, grace_period);
+    assert_eq!(config.auto_renewal_notice_days, notice_period);
+    assert!(config.renewals_enabled);
+}
+
+#[test]
+fn test_renew_token_success() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let payment_token = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+    let tier_id = String::from_str(&env, "tier_basic");
+
+    // Setup
+    client.set_admin(&admin);
+    client.set_usdc_contract(&admin, &payment_token);
+
+    // Create tier
+    let tier_params = CreateTierParams {
+        id: tier_id.clone(),
+        name: String::from_str(&env, "Basic"),
+        level: common_types::TierLevel::Basic,
+        price: 100_000i128,
+        annual_price: 1_000_000i128,
+        features: soroban_sdk::vec![&env, common_types::TierFeature::BasicAccess],
+        max_users: 100,
+        max_storage: 10_000_000,
+    };
+    client.create_tier(&admin, &tier_params);
+
+    // Issue token
+    let expiry_date = env.ledger().timestamp() + 30 * 24 * 60 * 60;
+    client.issue_token(&token_id, &user, &expiry_date);
+
+    let old_token = client.get_token(&token_id);
+    let old_expiry = old_token.expiry_date;
+
+    // Renew token
+    client.renew_token(&token_id, &payment_token, &tier_id, &BillingCycle::Monthly);
+
+    // Verify renewal
+    let renewed_token = client.get_token(&token_id);
+    assert!(renewed_token.expiry_date > old_expiry);
+    assert_eq!(renewed_token.status, MembershipStatus::Active);
+    assert_eq!(renewed_token.tier_id, Some(tier_id.clone()));
+    assert_eq!(renewed_token.renewal_attempts, 1);
+}
+
+#[test]
+#[should_panic(expected = "HostError: Error(Contract, #32)")]
+fn test_renew_token_tier_not_found() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let payment_token = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+
+    // Setup
+    client.set_admin(&admin);
+    client.set_usdc_contract(&admin, &payment_token);
+
+    // Issue token
+    let expiry_date = env.ledger().timestamp() + 30 * 24 * 60 * 60;
+    client.issue_token(&token_id, &user, &expiry_date);
+
+    // Try to renew with non-existent tier
+    client.renew_token(
+        &token_id,
+        &payment_token,
+        &String::from_str(&env, "nonexistent_tier"),
+        &BillingCycle::Monthly,
+    );
+}
+
+#[test]
+fn test_grace_period_entry() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+
+    // Setup
+    client.set_admin(&admin);
+
+    // Issue token with short expiry
+    let expiry_date = env.ledger().timestamp() + 100;
+    client.issue_token(&token_id, &user, &expiry_date);
+
+    // Advance time past expiry
+    env.ledger().with_mut(|l| l.timestamp += 200);
+
+    // Apply grace period
+    let token = client.check_and_apply_grace_period(&token_id);
+    assert_eq!(token.status, MembershipStatus::GracePeriod);
+    assert!(token.grace_period_entered_at.is_some());
+    assert!(token.grace_period_expires_at.is_some());
+}
+
+#[test]
+#[should_panic(expected = "HostError: Error(Contract, #47)")]
+fn test_transfer_blocked_in_grace_period() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let new_user = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+
+    // Setup
+    client.set_admin(&admin);
+
+    // Issue token with short expiry
+    let expiry_date = env.ledger().timestamp() + 100;
+    client.issue_token(&token_id, &user, &expiry_date);
+
+    // Advance time past expiry and enter grace period
+    env.ledger().with_mut(|l| l.timestamp += 200);
+    client.check_and_apply_grace_period(&token_id);
+
+    // Try to transfer - should fail
+    client.transfer_token(&token_id, &new_user);
+}
+
+#[test]
+fn test_renewal_history_tracking() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let payment_token = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+    let tier_id = String::from_str(&env, "tier_pro");
+
+    // Setup
+    client.set_admin(&admin);
+    client.set_usdc_contract(&admin, &payment_token);
+
+    // Create tier
+    let tier_params = CreateTierParams {
+        id: tier_id.clone(),
+        name: String::from_str(&env, "Pro"),
+        level: common_types::TierLevel::Pro,
+        price: 200_000i128,
+        annual_price: 2_000_000i128,
+        features: soroban_sdk::vec![&env, common_types::TierFeature::AdvancedAnalytics],
+        max_users: 500,
+        max_storage: 50_000_000,
+    };
+    client.create_tier(&admin, &tier_params);
+
+    // Issue token
+    let expiry_date = env.ledger().timestamp() + 30 * 24 * 60 * 60;
+    client.issue_token(&token_id, &user, &expiry_date);
+
+    // Renew token twice
+    client.renew_token(&token_id, &payment_token, &tier_id, &BillingCycle::Monthly);
+
+    env.ledger().with_mut(|l| l.timestamp += 1000);
+    client.renew_token(&token_id, &payment_token, &tier_id, &BillingCycle::Annual);
+
+    // Check renewal history
+    let history = client.get_renewal_history(&token_id);
+    assert_eq!(history.len(), 2);
+
+    let first_renewal = history.get(0).unwrap();
+    assert_eq!(first_renewal.tier_id, tier_id);
+    assert!(first_renewal.success);
+
+    let second_renewal = history.get(1).unwrap();
+    assert_eq!(second_renewal.tier_id, tier_id);
+    assert!(second_renewal.success);
+}
+
+#[test]
+fn test_auto_renewal_settings() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let payment_token = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+
+    // Setup
+    client.set_admin(&admin);
+
+    // Issue token
+    let expiry_date = env.ledger().timestamp() + 30 * 24 * 60 * 60;
+    client.issue_token(&token_id, &user, &expiry_date);
+
+    // Enable auto-renewal
+    client.set_auto_renewal(&token_id, &true, &payment_token);
+
+    // Get settings
+    let settings = client.get_auto_renewal_settings(&user);
+    assert!(settings.is_some());
+
+    let settings_unwrapped = settings.unwrap();
+    assert!(settings_unwrapped.enabled);
+    assert_eq!(settings_unwrapped.token_id, token_id);
+    assert_eq!(settings_unwrapped.payment_token, payment_token);
+}
+
+#[test]
+fn test_auto_renewal_eligibility() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+
+    // Setup with 1 day notice period
+    client.set_admin(&admin);
+    let grace_period = 7 * 24 * 60 * 60;
+    let notice_period = 24 * 60 * 60;
+    client.set_renewal_config(&grace_period, &notice_period, &true);
+
+    // Issue token expiring in 2 days
+    let expiry_date = env.ledger().timestamp() + 2 * 24 * 60 * 60;
+    client.issue_token(&token_id, &user, &expiry_date);
+
+    // Not yet eligible (2 days until expiry, need to be within 1 day)
+    let eligible_before = client.check_auto_renewal_eligibility(&token_id);
+    assert!(!eligible_before);
+
+    // Advance time to 12 hours before expiry
+    env.ledger().with_mut(|l| l.timestamp += 36 * 60 * 60);
+
+    // Now eligible
+    let eligible_after = client.check_auto_renewal_eligibility(&token_id);
+    assert!(eligible_after);
+}
+
+#[test]
+#[should_panic(expected = "HostError: Error(Contract, #48)")]
+fn test_grace_period_expired() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+
+    // Setup with short grace period
+    client.set_admin(&admin);
+    let grace_period = 100; // 100 seconds
+    let notice_period = 50;
+    client.set_renewal_config(&grace_period, &notice_period, &true);
+
+    // Issue token
+    let expiry_date = env.ledger().timestamp() + 50;
+    client.issue_token(&token_id, &user, &expiry_date);
+
+    // Advance time past expiry
+    env.ledger().with_mut(|l| l.timestamp += 100);
+    client.check_and_apply_grace_period(&token_id);
+
+    // Advance time past grace period
+    env.ledger().with_mut(|l| l.timestamp += 200);
+
+    // Should fail - grace period expired
+    client.check_and_apply_grace_period(&token_id);
+}
+
+#[test]
+fn test_renewal_extends_from_current_expiry() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let payment_token = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+    let tier_id = String::from_str(&env, "tier_basic");
+
+    // Setup
+    client.set_admin(&admin);
+    client.set_usdc_contract(&admin, &payment_token);
+
+    // Create tier
+    let tier_params = CreateTierParams {
+        id: tier_id.clone(),
+        name: String::from_str(&env, "Basic"),
+        level: common_types::TierLevel::Basic,
+        price: 100_000i128,
+        annual_price: 1_000_000i128,
+        features: soroban_sdk::vec![&env, common_types::TierFeature::BasicAccess],
+        max_users: 100,
+        max_storage: 10_000_000,
+    };
+    client.create_tier(&admin, &tier_params);
+
+    // Issue token expiring in 10 days
+    let expiry_date = env.ledger().timestamp() + 10 * 24 * 60 * 60;
+    client.issue_token(&token_id, &user, &expiry_date);
+
+    // Renew before expiry (monthly = 30 days)
+    client.renew_token(&token_id, &payment_token, &tier_id, &BillingCycle::Monthly);
+
+    // New expiry should be original_expiry + 30 days (not current_time + 30 days)
+    let renewed_token = client.get_token(&token_id);
+    let expected_expiry = expiry_date + 30 * 24 * 60 * 60;
+    assert_eq!(renewed_token.expiry_date, expected_expiry);
+}
+
+#[test]
+fn test_renewal_after_expiry_extends_from_current_time() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let payment_token = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+    let tier_id = String::from_str(&env, "tier_basic");
+
+    // Setup
+    client.set_admin(&admin);
+    client.set_usdc_contract(&admin, &payment_token);
+
+    // Create tier
+    let tier_params = CreateTierParams {
+        id: tier_id.clone(),
+        name: String::from_str(&env, "Basic"),
+        level: common_types::TierLevel::Basic,
+        price: 100_000i128,
+        annual_price: 1_000_000i128,
+        features: soroban_sdk::vec![&env, common_types::TierFeature::BasicAccess],
+        max_users: 100,
+        max_storage: 10_000_000,
+    };
+    client.create_tier(&admin, &tier_params);
+
+    // Issue token
+    let expiry_date = env.ledger().timestamp() + 100;
+    client.issue_token(&token_id, &user, &expiry_date);
+
+    // Advance time past expiry
+    env.ledger().with_mut(|l| l.timestamp += 200);
+    let current_time = env.ledger().timestamp();
+
+    // Enter grace period
+    client.check_and_apply_grace_period(&token_id);
+
+    // Renew after expiry
+    client.renew_token(&token_id, &payment_token, &tier_id, &BillingCycle::Monthly);
+
+    // New expiry should be current_time + 30 days (not expired_date + 30 days)
+    let renewed_token = client.get_token(&token_id);
+    let expected_expiry = current_time + 30 * 24 * 60 * 60;
+    assert_eq!(renewed_token.expiry_date, expected_expiry);
+}
+
+#[test]
+fn test_renewal_clears_grace_period() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let payment_token = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+    let tier_id = String::from_str(&env, "tier_basic");
+
+    // Setup
+    client.set_admin(&admin);
+    client.set_usdc_contract(&admin, &payment_token);
+
+    // Create tier
+    let tier_params = CreateTierParams {
+        id: tier_id.clone(),
+        name: String::from_str(&env, "Basic"),
+        level: common_types::TierLevel::Basic,
+        price: 100_000i128,
+        annual_price: 1_000_000i128,
+        features: soroban_sdk::vec![&env, common_types::TierFeature::BasicAccess],
+        max_users: 100,
+        max_storage: 10_000_000,
+    };
+    client.create_tier(&admin, &tier_params);
+
+    // Issue token
+    let expiry_date = env.ledger().timestamp() + 100;
+    client.issue_token(&token_id, &user, &expiry_date);
+
+    // Expire and enter grace period
+    env.ledger().with_mut(|l| l.timestamp += 200);
+    client.check_and_apply_grace_period(&token_id);
+
+    let token_in_grace = client.get_token(&token_id);
+    assert_eq!(token_in_grace.status, MembershipStatus::GracePeriod);
+    assert!(token_in_grace.grace_period_entered_at.is_some());
+
+    // Renew token
+    client.renew_token(&token_id, &payment_token, &tier_id, &BillingCycle::Monthly);
+
+    // Grace period should be cleared
+    let renewed_token = client.get_token(&token_id);
+    assert_eq!(renewed_token.status, MembershipStatus::Active);
+    assert!(renewed_token.grace_period_entered_at.is_none());
+    assert!(renewed_token.grace_period_expires_at.is_none());
+}

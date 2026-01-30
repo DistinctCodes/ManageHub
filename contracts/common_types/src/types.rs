@@ -167,6 +167,8 @@ pub enum UserRole {
 ///
 /// # Variants
 /// * `Active` - Membership is currently active
+/// * `Paused` - Membership is temporarily paused
+/// * `GracePeriod` - Membership expired but within grace period (usable with restrictions)
 /// * `Expired` - Membership has expired
 /// * `Revoked` - Membership has been revoked
 /// * `Inactive` - Membership is inactive
@@ -175,7 +177,10 @@ pub enum UserRole {
 pub enum MembershipStatus {
     /// Active membership
     Active,
+    /// Temporarily paused membership
     Paused,
+    /// Expired but within grace period (restricted access)
+    GracePeriod,
     /// Expired membership
     Expired,
     /// Revoked membership
