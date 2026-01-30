@@ -432,7 +432,7 @@ impl SubscriptionContract {
         Ok(())
     }
 
-    fn get_usdc_contract_address(env: &Env) -> Result<Address, Error> {
+    pub fn get_usdc_contract_address(env: &Env) -> Result<Address, Error> {
         env.storage()
             .instance()
             .get(&SubscriptionDataKey::UsdcContract)

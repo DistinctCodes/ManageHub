@@ -53,4 +53,9 @@ pub enum Error {
     TierAlreadyExists = 43,
     TierNotActive = 44,
     TierChangeNotFound = 45,
+    // Token renewal errors (reusing codes where applicable)
+    RenewalNotAllowed = 46,
+    TransferNotAllowedInGracePeriod = 47,
+    GracePeriodExpired = 48,
+    AutoRenewalFailed = 49,
 }
