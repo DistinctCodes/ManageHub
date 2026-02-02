@@ -23,8 +23,13 @@ import { FindAdminByIdProvider } from './findAdminById.provider';
 
 @Injectable()
 export class UsersService {
-  update(userId: string, arg1: { twoFactorEnabled: boolean; }) {
-      throw new Error('Method not implemented.');
+  async updateTwoFactor(userId: string, data: { twoFactorEnabled: boolean }) {
+    const user = await this.findUserById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    user.twoFactorEnabled = data.twoFactorEnabled;
+    return await this.usersRepository.save(user);
   }
   constructor(
     private readonly createUserProvider: CreateUserProvider,

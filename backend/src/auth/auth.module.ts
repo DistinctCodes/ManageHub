@@ -4,12 +4,11 @@ import { AuthController } from './auth.controller';
 import { UserHelper } from './helper/user-helper';
 import { JwtHelper } from './helper/jwt-helper';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { User } from './entities/user.entity';
+import { User } from '../users/entities/user.entity';
 import { JwtModule } from '@nestjs/jwt';
 import { RolesGuard } from './guard/roles.guard';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './strategy/jwt.strategy';
-import { EmailService } from './helper/email-sender';
 import { HashingProvider } from './providers/hashing.provider';
 import { GenerateTokensProvider } from './providers/generateTokens.provider';
 import { RefreshTokenRepositoryOperations } from './providers/refreshToken.repository';
@@ -28,7 +27,6 @@ import { RefreshToken } from './entities/refreshToken.entity';
     JwtHelper,
     JwtStrategy,
     RolesGuard,
-    EmailService,
     HashingProvider,
     GenerateTokensProvider,
     RefreshTokenRepositoryOperations,

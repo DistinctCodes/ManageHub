@@ -16,7 +16,7 @@ import {
 } from './dto/subscription.dto';
 import { PaginationQueryDto } from '../config/pagination/dto/pagination-query.dto';
 import { Roles } from '../auth/decorators/roles.decorators';
-import { UserRole } from '../auth/common/enum/user-role-enum';
+import { UserRole } from '../users/enums/userRoles.enum';
 import { RolesGuard } from '../auth/guard/roles.guard';
 import { Public } from '../auth/decorators/public.decorator';
 

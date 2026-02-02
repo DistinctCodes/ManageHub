@@ -1,5 +1,5 @@
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_BACKEND_API_URL || "http://localhost:6000";
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:6001/api";
 
 class ApiClient {
   private baseURL: string;
@@ -18,7 +18,6 @@ class ApiClient {
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`;
-    console.log("Url", url);
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
@@ -44,7 +43,6 @@ class ApiClient {
 
       return await response.json();
     } catch (error) {
-      console.error("Error", error);
       if (error instanceof Error) {
         throw error;
       }

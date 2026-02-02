@@ -8,12 +8,12 @@ import {
 } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
-import { User } from './entities/user.entity';
+import { User } from '../users/entities/user.entity';
 import { Repository } from 'typeorm';
 import { UserHelper } from './helper/user-helper';
 import { InjectRepository } from '@nestjs/typeorm';
 import { UserMessages } from './helper/user-messages';
-import { UserRole } from './common/enum/user-role-enum';
+import { UserRole } from '../users/enums/userRoles.enum';
 import { JwtHelper } from './helper/jwt-helper';
 import moment from 'moment';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
@@ -50,11 +50,14 @@ export class AuthService {
     );
     const verificationCode = this.userHelper.generateVerificationCode();
     const expiration = moment().add(10, 'minutes').toDate();
+    const [firstname, ...rest] = createUserDto.fullName.split(' ');
+    const lastname = rest.join(' ') || '';
     const newUser = this.userRepository.create({
       email: createUserDto.email,
-      fullName: createUserDto.fullName,
+      firstname,
+      lastname,
       password: hashedPassword,
-      role: UserRole.SUBSCRIBER,
+      role: UserRole.USER,
       verificationCode: verificationCode,
       verificationCodeExpiresAt: expiration,
       isVerified: false,
@@ -89,9 +92,12 @@ export class AuthService {
     const hashedPassword = await this.userHelper.hashPassword(
       createUserDto.password,
     );
+    const [firstname, ...rest] = createUserDto.fullName.split(' ');
+    const lastname = rest.join(' ') || '';
     const newUser = this.userRepository.create({
       email: createUserDto.email,
-      fullName: createUserDto.fullName,
+      firstname,
+      lastname,
       password: hashedPassword,
       role: UserRole.ADMIN,
     });
@@ -203,9 +209,7 @@ export class AuthService {
     };
   }
   async refreshToken(refreshToken: string) {
-    const validatedRefreshToken =
-      this.jwtHelper.validateRefreshToken(refreshToken);
-    const userId = Number(validatedRefreshToken);
+    const userId = this.jwtHelper.validateRefreshToken(refreshToken);
     const user = await this.userRepository.findOne({
       where: { id: userId },
     });
@@ -215,7 +219,7 @@ export class AuthService {
     const accessToken = this.jwtHelper.generateAccessToken(user);
     return { accessToken };
   }
-  async retrieveUserById(userId: number) {
+  async retrieveUserById(userId: string) {
     const user = await this.userRepository.findOne({
       where: { id: userId },
     });

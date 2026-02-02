@@ -1,4 +1,2 @@
-export enum UserRole {
-  SUBSCRIBER = 'SUBSCRIBER',
-  ADMIN = 'ADMIN',
-}
+// Re-export from the canonical location to avoid duplication
+export { UserRole } from '../../../users/enums/userRoles.enum';

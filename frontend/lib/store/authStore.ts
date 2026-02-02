@@ -134,7 +134,7 @@ export const useAuthStore = create<AuthStore>()(
             storage.setToken(accessToken);
             storage.setUser(user);
           } catch (error) {
-            get().logout;
+            get().logout();
             throw error;
           }
         },

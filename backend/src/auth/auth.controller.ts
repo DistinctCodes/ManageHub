@@ -13,15 +13,15 @@ import { LoginUserDto } from './dto/login-user.dto';
 import { JwtAuthGuard } from './guard/jwt.auth.guard';
 import { RolesGuard } from './guard/roles.guard';
 import { Roles } from './decorators/roles.decorators';
-import { UserRole } from './common/enum/user-role-enum';
-import { User } from './entities/user.entity';
+import { UserRole } from '../users/enums/userRoles.enum';
+import { User } from '../users/entities/user.entity';
 import { CurrentUser } from './decorators/current.user.decorators';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ResendOtpDto } from './dto/resend-otp.dto';
 import { SendPasswordResetOtpDto } from './dto/send-password-reset-otp.dto';
 
-@Controller('api/v1/auth')
+@Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 

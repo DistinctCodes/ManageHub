@@ -26,13 +26,10 @@ export const useRegisterUser = () => {
 
       return await register(data);
     },
-    onSuccess: (data) => {
-      console.log("Register success:", data);
+    onSuccess: () => {
       toast.success("User created successfully");
-      // router.push("/");
     },
-    onError: (error) => {
-      console.error("Register failed:", error);
+    onError: () => {
       toast.error("Error creating user");
     },
   });

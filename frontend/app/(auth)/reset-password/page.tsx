@@ -5,6 +5,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Eye, EyeOff, Lock, CheckCircle2, Info, Loader2 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { apiClient } from "@/lib/apiClient";
+import { toast } from "sonner";
 
 // Zod Schema with comprehensive password validation
 const resetPasswordSchema = z
@@ -49,6 +52,8 @@ const calculatePasswordStrength = (
 };
 
 const ResetPasswordPage: React.FC = () => {
+  const searchParams = useSearchParams();
+  const token = searchParams.get("token");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -71,11 +76,24 @@ const ResetPasswordPage: React.FC = () => {
     password && confirmPassword && password === confirmPassword;
 
   const onSubmit = async (data: ResetPasswordForm) => {
+    if (!token) {
+      toast.error("Missing reset token. Please use the link from your email.");
+      return;
+    }
     setIsSubmitting(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    setIsSubmitting(false);
-    setShowSuccess(true);
+    try {
+      await apiClient.post("/users/reset-password", {
+        token,
+        newPassword: data.password,
+      });
+      setShowSuccess(true);
+    } catch (error) {
+      const msg =
+        error instanceof Error ? error.message : "Failed to reset password";
+      toast.error(msg);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {

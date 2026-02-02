@@ -2,7 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UserMessages } from './user-messages';
 import { JwtPayload } from '../interface/user.interface';
-import { User } from '../entities/user.entity';
+import { User } from '../../users/entities/user.entity';
 
 type JwtExpiry = `${number}${'s' | 'm' | 'h' | 'd'}` | number;
 
@@ -10,13 +10,13 @@ type JwtExpiry = `${number}${'s' | 'm' | 'h' | 'd'}` | number;
 export class JwtHelper {
   constructor(private readonly jwtService: JwtService) {}
 
-  public validateRefreshToken(refreshToken: string): number | null {
+  public validateRefreshToken(refreshToken: string): string | null {
     try {
       const payload = this.jwtService.verify<JwtPayload>(refreshToken, {
         secret: process.env.REFRESH_TOKEN_SECRET as string,
       });
 
-      return payload?.userId ?? null;
+      return payload?.sub ?? null;
     } catch (error: unknown) {
       if (error instanceof Error) {
         console.error('JWT verification failed:', error.message);
@@ -29,20 +29,21 @@ export class JwtHelper {
 
   public generateAccessToken(user: User): string {
     const payload: JwtPayload = {
-      userId: user.id,
+      sub: user.id,
       email: user.email,
       fullName: user.fullName,
+      role: user.role,
     };
 
     return this.jwtService.sign(payload, {
-      secret: process.env.ACCESS_TOKEN_SECRET as string,
-      expiresIn: (process.env.ACCESS_TOKEN_EXPIRATION ?? '1h') as JwtExpiry,
+      secret: process.env.JWT_SECRET as string,
+      expiresIn: (process.env.JWT_EXPIRATION ?? '1h') as JwtExpiry,
     });
   }
 
   public generateRefreshToken(user: User): string {
     const payload: JwtPayload = {
-      userId: user.id,
+      sub: user.id,
       email: user.email,
       fullName: user.fullName,
     };

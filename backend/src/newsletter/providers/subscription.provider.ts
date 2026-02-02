@@ -8,7 +8,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { NewsletterSubscriber } from '../entities/newsletter.entity';
 import { randomBytes } from 'crypto';
-import { sendEmail } from '../../config/email/email.service';
 
 @Injectable()
 export class NewsletterProvider {
@@ -73,18 +72,18 @@ export class NewsletterProvider {
       const confirmUrl = this.buildFrontendUrl(
         `/newsletter/confirm?token=${encodeURIComponent(verificationToken)}`,
       );
-      await sendEmail(
-        email,
-        'Confirm your newsletter subscription',
-        'newsletter-confirmation',
-        {
-          logoUrl: 'https://.../logo.jpg',
-          fullName: fullName ?? 'there',
-          confirmUrl,
-          expiresIn: '24 hours',
-          appName: 'MarketXpress',
-        },
-      );
+      // await sendEmail(
+      //   email,
+      //   'Confirm your newsletter subscription',
+      //   'newsletter-confirmation',
+      //   {
+      //     logoUrl: 'https://.../logo.jpg',
+      //     fullName: fullName ?? 'there',
+      //     confirmUrl,
+      //     expiresIn: '24 hours',
+      //     appName: 'MarketXpress',
+      //   },
+      // );
 
       // Return shape should match frontend types; token should NOT be returned
       return this.toResponse(saved);
@@ -147,17 +146,17 @@ export class NewsletterProvider {
     await this.repo.softRemove(subscriber);
 
     const fullName = this.safeNameFromEmail(subscriber.email);
-    await sendEmail(
-      subscriber.email,
-      'You have been unsubscribed',
-      'newsletter-unsubscribed',
-      {
-        logoUrl: 'https://.../logo.jpg',
-        fullName: fullName ?? 'there',
-        appName: 'MarketXpress',
-        year: String(new Date().getFullYear()),
-      },
-    );
+    // await sendEmail(
+    //   subscriber.email,
+    //   'You have been unsubscribed',
+    //   'newsletter-unsubscribed',
+    //   {
+    //     logoUrl: 'https://.../logo.jpg',
+    //     fullName: fullName ?? 'there',
+    //     appName: 'MarketXpress',
+    //     year: String(new Date().getFullYear()),
+    //   },
+    // );
 
     return {
       success: true,
@@ -207,20 +206,20 @@ export class NewsletterProvider {
     const unsubscribeUrl = this.buildFrontendUrl(
       `/newsletter/unsubscribe?token=${encodeURIComponent(subscriber.unsubscribeToken)}`,
     );
-    await sendEmail(
-      subscriber.email,
-      'Subscription confirmed',
-      'newsletter-confirmed',
-      {
-        logoUrl: 'https://.../logo.jpg',
-        fullName: fullName ?? 'there',
-        email: subscriber.email,
-        dashboardUrl: this.buildFrontendUrl('/'),
-        unsubscribeUrl,
-        appName: 'MarketXpress',
-        year: String(new Date().getFullYear()),
-      },
-    );
+    // await sendEmail(
+    //   subscriber.email,
+    //   'Subscription confirmed',
+    //   'newsletter-confirmed',
+    //   {
+    //     logoUrl: 'https://.../logo.jpg',
+    //     fullName: fullName ?? 'there',
+    //     email: subscriber.email,
+    //     dashboardUrl: this.buildFrontendUrl('/'),
+    //     unsubscribeUrl,
+    //     appName: 'MarketXpress',
+    //     year: String(new Date().getFullYear()),
+    //   },
+    // );
 
     return { success: true, message: 'Subscription confirmed successfully.' };
   }

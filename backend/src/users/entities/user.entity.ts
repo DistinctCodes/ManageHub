@@ -63,6 +63,22 @@ export class User {
   @Column({ type: 'timestamptz', nullable: true })
   lastVerificationEmailSent?: Date;
 
+  @Exclude()
+  @Column({ nullable: true })
+  verificationCode?: string;
+
+  @Exclude()
+  @Column({ type: 'timestamptz', nullable: true })
+  verificationCodeExpiresAt?: Date;
+
+  @Exclude()
+  @Column({ nullable: true })
+  passwordResetCode?: string;
+
+  @Exclude()
+  @Column({ type: 'timestamptz', nullable: true })
+  passwordResetCodeExpiresAt?: Date;
+
   @Column({ default: false })
   isVerified: boolean;
 
