@@ -17,10 +17,16 @@ export class UserHelper {
   public formatUserResponse(user: User) {
     return {
       id: user.id,
+      firstname: user.firstname,
+      lastname: user.lastname,
       email: user.email,
-      fullName: user.fullName,
       role: user.role,
-      isVerified: user.isVerified,
+      isActive: user.isActive,
+      isSuspended: user.isSuspended,
+      isDeleted: user.isDeleted,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      deletedAt: user.deletedAt,
     };
   }
 

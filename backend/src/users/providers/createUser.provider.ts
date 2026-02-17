@@ -11,7 +11,7 @@ import { ConfigService } from '@nestjs/config';
 import { GenerateTokensProvider } from '../../auth/providers/generateTokens.provider';
 import { RefreshTokenRepositoryOperations } from '../../auth/providers/refreshToken.repository';
 import { UserRole } from '../enums/userRoles.enum';
-// import { EmailService } from '../../email/providers/email.service';
+import { EmailService } from '../../email/email.service';
 import * as crypto from 'crypto';
 @Injectable()
 export class CreateUserProvider {
@@ -27,7 +27,7 @@ export class CreateUserProvider {
 
     private readonly refreshTokenRepositoryOperations: RefreshTokenRepositoryOperations,
 
-    // private readonly emailService: EmailService,
+    private readonly emailService: EmailService,
   ) {}
 
   public async createUser(
@@ -91,29 +91,24 @@ export class CreateUserProvider {
       });
 
       // Send verification email
-      // try {
-      //   const emailSent = await this.emailService.sendVerificationEmail(
-      //     user.email,
-      //     verificationToken,
-      //     `${user.firstname} ${user.lastname}`,
-      //   );
+      try {
+        const emailSent = await this.emailService.sendVerificationLinkEmail(
+          user.email,
+          verificationToken,
+          `${user.firstname} ${user.lastname}`,
+        );
 
-      //   if (!emailSent) {
-      //     // Log the error but don't fail the registration
-      //     console.warn(
-      //       `Failed to send verification email to ${user.email}. User registration was successful.`,
-      //     );
-      //   } else {
-      //     console.log(`Verification email sent successfully to ${user.email}`);
-      //   }
-      // } catch (emailError) {
-      //   // Log the error but don't fail the registration
-      //   console.error(
-      //     `Error sending verification email to ${user.email}:`,
-      //     emailError.message,
-      //   );
-      //   console.log('User registration was successful despite email failure.');
-      // }
+        if (!emailSent) {
+          console.warn(
+            `Failed to send verification email to ${user.email}. User registration was successful.`,
+          );
+        }
+      } catch (emailError) {
+        console.error(
+          `Error sending verification email to ${user.email}:`,
+          emailError.message,
+        );
+      }
 
       return { user, accessToken };
     } catch (error) {

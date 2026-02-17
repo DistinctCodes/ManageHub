@@ -13,7 +13,7 @@ export class JwtHelper {
   public validateRefreshToken(refreshToken: string): string | null {
     try {
       const payload = this.jwtService.verify<JwtPayload>(refreshToken, {
-        secret: process.env.REFRESH_TOKEN_SECRET as string,
+        secret: process.env.JWT_REFRESH_SECRET as string,
       });
 
       return payload?.sub ?? null;
@@ -49,8 +49,8 @@ export class JwtHelper {
     };
 
     return this.jwtService.sign(payload, {
-      secret: process.env.REFRESH_TOKEN_SECRET as string,
-      expiresIn: (process.env.REFRESH_TOKEN_EXPIRATION ?? '7d') as JwtExpiry,
+      secret: process.env.JWT_REFRESH_SECRET as string,
+      expiresIn: (process.env.JWT_REFRESH_EXPIRATION ?? '7d') as JwtExpiry,
     });
   }
 

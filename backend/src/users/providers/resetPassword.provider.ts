@@ -10,7 +10,7 @@ import { ErrorCatch } from '../../utils/error';
 import { createHash } from 'crypto';
 import { HashingProvider } from 'src/auth/providers/hashing.provider';
 import { RefreshTokenRepositoryOperations } from 'src/auth/providers/refreshToken.repository';
-// import { EmailService } from '../../email/providers/email.service';
+import { EmailService } from '../../email/email.service';
 
 @Injectable()
 export class ResetPasswordProvider {
@@ -22,7 +22,7 @@ export class ResetPasswordProvider {
 
     private readonly refreshTokenRepositoryOperations: RefreshTokenRepositoryOperations,
 
-    // private readonly emailService: EmailService,
+    private readonly emailService: EmailService,
   ) {}
 
   async execute(rawToken: string, newPassword: string) {
@@ -57,17 +57,17 @@ export class ResetPasswordProvider {
       );
 
       // Send password-reset-success email
-      // const fullName = `${user.firstname} ${user.lastname}`.trim();
-      // const emailed = await this.emailService.sendPasswordResetSuccessEmail(
-      //   user.email,
-      //   fullName || user.email,
-      // );
+      const fullName = `${user.firstname} ${user.lastname}`.trim();
+      const emailed = await this.emailService.sendPasswordResetSuccessEmail(
+        user.email,
+        fullName || user.email,
+      );
 
-      // if (!emailed) {
-      //   throw new BadRequestException(
-      //     'Failed to send password success reset email',
-      //   );
-      // }
+      if (!emailed) {
+        throw new BadRequestException(
+          'Failed to send password success reset email',
+        );
+      }
 
       return { message: 'Password reset successful' };
     } catch (error) {

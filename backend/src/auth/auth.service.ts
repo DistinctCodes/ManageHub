@@ -20,6 +20,7 @@ import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { SendPasswordResetOtpDto } from './dto/send-password-reset-otp.dto';
 import { ResendOtpDto } from './dto/resend-otp.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { EmailService } from '../email/email.service';
 
 @Injectable()
 export class AuthService {
@@ -28,6 +29,7 @@ export class AuthService {
     private readonly userRepository: Repository<User>,
     private readonly userHelper: UserHelper,
     private readonly jwtHelper: JwtHelper,
+    private readonly emailService: EmailService,
   ) {}
 
   async createUser(createUserDto: CreateUserDto) {
@@ -50,12 +52,10 @@ export class AuthService {
     );
     const verificationCode = this.userHelper.generateVerificationCode();
     const expiration = moment().add(10, 'minutes').toDate();
-    const [firstname, ...rest] = createUserDto.fullName.split(' ');
-    const lastname = rest.join(' ') || '';
     const newUser = this.userRepository.create({
       email: createUserDto.email,
-      firstname,
-      lastname,
+      firstname: createUserDto.firstname,
+      lastname: createUserDto.lastname,
       password: hashedPassword,
       role: UserRole.USER,
       verificationCode: verificationCode,
@@ -63,14 +63,12 @@ export class AuthService {
       isVerified: false,
     });
     await this.userRepository.save(newUser);
-    // await this.emailService.sendVerificationEmail(
-    //   createUserDto.email,
-    //   verificationCode,
-    //   createUserDto.fullName,
-    // );
+
+    const accessToken = this.jwtHelper.generateAccessToken(newUser);
 
     return {
-      message: UserMessages.USER_CREATED_SUCCESSFULLY,
+      user: this.userHelper.formatUserResponse(newUser),
+      accessToken,
     };
   }
 
@@ -92,18 +90,20 @@ export class AuthService {
     const hashedPassword = await this.userHelper.hashPassword(
       createUserDto.password,
     );
-    const [firstname, ...rest] = createUserDto.fullName.split(' ');
-    const lastname = rest.join(' ') || '';
     const newUser = this.userRepository.create({
       email: createUserDto.email,
-      firstname,
-      lastname,
+      firstname: createUserDto.firstname,
+      lastname: createUserDto.lastname,
       password: hashedPassword,
       role: UserRole.ADMIN,
     });
     await this.userRepository.save(newUser);
+
+    const accessToken = this.jwtHelper.generateAccessToken(newUser);
+
     return {
-      message: UserMessages.USER_CREATED_SUCCESSFULLY,
+      user: this.userHelper.formatUserResponse(newUser),
+      accessToken,
     };
   }
 
@@ -167,11 +167,11 @@ export class AuthService {
       user.verificationCodeExpiresAt = moment().add(10, 'minutes').toDate();
       await this.userRepository.save(user);
 
-      // await this.emailService.sendVerificationEmail(
-      //   user.email,
-      //   verificationCode,
-      //   user.fullName,
-      // );
+      await this.emailService.sendVerificationEmail(
+        user.email,
+        verificationCode,
+        `${user.firstname} ${user.lastname}`,
+      );
 
       return { message: UserMessages.OTP_SENT };
     } catch (error) {
@@ -202,10 +202,10 @@ export class AuthService {
         user: this.userHelper.formatUserResponse(user),
       };
     }
-    const tokens = this.jwtHelper.generateTokens(user);
+    const { accessToken } = this.jwtHelper.generateTokens(user);
     return {
       user: this.userHelper.formatUserResponse(user),
-      tokens: tokens,
+      accessToken,
     };
   }
   async refreshToken(refreshToken: string) {
@@ -251,11 +251,11 @@ export class AuthService {
     user.passwordResetCodeExpiresAt = moment().add(10, 'minutes').toDate();
     await this.userRepository.save(user);
 
-    // await this.emailService.sendPasswordResetEmail(
-    //   user.email,
-    //   otp,
-    //   user.fullName,
-    // );
+    await this.emailService.sendPasswordResetEmail(
+      user.email,
+      otp,
+      `${user.firstname} ${user.lastname}`,
+    );
 
     return { message: UserMessages.OTP_SENT };
   }

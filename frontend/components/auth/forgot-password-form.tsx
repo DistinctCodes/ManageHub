@@ -24,8 +24,6 @@ import { useForgotPassword } from "@/lib/react-query/hooks/auth/useForgotPasswor
 export function ForgotPasswordForm() {
   const [submittedEmail, setSubmittedEmail] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
-  const [resendTimer, setResendTimer] = useState(0);
 
   const form = useForm<ForgotPasswordForm>({
     resolver: zodResolver(forgotPasswordSchema),
@@ -35,11 +33,6 @@ export function ForgotPasswordForm() {
     },
   });
 
-  const handleResend = () => {
-    if (resendTimer === 0) {
-      console.log("");
-    }
-  };
 
   const { mutate, isPending, error, reset } = useForgotPassword();
 
@@ -214,14 +207,14 @@ export function ForgotPasswordForm() {
               </div>
 
               <button
-                onClick={handleResend}
-                disabled={resendTimer > 0}
+                onClick={onResend}
+                disabled={cooldown > 0 || isPending}
                 className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
               >
-                {resendTimer > 0 ? (
+                {cooldown > 0 ? (
                   <>
                     <Clock className="h-5 w-5 mr-2" />
-                    Resend in {resendTimer}s
+                    Resend in {cooldown}s
                   </>
                 ) : (
                   <>

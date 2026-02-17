@@ -11,6 +11,7 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { BullModule } from '@nestjs/bull';
 import { ScheduleModule } from '@nestjs/schedule';
 import { NewsletterModule } from './newsletter/newsletter.module';
+import { EmailModule } from './email/email.module';
 
 @Module({
   imports: [
@@ -72,6 +73,7 @@ import { NewsletterModule } from './newsletter/newsletter.module';
         };
       },
     }),
+    EmailModule,
     AuthModule,
     UsersModule,
     NewsletterModule,

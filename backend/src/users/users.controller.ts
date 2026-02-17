@@ -71,6 +71,12 @@ export class UsersController {
   //   };
   // }
 
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(@Body() body: { token: string; newPassword: string }) {
+    return this.usersService.resetPassword(body.token, body.newPassword);
+  }
+
   @Get(':id')
   async findOne(@Param('id', ParseUUIDPipe) id: string) {
     const user = await this.usersService.findOnePublicById(id);

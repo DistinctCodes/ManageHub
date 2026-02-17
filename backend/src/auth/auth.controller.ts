@@ -61,6 +61,14 @@ export class AuthController {
     return user;
   }
 
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  forgotPassword(
+    @Body() sendPasswordResetOtpDto: SendPasswordResetOtpDto,
+  ) {
+    return this.authService.requestResetPasswordOtp(sendPasswordResetOtpDto);
+  }
+
   @Post('send-reset-password-otp')
   @HttpCode(HttpStatus.OK)
   requestResetPasswordOtp(

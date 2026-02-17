@@ -7,7 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../entities/user.entity';
 import { ErrorCatch } from '../../utils/error';
-// import { EmailService } from '../../email/providers/email.service';
+import { EmailService } from '../../email/email.service';
 import { ConfigService } from '@nestjs/config';
 import { createHash, randomBytes } from 'crypto';
 
@@ -17,7 +17,7 @@ export class ForgotPasswordProvider {
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
 
-    // private readonly emailService: EmailService,
+    private readonly emailService: EmailService,
 
     private readonly configService: ConfigService,
   ) {}
@@ -48,16 +48,15 @@ export class ForgotPasswordProvider {
       const resetLink = `${frontendBase}${rawToken}`;
 
       const fullName = `${user.firstname} ${user.lastname}`.trim();
-      // const emailed = await this.emailService.sendPasswordResetEmail(
-      //   user.email,
-      //   fullName || user.email,
-      //   resetLink,
-      //   rawToken,
-      // );
+      const emailed = await this.emailService.sendPasswordResetLinkEmail(
+        user.email,
+        fullName || user.email,
+        resetLink,
+      );
 
-      // if (!emailed) {
-      //   throw new BadRequestException('Failed to send password reset email');
-      // }
+      if (!emailed) {
+        throw new BadRequestException('Failed to send password reset email');
+      }
 
       return { message: 'Password reset instructions sent to email' };
     } catch (error) {
