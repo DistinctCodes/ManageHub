@@ -37,7 +37,12 @@ export const useLoginUser = () => {
         router.push("/dashboard");
       }
     },
-    onError: () => {
+    onError: (error: any) => {
+      if (error?.unverified) {
+        toast.info("Please verify your email to continue.");
+        router.push(`/verify-otp?email=${encodeURIComponent(error.email)}`);
+        return;
+      }
       toast.error("Login failed. Please check your credentials.");
     },
   });

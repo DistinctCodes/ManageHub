@@ -23,11 +23,12 @@ export const useRegisterUser = () => {
     mutationKey: mutationKeys.auth.registerUser,
     
     mutationFn: async (data: RegisterUser) => {
-
-      return await register(data);
+      await register(data);
+      return data;
     },
-    onSuccess: () => {
-      toast.success("User created successfully");
+    onSuccess: (data) => {
+      toast.success("Account created! Please verify your email.");
+      router.push(`/verify-otp?email=${encodeURIComponent(data.email)}`);
     },
     onError: () => {
       toast.error("Error creating user");

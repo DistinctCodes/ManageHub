@@ -46,12 +46,18 @@ export const useAuthStore = create<AuthStore>()(
           try {
             set({ isLoading: true });
 
-            const response = await apiClient.post<AuthResponse>(
+            const response = await apiClient.post<AuthResponse & { message?: string }>(
               "/auth/login",
               data
             );
 
-            const { user, accessToken } = response;
+            const { user, accessToken, message } = response;
+
+            // If user is not verified, the backend returns a message without accessToken
+            if (!accessToken && message) {
+              set({ isLoading: false });
+              throw { unverified: true, email: data.email, message };
+            }
 
             // set the token in the api request headers authorization so that it always sends it to the backend when sending a request.
             apiClient.setToken(accessToken);

@@ -19,7 +19,8 @@ export const metadata: Metadata = {
     default: "ManageHub - Smart Hub & Workspace Management",
     template: "%s | ManageHub",
   },
-  description: "Smart Hub & Workspace Management System for modern teams. Streamline operations, manage resources, and boost productivity with our comprehensive management platform.",
+  description:
+    "Smart Hub & Workspace Management System for modern teams. Streamline operations, manage resources, and boost productivity with our comprehensive management platform.",
   keywords: [
     "workspace management",
     "hub management",
@@ -37,7 +38,9 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://managehub.app"),
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL || "https://managehub.app",
+  ),
   alternates: {
     canonical: "/",
   },
@@ -46,7 +49,8 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: "/",
     title: "ManageHub - Smart Hub & Workspace Management",
-    description: "Smart Hub & Workspace Management System for modern teams. Streamline operations, manage resources, and boost productivity with our comprehensive management platform.",
+    description:
+      "Smart Hub & Workspace Management System for modern teams. Streamline operations, manage resources, and boost productivity with our comprehensive management platform.",
     siteName: "ManageHub",
     images: [
       {
@@ -60,7 +64,8 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "ManageHub - Smart Hub & Workspace Management",
-    description: "Smart Hub & Workspace Management System for modern teams. Streamline operations, manage resources, and boost productivity.",
+    description:
+      "Smart Hub & Workspace Management System for modern teams. Streamline operations, manage resources, and boost productivity.",
     images: ["/og-image.png"],
     creator: "@managehubs",
     site: "@managehubs",
@@ -95,7 +100,6 @@ export const metadata: Metadata = {
       },
     ],
   },
-  manifest: "/site.webmanifest",
   verification: {
     google: process.env.NEXT_PUBLIC_GOOGLE_VERIFICATION,
   },
@@ -110,7 +114,6 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white`}
-        
       >
         <Providers>{children}</Providers>
         <Toaster richColors position="top-right" />

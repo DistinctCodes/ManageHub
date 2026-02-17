@@ -196,7 +196,7 @@ export default function LoginForm({
                   </label>
                 </div>
                 <Link
-                  href="/auth/forgot-password"
+                  href="/forgot-password"
                   className="text-sm text-blue-600 hover:text-blue-500 font-medium"
                 >
                   Forgot password?
@@ -256,7 +256,7 @@ export default function LoginForm({
           <p className="text-gray-600">
             Don't have an account?{" "}
             <Link
-              href="/auth/register"
+              href="/register"
               className="text-blue-600 hover:text-blue-500 font-medium"
             >
               Sign up here

@@ -15,7 +15,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { UserMessages } from './helper/user-messages';
 import { UserRole } from '../users/enums/userRoles.enum';
 import { JwtHelper } from './helper/jwt-helper';
-import moment from 'moment';
+import * as moment from 'moment';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { SendPasswordResetOtpDto } from './dto/send-password-reset-otp.dto';
 import { ResendOtpDto } from './dto/resend-otp.dto';
@@ -63,6 +63,12 @@ export class AuthService {
       isVerified: false,
     });
     await this.userRepository.save(newUser);
+
+    await this.emailService.sendVerificationEmail(
+      newUser.email,
+      verificationCode,
+      `${newUser.firstname} ${newUser.lastname}`,
+    );
 
     const accessToken = this.jwtHelper.generateAccessToken(newUser);
 
