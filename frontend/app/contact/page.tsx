@@ -1,6 +1,8 @@
+"use client";
+
 import React, { useState } from 'react';
-import { 
-  Building2, 
+import {
+  Building2,
   Mail, 
   Phone, 
   MapPin, 
