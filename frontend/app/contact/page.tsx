@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   Building2,
-  Mail, 
-  Phone, 
-  MapPin, 
-  Send, 
-  CheckCircle, 
+  Mail,
+  Phone,
+  MapPin,
+  Send,
+  CheckCircle,
   AlertCircle,
   Clock,
   MessageSquare,
@@ -16,26 +16,27 @@ import {
   Globe,
   Twitter,
   Linkedin,
-  Github
-} from 'lucide-react';
+  Github,
+  Link,
+} from "lucide-react";
 
 const ContactUsPage = () => {
   const [formData, setFormData] = useState({
-    fullName: '',
-    email: '',
-    phone: '',
-    company: '',
-    subject: '',
-    message: ''
+    fullName: "",
+    email: "",
+    phone: "",
+    company: "",
+    subject: "",
+    message: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) {
-      setErrors(prev => {
+      setErrors((prev) => {
         const newErrors = { ...prev };
         delete newErrors[field];
         return newErrors;
@@ -45,14 +46,16 @@ const ContactUsPage = () => {
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    
-    if (!formData.fullName.trim()) newErrors.fullName = 'Full name is required';
-    if (!formData.email.trim()) newErrors.email = 'Email is required';
-    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Invalid email format';
-    if (!formData.subject.trim()) newErrors.subject = 'Subject is required';
-    if (!formData.message.trim()) newErrors.message = 'Message is required';
-    else if (formData.message.trim().length < 10) newErrors.message = 'Message must be at least 10 characters';
-    
+
+    if (!formData.fullName.trim()) newErrors.fullName = "Full name is required";
+    if (!formData.email.trim()) newErrors.email = "Email is required";
+    else if (!/\S+@\S+\.\S+/.test(formData.email))
+      newErrors.email = "Invalid email format";
+    if (!formData.subject.trim()) newErrors.subject = "Subject is required";
+    if (!formData.message.trim()) newErrors.message = "Message is required";
+    else if (formData.message.trim().length < 10)
+      newErrors.message = "Message must be at least 10 characters";
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -60,12 +63,12 @@ const ContactUsPage = () => {
   const handleSubmit = () => {
     if (validateForm()) {
       setIsLoading(true);
-      
+
       // Simulate API call
       setTimeout(() => {
         setIsLoading(false);
         setIsSubmitted(true);
-        console.log('Contact form submitted:', formData);
+        console.log("Contact form submitted:", formData);
       }, 1500);
     }
   };
@@ -73,34 +76,34 @@ const ContactUsPage = () => {
   const contactInfo = [
     {
       icon: <Mail className="h-6 w-6" />,
-      title: 'Email',
-      content: 'support@managehub.com',
-      link: 'mailto:support@managehub.com'
+      title: "Email",
+      content: "support@managehub.com",
+      link: "mailto:support@managehub.com",
     },
     {
       icon: <Phone className="h-6 w-6" />,
-      title: 'Phone',
-      content: '+234 800 000 0000',
-      link: 'tel:+2348000000000'
+      title: "Phone",
+      content: "+234 800 000 0000",
+      link: "tel:+2348000000000",
     },
     {
       icon: <MapPin className="h-6 w-6" />,
-      title: 'Office',
-      content: 'Abuja, FCT, Nigeria',
-      link: null
+      title: "Office",
+      content: "Abuja, FCT, Nigeria",
+      link: null,
     },
     {
       icon: <Clock className="h-6 w-6" />,
-      title: 'Business Hours',
-      content: 'Mon - Fri: 9:00 AM - 6:00 PM WAT',
-      link: null
-    }
+      title: "Business Hours",
+      content: "Mon - Fri: 9:00 AM - 6:00 PM WAT",
+      link: null,
+    },
   ];
 
   const socialLinks = [
-    { icon: <Twitter className="h-5 w-5" />, label: 'Twitter', href: '#' },
-    { icon: <Linkedin className="h-5 w-5" />, label: 'LinkedIn', href: '#' },
-    { icon: <Github className="h-5 w-5" />, label: 'GitHub', href: '#' }
+    { icon: <Twitter className="h-5 w-5" />, label: "Twitter", href: "#" },
+    { icon: <Linkedin className="h-5 w-5" />, label: "LinkedIn", href: "#" },
+    { icon: <Github className="h-5 w-5" />, label: "GitHub", href: "#" },
   ];
 
   if (isSubmitted) {
@@ -131,13 +134,15 @@ const ContactUsPage = () => {
                   Message Sent Successfully!
                 </h2>
                 <p className="text-gray-600">
-                  Thank you for reaching out to us. We've received your message and our team will get back to you within 24-48 hours.
+                  Thank you for reaching out to us. We've received your message
+                  and our team will get back to you within 24-48 hours.
                 </p>
               </div>
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <p className="text-sm text-blue-900">
-                  We've sent a confirmation email to <span className="font-medium">{formData.email}</span>
+                  We've sent a confirmation email to{" "}
+                  <span className="font-medium">{formData.email}</span>
                 </p>
               </div>
 
@@ -145,12 +150,12 @@ const ContactUsPage = () => {
                 onClick={() => {
                   setIsSubmitted(false);
                   setFormData({
-                    fullName: '',
-                    email: '',
-                    phone: '',
-                    company: '',
-                    subject: '',
-                    message: ''
+                    fullName: "",
+                    email: "",
+                    phone: "",
+                    company: "",
+                    subject: "",
+                    message: "",
                   });
                 }}
                 className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors"
@@ -158,12 +163,12 @@ const ContactUsPage = () => {
                 Send Another Message
               </button>
 
-              <a
+              <Link
                 href="/"
                 className="block text-blue-600 hover:text-blue-500 font-medium transition-colors"
               >
                 Back to Home
-              </a>
+              </Link>
             </div>
           </div>
         </div>
@@ -181,9 +186,12 @@ const ContactUsPage = () => {
               <Building2 className="h-8 w-8 text-white" />
             </div>
           </div>
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">Get in Touch</h1>
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+            Get in Touch
+          </h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Have questions about ManageHub? We'd love to hear from you. Send us a message and we'll respond as soon as possible.
+            Have questions about ManageHub? We'd love to hear from you. Send us
+            a message and we'll respond as soon as possible.
           </p>
         </div>
 
@@ -193,13 +201,18 @@ const ContactUsPage = () => {
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
               <div className="flex items-center mb-6">
                 <MessageSquare className="h-6 w-6 text-blue-600 mr-2" />
-                <h2 className="text-2xl font-bold text-gray-900">Send us a Message</h2>
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Send us a Message
+                </h2>
               </div>
 
               <div className="space-y-6">
                 {/* Full Name */}
                 <div>
-                  <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label
+                    htmlFor="fullName"
+                    className="block text-sm font-medium text-gray-700 mb-2"
+                  >
                     Full Name <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
@@ -210,9 +223,11 @@ const ContactUsPage = () => {
                       id="fullName"
                       type="text"
                       value={formData.fullName}
-                      onChange={(e) => handleInputChange('fullName', e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("fullName", e.target.value)
+                      }
                       className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all ${
-                        errors.fullName ? 'border-red-500' : 'border-gray-300'
+                        errors.fullName ? "border-red-500" : "border-gray-300"
                       }`}
                       placeholder="Enter your full name"
                     />
@@ -228,7 +243,10 @@ const ContactUsPage = () => {
                 {/* Email and Phone */}
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                    <label
+                      htmlFor="email"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
                       Email Address <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
@@ -239,9 +257,11 @@ const ContactUsPage = () => {
                         id="email"
                         type="email"
                         value={formData.email}
-                        onChange={(e) => handleInputChange('email', e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("email", e.target.value)
+                        }
                         className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all ${
-                          errors.email ? 'border-red-500' : 'border-gray-300'
+                          errors.email ? "border-red-500" : "border-gray-300"
                         }`}
                         placeholder="your.email@example.com"
                       />
@@ -255,8 +275,12 @@ const ContactUsPage = () => {
                   </div>
 
                   <div>
-                    <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-                      Phone Number <span className="text-gray-400 text-xs">(Optional)</span>
+                    <label
+                      htmlFor="phone"
+                      className="block text-sm font-medium text-gray-700 mb-2"
+                    >
+                      Phone Number{" "}
+                      <span className="text-gray-400 text-xs">(Optional)</span>
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -266,7 +290,9 @@ const ContactUsPage = () => {
                         id="phone"
                         type="tel"
                         value={formData.phone}
-                        onChange={(e) => handleInputChange('phone', e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("phone", e.target.value)
+                        }
                         className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
                         placeholder="+234 800 000 0000"
                       />
@@ -276,8 +302,12 @@ const ContactUsPage = () => {
 
                 {/* Company */}
                 <div>
-                  <label htmlFor="company" className="block text-sm font-medium text-gray-700 mb-2">
-                    Company/Organization <span className="text-gray-400 text-xs">(Optional)</span>
+                  <label
+                    htmlFor="company"
+                    className="block text-sm font-medium text-gray-700 mb-2"
+                  >
+                    Company/Organization{" "}
+                    <span className="text-gray-400 text-xs">(Optional)</span>
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -287,7 +317,9 @@ const ContactUsPage = () => {
                       id="company"
                       type="text"
                       value={formData.company}
-                      onChange={(e) => handleInputChange('company', e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("company", e.target.value)
+                      }
                       className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
                       placeholder="Your company name"
                     />
@@ -296,7 +328,10 @@ const ContactUsPage = () => {
 
                 {/* Subject */}
                 <div>
-                  <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label
+                    htmlFor="subject"
+                    className="block text-sm font-medium text-gray-700 mb-2"
+                  >
                     Subject <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
@@ -307,9 +342,11 @@ const ContactUsPage = () => {
                       id="subject"
                       type="text"
                       value={formData.subject}
-                      onChange={(e) => handleInputChange('subject', e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("subject", e.target.value)
+                      }
                       className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all ${
-                        errors.subject ? 'border-red-500' : 'border-gray-300'
+                        errors.subject ? "border-red-500" : "border-gray-300"
                       }`}
                       placeholder="How can we help you?"
                     />
@@ -324,16 +361,21 @@ const ContactUsPage = () => {
 
                 {/* Message */}
                 <div>
-                  <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-2">
+                  <label
+                    htmlFor="message"
+                    className="block text-sm font-medium text-gray-700 mb-2"
+                  >
                     Message <span className="text-red-500">*</span>
                   </label>
                   <textarea
                     id="message"
                     rows={6}
                     value={formData.message}
-                    onChange={(e) => handleInputChange('message', e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("message", e.target.value)
+                    }
                     className={`block w-full px-3 py-3 border rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all resize-none ${
-                      errors.message ? 'border-red-500' : 'border-gray-300'
+                      errors.message ? "border-red-500" : "border-gray-300"
                     }`}
                     placeholder="Tell us more about your inquiry..."
                   ></textarea>
@@ -374,19 +416,24 @@ const ContactUsPage = () => {
           <div className="space-y-6">
             {/* Contact Info Cards */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Contact Information</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-4">
+                Contact Information
+              </h3>
               <div className="space-y-4">
                 {contactInfo.map((info, index) => (
                   <div key={index} className="flex items-start">
                     <div className="bg-blue-100 p-2 rounded-lg flex-shrink-0">
-                      <div className="text-blue-600">
-                        {info.icon}
-                      </div>
+                      <div className="text-blue-600">{info.icon}</div>
                     </div>
                     <div className="ml-4">
-                      <p className="text-sm font-medium text-gray-900">{info.title}</p>
+                      <p className="text-sm font-medium text-gray-900">
+                        {info.title}
+                      </p>
                       {info.link ? (
-                        <a href={info.link} className="text-sm text-gray-600 hover:text-blue-600 transition-colors">
+                        <a
+                          href={info.link}
+                          className="text-sm text-gray-600 hover:text-blue-600 transition-colors"
+                        >
                           {info.content}
                         </a>
                       ) : (
@@ -400,7 +447,9 @@ const ContactUsPage = () => {
 
             {/* Social Media */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Follow Us</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-4">
+                Follow Us
+              </h3>
               <div className="flex gap-3">
                 {socialLinks.map((social, index) => (
                   <a
@@ -417,9 +466,12 @@ const ContactUsPage = () => {
 
             {/* Help Box */}
             <div className="bg-gradient-to-br from-blue-50 to-teal-50 border border-blue-200 rounded-xl p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Need Quick Help?</h3>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">
+                Need Quick Help?
+              </h3>
               <p className="text-sm text-gray-700 mb-4">
-                Check out our documentation and FAQ section for instant answers to common questions.
+                Check out our documentation and FAQ section for instant answers
+                to common questions.
               </p>
               <a
                 href="#"
@@ -436,9 +488,15 @@ const ContactUsPage = () => {
         <div className="text-center mt-12 text-sm text-gray-500">
           <p>© 2025 ManageHub. All rights reserved.</p>
           <div className="mt-2 space-x-4">
-            <a href="#" className="hover:text-gray-700">Privacy Policy</a>
-            <a href="#" className="hover:text-gray-700">Terms of Service</a>
-            <a href="#" className="hover:text-gray-700">Support</a>
+            <a href="#" className="hover:text-gray-700">
+              Privacy Policy
+            </a>
+            <a href="#" className="hover:text-gray-700">
+              Terms of Service
+            </a>
+            <a href="#" className="hover:text-gray-700">
+              Support
+            </a>
           </div>
         </div>
       </div>

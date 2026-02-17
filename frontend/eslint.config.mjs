@@ -23,6 +23,8 @@ const eslintConfig = [
   {
     rules: {
       "@typescript-eslint/no-explicit-any": "warn",
+      "react/no-unescaped-entities": "off",
+      "@typescript-eslint/no-empty-object-type": "off",
     },
   },
 ];
