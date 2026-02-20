@@ -1740,3 +1740,134 @@ fn test_renewal_clears_grace_period() {
     assert!(renewed_token.grace_period_entered_at.is_none());
     assert!(renewed_token.grace_period_expires_at.is_none());
 }
+
+// ==================== Token Fractionalization Tests ====================
+
+#[test]
+fn test_fractionalize_transfer_and_get_holders() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let owner = Address::generate(&env);
+    let holder_b = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+
+    client.set_admin(&admin);
+    let expiry_date = env.ledger().timestamp() + 30 * 24 * 60 * 60;
+    client.issue_token(&token_id, &owner, &expiry_date);
+
+    client.fractionalize_token(&token_id, &1000, &100);
+    client.transfer_fraction(&token_id, &owner, &holder_b, &300);
+
+    let holders = client.get_fraction_holders(&token_id);
+    assert_eq!(holders.len(), 2);
+
+    let mut owner_shares = 0i128;
+    let mut holder_b_shares = 0i128;
+    let mut owner_voting_bps = 0u32;
+    let mut holder_b_voting_bps = 0u32;
+    for holder in holders.iter() {
+        if holder.holder == owner {
+            owner_shares = holder.shares;
+            owner_voting_bps = holder.voting_power_bps;
+        }
+        if holder.holder == holder_b {
+            holder_b_shares = holder.shares;
+            holder_b_voting_bps = holder.voting_power_bps;
+        }
+    }
+
+    assert_eq!(owner_shares, 700);
+    assert_eq!(holder_b_shares, 300);
+    assert_eq!(owner_voting_bps, 7000);
+    assert_eq!(holder_b_voting_bps, 3000);
+}
+
+#[test]
+#[should_panic(expected = "HostError: Error(Contract, #4)")]
+fn test_recombine_requires_full_share_ownership() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let owner = Address::generate(&env);
+    let holder_b = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+
+    client.set_admin(&admin);
+    let expiry_date = env.ledger().timestamp() + 30 * 24 * 60 * 60;
+    client.issue_token(&token_id, &owner, &expiry_date);
+
+    client.fractionalize_token(&token_id, &1000, &100);
+    client.transfer_fraction(&token_id, &owner, &holder_b, &400);
+
+    client.recombine_fractions(&token_id, &owner);
+}
+
+#[test]
+fn test_recombine_after_collecting_all_shares() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let owner = Address::generate(&env);
+    let holder_b = Address::generate(&env);
+    let new_owner = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+
+    client.set_admin(&admin);
+    let expiry_date = env.ledger().timestamp() + 30 * 24 * 60 * 60;
+    client.issue_token(&token_id, &owner, &expiry_date);
+
+    client.fractionalize_token(&token_id, &1000, &100);
+    client.transfer_fraction(&token_id, &owner, &holder_b, &400);
+    client.transfer_fraction(&token_id, &holder_b, &owner, &400);
+    client.recombine_fractions(&token_id, &owner);
+
+    let token = client.get_token(&token_id);
+    assert_eq!(token.user, owner);
+
+    client.transfer_token(&token_id, &new_owner);
+    let transferred = client.get_token(&token_id);
+    assert_eq!(transferred.user, new_owner);
+}
+
+#[test]
+fn test_distribute_fraction_rewards_proportionally() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let owner = Address::generate(&env);
+    let holder_b = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+
+    client.set_admin(&admin);
+    let expiry_date = env.ledger().timestamp() + 30 * 24 * 60 * 60;
+    client.issue_token(&token_id, &owner, &expiry_date);
+
+    client.fractionalize_token(&token_id, &1000, &100);
+    client.transfer_fraction(&token_id, &owner, &holder_b, &300);
+
+    let distribution = client.distribute_fraction_rewards(&token_id, &1000);
+    assert_eq!(distribution.total_amount, 1000);
+    assert_eq!(distribution.recipients, 2);
+
+    let owner_reward = client.get_pending_fraction_reward(&token_id, &owner);
+    let holder_b_reward = client.get_pending_fraction_reward(&token_id, &holder_b);
+    assert_eq!(owner_reward, 700);
+    assert_eq!(holder_b_reward, 300);
+}

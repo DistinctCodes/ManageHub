@@ -289,3 +289,49 @@ pub struct AutoRenewalSettings {
     /// Timestamp when settings were last updated
     pub updated_at: u64,
 }
+
+// ============================================================================
+// Token Fractionalization Types
+// ============================================================================
+
+/// Fractionalization configuration for a token.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct FractionalTokenInfo {
+    /// Original membership token ID
+    pub token_id: BytesN<32>,
+    /// Total shares minted for this token
+    pub total_shares: i128,
+    /// Minimum transferable fraction size
+    pub min_fraction_size: i128,
+    /// Fractionalization timestamp
+    pub created_at: u64,
+    /// Address that performed fractionalization
+    pub created_by: Address,
+}
+
+/// Holder-level fractional ownership details.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct FractionHolder {
+    /// Holder address
+    pub holder: Address,
+    /// Shares owned by this holder
+    pub shares: i128,
+    /// Voting rights in basis points (10_000 = 100%)
+    pub voting_power_bps: u32,
+}
+
+/// Dividend distribution summary for fractional shares.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct DividendDistribution {
+    /// Token ID distributed against
+    pub token_id: BytesN<32>,
+    /// Total reward amount distributed
+    pub total_amount: i128,
+    /// Number of holders receiving distribution
+    pub recipients: u32,
+    /// Distribution timestamp
+    pub distributed_at: u64,
+}
