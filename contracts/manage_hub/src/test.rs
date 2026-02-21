@@ -1871,3 +1871,519 @@ fn test_distribute_fraction_rewards_proportionally() {
     assert_eq!(owner_reward, 700);
     assert_eq!(holder_b_reward, 300);
 }
+
+// ==================== Emergency Pause Tests ====================
+
+#[test]
+fn test_emergency_pause_sets_paused_state() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    client.set_admin(&admin);
+
+    assert!(!client.is_contract_paused());
+
+    client.emergency_pause(&admin, &None, &None, &None);
+
+    assert!(client.is_contract_paused());
+}
+
+#[test]
+fn test_emergency_pause_state_fields() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    client.set_admin(&admin);
+
+    let reason = Some(String::from_str(&env, "exploit detected"));
+    client.emergency_pause(&admin, &reason, &None, &None);
+
+    let state = client.get_emergency_pause_state();
+    assert!(state.is_paused);
+    assert_eq!(state.paused_by, Some(admin));
+    assert!(state.paused_at.is_some());
+    assert_eq!(state.reason, reason);
+    assert_eq!(state.pause_count, 1);
+}
+
+#[test]
+fn test_emergency_pause_increments_pause_count() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    client.set_admin(&admin);
+
+    client.emergency_pause(&admin, &None, &None, &None);
+    client.emergency_unpause(&admin);
+    client.emergency_pause(&admin, &None, &None, &None);
+
+    let state = client.get_emergency_pause_state();
+    assert_eq!(state.pause_count, 2);
+}
+
+#[test]
+fn test_emergency_pause_rejects_non_admin() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    client.set_admin(&admin);
+
+    let stranger = Address::generate(&env);
+    let result = client.try_emergency_pause(&stranger, &None, &None, &None);
+    assert_eq!(result, Err(Ok(errors::Error::Unauthorized)));
+}
+
+#[test]
+fn test_issue_token_blocked_when_paused() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    client.set_admin(&admin);
+    client.emergency_pause(&admin, &None, &None, &None);
+
+    let token_id = BytesN::<32>::random(&env);
+    let user = Address::generate(&env);
+    let expiry = env.ledger().timestamp() + 100_000;
+    let result = client.try_issue_token(&token_id, &user, &expiry);
+    assert_eq!(result, Err(Ok(errors::Error::SubscriptionPaused)));
+}
+
+#[test]
+fn test_transfer_token_blocked_when_paused() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+    let expiry = env.ledger().timestamp() + 100_000;
+
+    client.set_admin(&admin);
+    client.issue_token(&token_id, &user, &expiry);
+    client.emergency_pause(&admin, &None, &None, &None);
+
+    let new_user = Address::generate(&env);
+    let result = client.try_transfer_token(&token_id, &new_user);
+    assert_eq!(result, Err(Ok(errors::Error::SubscriptionPaused)));
+}
+
+#[test]
+fn test_emergency_unpause_clears_paused_state() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    client.set_admin(&admin);
+
+    client.emergency_pause(&admin, &None, &None, &None);
+    assert!(client.is_contract_paused());
+
+    client.emergency_unpause(&admin);
+    assert!(!client.is_contract_paused());
+
+    let state = client.get_emergency_pause_state();
+    assert!(!state.is_paused);
+    assert!(state.paused_by.is_none());
+    assert!(state.paused_at.is_none());
+    assert!(state.reason.is_none());
+    assert!(state.auto_unpause_at.is_none());
+    assert!(state.time_lock_until.is_none());
+}
+
+#[test]
+fn test_emergency_unpause_restores_token_operations() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+    let expiry = env.ledger().timestamp() + 100_000;
+
+    client.set_admin(&admin);
+    client.issue_token(&token_id, &user, &expiry);
+    client.emergency_pause(&admin, &None, &None, &None);
+    client.emergency_unpause(&admin);
+
+    let new_user = Address::generate(&env);
+    client.transfer_token(&token_id, &new_user);
+}
+
+#[test]
+fn test_emergency_unpause_rejects_non_admin() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    client.set_admin(&admin);
+    client.emergency_pause(&admin, &None, &None, &None);
+
+    let stranger = Address::generate(&env);
+    let result = client.try_emergency_unpause(&stranger);
+    assert_eq!(result, Err(Ok(errors::Error::Unauthorized)));
+}
+
+#[test]
+fn test_unpause_blocked_while_time_lock_active() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    client.set_admin(&admin);
+
+    // Pause with a 1-hour time lock.
+    client.emergency_pause(&admin, &None, &None, &Some(3_600));
+
+    // Attempt to unpause before the time lock expires.
+    let result = client.try_emergency_unpause(&admin);
+    assert_eq!(result, Err(Ok(errors::Error::PauseTooEarly)));
+}
+
+#[test]
+fn test_unpause_succeeds_after_time_lock_expires() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    client.set_admin(&admin);
+
+    client.emergency_pause(&admin, &None, &None, &Some(3_600));
+
+    // Advance ledger past the time lock.
+    env.ledger().with_mut(|l| l.timestamp += 3_601);
+
+    client.emergency_unpause(&admin);
+    assert!(!client.is_contract_paused());
+}
+
+#[test]
+fn test_contract_treated_as_unpaused_after_auto_unpause_deadline() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    client.set_admin(&admin);
+
+    // Pause with a 60-second auto-unpause window.
+    client.emergency_pause(&admin, &None, &Some(60), &None);
+    assert!(client.is_contract_paused());
+
+    // Advance ledger past the auto-unpause deadline.
+    env.ledger().with_mut(|l| l.timestamp += 61);
+
+    assert!(!client.is_contract_paused());
+}
+
+#[test]
+fn test_auto_unpause_deadline_stored_in_state() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    client.set_admin(&admin);
+
+    let now = env.ledger().timestamp();
+    client.emergency_pause(&admin, &None, &Some(120), &None);
+
+    let state = client.get_emergency_pause_state();
+    assert_eq!(state.auto_unpause_at, Some(now + 120));
+}
+
+#[test]
+fn test_token_ops_allowed_after_auto_unpause_deadline() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+    let expiry = env.ledger().timestamp() + 100_000;
+
+    client.set_admin(&admin);
+    client.issue_token(&token_id, &user, &expiry);
+    client.emergency_pause(&admin, &None, &Some(60), &None);
+
+    env.ledger().with_mut(|l| l.timestamp += 61);
+
+    // Transfer should succeed because auto-unpause has taken effect.
+    let new_user = Address::generate(&env);
+    client.transfer_token(&token_id, &new_user);
+}
+
+// ==================== Per-Token Pause Tests ====================
+
+#[test]
+fn test_pause_token_operations_sets_token_paused() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+    let expiry = env.ledger().timestamp() + 100_000;
+
+    client.set_admin(&admin);
+    client.issue_token(&token_id, &user, &expiry);
+
+    assert!(!client.is_token_paused(&token_id));
+
+    client.pause_token_operations(&admin, &token_id, &None);
+
+    assert!(client.is_token_paused(&token_id));
+}
+
+#[test]
+fn test_transfer_blocked_by_per_token_pause() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+    let expiry = env.ledger().timestamp() + 100_000;
+
+    client.set_admin(&admin);
+    client.issue_token(&token_id, &user, &expiry);
+    client.pause_token_operations(&admin, &token_id, &None);
+
+    let new_user = Address::generate(&env);
+    let result = client.try_transfer_token(&token_id, &new_user);
+    assert_eq!(result, Err(Ok(errors::Error::SubscriptionPaused)));
+}
+
+#[test]
+fn test_per_token_pause_does_not_affect_other_tokens() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+    let other_id = BytesN::<32>::random(&env);
+    let expiry = env.ledger().timestamp() + 100_000;
+
+    client.set_admin(&admin);
+    client.issue_token(&token_id, &user, &expiry);
+    client.issue_token(&other_id, &user, &expiry);
+
+    // Pause only the first token.
+    client.pause_token_operations(&admin, &token_id, &None);
+
+    // The second token should transfer fine.
+    let new_user = Address::generate(&env);
+    client.transfer_token(&other_id, &new_user);
+}
+
+#[test]
+fn test_pause_token_operations_rejects_non_admin() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+    let expiry = env.ledger().timestamp() + 100_000;
+
+    client.set_admin(&admin);
+    client.issue_token(&token_id, &user, &expiry);
+
+    let stranger = Address::generate(&env);
+    let result = client.try_pause_token_operations(&stranger, &token_id, &None);
+    assert_eq!(result, Err(Ok(errors::Error::Unauthorized)));
+}
+
+#[test]
+fn test_pause_token_operations_rejects_nonexistent_token() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    client.set_admin(&admin);
+
+    let ghost_id = BytesN::<32>::random(&env);
+    let result = client.try_pause_token_operations(&admin, &ghost_id, &None);
+    assert_eq!(result, Err(Ok(errors::Error::TokenNotFound)));
+}
+
+#[test]
+fn test_unpause_token_operations_clears_token_pause() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+    let expiry = env.ledger().timestamp() + 100_000;
+
+    client.set_admin(&admin);
+    client.issue_token(&token_id, &user, &expiry);
+    client.pause_token_operations(&admin, &token_id, &None);
+    assert!(client.is_token_paused(&token_id));
+
+    client.unpause_token_operations(&admin, &token_id);
+    assert!(!client.is_token_paused(&token_id));
+}
+
+#[test]
+fn test_transfer_succeeds_after_token_unpause() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+    let expiry = env.ledger().timestamp() + 100_000;
+
+    client.set_admin(&admin);
+    client.issue_token(&token_id, &user, &expiry);
+    client.pause_token_operations(&admin, &token_id, &None);
+    client.unpause_token_operations(&admin, &token_id);
+
+    let new_user = Address::generate(&env);
+    client.transfer_token(&token_id, &new_user);
+}
+
+#[test]
+fn test_unpause_token_operations_rejects_non_admin() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+    let expiry = env.ledger().timestamp() + 100_000;
+
+    client.set_admin(&admin);
+    client.issue_token(&token_id, &user, &expiry);
+    client.pause_token_operations(&admin, &token_id, &None);
+
+    let stranger = Address::generate(&env);
+    let result = client.try_unpause_token_operations(&stranger, &token_id);
+    assert_eq!(result, Err(Ok(errors::Error::Unauthorized)));
+}
+
+#[test]
+fn test_global_unpause_does_not_lift_per_token_pause() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+    let expiry = env.ledger().timestamp() + 100_000;
+
+    client.set_admin(&admin);
+    client.issue_token(&token_id, &user, &expiry);
+
+    // Apply both pauses.
+    client.emergency_pause(&admin, &None, &None, &None);
+    client.pause_token_operations(&admin, &token_id, &None);
+
+    // Lift only the global pause.
+    client.emergency_unpause(&admin);
+
+    // Transfer should still be blocked by the per-token pause.
+    let new_user = Address::generate(&env);
+    let result = client.try_transfer_token(&token_id, &new_user);
+    assert_eq!(result, Err(Ok(errors::Error::SubscriptionPaused)));
+}
+
+#[test]
+fn test_both_pauses_must_be_cleared_before_transfer() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+    let expiry = env.ledger().timestamp() + 100_000;
+
+    client.set_admin(&admin);
+    client.issue_token(&token_id, &user, &expiry);
+    client.emergency_pause(&admin, &None, &None, &None);
+    client.pause_token_operations(&admin, &token_id, &None);
+
+    client.emergency_unpause(&admin);
+    client.unpause_token_operations(&admin, &token_id);
+
+    // Only now should transfer succeed.
+    let new_user = Address::generate(&env);
+    client.transfer_token(&token_id, &new_user);
+}

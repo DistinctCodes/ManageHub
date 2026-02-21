@@ -27,11 +27,15 @@ impl UserRole {
     }
 
     pub fn parse_from_str(role_str: &str) -> Option<Self> {
-        match role_str.to_ascii_lowercase().as_str() {
-            "guest" => Some(UserRole::Guest),
-            "member" => Some(UserRole::Member),
-            "admin" => Some(UserRole::Admin),
-            _ => None,
+        // eq_ignore_ascii_case is in core::str — no allocation, no_std safe.
+        if role_str.eq_ignore_ascii_case("guest") {
+            Some(UserRole::Guest)
+        } else if role_str.eq_ignore_ascii_case("member") {
+            Some(UserRole::Member)
+        } else if role_str.eq_ignore_ascii_case("admin") {
+            Some(UserRole::Admin)
+        } else {
+            None
         }
     }
 }
