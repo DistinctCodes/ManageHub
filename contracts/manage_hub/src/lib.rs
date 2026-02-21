@@ -64,7 +64,9 @@ use soroban_sdk::{contract, contractimpl, vec, Address, BytesN, Env, Map, String
 mod attendance_log;
 mod errors;
 mod fractionalization;
+mod guards;
 mod membership_token;
+mod pause_errors;
 mod subscription;
 mod types;
 
@@ -79,9 +81,9 @@ use membership_token::{MembershipToken, MembershipTokenContract};
 use subscription::SubscriptionContract;
 use types::{
     AttendanceAction, AttendanceSummary, BillingCycle, CreatePromotionParams, CreateTierParams,
-    DividendDistribution, FractionHolder, PauseConfig, PauseHistoryEntry, PauseStats, Subscription,
-    SubscriptionTier, TierAnalytics, TierFeature, TierPromotion, UpdateTierParams,
-    UserSubscriptionInfo,
+    DividendDistribution, EmergencyPauseState, FractionHolder, PauseConfig, PauseHistoryEntry,
+    PauseStats, Subscription, SubscriptionTier, TierAnalytics, TierFeature, TierPromotion,
+    UpdateTierParams, UserSubscriptionInfo,
 };
 
 #[contract]
@@ -858,6 +860,109 @@ impl Contract {
         date_range: DateRange,
     ) -> Result<u64, Error> {
         AttendanceLogModule::calculate_average_daily_attendance(env, user_id, date_range)
+    }
+
+    // ============================================================================
+    // Emergency Pause Endpoints
+    // ============================================================================
+
+    /// Immediately halts all token operations (issue, transfer, renew).
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `admin` - Admin address (must be authorized)
+    /// * `reason` - Human-readable reason for the pause
+    /// * `auto_unpause_after` - Optional seconds until the contract auto-resumes.
+    ///   Pass `None` for an indefinite pause that requires an explicit unpause call.
+    /// * `time_lock_duration` - Optional minimum seconds before a manual unpause is
+    ///   allowed. Use this during security incidents to prevent an attacker from
+    ///   reversing the pause with a compromised admin key. Pass `None` for no lock.
+    ///
+    /// # Errors
+    /// * `AdminNotSet` - No admin has been configured
+    /// * `Unauthorized` - Caller is not the admin
+    pub fn emergency_pause(
+        env: Env,
+        admin: Address,
+        reason: Option<String>,
+        auto_unpause_after: Option<u64>,
+        time_lock_duration: Option<u64>,
+    ) -> Result<(), Error> {
+        MembershipTokenContract::emergency_pause(
+            env,
+            admin,
+            reason,
+            auto_unpause_after,
+            time_lock_duration,
+        )
+    }
+
+    /// Lifts an active emergency pause and restores normal contract operation.
+    ///
+    /// The time lock (if any) must have elapsed before this call succeeds.
+    ///
+    /// # Errors
+    /// * `AdminNotSet` - No admin has been configured
+    /// * `Unauthorized` - Caller is not the admin
+    /// * `TimeLockNotExpired` - The mandatory lock window has not yet elapsed
+    pub fn emergency_unpause(env: Env, admin: Address) -> Result<(), Error> {
+        MembershipTokenContract::emergency_unpause(env, admin)
+    }
+
+    /// Returns `true` if the contract is currently globally paused.
+    ///
+    /// Respects time-based auto-unpause: returns `false` once
+    /// `auto_unpause_at` has passed, even before an explicit unpause call.
+    pub fn is_contract_paused(env: Env) -> bool {
+        MembershipTokenContract::is_contract_paused(env)
+    }
+
+    /// Returns the full emergency pause state for inspection.
+    pub fn get_emergency_pause_state(env: Env) -> EmergencyPauseState {
+        MembershipTokenContract::get_emergency_pause_state(env)
+    }
+
+    /// Pauses all operations for a specific token.
+    ///
+    /// The per-token pause is independent of the global pause: either one is
+    /// sufficient to block transfers and renewals on that token.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `admin` - Admin address (must be authorized)
+    /// * `token_id` - The token to pause
+    /// * `reason` - Human-readable reason for the pause
+    ///
+    /// # Errors
+    /// * `AdminNotSet` - No admin has been configured
+    /// * `Unauthorized` - Caller is not the admin
+    /// * `TokenNotFound` - The specified token does not exist
+    pub fn pause_token_operations(
+        env: Env,
+        admin: Address,
+        token_id: BytesN<32>,
+        reason: Option<String>,
+    ) -> Result<(), Error> {
+        MembershipTokenContract::pause_token_operations(env, admin, token_id, reason)
+    }
+
+    /// Resumes operations for a previously paused token.
+    ///
+    /// # Errors
+    /// * `AdminNotSet` - No admin has been configured
+    /// * `Unauthorized` - Caller is not the admin
+    /// * `TokenNotFound` - The specified token does not exist
+    pub fn unpause_token_operations(
+        env: Env,
+        admin: Address,
+        token_id: BytesN<32>,
+    ) -> Result<(), Error> {
+        MembershipTokenContract::unpause_token_operations(env, admin, token_id)
+    }
+
+    /// Returns `true` if the specific token's operations are currently paused.
+    pub fn is_token_paused(env: Env, token_id: BytesN<32>) -> bool {
+        MembershipTokenContract::is_token_paused(env, token_id)
     }
 }
 
