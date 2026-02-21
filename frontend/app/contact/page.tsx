@@ -19,6 +19,8 @@ import {
   Github,
   Link,
 } from "lucide-react";
+import { apiClient } from "@/lib/apiClient";
+import { toast } from "sonner";
 
 const ContactUsPage = () => {
   const [formData, setFormData] = useState({
@@ -60,16 +62,26 @@ const ContactUsPage = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = () => {
-    if (validateForm()) {
-      setIsLoading(true);
+  const handleSubmit = async () => {
+    if (!validateForm()) return;
 
-      // Simulate API call
-      setTimeout(() => {
-        setIsLoading(false);
-        setIsSubmitted(true);
-        console.log("Contact form submitted:", formData);
-      }, 1500);
+    setIsLoading(true);
+    try {
+      await apiClient.post("/contact", {
+        fullName: formData.fullName,
+        email: formData.email,
+        phone: formData.phone || undefined,
+        company: formData.company || undefined,
+        subject: formData.subject,
+        message: formData.message,
+      });
+      setIsSubmitted(true);
+    } catch (error) {
+      const msg =
+        error instanceof Error ? error.message : "Failed to send message";
+      toast.error(msg);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -108,12 +120,12 @@ const ContactUsPage = () => {
 
   if (isSubmitted) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4 py-12">
+      <div className="min-h-screen bg-[#faf9f7] flex items-center justify-center px-4 py-12">
         <div className="max-w-md w-full space-y-8">
           {/* Header */}
           <div className="text-center">
             <div className="flex justify-center items-center mb-6">
-              <div className="bg-blue-600 p-3 rounded-xl">
+              <div className="bg-gray-900 p-3 rounded-xl">
                 <Building2 className="h-8 w-8 text-white" />
               </div>
             </div>
@@ -139,8 +151,8 @@ const ContactUsPage = () => {
                 </p>
               </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm text-blue-900">
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <p className="text-sm text-gray-900">
                   We've sent a confirmation email to{" "}
                   <span className="font-medium">{formData.email}</span>
                 </p>
@@ -158,14 +170,14 @@ const ContactUsPage = () => {
                     message: "",
                   });
                 }}
-                className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                className="w-full bg-gray-900 text-white py-3 px-4 rounded-lg font-medium hover:bg-gray-800 transition-colors"
               >
                 Send Another Message
               </button>
 
               <Link
                 href="/"
-                className="block text-blue-600 hover:text-blue-500 font-medium transition-colors"
+                className="block text-gray-700 hover:text-gray-900 font-medium transition-colors"
               >
                 Back to Home
               </Link>
@@ -177,12 +189,12 @@ const ContactUsPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#faf9f7] py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-12">
           <div className="flex justify-center items-center mb-6">
-            <div className="bg-blue-600 p-3 rounded-xl">
+            <div className="bg-gray-900 p-3 rounded-xl">
               <Building2 className="h-8 w-8 text-white" />
             </div>
           </div>
@@ -200,7 +212,7 @@ const ContactUsPage = () => {
           <div className="lg:col-span-2">
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
               <div className="flex items-center mb-6">
-                <MessageSquare className="h-6 w-6 text-blue-600 mr-2" />
+                <MessageSquare className="h-6 w-6 text-gray-700 mr-2" />
                 <h2 className="text-2xl font-bold text-gray-900">
                   Send us a Message
                 </h2>
@@ -226,7 +238,7 @@ const ContactUsPage = () => {
                       onChange={(e) =>
                         handleInputChange("fullName", e.target.value)
                       }
-                      className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all ${
+                      className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-transparent transition-all ${
                         errors.fullName ? "border-red-500" : "border-gray-300"
                       }`}
                       placeholder="Enter your full name"
@@ -260,7 +272,7 @@ const ContactUsPage = () => {
                         onChange={(e) =>
                           handleInputChange("email", e.target.value)
                         }
-                        className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all ${
+                        className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-transparent transition-all ${
                           errors.email ? "border-red-500" : "border-gray-300"
                         }`}
                         placeholder="your.email@example.com"
@@ -293,7 +305,7 @@ const ContactUsPage = () => {
                         onChange={(e) =>
                           handleInputChange("phone", e.target.value)
                         }
-                        className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
+                        className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-transparent transition-all"
                         placeholder="+234 800 000 0000"
                       />
                     </div>
@@ -320,7 +332,7 @@ const ContactUsPage = () => {
                       onChange={(e) =>
                         handleInputChange("company", e.target.value)
                       }
-                      className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all"
+                      className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-transparent transition-all"
                       placeholder="Your company name"
                     />
                   </div>
@@ -345,7 +357,7 @@ const ContactUsPage = () => {
                       onChange={(e) =>
                         handleInputChange("subject", e.target.value)
                       }
-                      className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all ${
+                      className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-transparent transition-all ${
                         errors.subject ? "border-red-500" : "border-gray-300"
                       }`}
                       placeholder="How can we help you?"
@@ -374,7 +386,7 @@ const ContactUsPage = () => {
                     onChange={(e) =>
                       handleInputChange("message", e.target.value)
                     }
-                    className={`block w-full px-3 py-3 border rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent transition-all resize-none ${
+                    className={`block w-full px-3 py-3 border rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-transparent transition-all resize-none ${
                       errors.message ? "border-red-500" : "border-gray-300"
                     }`}
                     placeholder="Tell us more about your inquiry..."
@@ -394,7 +406,7 @@ const ContactUsPage = () => {
                 <button
                   onClick={handleSubmit}
                   disabled={isLoading}
-                  className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  className="w-full bg-gray-900 text-white py-3 px-4 rounded-lg font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                 >
                   {isLoading ? (
                     <>
@@ -422,8 +434,8 @@ const ContactUsPage = () => {
               <div className="space-y-4">
                 {contactInfo.map((info, index) => (
                   <div key={index} className="flex items-start">
-                    <div className="bg-blue-100 p-2 rounded-lg flex-shrink-0">
-                      <div className="text-blue-600">{info.icon}</div>
+                    <div className="bg-gray-100 p-2 rounded-lg flex-shrink-0">
+                      <div className="text-gray-700">{info.icon}</div>
                     </div>
                     <div className="ml-4">
                       <p className="text-sm font-medium text-gray-900">
@@ -432,7 +444,7 @@ const ContactUsPage = () => {
                       {info.link ? (
                         <a
                           href={info.link}
-                          className="text-sm text-gray-600 hover:text-blue-600 transition-colors"
+                          className="text-sm text-gray-600 hover:text-gray-700 transition-colors"
                         >
                           {info.content}
                         </a>
@@ -455,7 +467,7 @@ const ContactUsPage = () => {
                   <a
                     key={index}
                     href={social.href}
-                    className="bg-gray-100 p-3 rounded-lg hover:bg-blue-600 hover:text-white text-gray-600 transition-colors"
+                    className="bg-gray-100 p-3 rounded-lg hover:bg-gray-900 hover:text-white text-gray-600 transition-colors"
                     aria-label={social.label}
                   >
                     {social.icon}
@@ -465,7 +477,7 @@ const ContactUsPage = () => {
             </div>
 
             {/* Help Box */}
-            <div className="bg-gradient-to-br from-blue-50 to-teal-50 border border-blue-200 rounded-xl p-6">
+            <div className="bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 rounded-xl p-6">
               <h3 className="text-lg font-bold text-gray-900 mb-2">
                 Need Quick Help?
               </h3>
@@ -475,7 +487,7 @@ const ContactUsPage = () => {
               </p>
               <a
                 href="#"
-                className="inline-flex items-center text-sm font-medium text-blue-600 hover:text-blue-700"
+                className="inline-flex items-center text-sm font-medium text-gray-700 hover:text-gray-600"
               >
                 Visit Help Center
                 <span className="ml-1">→</span>
@@ -486,7 +498,7 @@ const ContactUsPage = () => {
 
         {/* Footer */}
         <div className="text-center mt-12 text-sm text-gray-500">
-          <p>© 2025 ManageHub. All rights reserved.</p>
+          <p>© 2026 ManageHub. All rights reserved.</p>
           <div className="mt-2 space-x-4">
             <a href="#" className="hover:text-gray-700">
               Privacy Policy
