@@ -2430,3 +2430,291 @@ fn test_both_pauses_must_be_cleared_before_transfer() {
     let new_user = Address::generate(&env);
     client.transfer_token(&token_id, &new_user);
 }
+
+// ==================== Token Staking Tests ====================
+
+/// Helper: set up env, register contract, register a staking token, and create
+/// a basic staking config + one tier.  Returns `(client, admin, staking_asset_client)`.
+fn setup_staking_env<'a>(
+    env: &'a Env,
+) -> (
+    ContractClient<'a>,
+    Address,
+    soroban_sdk::token::StellarAssetClient<'a>,
+) {
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(env, &contract_id);
+
+    let admin = Address::generate(env);
+    client.set_admin(&admin);
+
+    let staking_token = env.register_stellar_asset_contract_v2(admin.clone());
+    let reward_token = env.register_stellar_asset_contract_v2(admin.clone());
+
+    let staking_asset_client =
+        soroban_sdk::token::StellarAssetClient::new(env, &staking_token.address());
+
+    let config = crate::types::StakingConfig {
+        staking_enabled: true,
+        emergency_unstake_penalty_bps: 1_000, // 10 %
+        staking_token: staking_token.address(),
+        reward_pool: reward_token.address(),
+    };
+    client.set_staking_config(&admin, &config);
+
+    let tier = crate::types::StakingTier {
+        id: String::from_str(env, "bronze"),
+        name: String::from_str(env, "Bronze"),
+        min_stake_amount: 1_000,
+        lock_duration: 86_400, // 1 day in seconds
+        reward_multiplier_bps: 10_000, // 1x
+        base_rate_bps: 500,    // 5 % annual
+    };
+    client.create_staking_tier(&admin, &tier);
+
+    (client, admin, staking_asset_client)
+}
+
+#[test]
+fn test_set_staking_config_success() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    client.set_admin(&admin);
+
+    let staking_token = env.register_stellar_asset_contract_v2(admin.clone());
+    let reward_token = env.register_stellar_asset_contract_v2(admin.clone());
+
+    let config = crate::types::StakingConfig {
+        staking_enabled: true,
+        emergency_unstake_penalty_bps: 500,
+        staking_token: staking_token.address(),
+        reward_pool: reward_token.address(),
+    };
+    client.set_staking_config(&admin, &config);
+
+    let fetched = client.get_staking_config();
+    assert_eq!(fetched.staking_enabled, true);
+    assert_eq!(fetched.emergency_unstake_penalty_bps, 500);
+}
+
+#[test]
+fn test_create_staking_tier_success() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, _admin, _sac) = setup_staking_env(&env);
+
+    let tiers = client.get_staking_tiers();
+    assert_eq!(tiers.len(), 1);
+
+    let tier = tiers.get(0).unwrap();
+    assert_eq!(tier.id, String::from_str(&env, "bronze"));
+    assert_eq!(tier.min_stake_amount, 1_000);
+    assert_eq!(tier.lock_duration, 86_400);
+}
+
+#[test]
+fn test_stake_tokens_success() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, _admin, sac) = setup_staking_env(&env);
+
+    let staker = Address::generate(&env);
+    sac.mint(&staker, &10_000);
+
+    client.stake_tokens(&staker, &String::from_str(&env, "bronze"), &5_000);
+
+    let stake = client.get_stake_info(&staker).expect("stake should exist");
+    assert_eq!(stake.staker, staker);
+    assert_eq!(stake.amount, 5_000);
+    assert_eq!(stake.tier_id, String::from_str(&env, "bronze"));
+    assert!(!stake.emergency_unstaked);
+}
+
+#[test]
+fn test_stake_tokens_below_minimum_fails() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, _admin, sac) = setup_staking_env(&env);
+
+    let staker = Address::generate(&env);
+    sac.mint(&staker, &10_000);
+
+    // 999 < 1_000 minimum → should return error
+    let result = client.try_stake_tokens(&staker, &String::from_str(&env, "bronze"), &999);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_unstake_tokens_after_lock_period() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, _admin, sac) = setup_staking_env(&env);
+
+    let staker = Address::generate(&env);
+    sac.mint(&staker, &10_000);
+
+    client.stake_tokens(&staker, &String::from_str(&env, "bronze"), &5_000);
+
+    // Advance the ledger past the 1-day lock duration.
+    env.ledger().with_mut(|li| {
+        li.timestamp += 86_400 + 1;
+    });
+
+    client.unstake_tokens(&staker);
+
+    // Stake record should be cleared.
+    assert!(client.get_stake_info(&staker).is_none());
+}
+
+#[test]
+fn test_unstake_tokens_before_lock_period_fails() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, _admin, sac) = setup_staking_env(&env);
+
+    let staker = Address::generate(&env);
+    sac.mint(&staker, &10_000);
+
+    client.stake_tokens(&staker, &String::from_str(&env, "bronze"), &5_000);
+
+    // Lock period has NOT elapsed → should fail.
+    let result = client.try_unstake_tokens(&staker);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_emergency_unstake_before_lock_period() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, _admin, sac) = setup_staking_env(&env);
+
+    let staker = Address::generate(&env);
+    sac.mint(&staker, &10_000);
+
+    client.stake_tokens(&staker, &String::from_str(&env, "bronze"), &5_000);
+
+    // Emergency unstake should succeed even before the lock period ends.
+    client.emergency_unstake(&staker);
+
+    // Stake record must be cleared.
+    assert!(client.get_stake_info(&staker).is_none());
+}
+
+#[test]
+fn test_get_stake_info_returns_none_when_no_stake() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let stranger = Address::generate(&env);
+    assert!(client.get_stake_info(&stranger).is_none());
+}
+
+#[test]
+fn test_staking_disabled_prevents_stake() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    client.set_admin(&admin);
+
+    let staking_token = env.register_stellar_asset_contract_v2(admin.clone());
+    let reward_token = env.register_stellar_asset_contract_v2(admin.clone());
+    let sac = soroban_sdk::token::StellarAssetClient::new(&env, &staking_token.address());
+
+    let config = crate::types::StakingConfig {
+        staking_enabled: false,
+        emergency_unstake_penalty_bps: 1_000,
+        staking_token: staking_token.address(),
+        reward_pool: reward_token.address(),
+    };
+    client.set_staking_config(&admin, &config);
+
+    let tier = crate::types::StakingTier {
+        id: String::from_str(&env, "bronze"),
+        name: String::from_str(&env, "Bronze"),
+        min_stake_amount: 1_000,
+        lock_duration: 86_400,
+        reward_multiplier_bps: 10_000,
+        base_rate_bps: 500,
+    };
+    client.create_staking_tier(&admin, &tier);
+
+    let staker = Address::generate(&env);
+    sac.mint(&staker, &10_000);
+
+    let result = client.try_stake_tokens(&staker, &String::from_str(&env, "bronze"), &5_000);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_multiple_staking_tiers() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, admin, _sac) = setup_staking_env(&env);
+
+    let silver = crate::types::StakingTier {
+        id: String::from_str(&env, "silver"),
+        name: String::from_str(&env, "Silver"),
+        min_stake_amount: 10_000,
+        lock_duration: 30 * 86_400,
+        reward_multiplier_bps: 15_000,
+        base_rate_bps: 800,
+    };
+    client.create_staking_tier(&admin, &silver);
+
+    let tiers = client.get_staking_tiers();
+    assert_eq!(tiers.len(), 2);
+}
+
+#[test]
+fn test_cannot_stake_into_nonexistent_tier() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, _admin, sac) = setup_staking_env(&env);
+
+    let staker = Address::generate(&env);
+    sac.mint(&staker, &10_000);
+
+    let result =
+        client.try_stake_tokens(&staker, &String::from_str(&env, "nonexistent_tier"), &5_000);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_add_to_existing_stake_same_tier() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let (client, _admin, sac) = setup_staking_env(&env);
+
+    let staker = Address::generate(&env);
+    sac.mint(&staker, &20_000);
+
+    // First stake.
+    client.stake_tokens(&staker, &String::from_str(&env, "bronze"), &5_000);
+
+    // Add to the same stake.
+    client.stake_tokens(&staker, &String::from_str(&env, "bronze"), &3_000);
+
+    let stake = client.get_stake_info(&staker).unwrap();
+    assert_eq!(stake.amount, 8_000);
+}
