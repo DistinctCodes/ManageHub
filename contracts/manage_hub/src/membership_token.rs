@@ -24,6 +24,12 @@ pub enum DataKey {
     EmergencyPauseState,
     /// Per-token pause state (persistent storage keyed by token ID).
     TokenPaused(BytesN<32>),
+    /// Global upgrade configuration (instance storage).
+    UpgradeConfig,
+    /// Upgrade history list for a token (persistent storage keyed by token ID).
+    UpgradeHistory(BytesN<32>),
+    /// Version snapshot for rollback, keyed by token ID and version number.
+    VersionSnapshot(BytesN<32>, u32),
 }
 
 #[contracttype]
@@ -44,6 +50,8 @@ pub struct MembershipToken {
     pub renewal_attempts: u32,
     /// Timestamp of last renewal attempt
     pub last_renewal_attempt_at: Option<u64>,
+    /// Current version number of this token (starts at 0, increments on each upgrade)
+    pub current_version: u32,
 }
 
 pub struct MembershipTokenContract;
@@ -89,6 +97,7 @@ impl MembershipTokenContract {
             grace_period_expires_at: None,
             renewal_attempts: 0,
             last_renewal_attempt_at: None,
+            current_version: 0,
         };
         env.storage()
             .persistent()
