@@ -336,6 +336,62 @@ pub struct TokenPauseState {
 }
 
 // ============================================================================
+// Token Staking Types
+// ============================================================================
+
+/// Staking tier defining lock duration and reward multiplier.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct StakingTier {
+    /// Unique tier identifier (e.g. "bronze", "silver", "gold")
+    pub id: String,
+    /// Human-readable tier name
+    pub name: String,
+    /// Minimum stake amount required for this tier
+    pub min_stake_amount: i128,
+    /// Lock duration in seconds
+    pub lock_duration: u64,
+    /// Reward multiplier in basis points (10_000 = 1x, 15_000 = 1.5x)
+    pub reward_multiplier_bps: u32,
+    /// Annual base reward rate in basis points (e.g. 500 = 5%)
+    pub base_rate_bps: u32,
+}
+
+/// Represents an active stake held by a user.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct StakeInfo {
+    /// Staker address
+    pub staker: Address,
+    /// Amount of tokens locked
+    pub amount: i128,
+    /// Staking tier ID
+    pub tier_id: String,
+    /// Timestamp when tokens were locked
+    pub staked_at: u64,
+    /// Earliest timestamp at which tokens can be unlocked without penalty
+    pub unlock_at: u64,
+    /// Accumulated rewards already claimed
+    pub claimed_rewards: i128,
+    /// Whether this stake was emergency-unstaked
+    pub emergency_unstaked: bool,
+}
+
+/// Global staking configuration set by admin.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct StakingConfig {
+    /// Whether staking is currently enabled
+    pub staking_enabled: bool,
+    /// Penalty in basis points applied on emergency unstake (e.g. 1000 = 10%)
+    pub emergency_unstake_penalty_bps: u32,
+    /// Token address used for staking (must be a Soroban token)
+    pub staking_token: Address,
+    /// Reward pool address that distributes reward tokens
+    pub reward_pool: Address,
+}
+
+// ============================================================================
 // Token Fractionalization Types
 // ============================================================================
 
