@@ -60,11 +60,13 @@ impl AllowanceModule {
     }
 
     pub fn revoke_allowance(env: &Env, token_id: &BytesN<32>, owner: &Address, spender: &Address) {
-        env.storage().persistent().remove(&AllowanceDataKey::Allowance(
-            token_id.clone(),
-            owner.clone(),
-            spender.clone(),
-        ));
+        env.storage()
+            .persistent()
+            .remove(&AllowanceDataKey::Allowance(
+                token_id.clone(),
+                owner.clone(),
+                spender.clone(),
+            ));
 
         env.events().publish(
             (

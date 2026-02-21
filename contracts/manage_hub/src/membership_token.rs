@@ -1,10 +1,10 @@
 // Allow deprecated events API until migration to #[contractevent] macro
 #![allow(deprecated)]
 
+use crate::allowance::AllowanceModule;
 use crate::errors::Error;
 use crate::fractionalization::FractionalizationModule;
 use crate::guards::PauseGuard;
-use crate::allowance::AllowanceModule;
 use crate::types::{EmergencyPauseState, MembershipStatus, TokenAllowance, TokenPauseState};
 use common_types::{
     validate_attribute, validate_metadata, MetadataUpdate, MetadataValue, TokenMetadata,
@@ -222,13 +222,7 @@ impl MembershipTokenContract {
             return Err(Error::TokenExpired);
         }
 
-        AllowanceModule::consume_allowance(
-            &env,
-            &token_id,
-            &owner,
-            &spender,
-            allowance_amount,
-        )?;
+        AllowanceModule::consume_allowance(&env, &token_id, &owner, &spender, allowance_amount)?;
 
         let old_user = token.user.clone();
         token.user = to.clone();
@@ -248,11 +242,7 @@ impl MembershipTokenContract {
         Ok(())
     }
 
-    pub fn revoke_allowance(
-        env: Env,
-        token_id: BytesN<32>,
-        spender: Address,
-    ) -> Result<(), Error> {
+    pub fn revoke_allowance(env: Env, token_id: BytesN<32>, spender: Address) -> Result<(), Error> {
         PauseGuard::require_not_paused(&env)?;
         PauseGuard::require_token_not_paused(&env, &token_id)?;
 

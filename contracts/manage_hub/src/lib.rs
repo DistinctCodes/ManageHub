@@ -61,8 +61,8 @@
 //!
 use soroban_sdk::{contract, contractimpl, vec, Address, BytesN, Env, Map, String, Vec};
 
-mod attendance_log;
 mod allowance;
+mod attendance_log;
 mod errors;
 mod fractionalization;
 mod guards;
@@ -133,11 +133,7 @@ impl Contract {
         MembershipTokenContract::transfer_from(env, token_id, owner, to, spender, allowance_amount)
     }
 
-    pub fn revoke_allowance(
-        env: Env,
-        token_id: BytesN<32>,
-        spender: Address,
-    ) -> Result<(), Error> {
+    pub fn revoke_allowance(env: Env, token_id: BytesN<32>, spender: Address) -> Result<(), Error> {
         MembershipTokenContract::revoke_allowance(env, token_id, spender)?;
         Ok(())
     }
