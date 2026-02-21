@@ -88,9 +88,8 @@ use types::{
     AttendanceAction, AttendanceSummary, BillingCycle, CreatePromotionParams, CreateTierParams,
     DividendDistribution, EmergencyPauseState, FractionHolder, PauseConfig, PauseHistoryEntry,
     PauseStats, StakeInfo, StakingConfig, StakingTier, Subscription, SubscriptionTier,
-    TierAnalytics, TierFeature, TierPromotion, UpdateTierParams, UserSubscriptionInfo,
-    PauseStats, Subscription, SubscriptionTier, TierAnalytics, TierFeature, TierPromotion,
-    TokenAllowance, UpdateTierParams, UserSubscriptionInfo,
+    TierAnalytics, TierFeature, TierPromotion, TokenAllowance, UpdateTierParams,
+    UserSubscriptionInfo,
 };
 
 #[contract]
