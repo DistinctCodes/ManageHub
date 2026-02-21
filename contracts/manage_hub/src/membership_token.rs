@@ -1,10 +1,11 @@
 // Allow deprecated events API until migration to #[contractevent] macro
 #![allow(deprecated)]
 
+use crate::allowance::AllowanceModule;
 use crate::errors::Error;
 use crate::fractionalization::FractionalizationModule;
 use crate::guards::PauseGuard;
-use crate::types::{EmergencyPauseState, MembershipStatus, TokenPauseState};
+use crate::types::{EmergencyPauseState, MembershipStatus, TokenAllowance, TokenPauseState};
 use common_types::{
     validate_attribute, validate_metadata, MetadataUpdate, MetadataValue, TokenMetadata,
 };
@@ -152,6 +153,129 @@ impl MembershipTokenContract {
         );
 
         Ok(())
+    }
+
+    pub fn approve(
+        env: Env,
+        token_id: BytesN<32>,
+        spender: Address,
+        amount: i128,
+        expires_at: Option<u64>,
+    ) -> Result<(), Error> {
+        PauseGuard::require_not_paused(&env)?;
+        PauseGuard::require_token_not_paused(&env, &token_id)?;
+
+        if FractionalizationModule::is_fractionalized(&env, &token_id) {
+            return Err(Error::TokenFractionalized);
+        }
+
+        let token: MembershipToken = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Token(token_id.clone()))
+            .ok_or(Error::TokenNotFound)?;
+
+        if token.status == MembershipStatus::GracePeriod {
+            return Err(Error::TransferNotAllowedInGracePeriod);
+        }
+        if token.status != MembershipStatus::Active {
+            return Err(Error::TokenExpired);
+        }
+
+        token.user.require_auth();
+        AllowanceModule::approve(&env, &token_id, &token.user, &spender, amount, expires_at)
+    }
+
+    pub fn transfer_from(
+        env: Env,
+        token_id: BytesN<32>,
+        owner: Address,
+        to: Address,
+        spender: Address,
+        allowance_amount: i128,
+    ) -> Result<(), Error> {
+        PauseGuard::require_not_paused(&env)?;
+        PauseGuard::require_token_not_paused(&env, &token_id)?;
+
+        if FractionalizationModule::is_fractionalized(&env, &token_id) {
+            return Err(Error::TokenFractionalized);
+        }
+        if allowance_amount <= 0 {
+            return Err(Error::InvalidPaymentAmount);
+        }
+
+        spender.require_auth();
+
+        let mut token: MembershipToken = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Token(token_id.clone()))
+            .ok_or(Error::TokenNotFound)?;
+
+        if token.user != owner {
+            return Err(Error::Unauthorized);
+        }
+        if token.status == MembershipStatus::GracePeriod {
+            return Err(Error::TransferNotAllowedInGracePeriod);
+        }
+        if token.status != MembershipStatus::Active {
+            return Err(Error::TokenExpired);
+        }
+
+        AllowanceModule::consume_allowance(&env, &token_id, &owner, &spender, allowance_amount)?;
+
+        let old_user = token.user.clone();
+        token.user = to.clone();
+        env.storage()
+            .persistent()
+            .set(&DataKey::Token(token_id.clone()), &token);
+
+        env.events().publish(
+            (symbol_short!("token_xfr"), token_id.clone(), to.clone()),
+            (old_user.clone(), env.ledger().timestamp()),
+        );
+        env.events().publish(
+            (symbol_short!("token_dlg"), token_id, spender),
+            (old_user, to, allowance_amount, env.ledger().timestamp()),
+        );
+
+        Ok(())
+    }
+
+    pub fn revoke_allowance(env: Env, token_id: BytesN<32>, spender: Address) -> Result<(), Error> {
+        PauseGuard::require_not_paused(&env)?;
+        PauseGuard::require_token_not_paused(&env, &token_id)?;
+
+        let token: MembershipToken = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Token(token_id.clone()))
+            .ok_or(Error::TokenNotFound)?;
+
+        token.user.require_auth();
+        AllowanceModule::revoke_allowance(&env, &token_id, &token.user, &spender);
+        Ok(())
+    }
+
+    pub fn get_allowance(
+        env: Env,
+        token_id: BytesN<32>,
+        owner: Address,
+        spender: Address,
+    ) -> Result<Option<TokenAllowance>, Error> {
+        let token: MembershipToken = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Token(token_id.clone()))
+            .ok_or(Error::TokenNotFound)?;
+
+        if token.user != owner {
+            return Ok(None);
+        }
+
+        Ok(AllowanceModule::get_allowance(
+            &env, &token_id, &owner, &spender,
+        ))
     }
 
     pub fn get_token(env: Env, id: BytesN<32>) -> Result<MembershipToken, Error> {

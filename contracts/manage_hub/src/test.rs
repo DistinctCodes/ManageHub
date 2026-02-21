@@ -1741,6 +1741,170 @@ fn test_renewal_clears_grace_period() {
     assert!(renewed_token.grace_period_expires_at.is_none());
 }
 
+// ==================== Token Allowance and Delegation Tests ====================
+
+#[test]
+fn test_approve_and_get_allowance() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let owner = Address::generate(&env);
+    let spender = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+
+    client.set_admin(&admin);
+    let expiry_date = env.ledger().timestamp() + 30 * 24 * 60 * 60;
+    client.issue_token(&token_id, &owner, &expiry_date);
+
+    let allowance_expiry = Some(env.ledger().timestamp() + 3600);
+    client.approve(&token_id, &spender, &1000, &allowance_expiry);
+
+    let allowance = client.get_allowance(&token_id, &owner, &spender).unwrap();
+    assert_eq!(allowance.token_id, token_id);
+    assert_eq!(allowance.owner, owner);
+    assert_eq!(allowance.spender, spender);
+    assert_eq!(allowance.amount, 1000);
+    assert_eq!(allowance.expires_at, allowance_expiry);
+}
+
+#[test]
+fn test_transfer_from_supports_partial_allowance_consumption() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let owner = Address::generate(&env);
+    let spender = Address::generate(&env);
+    let new_owner = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+
+    client.set_admin(&admin);
+    let expiry_date = env.ledger().timestamp() + 30 * 24 * 60 * 60;
+    client.issue_token(&token_id, &owner, &expiry_date);
+
+    client.approve(&token_id, &spender, &1000, &None);
+
+    // Consume part of allowance while keeping ownership unchanged.
+    client.transfer_from(&token_id, &owner, &owner, &spender, &300);
+
+    let after_partial = client.get_allowance(&token_id, &owner, &spender).unwrap();
+    assert_eq!(after_partial.amount, 700);
+
+    // Consume remaining allowance while moving token ownership.
+    client.transfer_from(&token_id, &owner, &new_owner, &spender, &700);
+    let token = client.get_token(&token_id);
+    assert_eq!(token.user, new_owner);
+
+    let remaining = client.get_allowance(&token_id, &owner, &spender);
+    assert!(remaining.is_none());
+}
+
+#[test]
+fn test_transfer_from_rejects_expired_allowance() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let owner = Address::generate(&env);
+    let spender = Address::generate(&env);
+    let receiver = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+
+    client.set_admin(&admin);
+    let expiry_date = env.ledger().timestamp() + 30 * 24 * 60 * 60;
+    client.issue_token(&token_id, &owner, &expiry_date);
+
+    let allowance_expiry = Some(env.ledger().timestamp() + 60);
+    client.approve(&token_id, &spender, &500, &allowance_expiry);
+
+    env.ledger().with_mut(|l| l.timestamp += 61);
+
+    let result = client.try_transfer_from(&token_id, &owner, &receiver, &spender, &100);
+    assert_eq!(result, Err(Ok(errors::Error::Unauthorized)));
+
+    let allowance = client.get_allowance(&token_id, &owner, &spender);
+    assert!(allowance.is_none());
+}
+
+#[test]
+fn test_revoke_allowance_blocks_transfer_from() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let owner = Address::generate(&env);
+    let spender = Address::generate(&env);
+    let receiver = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+
+    client.set_admin(&admin);
+    let expiry_date = env.ledger().timestamp() + 30 * 24 * 60 * 60;
+    client.issue_token(&token_id, &owner, &expiry_date);
+
+    client.approve(&token_id, &spender, &500, &None);
+    client.revoke_allowance(&token_id, &spender);
+
+    let result = client.try_transfer_from(&token_id, &owner, &receiver, &spender, &100);
+    assert_eq!(result, Err(Ok(errors::Error::Unauthorized)));
+}
+
+#[test]
+fn test_transfer_from_rejects_excessive_allowance_spend() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let owner = Address::generate(&env);
+    let spender = Address::generate(&env);
+    let receiver = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+
+    client.set_admin(&admin);
+    let expiry_date = env.ledger().timestamp() + 30 * 24 * 60 * 60;
+    client.issue_token(&token_id, &owner, &expiry_date);
+
+    client.approve(&token_id, &spender, &100, &None);
+
+    let result = client.try_transfer_from(&token_id, &owner, &receiver, &spender, &200);
+    assert_eq!(result, Err(Ok(errors::Error::InsufficientBalance)));
+}
+
+#[test]
+fn test_approve_rejects_self_as_spender() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let owner = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+
+    client.set_admin(&admin);
+    let expiry_date = env.ledger().timestamp() + 30 * 24 * 60 * 60;
+    client.issue_token(&token_id, &owner, &expiry_date);
+
+    let result = client.try_approve(&token_id, &owner, &500, &None);
+    assert_eq!(result, Err(Ok(errors::Error::Unauthorized)));
+}
+
 // ==================== Token Fractionalization Tests ====================
 
 #[test]
