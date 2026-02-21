@@ -35,41 +35,41 @@ export class UsersController {
 
   constructor(private readonly usersService: UsersService) {}
 
-  // @Post(':id/profile-picture')
-  // @ApiOperation({ summary: 'Upload user profile picture' })
-  // @ApiConsumes('multipart/form-data')
-  // @ApiBody({
-  //   schema: {
-  //     type: 'object',
-  //     properties: {
-  //       file: {
-  //         type: 'string',
-  //         format: 'binary',
-  //       },
-  //     },
-  //   },
-  // })
-  // @UseInterceptors(FileInterceptor('file'))
-  // @HttpCode(HttpStatus.OK)
-  // async uploadProfilePicture(
-  //   @Param('id', ParseUUIDPipe) id: string,
-  //   @UploadedFile(new FileValidationPipe()) file: Express.Multer.File,
-  //   @GetCurrentUser('id') currentUserId: string,
-  //   @GetCurrentUser('role') currentUserRole: UserRole,
-  // ) {
-  //   this.logger.log(`Uploading profile picture for user ${id}`);
-  //   const result = await this.usersService.uploadUserProfilePicture(
-  //     id,
-  //     file,
-  //     currentUserId,
-  //     currentUserRole,
-  //   );
-  //   this.logger.log(`Profile picture updated for user ${id}`);
-  //   return {
-  //     message: 'Profile picture updated successfully',
-  //     data: result,
-  //   };
-  // }
+  @Post(':id/profile-picture')
+  @ApiOperation({ summary: 'Upload user profile picture' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @UseInterceptors(FileInterceptor('file'))
+  @HttpCode(HttpStatus.OK)
+  async uploadProfilePicture(
+    @Param('id', ParseUUIDPipe) id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @GetCurrentUser('id') currentUserId: string,
+    @GetCurrentUser('role') currentUserRole: UserRole,
+  ) {
+    this.logger.log(`Uploading profile picture for user ${id}`);
+    const result = await this.usersService.uploadUserProfilePicture(
+      id,
+      file,
+      currentUserId,
+      currentUserRole,
+    );
+    this.logger.log(`Profile picture updated for user ${id}`);
+    return {
+      message: 'Profile picture updated successfully',
+      data: result,
+    };
+  }
 
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
