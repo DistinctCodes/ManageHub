@@ -88,6 +88,9 @@ impl FractionalizationModule {
         if share_amount < info.min_fraction_size {
             return Err(Error::InvalidPaymentAmount);
         }
+        if share_amount % info.min_fraction_size != 0 {
+            return Err(Error::InvalidPaymentAmount);
+        }
 
         from.require_auth();
 

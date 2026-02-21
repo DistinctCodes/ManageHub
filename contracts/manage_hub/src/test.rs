@@ -1788,6 +1788,49 @@ fn test_fractionalize_transfer_and_get_holders() {
 }
 
 #[test]
+#[should_panic(expected = "HostError: Error(Contract, #8)")]
+fn test_fractionalize_rejects_invalid_min_fraction_size() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let owner = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+
+    client.set_admin(&admin);
+    let expiry_date = env.ledger().timestamp() + 30 * 24 * 60 * 60;
+    client.issue_token(&token_id, &owner, &expiry_date);
+
+    // 333 does not divide total shares evenly.
+    client.fractionalize_token(&token_id, &1000, &333);
+}
+
+#[test]
+#[should_panic(expected = "HostError: Error(Contract, #8)")]
+fn test_transfer_fraction_requires_min_fraction_granularity() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let owner = Address::generate(&env);
+    let holder_b = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+
+    client.set_admin(&admin);
+    let expiry_date = env.ledger().timestamp() + 30 * 24 * 60 * 60;
+    client.issue_token(&token_id, &owner, &expiry_date);
+
+    client.fractionalize_token(&token_id, &1000, &100);
+    client.transfer_fraction(&token_id, &owner, &holder_b, &150);
+}
+
+#[test]
 #[should_panic(expected = "HostError: Error(Contract, #4)")]
 fn test_recombine_requires_full_share_ownership() {
     let env = Env::default();
