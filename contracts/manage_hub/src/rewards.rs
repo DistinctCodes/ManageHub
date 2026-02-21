@@ -49,15 +49,16 @@ impl RewardsModule {
             .ok_or(StakingError::Overflow)?
             .checked_mul(tier.reward_multiplier_bps as i128)
             .ok_or(StakingError::Overflow)?
-            .checked_div(10_000i128.checked_mul(YEAR_SECS).ok_or(StakingError::Overflow)?)
+            .checked_div(
+                10_000i128
+                    .checked_mul(YEAR_SECS)
+                    .ok_or(StakingError::Overflow)?,
+            )
             .ok_or(StakingError::Overflow)?
             .checked_div(10_000)
             .ok_or(StakingError::Overflow)?;
 
-        let pending = gross
-            .checked_sub(stake.claimed_rewards)
-            .unwrap_or(0)
-            .max(0);
+        let pending = gross.checked_sub(stake.claimed_rewards).unwrap_or(0).max(0);
 
         Ok(pending)
     }

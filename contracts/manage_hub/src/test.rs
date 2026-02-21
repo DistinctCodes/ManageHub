@@ -2630,9 +2630,9 @@ fn setup_staking_env<'a>(
         id: String::from_str(env, "bronze"),
         name: String::from_str(env, "Bronze"),
         min_stake_amount: 1_000,
-        lock_duration: 86_400, // 1 day in seconds
+        lock_duration: 86_400,         // 1 day in seconds
         reward_multiplier_bps: 10_000, // 1x
-        base_rate_bps: 500,    // 5 % annual
+        base_rate_bps: 500,            // 5 % annual
     };
     client.create_staking_tier(&admin, &tier);
 
@@ -2662,7 +2662,7 @@ fn test_set_staking_config_success() {
     client.set_staking_config(&admin, &config);
 
     let fetched = client.get_staking_config();
-    assert_eq!(fetched.staking_enabled, true);
+    assert!(fetched.staking_enabled);
     assert_eq!(fetched.emergency_unstake_penalty_bps, 500);
 }
 

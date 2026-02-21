@@ -1041,11 +1041,7 @@ impl Contract {
     /// * `AdminNotSet` / `Unauthorized` - Auth failure
     /// * `TierAlreadyExists` - A tier with the same ID already exists
     /// * `InvalidPaymentAmount` - Invalid tier parameters
-    pub fn create_staking_tier(
-        env: Env,
-        admin: Address,
-        tier: StakingTier,
-    ) -> Result<(), Error> {
+    pub fn create_staking_tier(env: Env, admin: Address, tier: StakingTier) -> Result<(), Error> {
         StakingModule::create_staking_tier(env, admin, tier)
     }
 

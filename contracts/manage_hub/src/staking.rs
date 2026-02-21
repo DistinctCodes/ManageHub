@@ -41,7 +41,11 @@ impl StakingModule {
     // -----------------------------------------------------------------------
 
     /// Initialise or update the global staking configuration. Admin only.
-    pub fn set_staking_config(env: Env, admin: Address, config: StakingConfig) -> Result<(), Error> {
+    pub fn set_staking_config(
+        env: Env,
+        admin: Address,
+        config: StakingConfig,
+    ) -> Result<(), Error> {
         let stored_admin: Address = env
             .storage()
             .instance()
@@ -63,11 +67,7 @@ impl StakingModule {
     }
 
     /// Create a new staking tier. Admin only.
-    pub fn create_staking_tier(
-        env: Env,
-        admin: Address,
-        tier: StakingTier,
-    ) -> Result<(), Error> {
+    pub fn create_staking_tier(env: Env, admin: Address, tier: StakingTier) -> Result<(), Error> {
         let stored_admin: Address = env
             .storage()
             .instance()
@@ -112,7 +112,10 @@ impl StakingModule {
             .set(&StakingDataKey::TierList, &list);
 
         env.events().publish(
-            (String::from_str(&env, "StakingTierCreated"), tier.id.clone()),
+            (
+                String::from_str(&env, "StakingTierCreated"),
+                tier.id.clone(),
+            ),
             env.ledger().timestamp(),
         );
 
@@ -191,11 +194,7 @@ impl StakingModule {
             Self::save_stake(&env, &staker, &updated);
 
             env.events().publish(
-                (
-                    String::from_str(&env, "Staked"),
-                    staker.clone(),
-                    tier_id,
-                ),
+                (String::from_str(&env, "Staked"), staker.clone(), tier_id),
                 (new_amount, unlock_at),
             );
 
@@ -224,11 +223,7 @@ impl StakingModule {
         Self::save_stake(&env, &staker, &stake);
 
         env.events().publish(
-            (
-                String::from_str(&env, "Staked"),
-                staker.clone(),
-                tier_id,
-            ),
+            (String::from_str(&env, "Staked"), staker.clone(), tier_id),
             (amount, unlock_at),
         );
 
@@ -275,10 +270,7 @@ impl StakingModule {
             .remove(&StakingDataKey::Stake(staker.clone()));
 
         env.events().publish(
-            (
-                String::from_str(&env, "Unstaked"),
-                staker.clone(),
-            ),
+            (String::from_str(&env, "Unstaked"), staker.clone()),
             (stake.amount, rewards),
         );
 
@@ -318,11 +310,7 @@ impl StakingModule {
 
         // Return principal minus penalty to staker.
         if amount_returned > 0 {
-            token_client.transfer(
-                &env.current_contract_address(),
-                &staker,
-                &amount_returned,
-            );
+            token_client.transfer(&env.current_contract_address(), &staker, &amount_returned);
         }
 
         // Penalty stays in the contract (acts as a disincentive).
@@ -333,10 +321,7 @@ impl StakingModule {
             .remove(&StakingDataKey::Stake(staker.clone()));
 
         env.events().publish(
-            (
-                String::from_str(&env, "EmergencyUnstaked"),
-                staker.clone(),
-            ),
+            (String::from_str(&env, "EmergencyUnstaked"), staker.clone()),
             (amount_returned, penalty),
         );
 
