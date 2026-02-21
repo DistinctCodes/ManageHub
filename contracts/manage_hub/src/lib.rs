@@ -68,6 +68,9 @@ mod fractionalization;
 mod guards;
 mod membership_token;
 mod pause_errors;
+mod rewards;
+mod staking;
+mod staking_errors;
 mod subscription;
 mod types;
 
@@ -79,12 +82,14 @@ use common_types::{
 use errors::Error;
 use fractionalization::FractionalizationModule;
 use membership_token::{MembershipToken, MembershipTokenContract};
+use staking::StakingModule;
 use subscription::SubscriptionContract;
 use types::{
     AttendanceAction, AttendanceSummary, BillingCycle, CreatePromotionParams, CreateTierParams,
     DividendDistribution, EmergencyPauseState, FractionHolder, PauseConfig, PauseHistoryEntry,
-    PauseStats, Subscription, SubscriptionTier, TierAnalytics, TierFeature, TierPromotion,
-    TokenAllowance, UpdateTierParams, UserSubscriptionInfo,
+    PauseStats, StakeInfo, StakingConfig, StakingTier, Subscription, SubscriptionTier,
+    TierAnalytics, TierFeature, TierPromotion, TokenAllowance, UpdateTierParams,
+    UserSubscriptionInfo,
 };
 
 #[contract]
@@ -1000,6 +1005,121 @@ impl Contract {
     /// Returns `true` if the specific token's operations are currently paused.
     pub fn is_token_paused(env: Env, token_id: BytesN<32>) -> bool {
         MembershipTokenContract::is_token_paused(env, token_id)
+    }
+
+    // ============================================================================
+    // Token Staking Endpoints
+    // ============================================================================
+
+    /// Initialise or update the global staking configuration. Admin only.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `admin` - Admin address (must be authorized)
+    /// * `config` - New staking configuration
+    ///
+    /// # Errors
+    /// * `AdminNotSet` - No admin has been configured
+    /// * `Unauthorized` - Caller is not the admin
+    /// * `InvalidPaymentAmount` - Penalty bps exceeds 100 %
+    pub fn set_staking_config(
+        env: Env,
+        admin: Address,
+        config: StakingConfig,
+    ) -> Result<(), Error> {
+        StakingModule::set_staking_config(env, admin, config)
+    }
+
+    /// Create a new staking tier. Admin only.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `admin` - Admin address (must be authorized)
+    /// * `tier` - Staking tier definition
+    ///
+    /// # Errors
+    /// * `AdminNotSet` / `Unauthorized` - Auth failure
+    /// * `TierAlreadyExists` - A tier with the same ID already exists
+    /// * `InvalidPaymentAmount` - Invalid tier parameters
+    pub fn create_staking_tier(env: Env, admin: Address, tier: StakingTier) -> Result<(), Error> {
+        StakingModule::create_staking_tier(env, admin, tier)
+    }
+
+    /// Lock tokens into the specified staking tier.
+    ///
+    /// Requires the caller to have approved a token transfer from their wallet
+    /// to this contract (via the staking token's `approve` method) before calling.
+    ///
+    /// If the caller already has an active stake in the same tier, the amounts
+    /// are combined and the lock window resets.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `staker` - Staker address (must be authorized)
+    /// * `tier_id` - Staking tier to lock into
+    /// * `amount` - Number of tokens to lock
+    ///
+    /// # Errors
+    /// * `SubscriptionNotActive` - Staking is disabled
+    /// * `TierNotFound` - Tier ID does not exist
+    /// * `InvalidPaymentAmount` - Amount below tier minimum
+    /// * `Unauthorized` - Caller already has a stake in a different tier
+    pub fn stake_tokens(
+        env: Env,
+        staker: Address,
+        tier_id: String,
+        amount: i128,
+    ) -> Result<(), Error> {
+        StakingModule::stake_tokens(env, staker, tier_id, amount)
+    }
+
+    /// Unlock tokens after the lock period has elapsed.
+    ///
+    /// Pending rewards are calculated and transferred together with the principal.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `staker` - Staker address (must be authorized)
+    ///
+    /// # Errors
+    /// * `TokenNotFound` - No active stake found
+    /// * `PauseTooEarly` - Lock period has not elapsed yet
+    pub fn unstake_tokens(env: Env, staker: Address) -> Result<(), Error> {
+        StakingModule::unstake_tokens(env, staker)
+    }
+
+    /// Emergency unstake: return tokens immediately with a penalty deducted.
+    ///
+    /// No staking rewards are paid. The penalty stays in the contract.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `staker` - Staker address (must be authorized)
+    ///
+    /// # Errors
+    /// * `TokenNotFound` - No active stake found
+    pub fn emergency_unstake(env: Env, staker: Address) -> Result<(), Error> {
+        StakingModule::emergency_unstake(env, staker)
+    }
+
+    /// Get the active stake information for a staker.
+    ///
+    /// Returns `None` if the address has no active stake.
+    pub fn get_stake_info(env: Env, staker: Address) -> Option<StakeInfo> {
+        StakingModule::get_stake_info(env, staker)
+    }
+
+    /// Get all available staking tiers.
+    pub fn get_staking_tiers(env: Env) -> Vec<StakingTier> {
+        StakingModule::get_staking_tiers(env)
+    }
+
+    /// Get the global staking configuration.
+    ///
+    /// # Errors
+    /// * `AdminNotSet` - Staking has not been configured yet
+    pub fn get_staking_config(env: Env) -> Result<StakingConfig, Error> {
+        StakingModule::get_staking_config(env)
     }
 }
 
