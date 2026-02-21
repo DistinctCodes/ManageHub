@@ -12,6 +12,8 @@ import { BullModule } from '@nestjs/bull';
 import { ScheduleModule } from '@nestjs/schedule';
 import { NewsletterModule } from './newsletter/newsletter.module';
 import { EmailModule } from './email/email.module';
+import { DashboardModule } from './dashboard/dashboard.module';
+import { ContactModule } from './contact/contact.module';
 
 @Module({
   imports: [
@@ -36,6 +38,7 @@ import { EmailModule } from './email/email.module';
         limit: 100, // 100 requests per minute
       },
       { name: 'newsletter', ttl: 60_000, limit: 10 },
+      { name: 'contact', ttl: 60_000, limit: 5 },
     ]),
     BullModule.forRootAsync({
       imports: [ConfigModule],
@@ -77,6 +80,8 @@ import { EmailModule } from './email/email.module';
     AuthModule,
     UsersModule,
     NewsletterModule,
+    ContactModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [
