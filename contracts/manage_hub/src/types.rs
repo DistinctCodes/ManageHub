@@ -291,6 +291,51 @@ pub struct AutoRenewalSettings {
 }
 
 // ============================================================================
+// Emergency Pause Types
+// ============================================================================
+
+/// Global emergency pause state for the entire contract.
+///
+/// Stored in instance storage so it is immediately visible to all operations.
+/// Supports both admin-initiated manual unpauses and time-based auto-unpauses.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct EmergencyPauseState {
+    /// Whether the contract is currently paused
+    pub is_paused: bool,
+    /// Ledger timestamp when the pause was initiated
+    pub paused_at: Option<u64>,
+    /// Address that initiated the pause
+    pub paused_by: Option<Address>,
+    /// Human-readable reason for the pause
+    pub reason: Option<String>,
+    /// Ledger timestamp after which the contract auto-resumes without admin action.
+    /// None means the pause has no automatic expiry.
+    pub auto_unpause_at: Option<u64>,
+    /// Minimum ledger timestamp before an admin can manually unpause.
+    /// This creates an immutable window after an emergency pause during which
+    /// even a compromised admin key cannot reverse the pause.
+    /// None means no time lock is applied.
+    pub time_lock_until: Option<u64>,
+    /// Cumulative number of times the contract has been paused
+    pub pause_count: u32,
+}
+
+/// Per-token pause state, allowing fine-grained suspension of individual tokens.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct TokenPauseState {
+    /// Whether this token's operations are currently paused
+    pub is_paused: bool,
+    /// Ledger timestamp when the pause was initiated
+    pub paused_at: u64,
+    /// Address that initiated the pause
+    pub paused_by: Address,
+    /// Human-readable reason for the pause
+    pub reason: Option<String>,
+}
+
+// ============================================================================
 // Token Fractionalization Types
 // ============================================================================
 

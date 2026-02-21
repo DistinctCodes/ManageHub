@@ -3,7 +3,8 @@
 
 use crate::errors::Error;
 use crate::fractionalization::FractionalizationModule;
-use crate::types::MembershipStatus;
+use crate::guards::PauseGuard;
+use crate::types::{EmergencyPauseState, MembershipStatus, TokenPauseState};
 use common_types::{
     validate_attribute, validate_metadata, MetadataUpdate, MetadataValue, TokenMetadata,
 };
@@ -18,6 +19,10 @@ pub enum DataKey {
     RenewalConfig,
     RenewalHistory(BytesN<32>),
     AutoRenewalSettings(Address),
+    /// Global emergency pause state (instance storage — visible to all ops immediately).
+    EmergencyPauseState,
+    /// Per-token pause state (persistent storage keyed by token ID).
+    TokenPaused(BytesN<32>),
 }
 
 #[contracttype]
@@ -49,6 +54,9 @@ impl MembershipTokenContract {
         user: Address,
         expiry_date: u64,
     ) -> Result<(), Error> {
+        // Block minting when the contract is globally paused.
+        PauseGuard::require_not_paused(&env)?;
+
         // Get admin from storage - if no admin is set, this will panic
         let admin: Address = env
             .storage()
@@ -100,6 +108,10 @@ impl MembershipTokenContract {
     }
 
     pub fn transfer_token(env: Env, id: BytesN<32>, new_user: Address) -> Result<(), Error> {
+        // Block transfers when the contract is globally paused or this token is paused.
+        PauseGuard::require_not_paused(&env)?;
+        PauseGuard::require_token_not_paused(&env, &id)?;
+
         if FractionalizationModule::is_fractionalized(&env, &id) {
             return Err(Error::TokenFractionalized);
         }
@@ -588,6 +600,10 @@ impl MembershipTokenContract {
         tier_id: String,
         billing_cycle: crate::types::BillingCycle,
     ) -> Result<(), Error> {
+        // Block renewals when the contract is globally paused or this token is paused.
+        PauseGuard::require_not_paused(&env)?;
+        PauseGuard::require_token_not_paused(&env, &id)?;
+
         // Check if renewals are enabled
         let config = Self::get_renewal_config(env.clone());
         if !config.renewals_enabled {
@@ -965,6 +981,234 @@ impl MembershipTokenContract {
         );
 
         Ok(())
+    }
+
+    /// Initiates an emergency pause that halts all token operations.
+    ///
+    /// # Arguments:
+    /// * `env` - The contract environment
+    /// * `admin` - Admin address (must be authorized)
+    /// * `reason` - Human-readable reason for the pause
+    /// * `auto_unpause_after` - Optional seconds until automatic unpause.
+    ///   When the ledger timestamp reaches `now + auto_unpause_after`, operations
+    ///   are allowed again without an explicit admin action.
+    /// * `time_lock_duration` - Optional minimum number of seconds before an admin
+    ///   can manually unpause. Use this for high-severity incidents to prevent a
+    ///   compromised admin key from immediately reversing the pause.
+    ///
+    /// # Errors
+    /// * `AdminNotSet` - No admin has been configured
+    /// * `Unauthorized` - Caller is not the admin
+    pub fn emergency_pause(
+        env: Env,
+        admin: Address,
+        reason: Option<String>,
+        auto_unpause_after: Option<u64>,
+        time_lock_duration: Option<u64>,
+    ) -> Result<(), Error> {
+        let stored_admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(Error::AdminNotSet)?;
+        if admin != stored_admin {
+            return Err(Error::Unauthorized);
+        }
+        admin.require_auth();
+
+        let current_time = env.ledger().timestamp();
+
+        let mut state = PauseGuard::get_pause_state(&env);
+
+        state.is_paused = true;
+        state.paused_at = Some(current_time);
+        state.paused_by = Some(admin.clone());
+        state.reason = reason.clone();
+        state.auto_unpause_at = auto_unpause_after
+            .and_then(|secs| current_time.checked_add(secs));
+        state.time_lock_until = time_lock_duration
+            .and_then(|secs| current_time.checked_add(secs));
+        state.pause_count = state.pause_count.saturating_add(1);
+
+        env.storage()
+            .instance()
+            .set(&DataKey::EmergencyPauseState, &state);
+
+        // Emit PauseStateChanged event.
+        env.events().publish(
+            (symbol_short!("emg_pause"), admin.clone()),
+            (current_time, reason, state.auto_unpause_at, state.time_lock_until),
+        );
+
+        Ok(())
+    }
+
+    /// Lifts an active emergency pause, restoring normal contract operation.
+    ///
+    /// Requires the time lock (if any) to have expired before the pause can be
+    /// lifted. The auto-unpause deadline is cleared on success.
+    ///
+    /// # Errors
+    /// * `AdminNotSet` - No admin has been configured
+    /// * `Unauthorized` - Caller is not the admin
+    /// * `TimeLockNotExpired` - The mandatory lock window has not yet elapsed
+    pub fn emergency_unpause(env: Env, admin: Address) -> Result<(), Error> {
+        let stored_admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(Error::AdminNotSet)?;
+        if admin != stored_admin {
+            return Err(Error::Unauthorized);
+        }
+        admin.require_auth();
+
+        // Enforce the time lock before allowing a manual unpause.
+        PauseGuard::require_timelock_expired(&env)?;
+
+        let mut state = PauseGuard::get_pause_state(&env);
+        state.is_paused = false;
+        state.paused_at = None;
+        state.paused_by = None;
+        state.reason = None;
+        state.auto_unpause_at = None;
+        state.time_lock_until = None;
+
+        env.storage()
+            .instance()
+            .set(&DataKey::EmergencyPauseState, &state);
+
+        // Emit PauseStateChanged event.
+        env.events().publish(
+            (symbol_short!("emg_unp"), admin.clone()),
+            (env.ledger().timestamp(),),
+        );
+
+        Ok(())
+    }
+
+    /// Returns the current global emergency pause state.
+    pub fn get_emergency_pause_state(env: Env) -> EmergencyPauseState {
+        PauseGuard::get_pause_state(&env)
+    }
+
+    /// Returns `true` if the contract is currently paused (respects auto-unpause).
+    pub fn is_contract_paused(env: Env) -> bool {
+        PauseGuard::is_paused(&env)
+    }
+
+
+    /// Pauses operations for a specific token.
+    ///
+    /// Transfers, renewals, and metadata writes are blocked for this token while
+    /// it is in a paused state. The global contract pause and the per-token pause
+    /// are independent: either one is sufficient to block an operation.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `admin` - Admin address (must be authorized)
+    /// * `token_id` - The token whose operations should be paused
+    /// * `reason` - Human-readable reason for the pause
+    ///
+    /// # Errors
+    /// * `AdminNotSet` - No admin has been configured
+    /// * `Unauthorized` - Caller is not the admin
+    /// * `TokenNotFound` - The specified token does not exist
+    pub fn pause_token_operations(
+        env: Env,
+        admin: Address,
+        token_id: BytesN<32>,
+        reason: Option<String>,
+    ) -> Result<(), Error> {
+        let stored_admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(Error::AdminNotSet)?;
+        if admin != stored_admin {
+            return Err(Error::Unauthorized);
+        }
+        admin.require_auth();
+
+        // Ensure the token exists before pausing it.
+        let _token: crate::membership_token::MembershipToken = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Token(token_id.clone()))
+            .ok_or(Error::TokenNotFound)?;
+
+        let current_time = env.ledger().timestamp();
+        let token_pause = TokenPauseState {
+            is_paused: true,
+            paused_at: current_time,
+            paused_by: admin.clone(),
+            reason: reason.clone(),
+        };
+
+        env.storage()
+            .persistent()
+            .set(&DataKey::TokenPaused(token_id.clone()), &token_pause);
+
+        // Emit per-token pause event.
+        env.events().publish(
+            (symbol_short!("tok_pause"), token_id.clone(), admin.clone()),
+            (current_time, reason),
+        );
+
+        Ok(())
+    }
+
+    /// Resumes operations for a previously paused token.
+    ///
+    /// # Errors
+    /// * `AdminNotSet` - No admin has been configured
+    /// * `Unauthorized` - Caller is not the admin
+    /// * `TokenNotFound` - The specified token does not exist
+    pub fn unpause_token_operations(
+        env: Env,
+        admin: Address,
+        token_id: BytesN<32>,
+    ) -> Result<(), Error> {
+        let stored_admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(Error::AdminNotSet)?;
+        if admin != stored_admin {
+            return Err(Error::Unauthorized);
+        }
+        admin.require_auth();
+
+        // Ensure the token exists.
+        let _token: crate::membership_token::MembershipToken = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Token(token_id.clone()))
+            .ok_or(Error::TokenNotFound)?;
+
+        let token_pause = TokenPauseState {
+            is_paused: false,
+            paused_at: env.ledger().timestamp(),
+            paused_by: admin.clone(),
+            reason: None,
+        };
+
+        env.storage()
+            .persistent()
+            .set(&DataKey::TokenPaused(token_id.clone()), &token_pause);
+
+        // Emit per-token unpause event.
+        env.events().publish(
+            (symbol_short!("tok_unp"), token_id.clone(), admin.clone()),
+            (env.ledger().timestamp(),),
+        );
+
+        Ok(())
+    }
+
+    /// Returns `true` if the specific token's operations are currently paused.
+    pub fn is_token_paused(env: Env, token_id: BytesN<32>) -> bool {
+        PauseGuard::is_token_paused(&env, &token_id)
     }
 
     /// Helper function to enter grace period when auto-renewal fails.
