@@ -70,9 +70,9 @@ mod types;
 
 use attendance_log::{AttendanceLog, AttendanceLogModule};
 use common_types::{
-    AttendanceFrequency, DateRange, DayPattern, MetadataUpdate, MetadataValue, PeakHourData,
-    TimePeriod, TokenMetadata, UserAttendanceStats,
+    AttendanceLogRequest, BatchAttendanceResult, BatchIssueTokenResult, IssueTokenRequest,
 };
+use common_types::{MetadataUpdate, MetadataValue, TokenMetadata};
 use errors::Error;
 use fractionalization::FractionalizationModule;
 use membership_token::{MembershipToken, MembershipTokenContract};
@@ -101,6 +101,13 @@ impl Contract {
     ) -> Result<(), Error> {
         MembershipTokenContract::issue_token(env, id, user, expiry_date)?;
         Ok(())
+    }
+
+    pub fn batch_issue_tokens(
+        env: Env,
+        requests: Vec<IssueTokenRequest>,
+    ) -> Result<Vec<BatchIssueTokenResult>, Error> {
+        MembershipTokenContract::batch_issue_tokens(env, requests)
     }
 
     pub fn transfer_token(env: Env, id: BytesN<32>, new_user: Address) -> Result<(), Error> {
@@ -175,6 +182,13 @@ impl Contract {
         details: soroban_sdk::Map<String, String>,
     ) -> Result<(), Error> {
         AttendanceLogModule::log_attendance(env, id, user_id, action, details)
+    }
+
+    pub fn batch_log_attendance(
+        env: Env,
+        logs: Vec<AttendanceLogRequest>,
+    ) -> Result<Vec<BatchAttendanceResult>, Error> {
+        AttendanceLogModule::batch_log_attendance(env, logs)
     }
 
     pub fn get_logs_for_user(env: Env, user_id: Address) -> Vec<AttendanceLog> {

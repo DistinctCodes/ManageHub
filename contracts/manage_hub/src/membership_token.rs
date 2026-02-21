@@ -5,7 +5,8 @@ use crate::errors::Error;
 use crate::fractionalization::FractionalizationModule;
 use crate::types::MembershipStatus;
 use common_types::{
-    validate_attribute, validate_metadata, MetadataUpdate, MetadataValue, TokenMetadata,
+    validate_attribute, validate_metadata, BatchIssueTokenResult, BatchOperationStatus,
+    IssueTokenRequest, MetadataUpdate, MetadataValue, TokenMetadata,
 };
 use soroban_sdk::{contracttype, symbol_short, Address, BytesN, Env, Map, String, Vec};
 
@@ -97,6 +98,92 @@ impl MembershipTokenContract {
         );
 
         Ok(())
+    }
+
+    pub fn batch_issue_tokens(
+        env: Env,
+        requests: Vec<IssueTokenRequest>,
+    ) -> Result<Vec<BatchIssueTokenResult>, Error> {
+        // Enforce batch size limit
+        if requests.len() > 50 {
+            return Err(Error::InvalidBatchSize);
+        }
+
+        // Get admin from storage - if no admin is set, this will panic
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(Error::AdminNotSet)?;
+        admin.require_auth();
+
+        let mut results: Vec<BatchIssueTokenResult> = Vec::new(&env);
+        let current_time = env.ledger().timestamp();
+
+        for request in requests.iter() {
+            // Validate expiry date (must be in the future)
+            if request.expiry_date <= current_time {
+                results.push_back(BatchIssueTokenResult {
+                    id: request.id.clone(),
+                    status: BatchOperationStatus::Failed,
+                    error: String::from_str(&env, "Invalid expiry date"),
+                });
+                continue;
+            }
+
+            // Check if token already exists
+            if env
+                .storage()
+                .persistent()
+                .has(&DataKey::Token(request.id.clone()))
+            {
+                results.push_back(BatchIssueTokenResult {
+                    id: request.id.clone(),
+                    status: BatchOperationStatus::Failed,
+                    error: String::from_str(&env, "Token already exists"),
+                });
+                continue;
+            }
+
+            // Create and store token
+            let token = MembershipToken {
+                id: request.id.clone(),
+                user: request.user.clone(),
+                status: MembershipStatus::Active,
+                issue_date: current_time,
+                expiry_date: request.expiry_date,
+            };
+            env.storage()
+                .persistent()
+                .set(&DataKey::Token(request.id.clone()), &token);
+
+            // Emit token issued event
+            env.events().publish(
+                (
+                    symbol_short!("token_iss"),
+                    request.id.clone(),
+                    request.user.clone(),
+                ),
+                (
+                    admin.clone(),
+                    current_time,
+                    request.expiry_date,
+                    MembershipStatus::Active,
+                ),
+            );
+
+            results.push_back(BatchIssueTokenResult {
+                id: request.id,
+                status: BatchOperationStatus::Success,
+                error: String::from_str(&env, ""),
+            });
+        }
+
+        // Emit batch summary event
+        env.events()
+            .publish((symbol_short!("batch_iss"), requests.len()), results.len());
+
+        Ok(results)
     }
 
     pub fn transfer_token(env: Env, id: BytesN<32>, new_user: Address) -> Result<(), Error> {

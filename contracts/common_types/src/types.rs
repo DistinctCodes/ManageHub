@@ -148,16 +148,45 @@ pub enum AttendanceAction {
 /// * `Admin` - Administrator with full access
 /// * `Visitor` - Temporary visitor with limited access
 #[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 pub enum UserRole {
-    /// Regular member
-    Member,
-    /// Staff member with elevated privileges
-    Staff,
-    /// Administrator with full access
-    Admin,
     /// Temporary visitor with limited access
-    Visitor,
+    Visitor = 0,
+    /// Guest user (equivalent to visitor or unauthenticated)
+    Guest = 1,
+    /// Regular member
+    Member = 2,
+    /// Staff member with elevated privileges
+    Staff = 3,
+    /// Administrator with full access
+    Admin = 4,
+}
+
+impl UserRole {
+    pub fn has_access(&self, required_role: &UserRole) -> bool {
+        self >= required_role
+    }
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            UserRole::Visitor => "Visitor",
+            UserRole::Guest => "Guest",
+            UserRole::Member => "Member",
+            UserRole::Staff => "Staff",
+            UserRole::Admin => "Admin",
+        }
+    }
+
+    pub fn parse_from_str(role_str: &str) -> Option<Self> {
+        match role_str.to_ascii_lowercase().as_str() {
+            "visitor" => Some(UserRole::Visitor),
+            "guest" => Some(UserRole::Guest),
+            "member" => Some(UserRole::Member),
+            "staff" => Some(UserRole::Staff),
+            "admin" => Some(UserRole::Admin),
+            _ => None,
+        }
+    }
 }
 
 /// Membership status types.
@@ -343,16 +372,22 @@ pub struct DayPattern {
 /// * `Pro` - Professional tier with advanced features
 /// * `Enterprise` - Full-featured enterprise tier
 #[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 pub enum TierLevel {
     /// Free tier with limited features
-    Free,
+    Free = 0,
     /// Basic paid tier
-    Basic,
+    Basic = 1,
     /// Professional tier
-    Pro,
+    Pro = 2,
     /// Enterprise tier with all features
-    Enterprise,
+    Enterprise = 3,
+}
+
+impl TierLevel {
+    pub fn has_tier_access(&self, required_tier: &TierLevel) -> bool {
+        self >= required_tier
+    }
 }
 
 /// Feature flags for subscription tiers.
@@ -539,6 +574,78 @@ pub enum TierChangeStatus {
     Cancelled,
     /// Change rejected
     Rejected,
+}
+
+// ============================================================================
+// Batch Operation Types
+// ============================================================================
+
+/// Status of an individual batch operation.
+///
+/// # Variants
+/// * `Success` - The operation succeeded
+/// * `Failed` - The operation failed
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum BatchOperationStatus {
+    /// Operation succeeded
+    Success,
+    /// Operation failed
+    Failed,
+}
+
+/// Request structure for batch token issuance.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct IssueTokenRequest {
+    pub id: soroban_sdk::BytesN<32>,
+    pub user: Address,
+    pub expiry_date: u64,
+}
+
+/// Result of a single token issuance in a batch.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BatchIssueTokenResult {
+    pub id: soroban_sdk::BytesN<32>,
+    pub status: BatchOperationStatus,
+    pub error: String,
+}
+
+/// Request structure for batch attendance logging.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AttendanceLogRequest {
+    pub id: soroban_sdk::BytesN<32>,
+    pub user_id: Address,
+    pub action: AttendanceAction,
+    pub details: Map<String, String>,
+}
+
+/// Result of a single attendance log in a batch.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BatchAttendanceResult {
+    pub id: soroban_sdk::BytesN<32>,
+    pub status: BatchOperationStatus,
+    pub error: String,
+}
+
+/// Request structure for batch role setting.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SetRoleRequest {
+    pub user: Address,
+    pub role: UserRole,
+}
+
+/// Result of a single role assignment in a batch.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BatchSetRoleResult {
+    pub user: Address,
+    pub status: BatchOperationStatus,
+    pub error: String,
 }
 
 // ============================================================================
