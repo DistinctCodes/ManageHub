@@ -62,6 +62,7 @@
 use soroban_sdk::{contract, contractimpl, vec, Address, BytesN, Env, Map, String, Vec};
 
 mod attendance_log;
+mod allowance;
 mod errors;
 mod fractionalization;
 mod guards;
@@ -83,7 +84,7 @@ use types::{
     AttendanceAction, AttendanceSummary, BillingCycle, CreatePromotionParams, CreateTierParams,
     DividendDistribution, EmergencyPauseState, FractionHolder, PauseConfig, PauseHistoryEntry,
     PauseStats, Subscription, SubscriptionTier, TierAnalytics, TierFeature, TierPromotion,
-    UpdateTierParams, UserSubscriptionInfo,
+    TokenAllowance, UpdateTierParams, UserSubscriptionInfo,
 };
 
 #[contract]
@@ -108,6 +109,46 @@ impl Contract {
     pub fn transfer_token(env: Env, id: BytesN<32>, new_user: Address) -> Result<(), Error> {
         MembershipTokenContract::transfer_token(env, id, new_user)?;
         Ok(())
+    }
+
+    pub fn approve(
+        env: Env,
+        token_id: BytesN<32>,
+        spender: Address,
+        amount: i128,
+        expires_at: Option<u64>,
+    ) -> Result<(), Error> {
+        MembershipTokenContract::approve(env, token_id, spender, amount, expires_at)?;
+        Ok(())
+    }
+
+    pub fn transfer_from(
+        env: Env,
+        token_id: BytesN<32>,
+        owner: Address,
+        to: Address,
+        spender: Address,
+        allowance_amount: i128,
+    ) -> Result<(), Error> {
+        MembershipTokenContract::transfer_from(env, token_id, owner, to, spender, allowance_amount)
+    }
+
+    pub fn revoke_allowance(
+        env: Env,
+        token_id: BytesN<32>,
+        spender: Address,
+    ) -> Result<(), Error> {
+        MembershipTokenContract::revoke_allowance(env, token_id, spender)?;
+        Ok(())
+    }
+
+    pub fn get_allowance(
+        env: Env,
+        token_id: BytesN<32>,
+        owner: Address,
+        spender: Address,
+    ) -> Result<Option<TokenAllowance>, Error> {
+        MembershipTokenContract::get_allowance(env, token_id, owner, spender)
     }
 
     pub fn fractionalize_token(

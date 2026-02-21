@@ -291,6 +291,28 @@ pub struct AutoRenewalSettings {
 }
 
 // ============================================================================
+// Token Allowance and Delegation Types
+// ============================================================================
+
+/// Delegated transfer allowance for a specific token owner/spender pair.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct TokenAllowance {
+    /// Token ID this allowance applies to
+    pub token_id: BytesN<32>,
+    /// Current token owner who granted the allowance
+    pub owner: Address,
+    /// Spender address authorized for delegated transfers
+    pub spender: Address,
+    /// Remaining allowance amount available for consumption
+    pub amount: i128,
+    /// Optional expiration timestamp for this allowance
+    pub expires_at: Option<u64>,
+    /// Last update timestamp (create/update/consume)
+    pub updated_at: u64,
+}
+
+// ============================================================================
 // Emergency Pause Types
 // ============================================================================
 
