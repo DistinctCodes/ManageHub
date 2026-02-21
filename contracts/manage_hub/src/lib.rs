@@ -67,12 +67,15 @@ mod errors;
 mod fractionalization;
 mod guards;
 mod membership_token;
+mod migration;
 mod pause_errors;
 mod rewards;
 mod staking;
 mod staking_errors;
 mod subscription;
 mod types;
+mod upgrade;
+mod upgrade_errors;
 
 use attendance_log::{AttendanceLog, AttendanceLogModule};
 use common_types::{
@@ -85,12 +88,13 @@ use membership_token::{MembershipToken, MembershipTokenContract};
 use staking::StakingModule;
 use subscription::SubscriptionContract;
 use types::{
-    AttendanceAction, AttendanceSummary, BillingCycle, CreatePromotionParams, CreateTierParams,
-    DividendDistribution, EmergencyPauseState, FractionHolder, PauseConfig, PauseHistoryEntry,
-    PauseStats, StakeInfo, StakingConfig, StakingTier, Subscription, SubscriptionTier,
-    TierAnalytics, TierFeature, TierPromotion, TokenAllowance, UpdateTierParams,
-    UserSubscriptionInfo,
+    AttendanceAction, AttendanceSummary, BatchUpgradeResult, BillingCycle, CreatePromotionParams,
+    CreateTierParams, DividendDistribution, EmergencyPauseState, FractionHolder, MembershipStatus,
+    PauseConfig, PauseHistoryEntry, PauseStats, StakeInfo, StakingConfig, StakingTier,
+    Subscription, SubscriptionTier, TierAnalytics, TierFeature, TierPromotion, TokenAllowance,
+    UpdateTierParams, UpgradeConfig, UpgradeRecord, UserSubscriptionInfo,
 };
+use upgrade::UpgradeModule;
 
 #[contract]
 pub struct Contract;
@@ -1120,6 +1124,160 @@ impl Contract {
     /// * `AdminNotSet` - Staking has not been configured yet
     pub fn get_staking_config(env: Env) -> Result<StakingConfig, Error> {
         StakingModule::get_staking_config(env)
+    }
+
+    // =========================================================================
+    // Token Upgrade Mechanism
+    // =========================================================================
+
+    /// Initialise or update the global upgrade configuration. Admin only.
+    ///
+    /// Must be called before any upgrade functions can be used.
+    ///
+    /// # Arguments
+    /// * `env`    - The contract environment
+    /// * `admin`  - Admin address (must be authorized)
+    /// * `config` - Upgrade configuration to apply
+    ///
+    /// # Errors
+    /// * `AdminNotSet`    - No admin has been set
+    /// * `Unauthorized`   - Caller is not the admin
+    pub fn set_upgrade_config(
+        env: Env,
+        admin: Address,
+        config: UpgradeConfig,
+    ) -> Result<(), Error> {
+        UpgradeModule::set_upgrade_config(env, admin, config)
+    }
+
+    /// Upgrade a single token to the next version.
+    ///
+    /// Captures a pre-upgrade snapshot for rollback, increments `current_version`,
+    /// and optionally updates `expiry_date`, `tier_id`, and `status`.
+    /// Emits a `TokenUpgraded` event on success.
+    ///
+    /// # Arguments
+    /// * `env`             - The contract environment
+    /// * `caller`          - Address triggering the upgrade (must be authorized)
+    /// * `token_id`        - ID of the token to upgrade
+    /// * `label`           - Optional human-readable version label (e.g. "v2-premium")
+    /// * `new_expiry_date` - Optional new expiry timestamp
+    /// * `new_tier_id`     - Optional new tier ID
+    /// * `new_status`      - Optional new membership status
+    ///
+    /// # Returns
+    /// The new version number on success.
+    ///
+    /// # Errors
+    /// * `AdminNotSet`           - No admin has been set
+    /// * `SubscriptionNotActive` - Upgrades are disabled
+    /// * `TokenNotFound`         - Token does not exist
+    /// * `Unauthorized`          - Caller is not authorised
+    pub fn upgrade_token(
+        env: Env,
+        caller: Address,
+        token_id: BytesN<32>,
+        label: Option<String>,
+        new_expiry_date: Option<u64>,
+        new_tier_id: Option<String>,
+        new_status: Option<MembershipStatus>,
+    ) -> Result<u32, Error> {
+        UpgradeModule::upgrade_token(
+            env,
+            caller,
+            token_id,
+            label,
+            new_expiry_date,
+            new_tier_id,
+            new_status,
+        )
+    }
+
+    /// Upgrade multiple tokens in a single call. Admin only.
+    ///
+    /// Individual token failures do NOT abort the entire batch; they are
+    /// reported as `success: false` in the returned result list.
+    ///
+    /// # Arguments
+    /// * `env`             - The contract environment
+    /// * `admin`           - Admin address (must be authorized)
+    /// * `token_ids`       - List of token IDs to upgrade
+    /// * `label`           - Optional version label applied to all tokens
+    /// * `new_expiry_date` - Optional new expiry timestamp applied to all tokens
+    ///
+    /// # Errors
+    /// * `AdminNotSet`           - No admin has been set
+    /// * `Unauthorized`          - Caller is not the admin
+    /// * `SubscriptionNotActive` - Upgrades are disabled
+    pub fn batch_upgrade_tokens(
+        env: Env,
+        admin: Address,
+        token_ids: Vec<BytesN<32>>,
+        label: Option<String>,
+        new_expiry_date: Option<u64>,
+    ) -> Result<Vec<BatchUpgradeResult>, Error> {
+        UpgradeModule::batch_upgrade_tokens(env, admin, token_ids, label, new_expiry_date)
+    }
+
+    /// Get the current version number of a token.
+    ///
+    /// # Arguments
+    /// * `env`      - The contract environment
+    /// * `token_id` - ID of the token to query
+    ///
+    /// # Errors
+    /// * `TokenNotFound` - Token does not exist
+    pub fn get_token_version(env: Env, token_id: BytesN<32>) -> Result<u32, Error> {
+        UpgradeModule::get_token_version(env, token_id)
+    }
+
+    /// Get the full upgrade history for a token.
+    ///
+    /// Returns an empty list if the token has never been upgraded.
+    ///
+    /// # Arguments
+    /// * `env`      - The contract environment
+    /// * `token_id` - ID of the token to query
+    pub fn get_upgrade_history(env: Env, token_id: BytesN<32>) -> Vec<UpgradeRecord> {
+        UpgradeModule::get_upgrade_history(env, token_id)
+    }
+
+    /// Roll back a token to a specific previous version. Admin only.
+    ///
+    /// The token's version number continues to increment (not reset) so the
+    /// audit trail is preserved. The state (expiry, tier, status) from the
+    /// target snapshot is restored.
+    ///
+    /// # Arguments
+    /// * `env`            - The contract environment
+    /// * `admin`          - Admin address (must be authorized)
+    /// * `token_id`       - ID of the token to roll back
+    /// * `target_version` - The version number to restore state from
+    ///
+    /// # Returns
+    /// The new (incremented) version number after rollback.
+    ///
+    /// # Errors
+    /// * `AdminNotSet`         - No admin has been set
+    /// * `Unauthorized`        - Caller is not the admin
+    /// * `TokenNotFound`       - Token does not exist
+    /// * `MetadataNotFound`    - No snapshot for `target_version`
+    /// * `PauseCountExceeded`  - Maximum rollback count reached
+    pub fn rollback_token_upgrade(
+        env: Env,
+        admin: Address,
+        token_id: BytesN<32>,
+        target_version: u32,
+    ) -> Result<u32, Error> {
+        UpgradeModule::rollback_token_upgrade(env, admin, token_id, target_version)
+    }
+
+    /// Get the global upgrade configuration.
+    ///
+    /// # Errors
+    /// * `AdminNotSet` - Upgrade system has not been configured yet
+    pub fn get_upgrade_config(env: Env) -> Result<UpgradeConfig, Error> {
+        UpgradeModule::get_upgrade_config(env)
     }
 }
 

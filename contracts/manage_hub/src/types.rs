@@ -414,6 +414,72 @@ pub struct StakingConfig {
 }
 
 // ============================================================================
+// Token Upgrade Types
+// ============================================================================
+
+/// Configuration for the token upgrade system.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct UpgradeConfig {
+    /// Whether token upgrades are currently enabled
+    pub upgrades_enabled: bool,
+    /// Whether only the admin can trigger upgrades (false = token owner can also upgrade)
+    pub admin_only: bool,
+    /// Maximum number of rollbacks allowed per token (0 = unlimited)
+    pub max_rollbacks: u32,
+}
+
+/// A snapshot of a token's version state, stored for rollback purposes.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct TokenVersionSnapshot {
+    /// The version number this snapshot represents
+    pub version: u32,
+    /// Token expiry date at this version
+    pub expiry_date: u64,
+    /// Token status at this version
+    pub status: MembershipStatus,
+    /// Tier ID at this version
+    pub tier_id: Option<String>,
+    /// Timestamp when this snapshot was taken
+    pub captured_at: u64,
+    /// Human-readable label for this version (e.g. "v1", "v2-enhanced")
+    pub label: Option<String>,
+}
+
+/// A single entry in a token's upgrade history.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct UpgradeRecord {
+    /// Token ID that was upgraded
+    pub token_id: BytesN<32>,
+    /// Version before the upgrade
+    pub from_version: u32,
+    /// Version after the upgrade
+    pub to_version: u32,
+    /// Address that triggered the upgrade
+    pub upgraded_by: Address,
+    /// Timestamp of the upgrade
+    pub upgraded_at: u64,
+    /// Human-readable label for the new version
+    pub label: Option<String>,
+    /// Whether this was a rollback operation
+    pub is_rollback: bool,
+}
+
+/// Result for a single token in a batch upgrade operation.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct BatchUpgradeResult {
+    /// Token ID that was processed
+    pub token_id: BytesN<32>,
+    /// Whether the upgrade succeeded
+    pub success: bool,
+    /// New version number (if success)
+    pub new_version: Option<u32>,
+}
+
+// ============================================================================
 // Token Fractionalization Types
 // ============================================================================
 

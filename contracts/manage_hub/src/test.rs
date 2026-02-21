@@ -2882,3 +2882,324 @@ fn test_add_to_existing_stake_same_tier() {
     let stake = client.get_stake_info(&staker).unwrap();
     assert_eq!(stake.amount, 8_000);
 }
+
+// =============================================================================
+// Token Upgrade Mechanism Tests
+// =============================================================================
+
+fn setup_upgrade_env() -> (Env, ContractClient<'static>, Address, Address, BytesN<32>) {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+
+    client.set_admin(&admin);
+
+    let expiry_date = env.ledger().timestamp() + 86_400 * 30; // 30 days
+    client.issue_token(&token_id, &user, &expiry_date);
+
+    // Enable upgrades
+    client.set_upgrade_config(
+        &admin,
+        &UpgradeConfig {
+            upgrades_enabled: true,
+            admin_only: true,
+            max_rollbacks: 5,
+        },
+    );
+
+    (env, client, admin, user, token_id)
+}
+
+#[test]
+fn test_upgrade_config_set_and_retrieved() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    client.set_admin(&admin);
+
+    let config = UpgradeConfig {
+        upgrades_enabled: true,
+        admin_only: false,
+        max_rollbacks: 3,
+    };
+    client.set_upgrade_config(&admin, &config);
+
+    let retrieved = client.get_upgrade_config();
+    assert!(retrieved.upgrades_enabled);
+    assert!(!retrieved.admin_only);
+    assert_eq!(retrieved.max_rollbacks, 3);
+}
+
+#[test]
+fn test_token_starts_at_version_zero() {
+    let (env, client, _admin, _user, token_id) = setup_upgrade_env();
+    let _ = env;
+
+    let version = client.get_token_version(&token_id);
+    assert_eq!(version, 0);
+}
+
+#[test]
+fn test_upgrade_token_increments_version() {
+    let (env, client, admin, _user, token_id) = setup_upgrade_env();
+    let _ = env;
+
+    let new_version = client.upgrade_token(
+        &admin,
+        &token_id,
+        &Some(String::from_str(&client.env, "v1")),
+        &None::<u64>,
+        &None::<String>,
+        &None::<MembershipStatus>,
+    );
+    assert_eq!(new_version, 1);
+
+    let version = client.get_token_version(&token_id);
+    assert_eq!(version, 1);
+}
+
+#[test]
+fn test_upgrade_token_updates_expiry_date() {
+    let (env, client, admin, _user, token_id) = setup_upgrade_env();
+
+    let new_expiry = env.ledger().timestamp() + 86_400 * 60; // 60 days from now
+    client.upgrade_token(
+        &admin,
+        &token_id,
+        &None::<String>,
+        &Some(new_expiry),
+        &None::<String>,
+        &None::<MembershipStatus>,
+    );
+
+    let token = client.get_token(&token_id);
+    assert_eq!(token.expiry_date, new_expiry);
+}
+
+#[test]
+fn test_upgrade_history_recorded() {
+    let (env, client, admin, _user, token_id) = setup_upgrade_env();
+    let _ = env;
+
+    client.upgrade_token(
+        &admin,
+        &token_id,
+        &Some(String::from_str(&client.env, "v1")),
+        &None::<u64>,
+        &None::<String>,
+        &None::<MembershipStatus>,
+    );
+    client.upgrade_token(
+        &admin,
+        &token_id,
+        &Some(String::from_str(&client.env, "v2")),
+        &None::<u64>,
+        &None::<String>,
+        &None::<MembershipStatus>,
+    );
+
+    let history = client.get_upgrade_history(&token_id);
+    assert_eq!(history.len(), 2);
+
+    let first = history.get(0).unwrap();
+    assert_eq!(first.from_version, 0);
+    assert_eq!(first.to_version, 1);
+    assert!(!first.is_rollback);
+
+    let second = history.get(1).unwrap();
+    assert_eq!(second.from_version, 1);
+    assert_eq!(second.to_version, 2);
+}
+
+#[test]
+fn test_get_upgrade_history_empty_for_fresh_token() {
+    let (env, client, _admin, _user, token_id) = setup_upgrade_env();
+    let _ = env;
+
+    let history = client.get_upgrade_history(&token_id);
+    assert_eq!(history.len(), 0);
+}
+
+#[test]
+fn test_batch_upgrade_tokens() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    client.set_admin(&admin);
+
+    let token_id1 = BytesN::<32>::random(&env);
+    let token_id2 = BytesN::<32>::random(&env);
+    let expiry = env.ledger().timestamp() + 86_400 * 30;
+
+    client.issue_token(&token_id1, &user, &expiry);
+    client.issue_token(&token_id2, &user, &expiry);
+
+    client.set_upgrade_config(
+        &admin,
+        &UpgradeConfig {
+            upgrades_enabled: true,
+            admin_only: true,
+            max_rollbacks: 5,
+        },
+    );
+
+    let mut token_ids = soroban_sdk::Vec::new(&env);
+    token_ids.push_back(token_id1.clone());
+    token_ids.push_back(token_id2.clone());
+
+    let results = client.batch_upgrade_tokens(&admin, &token_ids, &None::<String>, &None::<u64>);
+
+    assert_eq!(results.len(), 2);
+    assert!(results.get(0).unwrap().success);
+    assert!(results.get(1).unwrap().success);
+    assert_eq!(results.get(0).unwrap().new_version, Some(1));
+    assert_eq!(results.get(1).unwrap().new_version, Some(1));
+
+    assert_eq!(client.get_token_version(&token_id1), 1);
+    assert_eq!(client.get_token_version(&token_id2), 1);
+}
+
+#[test]
+fn test_rollback_token_upgrade() {
+    let (env, client, admin, _user, token_id) = setup_upgrade_env();
+
+    let original_expiry = client.get_token(&token_id).expiry_date;
+
+    // Upgrade with a new expiry date
+    let new_expiry = env.ledger().timestamp() + 86_400 * 60;
+    client.upgrade_token(
+        &admin,
+        &token_id,
+        &Some(String::from_str(&client.env, "v1")),
+        &Some(new_expiry),
+        &None::<String>,
+        &None::<MembershipStatus>,
+    );
+
+    assert_eq!(client.get_token(&token_id).expiry_date, new_expiry);
+    assert_eq!(client.get_token_version(&token_id), 1);
+
+    // Rollback to version 0 (original state)
+    let rollback_version = client.rollback_token_upgrade(&admin, &token_id, &0);
+
+    // Version number must continue incrementing
+    assert_eq!(rollback_version, 2);
+    assert_eq!(client.get_token_version(&token_id), 2);
+
+    // State is restored to version-0 snapshot
+    let token_after = client.get_token(&token_id);
+    assert_eq!(token_after.expiry_date, original_expiry);
+}
+
+#[test]
+fn test_rollback_recorded_in_history() {
+    let (env, client, admin, _user, token_id) = setup_upgrade_env();
+    let _ = env;
+
+    client.upgrade_token(
+        &admin,
+        &token_id,
+        &None::<String>,
+        &None::<u64>,
+        &None::<String>,
+        &None::<MembershipStatus>,
+    );
+    client.rollback_token_upgrade(&admin, &token_id, &0);
+
+    let history = client.get_upgrade_history(&token_id);
+    assert_eq!(history.len(), 2);
+
+    let rollback_record = history.get(1).unwrap();
+    assert!(rollback_record.is_rollback);
+    assert_eq!(rollback_record.from_version, 1);
+    assert_eq!(rollback_record.to_version, 2);
+}
+
+#[test]
+#[should_panic(expected = "HostError")]
+fn test_upgrade_fails_when_disabled() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+
+    client.set_admin(&admin);
+    client.issue_token(&token_id, &user, &(env.ledger().timestamp() + 86_400));
+
+    client.set_upgrade_config(
+        &admin,
+        &UpgradeConfig {
+            upgrades_enabled: false,
+            admin_only: true,
+            max_rollbacks: 5,
+        },
+    );
+
+    client.upgrade_token(
+        &admin,
+        &token_id,
+        &None::<String>,
+        &None::<u64>,
+        &None::<String>,
+        &None::<MembershipStatus>,
+    );
+}
+
+#[test]
+#[should_panic(expected = "HostError")]
+fn test_upgrade_fails_without_config() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let token_id = BytesN::<32>::random(&env);
+
+    client.set_admin(&admin);
+    client.issue_token(&token_id, &user, &(env.ledger().timestamp() + 86_400));
+
+    // No set_upgrade_config call — should panic
+    client.upgrade_token(
+        &admin,
+        &token_id,
+        &None::<String>,
+        &None::<u64>,
+        &None::<String>,
+        &None::<MembershipStatus>,
+    );
+}
+
+#[test]
+#[should_panic(expected = "HostError")]
+fn test_rollback_fails_without_snapshot() {
+    let (env, client, admin, _user, token_id) = setup_upgrade_env();
+    let _ = env;
+
+    // Never upgraded — no snapshot for version 0 exists yet
+    // (snapshot is only stored when an upgrade happens, not at mint time)
+    // Rolling back to version 5 (which doesn't exist) must fail
+    client.rollback_token_upgrade(&admin, &token_id, &5);
+}
