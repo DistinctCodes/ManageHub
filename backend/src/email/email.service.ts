@@ -117,4 +117,34 @@ export class EmailService {
     const html = this.compileTemplate(templateName, placeholders);
     return this.send(email, subject, html);
   }
+
+  async sendContactConfirmation(
+    email: string,
+    fullName: string,
+    subject: string,
+  ): Promise<boolean> {
+    const html = this.compileTemplate('contact-confirmation', {
+      fullName,
+      subject,
+    });
+    return this.send(email, 'We received your message', html);
+  }
+
+  async sendContactNotification(
+    fullName: string,
+    email: string,
+    subject: string,
+    message: string,
+  ): Promise<boolean> {
+    const adminEmail =
+      this.configService.get<string>('ADMIN_EMAIL') ||
+      this.configService.get<string>('EMAIL_FROM');
+    const html = this.compileTemplate('contact-notification', {
+      fullName,
+      email,
+      subject,
+      message,
+    });
+    return this.send(adminEmail, `New Contact: ${subject}`, html);
+  }
 }
