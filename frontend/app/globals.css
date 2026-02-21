@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
-::-webkit-scrollar {
+/* Scrollbar — WebKit */
+::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
@@ -14,7 +15,6 @@
   background-color: transparent;
 }
 
-/* Dark mode */
 @media (prefers-color-scheme: dark) {
   ::-webkit-scrollbar-thumb {
     background-color: #f8fafc;
@@ -31,4 +31,48 @@
   * {
     scrollbar-color: #4b5563 transparent;
   }
+}
+
+/* Scroll-triggered fade-in */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.7s ease-out both;
+}
+
+.fade-in-up-delay-1 {
+  animation: fadeInUp 0.7s ease-out 0.1s both;
+}
+
+.fade-in-up-delay-2 {
+  animation: fadeInUp 0.7s ease-out 0.2s both;
+}
+
+.fade-in-up-delay-3 {
+  animation: fadeInUp 0.7s ease-out 0.3s both;
+}
+
+.fade-in-up-delay-4 {
+  animation: fadeInUp 0.7s ease-out 0.4s both;
+}
+
+/* Grain texture overlay */
+.grain::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
 }
