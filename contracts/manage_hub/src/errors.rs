@@ -58,4 +58,6 @@ pub enum Error {
     TransferNotAllowedInGracePeriod = 47,
     GracePeriodExpired = 48,
     AutoRenewalFailed = 49,
+    // Token fractionalization errors
+    TokenFractionalized = 50,
 }

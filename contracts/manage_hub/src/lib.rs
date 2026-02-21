@@ -63,6 +63,7 @@ use soroban_sdk::{contract, contractimpl, vec, Address, BytesN, Env, Map, String
 
 mod attendance_log;
 mod errors;
+mod fractionalization;
 mod membership_token;
 mod subscription;
 mod types;
@@ -73,12 +74,14 @@ use common_types::{
     TimePeriod, TokenMetadata, UserAttendanceStats,
 };
 use errors::Error;
+use fractionalization::FractionalizationModule;
 use membership_token::{MembershipToken, MembershipTokenContract};
 use subscription::SubscriptionContract;
 use types::{
     AttendanceAction, AttendanceSummary, BillingCycle, CreatePromotionParams, CreateTierParams,
-    PauseConfig, PauseHistoryEntry, PauseStats, Subscription, SubscriptionTier, TierAnalytics,
-    TierFeature, TierPromotion, UpdateTierParams, UserSubscriptionInfo,
+    DividendDistribution, FractionHolder, PauseConfig, PauseHistoryEntry, PauseStats, Subscription,
+    SubscriptionTier, TierAnalytics, TierFeature, TierPromotion, UpdateTierParams,
+    UserSubscriptionInfo,
 };
 
 #[contract]
@@ -103,6 +106,56 @@ impl Contract {
     pub fn transfer_token(env: Env, id: BytesN<32>, new_user: Address) -> Result<(), Error> {
         MembershipTokenContract::transfer_token(env, id, new_user)?;
         Ok(())
+    }
+
+    pub fn fractionalize_token(
+        env: Env,
+        token_id: BytesN<32>,
+        total_shares: i128,
+        min_fraction_size: i128,
+    ) -> Result<(), Error> {
+        FractionalizationModule::fractionalize_token(env, token_id, total_shares, min_fraction_size)
+    }
+
+    pub fn transfer_fraction(
+        env: Env,
+        token_id: BytesN<32>,
+        from: Address,
+        to: Address,
+        share_amount: i128,
+    ) -> Result<(), Error> {
+        FractionalizationModule::transfer_fraction(env, token_id, from, to, share_amount)
+    }
+
+    pub fn recombine_fractions(
+        env: Env,
+        token_id: BytesN<32>,
+        holder: Address,
+    ) -> Result<(), Error> {
+        FractionalizationModule::recombine_fractions(env, token_id, holder)
+    }
+
+    pub fn get_fraction_holders(
+        env: Env,
+        token_id: BytesN<32>,
+    ) -> Result<Vec<FractionHolder>, Error> {
+        FractionalizationModule::get_fraction_holders(env, token_id)
+    }
+
+    pub fn distribute_fraction_rewards(
+        env: Env,
+        token_id: BytesN<32>,
+        total_amount: i128,
+    ) -> Result<DividendDistribution, Error> {
+        FractionalizationModule::distribute_fraction_rewards(env, token_id, total_amount)
+    }
+
+    pub fn get_pending_fraction_reward(
+        env: Env,
+        token_id: BytesN<32>,
+        holder: Address,
+    ) -> Result<i128, Error> {
+        FractionalizationModule::get_pending_fraction_reward(env, token_id, holder)
     }
 
     pub fn get_token(env: Env, id: BytesN<32>) -> Result<MembershipToken, Error> {

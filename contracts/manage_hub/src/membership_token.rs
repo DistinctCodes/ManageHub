@@ -2,6 +2,7 @@
 #![allow(deprecated)]
 
 use crate::errors::Error;
+use crate::fractionalization::FractionalizationModule;
 use crate::types::MembershipStatus;
 use common_types::{
     validate_attribute, validate_metadata, MetadataUpdate, MetadataValue, TokenMetadata,
@@ -99,6 +100,10 @@ impl MembershipTokenContract {
     }
 
     pub fn transfer_token(env: Env, id: BytesN<32>, new_user: Address) -> Result<(), Error> {
+        if FractionalizationModule::is_fractionalized(&env, &id) {
+            return Err(Error::TokenFractionalized);
+        }
+
         // Retrieve token
         let mut token: MembershipToken = env
             .storage()
