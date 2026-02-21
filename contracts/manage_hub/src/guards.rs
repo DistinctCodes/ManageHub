@@ -44,10 +44,8 @@ impl PauseGuard {
     /// In functions returning `Result<(), Error>` the `?` operator
     /// auto-converts via [`From<PauseError> for Error`].
     pub fn require_not_paused(env: &Env) -> Result<(), PauseError> {
-        let state: Option<EmergencyPauseState> = env
-            .storage()
-            .instance()
-            .get(&DataKey::EmergencyPauseState);
+        let state: Option<EmergencyPauseState> =
+            env.storage().instance().get(&DataKey::EmergencyPauseState);
 
         if let Some(state) = state {
             if state.is_paused {
@@ -69,10 +67,7 @@ impl PauseGuard {
     /// This check is independent of the global pause: a token can be paused
     /// while the contract is running normally. Both checks should be applied
     /// where relevant.
-    pub fn require_token_not_paused(
-        env: &Env,
-        token_id: &BytesN<32>,
-    ) -> Result<(), PauseError> {
+    pub fn require_token_not_paused(env: &Env, token_id: &BytesN<32>) -> Result<(), PauseError> {
         let state: Option<TokenPauseState> = env
             .storage()
             .persistent()
@@ -92,10 +87,8 @@ impl PauseGuard {
     /// Should be called before any admin-initiated unpause to ensure the minimum
     /// lock window enforced at pause time has passed.
     pub fn require_timelock_expired(env: &Env) -> Result<(), PauseError> {
-        let state: Option<EmergencyPauseState> = env
-            .storage()
-            .instance()
-            .get(&DataKey::EmergencyPauseState);
+        let state: Option<EmergencyPauseState> =
+            env.storage().instance().get(&DataKey::EmergencyPauseState);
 
         if let Some(state) = state {
             if let Some(time_lock_until) = state.time_lock_until {

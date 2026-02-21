@@ -1024,10 +1024,8 @@ impl MembershipTokenContract {
         state.paused_at = Some(current_time);
         state.paused_by = Some(admin.clone());
         state.reason = reason.clone();
-        state.auto_unpause_at = auto_unpause_after
-            .and_then(|secs| current_time.checked_add(secs));
-        state.time_lock_until = time_lock_duration
-            .and_then(|secs| current_time.checked_add(secs));
+        state.auto_unpause_at = auto_unpause_after.and_then(|secs| current_time.checked_add(secs));
+        state.time_lock_until = time_lock_duration.and_then(|secs| current_time.checked_add(secs));
         state.pause_count = state.pause_count.saturating_add(1);
 
         env.storage()
@@ -1037,7 +1035,12 @@ impl MembershipTokenContract {
         // Emit PauseStateChanged event.
         env.events().publish(
             (symbol_short!("emg_pause"), admin.clone()),
-            (current_time, reason, state.auto_unpause_at, state.time_lock_until),
+            (
+                current_time,
+                reason,
+                state.auto_unpause_at,
+                state.time_lock_until,
+            ),
         );
 
         Ok(())
@@ -1096,7 +1099,6 @@ impl MembershipTokenContract {
     pub fn is_contract_paused(env: Env) -> bool {
         PauseGuard::is_paused(&env)
     }
-
 
     /// Pauses operations for a specific token.
     ///
