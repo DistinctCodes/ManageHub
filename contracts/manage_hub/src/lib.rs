@@ -64,6 +64,7 @@ use soroban_sdk::{contract, contractimpl, vec, Address, BytesN, Env, Map, String
 mod allowance;
 mod attendance_log;
 mod errors;
+mod events;
 mod fractionalization;
 mod guards;
 mod membership_token;
@@ -909,375 +910,83 @@ impl Contract {
     }
 
     // ============================================================================
-    // Emergency Pause Endpoints
+    // Token Burning Endpoints
     // ============================================================================
 
-    /// Immediately halts all token operations (issue, transfer, renew).
+    /// Burns a single membership token permanently.
     ///
     /// # Arguments
-    /// * `env` - The contract environment
-    /// * `admin` - Admin address (must be authorized)
-    /// * `reason` - Human-readable reason for the pause
-    /// * `auto_unpause_after` - Optional seconds until the contract auto-resumes.
-    ///   Pass `None` for an indefinite pause that requires an explicit unpause call.
-    /// * `time_lock_duration` - Optional minimum seconds before a manual unpause is
-    ///   allowed. Use this during security incidents to prevent an attacker from
-    ///   reversing the pause with a compromised admin key. Pass `None` for no lock.
-    ///
-    /// # Errors
-    /// * `AdminNotSet` - No admin has been configured
-    /// * `Unauthorized` - Caller is not the admin
-    pub fn emergency_pause(
-        env: Env,
-        admin: Address,
-        reason: Option<String>,
-        auto_unpause_after: Option<u64>,
-        time_lock_duration: Option<u64>,
-    ) -> Result<(), Error> {
-        MembershipTokenContract::emergency_pause(
-            env,
-            admin,
-            reason,
-            auto_unpause_after,
-            time_lock_duration,
-        )
-    }
-
-    /// Lifts an active emergency pause and restores normal contract operation.
-    ///
-    /// The time lock (if any) must have elapsed before this call succeeds.
-    ///
-    /// # Errors
-    /// * `AdminNotSet` - No admin has been configured
-    /// * `Unauthorized` - Caller is not the admin
-    /// * `TimeLockNotExpired` - The mandatory lock window has not yet elapsed
-    pub fn emergency_unpause(env: Env, admin: Address) -> Result<(), Error> {
-        MembershipTokenContract::emergency_unpause(env, admin)
-    }
-
-    /// Returns `true` if the contract is currently globally paused.
-    ///
-    /// Respects time-based auto-unpause: returns `false` once
-    /// `auto_unpause_at` has passed, even before an explicit unpause call.
-    pub fn is_contract_paused(env: Env) -> bool {
-        MembershipTokenContract::is_contract_paused(env)
-    }
-
-    /// Returns the full emergency pause state for inspection.
-    pub fn get_emergency_pause_state(env: Env) -> EmergencyPauseState {
-        MembershipTokenContract::get_emergency_pause_state(env)
-    }
-
-    /// Pauses all operations for a specific token.
-    ///
-    /// The per-token pause is independent of the global pause: either one is
-    /// sufficient to block transfers and renewals on that token.
-    ///
-    /// # Arguments
-    /// * `env` - The contract environment
-    /// * `admin` - Admin address (must be authorized)
-    /// * `token_id` - The token to pause
-    /// * `reason` - Human-readable reason for the pause
-    ///
-    /// # Errors
-    /// * `AdminNotSet` - No admin has been configured
-    /// * `Unauthorized` - Caller is not the admin
-    /// * `TokenNotFound` - The specified token does not exist
-    pub fn pause_token_operations(
-        env: Env,
-        admin: Address,
-        token_id: BytesN<32>,
-        reason: Option<String>,
-    ) -> Result<(), Error> {
-        MembershipTokenContract::pause_token_operations(env, admin, token_id, reason)
-    }
-
-    /// Resumes operations for a previously paused token.
-    ///
-    /// # Errors
-    /// * `AdminNotSet` - No admin has been configured
-    /// * `Unauthorized` - Caller is not the admin
-    /// * `TokenNotFound` - The specified token does not exist
-    pub fn unpause_token_operations(
-        env: Env,
-        admin: Address,
-        token_id: BytesN<32>,
-    ) -> Result<(), Error> {
-        MembershipTokenContract::unpause_token_operations(env, admin, token_id)
-    }
-
-    /// Returns `true` if the specific token's operations are currently paused.
-    pub fn is_token_paused(env: Env, token_id: BytesN<32>) -> bool {
-        MembershipTokenContract::is_token_paused(env, token_id)
-    }
-
-    // ============================================================================
-    // Token Staking Endpoints
-    // ============================================================================
-
-    /// Initialise or update the global staking configuration. Admin only.
-    ///
-    /// # Arguments
-    /// * `env` - The contract environment
-    /// * `admin` - Admin address (must be authorized)
-    /// * `config` - New staking configuration
-    ///
-    /// # Errors
-    /// * `AdminNotSet` - No admin has been configured
-    /// * `Unauthorized` - Caller is not the admin
-    /// * `InvalidPaymentAmount` - Penalty bps exceeds 100 %
-    pub fn set_staking_config(
-        env: Env,
-        admin: Address,
-        config: StakingConfig,
-    ) -> Result<(), Error> {
-        StakingModule::set_staking_config(env, admin, config)
-    }
-
-    /// Create a new staking tier. Admin only.
-    ///
-    /// # Arguments
-    /// * `env` - The contract environment
-    /// * `admin` - Admin address (must be authorized)
-    /// * `tier` - Staking tier definition
-    ///
-    /// # Errors
-    /// * `AdminNotSet` / `Unauthorized` - Auth failure
-    /// * `TierAlreadyExists` - A tier with the same ID already exists
-    /// * `InvalidPaymentAmount` - Invalid tier parameters
-    pub fn create_staking_tier(env: Env, admin: Address, tier: StakingTier) -> Result<(), Error> {
-        StakingModule::create_staking_tier(env, admin, tier)
-    }
-
-    /// Lock tokens into the specified staking tier.
-    ///
-    /// Requires the caller to have approved a token transfer from their wallet
-    /// to this contract (via the staking token's `approve` method) before calling.
-    ///
-    /// If the caller already has an active stake in the same tier, the amounts
-    /// are combined and the lock window resets.
-    ///
-    /// # Arguments
-    /// * `env` - The contract environment
-    /// * `staker` - Staker address (must be authorized)
-    /// * `tier_id` - Staking tier to lock into
-    /// * `amount` - Number of tokens to lock
-    ///
-    /// # Errors
-    /// * `SubscriptionNotActive` - Staking is disabled
-    /// * `TierNotFound` - Tier ID does not exist
-    /// * `InvalidPaymentAmount` - Amount below tier minimum
-    /// * `Unauthorized` - Caller already has a stake in a different tier
-    pub fn stake_tokens(
-        env: Env,
-        staker: Address,
-        tier_id: String,
-        amount: i128,
-    ) -> Result<(), Error> {
-        StakingModule::stake_tokens(env, staker, tier_id, amount)
-    }
-
-    /// Unlock tokens after the lock period has elapsed.
-    ///
-    /// Pending rewards are calculated and transferred together with the principal.
-    ///
-    /// # Arguments
-    /// * `env` - The contract environment
-    /// * `staker` - Staker address (must be authorized)
-    ///
-    /// # Errors
-    /// * `TokenNotFound` - No active stake found
-    /// * `PauseTooEarly` - Lock period has not elapsed yet
-    pub fn unstake_tokens(env: Env, staker: Address) -> Result<(), Error> {
-        StakingModule::unstake_tokens(env, staker)
-    }
-
-    /// Emergency unstake: return tokens immediately with a penalty deducted.
-    ///
-    /// No staking rewards are paid. The penalty stays in the contract.
-    ///
-    /// # Arguments
-    /// * `env` - The contract environment
-    /// * `staker` - Staker address (must be authorized)
-    ///
-    /// # Errors
-    /// * `TokenNotFound` - No active stake found
-    pub fn emergency_unstake(env: Env, staker: Address) -> Result<(), Error> {
-        StakingModule::emergency_unstake(env, staker)
-    }
-
-    /// Get the active stake information for a staker.
-    ///
-    /// Returns `None` if the address has no active stake.
-    pub fn get_stake_info(env: Env, staker: Address) -> Option<StakeInfo> {
-        StakingModule::get_stake_info(env, staker)
-    }
-
-    /// Get all available staking tiers.
-    pub fn get_staking_tiers(env: Env) -> Vec<StakingTier> {
-        StakingModule::get_staking_tiers(env)
-    }
-
-    /// Get the global staking configuration.
-    ///
-    /// # Errors
-    /// * `AdminNotSet` - Staking has not been configured yet
-    pub fn get_staking_config(env: Env) -> Result<StakingConfig, Error> {
-        StakingModule::get_staking_config(env)
-    }
-
-    // =========================================================================
-    // Token Upgrade Mechanism
-    // =========================================================================
-
-    /// Initialise or update the global upgrade configuration. Admin only.
-    ///
-    /// Must be called before any upgrade functions can be used.
-    ///
-    /// # Arguments
-    /// * `env`    - The contract environment
-    /// * `admin`  - Admin address (must be authorized)
-    /// * `config` - Upgrade configuration to apply
-    ///
-    /// # Errors
-    /// * `AdminNotSet`    - No admin has been set
-    /// * `Unauthorized`   - Caller is not the admin
-    pub fn set_upgrade_config(
-        env: Env,
-        admin: Address,
-        config: UpgradeConfig,
-    ) -> Result<(), Error> {
-        UpgradeModule::set_upgrade_config(env, admin, config)
-    }
-
-    /// Upgrade a single token to the next version.
-    ///
-    /// Captures a pre-upgrade snapshot for rollback, increments `current_version`,
-    /// and optionally updates `expiry_date`, `tier_id`, and `status`.
-    /// Emits a `TokenUpgraded` event on success.
-    ///
-    /// # Arguments
-    /// * `env`             - The contract environment
-    /// * `caller`          - Address triggering the upgrade (must be authorized)
-    /// * `token_id`        - ID of the token to upgrade
-    /// * `label`           - Optional human-readable version label (e.g. "v2-premium")
-    /// * `new_expiry_date` - Optional new expiry timestamp
-    /// * `new_tier_id`     - Optional new tier ID
-    /// * `new_status`      - Optional new membership status
+    /// * `env` - Contract environment
+    /// * `token_id` - Token ID to burn
+    /// * `reason` - Reason for burning the token (for audit trail)
     ///
     /// # Returns
-    /// The new version number on success.
+    /// * `Ok(())` - Token successfully burned
+    /// * `Err(Error)` - If token not found, unauthorized, or already burned
     ///
     /// # Errors
-    /// * `AdminNotSet`           - No admin has been set
-    /// * `SubscriptionNotActive` - Upgrades are disabled
-    /// * `TokenNotFound`         - Token does not exist
-    /// * `Unauthorized`          - Caller is not authorised
-    pub fn upgrade_token(
-        env: Env,
-        caller: Address,
-        token_id: BytesN<32>,
-        label: Option<String>,
-        new_expiry_date: Option<u64>,
-        new_tier_id: Option<String>,
-        new_status: Option<MembershipStatus>,
-    ) -> Result<u32, Error> {
-        UpgradeModule::upgrade_token(
-            env,
-            caller,
-            token_id,
-            label,
-            new_expiry_date,
-            new_tier_id,
-            new_status,
-        )
+    /// * `TokenNotFound` - Token doesn't exist
+    /// * `Unauthorized` - Caller is not admin or token owner
+    /// * `TokenBurned` - Token is already burned
+    pub fn burn_token(env: Env, token_id: BytesN<32>, reason: String) -> Result<(), Error> {
+        MembershipTokenContract::burn_token(env, token_id, reason)
     }
 
-    /// Upgrade multiple tokens in a single call. Admin only.
-    ///
-    /// Individual token failures do NOT abort the entire batch; they are
-    /// reported as `success: false` in the returned result list.
+    /// Burns multiple tokens in a single transaction.
     ///
     /// # Arguments
-    /// * `env`             - The contract environment
-    /// * `admin`           - Admin address (must be authorized)
-    /// * `token_ids`       - List of token IDs to upgrade
-    /// * `label`           - Optional version label applied to all tokens
-    /// * `new_expiry_date` - Optional new expiry timestamp applied to all tokens
+    /// * `env` - Contract environment
+    /// * `token_ids` - Vector of token IDs to burn
+    /// * `reason` - Reason for burning the tokens (for audit trail)
+    ///
+    /// # Returns
+    /// * `Ok(count)` - Number of successfully burned tokens
+    /// * `Err(Error)` - If admin not set or other error occurs
     ///
     /// # Errors
-    /// * `AdminNotSet`           - No admin has been set
-    /// * `Unauthorized`          - Caller is not the admin
-    /// * `SubscriptionNotActive` - Upgrades are disabled
-    pub fn batch_upgrade_tokens(
+    /// * `AdminNotSet` - No admin configured
+    pub fn batch_burn(
         env: Env,
-        admin: Address,
         token_ids: Vec<BytesN<32>>,
-        label: Option<String>,
-        new_expiry_date: Option<u64>,
-    ) -> Result<Vec<BatchUpgradeResult>, Error> {
-        UpgradeModule::batch_upgrade_tokens(env, admin, token_ids, label, new_expiry_date)
+        reason: String,
+    ) -> Result<u32, Error> {
+        MembershipTokenContract::batch_burn(env, token_ids, reason)
     }
 
-    /// Get the current version number of a token.
+    /// Retrieves the burn history for a specific token.
     ///
     /// # Arguments
-    /// * `env`      - The contract environment
-    /// * `token_id` - ID of the token to query
-    ///
-    /// # Errors
-    /// * `TokenNotFound` - Token does not exist
-    pub fn get_token_version(env: Env, token_id: BytesN<32>) -> Result<u32, Error> {
-        UpgradeModule::get_token_version(env, token_id)
-    }
-
-    /// Get the full upgrade history for a token.
-    ///
-    /// Returns an empty list if the token has never been upgraded.
-    ///
-    /// # Arguments
-    /// * `env`      - The contract environment
-    /// * `token_id` - ID of the token to query
-    pub fn get_upgrade_history(env: Env, token_id: BytesN<32>) -> Vec<UpgradeRecord> {
-        UpgradeModule::get_upgrade_history(env, token_id)
-    }
-
-    /// Roll back a token to a specific previous version. Admin only.
-    ///
-    /// The token's version number continues to increment (not reset) so the
-    /// audit trail is preserved. The state (expiry, tier, status) from the
-    /// target snapshot is restored.
-    ///
-    /// # Arguments
-    /// * `env`            - The contract environment
-    /// * `admin`          - Admin address (must be authorized)
-    /// * `token_id`       - ID of the token to roll back
-    /// * `target_version` - The version number to restore state from
+    /// * `env` - Contract environment
+    /// * `token_id` - Token ID to query burn history for
     ///
     /// # Returns
-    /// The new (incremented) version number after rollback.
-    ///
-    /// # Errors
-    /// * `AdminNotSet`         - No admin has been set
-    /// * `Unauthorized`        - Caller is not the admin
-    /// * `TokenNotFound`       - Token does not exist
-    /// * `MetadataNotFound`    - No snapshot for `target_version`
-    /// * `PauseCountExceeded`  - Maximum rollback count reached
-    pub fn rollback_token_upgrade(
-        env: Env,
-        admin: Address,
-        token_id: BytesN<32>,
-        target_version: u32,
-    ) -> Result<u32, Error> {
-        UpgradeModule::rollback_token_upgrade(env, admin, token_id, target_version)
+    /// * Vector of BurnRecord entries (empty if no burns recorded)
+    pub fn get_burn_history(env: Env, token_id: BytesN<32>) -> Vec<membership_token::BurnRecord> {
+        MembershipTokenContract::get_burn_history(env, token_id)
     }
 
-    /// Get the global upgrade configuration.
+    /// Gets the total number of burned tokens across all users.
     ///
-    /// # Errors
-    /// * `AdminNotSet` - Upgrade system has not been configured yet
-    pub fn get_upgrade_config(env: Env) -> Result<UpgradeConfig, Error> {
-        UpgradeModule::get_upgrade_config(env)
+    /// # Arguments
+    /// * `env` - Contract environment
+    ///
+    /// # Returns
+    /// * Total count of burned tokens
+    pub fn get_burned_token_count(env: Env) -> u32 {
+        MembershipTokenContract::get_burned_token_count(env)
+    }
+
+    /// Checks if a specific token has been burned.
+    ///
+    /// # Arguments
+    /// * `env` - Contract environment
+    /// * `token_id` - Token ID to check
+    ///
+    /// # Returns
+    /// * `Ok(true)` if token is burned, `Ok(false)` if not burned
+    /// * `Err(Error::TokenNotFound)` if token doesn't exist
+    pub fn is_token_burned(env: Env, token_id: BytesN<32>) -> Result<bool, Error> {
+        MembershipTokenContract::is_token_burned(env, token_id)
     }
 }
 

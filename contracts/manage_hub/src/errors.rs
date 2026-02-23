@@ -60,4 +60,9 @@ pub enum Error {
     AutoRenewalFailed = 49,
     // Token fractionalization errors
     TokenFractionalized = 50,
+    // Token burning errors
+    TokenBurned = 51,
+    CannotBurnExpiredToken = 52,
+    CannotBurnFractionalizedToken = 53,
+    BurnHistoryNotFound = 54,
 }

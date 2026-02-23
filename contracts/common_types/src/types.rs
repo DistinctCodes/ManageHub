@@ -187,6 +187,8 @@ pub enum MembershipStatus {
     Revoked,
     /// Inactive membership
     Inactive,
+    /// Burned membership
+    Burned,
 }
 
 // ============================================================================

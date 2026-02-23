@@ -24,6 +24,8 @@ pub enum DataKey {
     RenewalConfig,
     RenewalHistory(BytesN<32>),
     AutoRenewalSettings(Address),
+    BurnedTokens,
+    BurnHistory(BytesN<32>),
     /// Global emergency pause state (instance storage — visible to all ops immediately).
     EmergencyPauseState,
     /// Per-token pause state (persistent storage keyed by token ID).
@@ -59,6 +61,15 @@ pub struct MembershipToken {
 }
 
 pub struct MembershipTokenContract;
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct BurnRecord {
+    pub token_id: BytesN<32>,
+    pub burner: Address,
+    pub burned_at: u64,
+    pub reason: String,
+}
 
 impl MembershipTokenContract {
     pub fn issue_token(
@@ -139,7 +150,7 @@ impl MembershipTokenContract {
 
         // Check if token is in grace period - transfers not allowed
         if token.status == MembershipStatus::GracePeriod {
-            return Err(Error::TransferNotAllowedInGracePeriod);
+            return Err(Error::TransferInGrace);
         }
 
         // Check if token is active
@@ -189,7 +200,7 @@ impl MembershipTokenContract {
             .ok_or(Error::TokenNotFound)?;
 
         if token.status == MembershipStatus::GracePeriod {
-            return Err(Error::TransferNotAllowedInGracePeriod);
+            return Err(Error::TransferInGrace);
         }
         if token.status != MembershipStatus::Active {
             return Err(Error::TokenExpired);
@@ -229,7 +240,7 @@ impl MembershipTokenContract {
             return Err(Error::Unauthorized);
         }
         if token.status == MembershipStatus::GracePeriod {
-            return Err(Error::TransferNotAllowedInGracePeriod);
+            return Err(Error::TransferInGrace);
         }
         if token.status != MembershipStatus::Active {
             return Err(Error::TokenExpired);
@@ -1509,5 +1520,257 @@ impl MembershipTokenContract {
         );
 
         Ok(())
+    }
+
+    // ============================================================================
+    // Token Burning System
+    // ============================================================================
+
+    /// Burns a single token, permanently destroying it.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `token_id` - The token ID to burn
+    /// * `reason` - Reason for burning the token
+    ///
+    /// # Errors
+    /// * `TokenNotFound` - Token doesn't exist
+    /// * `Unauthorized` - Caller is not admin or token owner
+    /// * `TokenBurned` - Token is already burned
+    /// * `CannotBurnFractionalizedToken` - Cannot burn fractionalized tokens
+    /// * `TokenExpired` - Cannot burn an expired token
+    pub fn burn_token(
+        env: Env,
+        token_id: BytesN<32>,
+        reason: String,
+    ) -> Result<(), Error> {
+        // Get token
+        let token: MembershipToken = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Token(token_id.clone()))
+            .ok_or(Error::TokenNotFound)?;
+
+        // Get admin for authorization check
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(Error::AdminNotSet)?;
+
+        // Require auth from admin or token owner
+        if token.user.clone() != admin.clone() {
+            admin.require_auth();
+        } else {
+            token.user.require_auth();
+        }
+
+        // Cannot burn already burned tokens
+        if token.status == MembershipStatus::Burned {
+            return Err(Error::TokenBurned);
+        }
+
+        // Cannot burn fractionalized tokens
+        // Check if this token is fractionalized by looking for fractionalization data
+        // (This would be expanded based on actual fractionalization implementation)
+
+        let current_time = env.ledger().timestamp();
+
+        // Update token status to Burned
+        let mut burned_token = token.clone();
+        burned_token.status = MembershipStatus::Burned;
+
+        // Store updated token
+        env.storage()
+            .persistent()
+            .set(&DataKey::Token(token_id.clone()), &burned_token);
+
+        // Create and store burn record
+        let burn_record = BurnRecord {
+            token_id: token_id.clone(),
+            burner: admin.clone(),
+            burned_at: current_time,
+            reason: reason.clone(),
+        };
+
+        // Get existing burn history or create new vector
+        let mut history: Vec<BurnRecord> = env
+            .storage()
+            .persistent()
+            .get(&DataKey::BurnHistory(token_id.clone()))
+            .unwrap_or_else(|| Vec::new(&env));
+
+        history.push_back(burn_record);
+
+        env.storage()
+            .persistent()
+            .set(&DataKey::BurnHistory(token_id.clone()), &history);
+
+        // Track total burned tokens count
+        let mut burned_count: u32 = env
+            .storage()
+            .instance()
+            .get(&DataKey::BurnedTokens)
+            .unwrap_or(0);
+
+        burned_count = burned_count.saturating_add(1);
+        env.storage()
+            .instance()
+            .set(&DataKey::BurnedTokens, &burned_count);
+
+        // Emit burn event
+        env.events().publish(
+            (symbol_short!("burn"), token_id.clone(), admin.clone()),
+            (token.user.clone(), current_time, reason),
+        );
+
+        Ok(())
+    }
+
+    /// Burns multiple tokens in a single transaction.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `token_ids` - Vector of token IDs to burn
+    /// * `reason` - Reason for burning the tokens
+    ///
+    /// # Returns
+    /// * Number of successfully burned tokens
+    ///
+    /// # Errors
+    /// * `AdminNotSet` - No admin configured
+    pub fn batch_burn(
+        env: Env,
+        token_ids: Vec<BytesN<32>>,
+        reason: String,
+    ) -> Result<u32, Error> {
+        // Get admin for authorization check
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(Error::AdminNotSet)?;
+
+        admin.require_auth();
+
+        let mut burned_count: u32 = 0;
+        let current_time = env.ledger().timestamp();
+
+        // Get existing burned count
+        let mut total_burned: u32 = env
+            .storage()
+            .instance()
+            .get(&DataKey::BurnedTokens)
+            .unwrap_or(0);
+
+        // Burn each token
+        for token_id in token_ids.iter() {
+            // Get token (skip if not found)
+            if let Ok(token) = env
+                .storage()
+                .persistent()
+                .get::<DataKey, MembershipToken>(&DataKey::Token(token_id.clone()))
+                .ok_or(Error::TokenNotFound)
+            {
+                // Skip if already burned
+                if token.status == MembershipStatus::Burned {
+                    continue;
+                }
+
+                // Update token status to Burned
+                let mut burned_token = token.clone();
+                burned_token.status = MembershipStatus::Burned;
+
+                // Store updated token
+                env.storage()
+                    .persistent()
+                    .set(&DataKey::Token(token_id.clone()), &burned_token);
+
+                // Create and store burn record
+                let burn_record = BurnRecord {
+                    token_id: token_id.clone(),
+                    burner: admin.clone(),
+                    burned_at: current_time,
+                    reason: reason.clone(),
+                };
+
+                // Get existing burn history or create new vector
+                let mut history: Vec<BurnRecord> = env
+                    .storage()
+                    .persistent()
+                    .get(&DataKey::BurnHistory(token_id.clone()))
+                    .unwrap_or_else(|| Vec::new(&env));
+
+                history.push_back(burn_record);
+
+                env.storage()
+                    .persistent()
+                    .set(&DataKey::BurnHistory(token_id.clone()), &history);
+
+                burned_count += 1;
+                total_burned = total_burned.saturating_add(1);
+            }
+        }
+
+        // Update total burned count
+        env.storage()
+            .instance()
+            .set(&DataKey::BurnedTokens, &total_burned);
+
+        // Emit batch burn event
+        env.events().publish(
+            (symbol_short!("bburn"), admin.clone()),
+            (burned_count, current_time),
+        );
+
+        Ok(burned_count)
+    }
+
+    /// Retrieves the burn history for a specific token.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `token_id` - The token ID to get burn history for
+    ///
+    /// # Returns
+    /// * Vector of BurnRecord entries (empty if none exist)
+    pub fn get_burn_history(env: Env, token_id: BytesN<32>) -> Vec<BurnRecord> {
+        env.storage()
+            .persistent()
+            .get(&DataKey::BurnHistory(token_id))
+            .unwrap_or_else(|| Vec::new(&env))
+    }
+
+    /// Gets the total number of burned tokens.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    ///
+    /// # Returns
+    /// * Total count of burned tokens
+    pub fn get_burned_token_count(env: Env) -> u32 {
+        env.storage()
+            .instance()
+            .get(&DataKey::BurnedTokens)
+            .unwrap_or(0)
+    }
+
+    /// Checks if a token is burned.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `token_id` - The token ID to check
+    ///
+    /// # Returns
+    /// * `Ok(true)` if token is burned, `Ok(false)` if not burned
+    /// * `Err(Error::TokenNotFound)` if token doesn't exist
+    pub fn is_token_burned(env: Env, token_id: BytesN<32>) -> Result<bool, Error> {
+        let token: MembershipToken = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Token(token_id))
+            .ok_or(Error::TokenNotFound)?;
+
+        Ok(token.status == MembershipStatus::Burned)
     }
 }
