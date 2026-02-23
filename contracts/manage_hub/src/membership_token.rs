@@ -151,6 +151,7 @@ impl MembershipTokenContract {
         // Check if token is in grace period - transfers not allowed
         if token.status == MembershipStatus::GracePeriod {
             return Err(Error::TransferInGrace);
+            return Err(Error::TransferInGracePeriod);
         }
 
         // Check if token is active
@@ -1537,7 +1538,7 @@ impl MembershipTokenContract {
     /// * `TokenNotFound` - Token doesn't exist
     /// * `Unauthorized` - Caller is not admin or token owner
     /// * `TokenBurned` - Token is already burned
-    /// * `CannotBurnFractionalizedToken` - Cannot burn fractionalized tokens
+    /// * `CannotBurnFractionalized` - Cannot burn fractionalized tokens
     /// * `TokenExpired` - Cannot burn an expired token
     pub fn burn_token(
         env: Env,

@@ -64,7 +64,6 @@ use soroban_sdk::{contract, contractimpl, vec, Address, BytesN, Env, Map, String
 mod allowance;
 mod attendance_log;
 mod errors;
-mod events;
 mod fractionalization;
 mod guards;
 mod membership_token;
