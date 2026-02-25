@@ -4,8 +4,31 @@ use soroban_sdk::{contracttype, Address, BytesN, String, Vec};
 pub use common_types::MembershipStatus;
 pub use common_types::{
     SubscriptionTier, TierChangeRequest, TierChangeStatus, TierChangeType, TierFeature, TierLevel,
-    TierPromotion,
+    TierPromotion, MetadataValue
 };
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct BatchMintParams {
+    pub id: BytesN<32>,
+    pub user: Address,
+    pub expiry_date: u64,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct BatchTransferParams {
+    pub id: BytesN<32>,
+    pub new_user: Address,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct BatchUpdateParams {
+    pub id: BytesN<32>,
+    pub description: String,
+    pub attributes: soroban_sdk::Map<String, MetadataValue>,
+}
 
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
