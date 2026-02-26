@@ -21,8 +21,8 @@ pub enum Error {
     MetadataNotFound = 16,
     MetadataDescriptionTooLong = 17,
     MetadataTooManyAttributes = 18,
-    MetadataAttributeKeyTooLong = 19,
-    MetadataTextValueTooLong = 20,
+    MetadataKeyTooLong = 19,
+    MetadataValueTooLong = 20,
     MetadataValidationFailed = 21,
     InvalidMetadataVersion = 22,
     // Pause/Resume related errors
@@ -55,9 +55,14 @@ pub enum Error {
     TierChangeNotFound = 45,
     // Token renewal errors (reusing codes where applicable)
     RenewalNotAllowed = 46,
-    TransferNotAllowedInGracePeriod = 47,
+    TransferInGracePeriod = 47,
     GracePeriodExpired = 48,
     AutoRenewalFailed = 49,
     // Token fractionalization errors
     TokenFractionalized = 50,
+    // Token burning errors
+    TokenBurned = 51,
+    CannotBurnExpired = 52,
+    CannotBurnFractionalized = 53,
+    BurnHistoryNotFound = 54,
 }
