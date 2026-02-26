@@ -63,6 +63,7 @@ use soroban_sdk::{contract, contractimpl, vec, Address, BytesN, Env, Map, String
 
 mod allowance;
 mod attendance_log;
+mod batch;
 mod errors;
 mod fractionalization;
 mod guards;
@@ -77,8 +78,10 @@ mod subscription;
 mod types;
 mod upgrade;
 mod upgrade_errors;
+mod validation;
 
 use attendance_log::{AttendanceLog, AttendanceLogModule};
+use batch::BatchModule;
 use common_types::{
     AttendanceFrequency, DateRange, DayPattern, MetadataUpdate, MetadataValue, PeakHourData,
     TimePeriod, TokenMetadata, UserAttendanceStats,
@@ -89,11 +92,12 @@ use membership_token::{MembershipToken, MembershipTokenContract};
 use staking::StakingModule;
 use subscription::SubscriptionContract;
 use types::{
-    AttendanceAction, AttendanceSummary, BatchUpgradeResult, BillingCycle, CreatePromotionParams,
-    CreateTierParams, DividendDistribution, EmergencyPauseState, FractionHolder, MembershipStatus,
-    PauseConfig, PauseHistoryEntry, PauseStats, StakeInfo, StakingConfig, StakingTier,
-    Subscription, SubscriptionTier, TierAnalytics, TierFeature, TierPromotion, TokenAllowance,
-    UpdateTierParams, UpgradeConfig, UpgradeRecord, UserSubscriptionInfo,
+    AttendanceAction, AttendanceSummary, BatchMintParams, BatchTransferParams, BatchUpdateParams,
+    BatchUpgradeResult, BillingCycle, CreatePromotionParams, CreateTierParams,
+    DividendDistribution, EmergencyPauseState, FractionHolder, MembershipStatus, PauseConfig,
+    PauseHistoryEntry, PauseStats, StakeInfo, StakingConfig, StakingTier, Subscription,
+    SubscriptionTier, TierAnalytics, TierFeature, TierPromotion, TokenAllowance, UpdateTierParams,
+    UpgradeConfig, UpgradeRecord, UserSubscriptionInfo,
 };
 use upgrade::UpgradeModule;
 
@@ -104,6 +108,21 @@ pub struct Contract;
 impl Contract {
     pub fn hello(env: Env, to: String) -> Vec<String> {
         vec![&env, String::from_str(&env, "Hello"), to]
+    }
+
+    /// Mints multiple tokens in a single transaction.
+    pub fn batch_mint(env: Env, params: Vec<BatchMintParams>) -> Result<(), Error> {
+        BatchModule::batch_mint(env, params)
+    }
+
+    /// Transfers multiple tokens in a single transaction.
+    pub fn batch_transfer(env: Env, params: Vec<BatchTransferParams>) -> Result<(), Error> {
+        BatchModule::batch_transfer(env, params)
+    }
+
+    /// Updates metadata for multiple tokens in a single transaction.
+    pub fn batch_update(env: Env, params: Vec<BatchUpdateParams>) -> Result<(), Error> {
+        BatchModule::batch_update(env, params)
     }
 
     pub fn issue_token(

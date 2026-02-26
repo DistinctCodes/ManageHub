@@ -17,6 +17,7 @@ import { ContactModule } from './contact/contact.module';
 import { CategoriesModule } from './categories/categories.module';
 import { ProductsModule } from './products/products.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { SearchModule } from './search/search.module';
 
 @Module({
   imports: [
@@ -88,6 +89,7 @@ import { AnalyticsModule } from './analytics/analytics.module';
     DashboardModule,
     ProductsModule,
     AnalyticsModule,
+    SearchModule,
   ],
   controllers: [AppController],
   providers: [
