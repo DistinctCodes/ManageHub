@@ -34,6 +34,7 @@ pub enum DataKey {
     UpgradeHistory(BytesN<32>),
     /// Version snapshot for rollback, keyed by token ID and version number.
     VersionSnapshot(BytesN<32>, u32),
+    Royalty(BytesN<32>),
 }
 
 #[contracttype]
@@ -139,7 +140,7 @@ impl MembershipTokenContract {
 
         // Check if token is in grace period - transfers not allowed
         if token.status == MembershipStatus::GracePeriod {
-            return Err(Error::TransferNotAllowedInGracePeriod);
+            return Err(Error::TransferGraceErr);
         }
 
         // Check if token is active
@@ -168,6 +169,33 @@ impl MembershipTokenContract {
         Ok(())
     }
 
+    pub fn transfer_token_with_royalty(
+        env: Env,
+        id: BytesN<32>,
+        new_user: Address,
+        payment_token: Address,
+        sale_price: i128,
+    ) -> Result<(), Error> {
+        // First do the standard transfer logic (which includes auth and ownership changes)
+        Self::transfer_token(env.clone(), id.clone(), new_user.clone())?;
+
+        // Then calculate and process royalties
+        crate::royalty::RoyaltyModule::calculate_and_pay_royalties(
+            &env,
+            &id,
+            &payment_token,
+            sale_price,
+        )?;
+
+        // Emit token transferred event with sale price info
+        env.events().publish(
+            (symbol_short!("tok_sale"), id, new_user),
+            (sale_price, env.ledger().timestamp()),
+        );
+
+        Ok(())
+    }
+
     pub fn approve(
         env: Env,
         token_id: BytesN<32>,
@@ -189,7 +217,7 @@ impl MembershipTokenContract {
             .ok_or(Error::TokenNotFound)?;
 
         if token.status == MembershipStatus::GracePeriod {
-            return Err(Error::TransferNotAllowedInGracePeriod);
+            return Err(Error::TransferGraceErr);
         }
         if token.status != MembershipStatus::Active {
             return Err(Error::TokenExpired);
@@ -229,7 +257,7 @@ impl MembershipTokenContract {
             return Err(Error::Unauthorized);
         }
         if token.status == MembershipStatus::GracePeriod {
-            return Err(Error::TransferNotAllowedInGracePeriod);
+            return Err(Error::TransferGraceErr);
         }
         if token.status != MembershipStatus::Active {
             return Err(Error::TokenExpired);

@@ -524,3 +524,39 @@ pub struct DividendDistribution {
     /// Distribution timestamp
     pub distributed_at: u64,
 }
+
+// ============================================================================
+// Royalty System Types
+// ============================================================================
+
+/// Represents a single recipient of token royalties
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct RoyaltyRecipient {
+    /// The address receiving the royalty
+    pub address: Address,
+    /// Royalty percentage in basis points (e.g., 500 = 5%)
+    pub percentage: u32,
+}
+
+/// Configuration for token royalties
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct RoyaltyConfig {
+    /// The token these royalties apply to
+    pub token_id: BytesN<32>,
+    /// List of recipients and their splits
+    pub recipients: Vec<RoyaltyRecipient>,
+    /// Whether royalties are currently enabled for this token
+    pub enabled: bool,
+}
+
+/// Information returned when querying royalties
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct RoyaltyInfo {
+    /// The configuration
+    pub config: RoyaltyConfig,
+    /// Total percentage across all recipients (in basis points)
+    pub total_percentage: u32,
+}
