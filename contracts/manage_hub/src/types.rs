@@ -3,8 +3,8 @@ use soroban_sdk::{contracttype, Address, BytesN, String, Vec};
 // Re-export types from common_types for consistency
 pub use common_types::MembershipStatus;
 pub use common_types::{
-    SubscriptionTier, TierChangeRequest, TierChangeStatus, TierChangeType, TierFeature, TierLevel,
-    TierPromotion, MetadataValue
+    MetadataValue, SubscriptionTier, TierChangeRequest, TierChangeStatus, TierChangeType,
+    TierFeature, TierLevel, TierPromotion,
 };
 
 #[contracttype]

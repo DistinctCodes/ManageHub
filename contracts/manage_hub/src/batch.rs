@@ -1,3 +1,6 @@
+// Allow deprecated events API until migration to #[contractevent] macro
+#![allow(deprecated)]
+
 use crate::errors::Error;
 use crate::membership_token::MembershipTokenContract;
 use crate::types::{BatchMintParams, BatchTransferParams, BatchUpdateParams};
