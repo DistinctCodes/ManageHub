@@ -78,6 +78,16 @@ impl MembershipTokenContract {
             .ok_or(Error::AdminNotSet)?;
         admin.require_auth();
 
+        Self::internal_issue_token(&env, &admin, id, user, expiry_date)
+    }
+
+    fn internal_issue_token(
+        env: &Env,
+        admin: &Address,
+        id: BytesN<32>,
+        user: Address,
+        expiry_date: u64,
+    ) -> Result<(), Error> {
         // Check if token already exists
         if env.storage().persistent().has(&DataKey::Token(id.clone())) {
             return Err(Error::TokenAlreadyIssued);
@@ -121,12 +131,36 @@ impl MembershipTokenContract {
         Ok(())
     }
 
+    pub fn batch_issue_tokens(
+        env: Env,
+        params: Vec<crate::types::BatchMintParams>,
+    ) -> Result<(), Error> {
+        PauseGuard::require_not_paused(&env)?;
+
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(Error::AdminNotSet)?;
+        admin.require_auth();
+
+        for p in params.iter() {
+            Self::internal_issue_token(&env, &admin, p.id, p.user, p.expiry_date)?;
+        }
+
+        Ok(())
+    }
+
     pub fn transfer_token(env: Env, id: BytesN<32>, new_user: Address) -> Result<(), Error> {
         // Block transfers when the contract is globally paused or this token is paused.
         PauseGuard::require_not_paused(&env)?;
-        PauseGuard::require_token_not_paused(&env, &id)?;
+        Self::internal_transfer_token(&env, id, new_user)
+    }
 
-        if FractionalizationModule::is_fractionalized(&env, &id) {
+    fn internal_transfer_token(env: &Env, id: BytesN<32>, new_user: Address) -> Result<(), Error> {
+        PauseGuard::require_token_not_paused(env, &id)?;
+
+        if FractionalizationModule::is_fractionalized(env, &id) {
             return Err(Error::TokenFractionalized);
         }
 
@@ -164,6 +198,19 @@ impl MembershipTokenContract {
             (symbol_short!("token_xfr"), id.clone(), new_user.clone()),
             (old_user, env.ledger().timestamp()),
         );
+
+        Ok(())
+    }
+
+    pub fn batch_transfer_tokens(
+        env: Env,
+        params: Vec<crate::types::BatchTransferParams>,
+    ) -> Result<(), Error> {
+        PauseGuard::require_not_paused(&env)?;
+
+        for p in params.iter() {
+            Self::internal_transfer_token(&env, p.id, p.new_user)?;
+        }
 
         Ok(())
     }
@@ -415,19 +462,29 @@ impl MembershipTokenContract {
         description: String,
         attributes: Map<String, MetadataValue>,
     ) -> Result<(), Error> {
-        // Verify token exists
-        let token: MembershipToken = env
-            .storage()
-            .persistent()
-            .get(&DataKey::Token(token_id.clone()))
-            .ok_or(Error::TokenNotFound)?;
-
         // Require authorization from admin or token owner
         let admin: Address = env
             .storage()
             .instance()
             .get(&DataKey::Admin)
             .ok_or(Error::AdminNotSet)?;
+
+        Self::internal_set_token_metadata(&env, &admin, token_id, description, attributes)
+    }
+
+    fn internal_set_token_metadata(
+        env: &Env,
+        admin: &Address,
+        token_id: BytesN<32>,
+        description: String,
+        attributes: Map<String, MetadataValue>,
+    ) -> Result<(), Error> {
+        // Verify token exists
+        let token: MembershipToken = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Token(token_id.clone()))
+            .ok_or(Error::TokenNotFound)?;
 
         // Check if caller is admin or token owner
         if env.ledger().sequence() > 0 {
@@ -477,7 +534,7 @@ impl MembershipTokenContract {
             // Remove old attribute indexes
             for key in existing_metadata.attributes.keys() {
                 if let Some(value) = existing_metadata.attributes.get(key.clone()) {
-                    Self::remove_from_metadata_index(&env, &key, &value, &token_id);
+                    Self::remove_from_metadata_index(env, &key, &value, &token_id);
                 }
             }
         }
@@ -485,7 +542,7 @@ impl MembershipTokenContract {
         // Add new attribute indexes
         for key in attributes.keys() {
             if let Some(value) = attributes.get(key.clone()) {
-                Self::add_to_metadata_index(&env, &key, &value, &token_id);
+                Self::add_to_metadata_index(env, &key, &value, &token_id);
             }
         }
 
@@ -508,7 +565,7 @@ impl MembershipTokenContract {
             .storage()
             .persistent()
             .get(&DataKey::MetadataHistory(token_id.clone()))
-            .unwrap_or_else(|| Vec::new(&env));
+            .unwrap_or_else(|| Vec::new(env));
 
         history.push_back(metadata_update);
 
@@ -521,6 +578,23 @@ impl MembershipTokenContract {
             (symbol_short!("meta_set"), token_id.clone(), version),
             (caller, current_time),
         );
+
+        Ok(())
+    }
+
+    pub fn batch_set_token_metadata(
+        env: Env,
+        params: Vec<crate::types::BatchUpdateParams>,
+    ) -> Result<(), Error> {
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(Error::AdminNotSet)?;
+
+        for p in params.iter() {
+            Self::internal_set_token_metadata(&env, &admin, p.id, p.description, p.attributes)?;
+        }
 
         Ok(())
     }
