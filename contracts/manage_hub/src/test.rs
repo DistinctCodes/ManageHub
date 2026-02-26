@@ -1830,7 +1830,7 @@ fn test_transfer_from_rejects_expired_allowance() {
     env.ledger().with_mut(|l| l.timestamp += 61);
 
     let result = client.try_transfer_from(&token_id, &owner, &receiver, &spender, &100);
-    assert_eq!(result, Err(Ok(errors::Error::Unauthorized)));
+    assert_eq!(result, Err(Ok(Error::Unauthorized)));
 
     let allowance = client.get_allowance(&token_id, &owner, &spender);
     assert!(allowance.is_none());
@@ -1858,7 +1858,7 @@ fn test_revoke_allowance_blocks_transfer_from() {
     client.revoke_allowance(&token_id, &spender);
 
     let result = client.try_transfer_from(&token_id, &owner, &receiver, &spender, &100);
-    assert_eq!(result, Err(Ok(errors::Error::Unauthorized)));
+    assert_eq!(result, Err(Ok(Error::Unauthorized)));
 }
 
 #[test]
@@ -1882,7 +1882,7 @@ fn test_transfer_from_rejects_excessive_allowance_spend() {
     client.approve(&token_id, &spender, &100, &None);
 
     let result = client.try_transfer_from(&token_id, &owner, &receiver, &spender, &200);
-    assert_eq!(result, Err(Ok(errors::Error::InsufficientBalance)));
+    assert_eq!(result, Err(Ok(Error::InsufficientBalance)));
 }
 
 #[test]
@@ -1902,7 +1902,7 @@ fn test_approve_rejects_self_as_spender() {
     client.issue_token(&token_id, &owner, &expiry_date);
 
     let result = client.try_approve(&token_id, &owner, &500, &None);
-    assert_eq!(result, Err(Ok(errors::Error::Unauthorized)));
+    assert_eq!(result, Err(Ok(Error::Unauthorized)));
 }
 
 // ==================== Token Fractionalization Tests ====================
@@ -2153,7 +2153,7 @@ fn test_emergency_pause_rejects_non_admin() {
 
     let stranger = Address::generate(&env);
     let result = client.try_emergency_pause(&stranger, &None, &None, &None);
-    assert_eq!(result, Err(Ok(errors::Error::Unauthorized)));
+    assert_eq!(result, Err(Ok(Error::Unauthorized)));
 }
 
 #[test]
@@ -2172,7 +2172,7 @@ fn test_issue_token_blocked_when_paused() {
     let user = Address::generate(&env);
     let expiry = env.ledger().timestamp() + 100_000;
     let result = client.try_issue_token(&token_id, &user, &expiry);
-    assert_eq!(result, Err(Ok(errors::Error::SubscriptionPaused)));
+    assert_eq!(result, Err(Ok(Error::SubscriptionPaused)));
 }
 
 #[test]
@@ -2194,7 +2194,7 @@ fn test_transfer_token_blocked_when_paused() {
 
     let new_user = Address::generate(&env);
     let result = client.try_transfer_token(&token_id, &new_user);
-    assert_eq!(result, Err(Ok(errors::Error::SubscriptionPaused)));
+    assert_eq!(result, Err(Ok(Error::SubscriptionPaused)));
 }
 
 #[test]
@@ -2259,7 +2259,7 @@ fn test_emergency_unpause_rejects_non_admin() {
 
     let stranger = Address::generate(&env);
     let result = client.try_emergency_unpause(&stranger);
-    assert_eq!(result, Err(Ok(errors::Error::Unauthorized)));
+    assert_eq!(result, Err(Ok(Error::Unauthorized)));
 }
 
 #[test]
@@ -2278,7 +2278,7 @@ fn test_unpause_blocked_while_time_lock_active() {
 
     // Attempt to unpause before the time lock expires.
     let result = client.try_emergency_unpause(&admin);
-    assert_eq!(result, Err(Ok(errors::Error::PauseTooEarly)));
+    assert_eq!(result, Err(Ok(Error::PauseTooEarly)));
 }
 
 #[test]
@@ -2408,7 +2408,7 @@ fn test_transfer_blocked_by_per_token_pause() {
 
     let new_user = Address::generate(&env);
     let result = client.try_transfer_token(&token_id, &new_user);
-    assert_eq!(result, Err(Ok(errors::Error::SubscriptionPaused)));
+    assert_eq!(result, Err(Ok(Error::SubscriptionPaused)));
 }
 
 #[test]
@@ -2455,7 +2455,7 @@ fn test_pause_token_operations_rejects_non_admin() {
 
     let stranger = Address::generate(&env);
     let result = client.try_pause_token_operations(&stranger, &token_id, &None);
-    assert_eq!(result, Err(Ok(errors::Error::Unauthorized)));
+    assert_eq!(result, Err(Ok(Error::Unauthorized)));
 }
 
 #[test]
@@ -2471,7 +2471,7 @@ fn test_pause_token_operations_rejects_nonexistent_token() {
 
     let ghost_id = BytesN::<32>::random(&env);
     let result = client.try_pause_token_operations(&admin, &ghost_id, &None);
-    assert_eq!(result, Err(Ok(errors::Error::TokenNotFound)));
+    assert_eq!(result, Err(Ok(Error::TokenNotFound)));
 }
 
 #[test]
@@ -2537,7 +2537,7 @@ fn test_unpause_token_operations_rejects_non_admin() {
 
     let stranger = Address::generate(&env);
     let result = client.try_unpause_token_operations(&stranger, &token_id);
-    assert_eq!(result, Err(Ok(errors::Error::Unauthorized)));
+    assert_eq!(result, Err(Ok(Error::Unauthorized)));
 }
 
 #[test]
@@ -2566,7 +2566,7 @@ fn test_global_unpause_does_not_lift_per_token_pause() {
     // Transfer should still be blocked by the per-token pause.
     let new_user = Address::generate(&env);
     let result = client.try_transfer_token(&token_id, &new_user);
-    assert_eq!(result, Err(Ok(errors::Error::SubscriptionPaused)));
+    assert_eq!(result, Err(Ok(Error::SubscriptionPaused)));
 }
 
 #[test]
@@ -3202,4 +3202,118 @@ fn test_rollback_fails_without_snapshot() {
     // (snapshot is only stored when an upgrade happens, not at mint time)
     // Rolling back to version 5 (which doesn't exist) must fail
     client.rollback_token_upgrade(&admin, &token_id, &5);
+}
+
+// ==================== Token Royalty Tests ====================
+
+#[test]
+fn test_royalty_config() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    client.set_admin(&admin);
+
+    let token_id = BytesN::<32>::random(&env);
+    let owner = Address::generate(&env);
+    let expiry = env.ledger().timestamp() + 100_000;
+    client.issue_token(&token_id, &owner, &expiry);
+
+    let creator = Address::generate(&env);
+    let platform = Address::generate(&env);
+
+    let recipients = vec![
+        &env,
+        types::RoyaltyRecipient {
+            address: creator.clone(),
+            percentage: 500, // 5%
+        },
+        types::RoyaltyRecipient {
+            address: platform.clone(),
+            percentage: 250, // 2.5%
+        },
+    ];
+
+    client.set_royalty(&token_id, &recipients);
+
+    let info = client.get_royalty_info(&token_id).unwrap();
+    assert_eq!(info.config.recipients.len(), 2);
+    assert_eq!(info.total_percentage, 750);
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #8)")]
+fn test_royalty_validation_fail() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    client.set_admin(&admin);
+
+    let token_id = BytesN::<32>::random(&env);
+    let owner = Address::generate(&env);
+    client.issue_token(&token_id, &owner, &(env.ledger().timestamp() + 1000));
+
+    let recipient = Address::generate(&env);
+    let recipients = vec![
+        &env,
+        types::RoyaltyRecipient {
+            address: recipient,
+            percentage: 10001, // > 100%
+        },
+    ];
+
+    client.set_royalty(&token_id, &recipients);
+}
+
+#[test]
+fn test_transfer_with_royalty_events() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    client.set_admin(&admin);
+
+    let token_id = BytesN::<32>::random(&env);
+    let owner = Address::generate(&env);
+    client.issue_token(&token_id, &owner, &(env.ledger().timestamp() + 1000));
+
+    let creator = Address::generate(&env);
+    let recipients = vec![
+        &env,
+        types::RoyaltyRecipient {
+            address: creator.clone(),
+            percentage: 1000, // 10%
+        },
+    ];
+    client.set_royalty(&token_id, &recipients);
+
+    // Verify it was set
+    let info = client.get_royalty_info(&token_id).unwrap();
+    assert_eq!(info.total_percentage, 1000);
+
+    let new_user = Address::generate(&env);
+    let payment_token = Address::generate(&env);
+    let sale_price = 100_000i128; // Increased price
+
+    client.transfer_token_with_royalty(&token_id, &new_user, &payment_token, &sale_price);
+
+    // Verify token ownership changed
+    let token = client.get_token(&token_id);
+    assert_eq!(token.user, new_user);
+
+    client.transfer_token_with_royalty(&token_id, &new_user, &payment_token, &sale_price);
+
+    // Verify token ownership changed
+    let token = client.get_token(&token_id);
+    assert_eq!(token.user, new_user);
 }

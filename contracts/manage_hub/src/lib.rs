@@ -71,6 +71,7 @@ mod membership_token;
 mod migration;
 mod pause_errors;
 mod rewards;
+pub mod royalty;
 mod staking;
 mod staking_errors;
 mod subscription;
@@ -137,6 +138,36 @@ impl Contract {
     pub fn transfer_token(env: Env, id: BytesN<32>, new_user: Address) -> Result<(), Error> {
         MembershipTokenContract::transfer_token(env, id, new_user)?;
         Ok(())
+    }
+
+    pub fn transfer_token_with_royalty(
+        env: Env,
+        id: BytesN<32>,
+        new_user: Address,
+        payment_token: Address,
+        sale_price: i128,
+    ) -> Result<(), Error> {
+        MembershipTokenContract::transfer_token_with_royalty(
+            env,
+            id,
+            new_user,
+            payment_token,
+            sale_price,
+        )?;
+        Ok(())
+    }
+
+    pub fn set_royalty(
+        env: Env,
+        token_id: BytesN<32>,
+        recipients: Vec<types::RoyaltyRecipient>,
+    ) -> Result<(), Error> {
+        crate::royalty::RoyaltyModule::set_royalty(env, token_id, recipients)?;
+        Ok(())
+    }
+
+    pub fn get_royalty_info(env: Env, token_id: BytesN<32>) -> Option<types::RoyaltyInfo> {
+        crate::royalty::RoyaltyModule::get_royalty_info(env, token_id)
     }
 
     pub fn approve(

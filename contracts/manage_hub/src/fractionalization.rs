@@ -193,7 +193,8 @@ impl FractionalizationModule {
         for holder in holder_keys.iter() {
             let holder_address: Address = holder;
             if let Some(share_count) = shares.get(holder_address.clone()) {
-                let voting_power = share_count
+                let share_count_i128: i128 = share_count;
+                let voting_power = share_count_i128
                     .checked_mul(10_000)
                     .ok_or(Error::TimestampOverflow)?
                     .checked_div(info.total_shares)
