@@ -174,7 +174,7 @@ impl MembershipTokenContract {
 
         // Check if token is in grace period - transfers not allowed
         if token.status == MembershipStatus::GracePeriod {
-            return Err(Error::TransferGraceErr);
+            return Err(Error::TransferNotAllowedInGracePeriod);
         }
 
         // Check if token is active
@@ -260,7 +260,7 @@ impl MembershipTokenContract {
             .ok_or(Error::TokenNotFound)?;
 
         if token.status == MembershipStatus::GracePeriod {
-            return Err(Error::TransferGraceErr);
+            return Err(Error::TransferNotAllowedInGracePeriod);
         }
         if token.status != MembershipStatus::Active {
             return Err(Error::TokenExpired);
@@ -300,7 +300,7 @@ impl MembershipTokenContract {
             return Err(Error::Unauthorized);
         }
         if token.status == MembershipStatus::GracePeriod {
-            return Err(Error::TransferGraceErr);
+            return Err(Error::TransferNotAllowedInGracePeriod);
         }
         if token.status != MembershipStatus::Active {
             return Err(Error::TokenExpired);

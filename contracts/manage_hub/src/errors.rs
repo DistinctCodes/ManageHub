@@ -55,7 +55,7 @@ pub enum Error {
     TierChangeNotFound = 45,
     // Token renewal errors (reusing codes where applicable)
     RenewalNotAllowed = 46,
-    TransferGraceErr = 47,
+    TransferNotAllowedInGracePeriod = 47,
     GracePeriodExpired = 48,
     AutoRenewalFailed = 49,
     // Token fractionalization errors
