@@ -226,6 +226,9 @@ impl MembershipTokenContract {
             (symbol_short!("tok_sale"), id, new_user),
             (sale_price, env.ledger().timestamp()),
         );
+
+        Ok(())
+    }
     pub fn batch_transfer_tokens(
         env: Env,
         params: Vec<crate::types::BatchTransferParams>,
