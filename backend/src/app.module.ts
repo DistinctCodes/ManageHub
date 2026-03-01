@@ -14,10 +14,6 @@ import { NewsletterModule } from './newsletter/newsletter.module';
 import { EmailModule } from './email/email.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { ContactModule } from './contact/contact.module';
-import { CategoriesModule } from './categories/categories.module';
-import { ProductsModule } from './products/products.module';
-import { AnalyticsModule } from './analytics/analytics.module';
-import { SearchModule } from './search/search.module';
 
 @Module({
   imports: [
@@ -81,15 +77,11 @@ import { SearchModule } from './search/search.module';
       },
     }),
     EmailModule,
-    CategoriesModule,
     AuthModule,
     UsersModule,
     NewsletterModule,
     ContactModule,
     DashboardModule,
-    ProductsModule,
-    AnalyticsModule,
-    SearchModule,
   ],
   controllers: [AppController],
   providers: [
@@ -104,4 +96,4 @@ import { SearchModule } from './search/search.module';
     },
   ],
 })
-export class AppModule { }
+export class AppModule {}

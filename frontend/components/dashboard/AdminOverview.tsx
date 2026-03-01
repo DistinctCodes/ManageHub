@@ -1,125 +1,127 @@
 "use client";
 
-import React from "react";
 import {
   Users,
   UserCheck,
   UserX,
+  UserPlus,
   Mail,
-  CheckCircle2,
-  AlertCircle,
+  MailCheck,
+  TrendingUp,
 } from "lucide-react";
 
-export interface AdminOverviewProps {
-  systemStats: {
-    totalUsers: number;
-    activeUsers: number;
-    suspendedUsers: number;
+interface AdminStats {
+  users: {
+    total: number;
+    active: number;
+    suspended: number;
+    newThisMonth: number;
   };
-  newsletterStats: {
-    totalSubscribers: number;
-    verifiedSubscribers: number;
-    unverifiedSubscribers: number;
+  newsletter: {
+    total: number;
+    verified: number;
+    active: number;
+    newThisMonth: number;
+    confirmationRate: number;
   };
+  registrationTrend: { month: string; count: number }[];
 }
 
-export function AdminOverview({
-  systemStats,
-  newsletterStats,
-}: AdminOverviewProps) {
+export default function AdminOverview({ stats }: { stats: AdminStats | null }) {
+  if (!stats) return null;
+
+  const cards = [
+    {
+      label: "Total users",
+      value: stats.users.total,
+      icon: Users,
+      color: "bg-blue-50 text-blue-600",
+    },
+    {
+      label: "Active users",
+      value: stats.users.active,
+      icon: UserCheck,
+      color: "bg-emerald-50 text-emerald-600",
+    },
+    {
+      label: "Suspended",
+      value: stats.users.suspended,
+      icon: UserX,
+      color: "bg-red-50 text-red-600",
+    },
+    {
+      label: "New this month",
+      value: stats.users.newThisMonth,
+      icon: UserPlus,
+      color: "bg-amber-50 text-amber-600",
+    },
+  ];
+
   return (
-    <div className="space-y-8">
-      {/* System Stats Group */}
+    <div className="space-y-6">
+      {/* System stats */}
       <div>
-        <h3 className="text-lg font-bold text-gray-900 mb-4">
-          System Overview
+        <h3 className="text-sm font-semibold text-gray-900 mb-3">
+          System overview
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Total Users */}
-          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="bg-gray-100 p-3 rounded-lg">
-                <Users className="w-6 h-6 text-gray-700" />
-              </div>
-              <h4 className="text-gray-500 font-medium">Total Users</h4>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {cards.map((c) => (
+            <div
+              key={c.label}
+              className="bg-white rounded-xl p-5 border border-gray-100"
+            >
+              <span
+                className={`w-9 h-9 rounded-lg flex items-center justify-center mb-3 ${c.color}`}
+              >
+                <c.icon className="w-4 h-4" />
+              </span>
+              <p className="text-2xl font-bold text-gray-900">{c.value}</p>
+              <p className="text-xs text-gray-400 mt-1">{c.label}</p>
             </div>
-            <p className="text-3xl font-bold text-gray-900">
-              {systemStats.totalUsers}
-            </p>
-          </div>
-
-          {/* Active Users */}
-          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="bg-green-50 p-3 rounded-lg">
-                <UserCheck className="w-6 h-6 text-green-600" />
-              </div>
-              <h4 className="text-gray-500 font-medium">Active Users</h4>
-            </div>
-            <p className="text-3xl font-bold text-gray-900">
-              {systemStats.activeUsers}
-            </p>
-          </div>
-
-          {/* Suspended Users */}
-          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="bg-red-50 p-3 rounded-lg">
-                <UserX className="w-6 h-6 text-red-600" />
-              </div>
-              <h4 className="text-gray-500 font-medium">Suspended Users</h4>
-            </div>
-            <p className="text-3xl font-bold text-gray-900">
-              {systemStats.suspendedUsers}
-            </p>
-          </div>
+          ))}
         </div>
       </div>
 
-      {/* Newsletter Stats Group */}
-      <div>
-        <h3 className="text-lg font-bold text-gray-900 mb-4">
-          Newsletter Overview
+      {/* Newsletter stats */}
+      <div className="bg-white rounded-xl border border-gray-100 p-6">
+        <h3 className="text-sm font-semibold text-gray-900 mb-4">
+          Newsletter
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Total Subscribers */}
-          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="bg-gray-100 p-3 rounded-lg">
-                <Mail className="w-6 h-6 text-gray-700" />
-              </div>
-              <h4 className="text-gray-500 font-medium">Total Subscribers</h4>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Mail className="w-3.5 h-3.5 text-gray-400" />
+              <p className="text-xs text-gray-400">Subscribers</p>
             </div>
-            <p className="text-3xl font-bold text-gray-900">
-              {newsletterStats.totalSubscribers}
+            <p className="text-xl font-bold text-gray-900">
+              {stats.newsletter.total}
             </p>
           </div>
-
-          {/* Verified Subscribers */}
-          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="bg-teal-50 p-3 rounded-lg">
-                <CheckCircle2 className="w-6 h-6 text-teal-600" />
-              </div>
-              <h4 className="text-gray-500 font-medium">Verified</h4>
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <MailCheck className="w-3.5 h-3.5 text-gray-400" />
+              <p className="text-xs text-gray-400">Verified</p>
             </div>
-            <p className="text-3xl font-bold text-gray-900">
-              {newsletterStats.verifiedSubscribers}
+            <p className="text-xl font-bold text-gray-900">
+              {stats.newsletter.verified}
             </p>
           </div>
-
-          {/* Unverified Subscribers */}
-          <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="bg-amber-50 p-3 rounded-lg">
-                <AlertCircle className="w-6 h-6 text-amber-600" />
-              </div>
-              <h4 className="text-gray-500 font-medium">
-                Pending Verification
-              </h4>
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <TrendingUp className="w-3.5 h-3.5 text-gray-400" />
+              <p className="text-xs text-gray-400">Confirmation rate</p>
             </div>
-            <p className="text-3xl font-bold text-gray-900">
-              {newsletterStats.unverifiedSubscribers}
+            <p className="text-xl font-bold text-gray-900">
+              {stats.newsletter.confirmationRate}%
+            </p>
+          </div>
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <UserPlus className="w-3.5 h-3.5 text-gray-400" />
+              <p className="text-xs text-gray-400">New this month</p>
+            </div>
+            <p className="text-xl font-bold text-gray-900">
+              {stats.newsletter.newThisMonth}
             </p>
           </div>
         </div>

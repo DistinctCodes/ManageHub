@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import {
   BarChart,
   Bar,
@@ -11,79 +10,52 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-// Mock data: Monthly member registration trend
-const data = [
-  { month: "Jan", members: 65 },
-  { month: "Feb", members: 85 },
-  { month: "Mar", members: 120 },
-  { month: "Apr", members: 95 },
-  { month: "May", members: 150 },
-  { month: "Jun", members: 180 },
-  { month: "Jul", members: 210 },
-  { month: "Aug", members: 250 },
-  { month: "Sep", members: 230 },
-  { month: "Oct", members: 280 },
-  { month: "Nov", members: 310 },
-  { month: "Dec", members: 340 },
-];
+interface TrendPoint {
+  month: string;
+  count: number;
+}
 
-export function AnalyticsChart() {
-  return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 w-full">
-      <div className="mb-6">
-        <h3 className="text-lg font-bold text-gray-900">Member Growth</h3>
-        <p className="text-sm text-gray-500">
-          Monthly registration trend for the current year
-        </p>
+export default function AnalyticsChart({ data }: { data: TrendPoint[] }) {
+  if (!data.length) {
+    return (
+      <div className="bg-white rounded-xl border border-gray-100 p-6">
+        <h3 className="text-sm font-semibold text-gray-900 mb-4">
+          Member growth
+        </h3>
+        <p className="text-sm text-gray-400">No data yet.</p>
       </div>
+    );
+  }
 
-      <div className="h-[300px] w-full">
+  return (
+    <div className="bg-white rounded-xl border border-gray-100 p-6">
+      <h3 className="text-sm font-semibold text-gray-900 mb-6">
+        Member growth
+      </h3>
+      <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={data}
-            margin={{
-              top: 5,
-              right: 10,
-              left: -20,
-              bottom: 0,
-            }}
-          >
-            {/* Subtle horizontal grid lines */}
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-            
+          <BarChart data={data} barSize={32}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f1f1" />
             <XAxis
               dataKey="month"
               axisLine={false}
               tickLine={false}
-              tick={{ fill: "#6B7280", fontSize: 12 }}
-              dy={10}
+              tick={{ fill: "#9ca3af", fontSize: 12 }}
             />
-            
             <YAxis
               axisLine={false}
               tickLine={false}
-              tick={{ fill: "#6B7280", fontSize: 12 }}
+              tick={{ fill: "#9ca3af", fontSize: 12 }}
+              allowDecimals={false}
             />
-            
             <Tooltip
-              cursor={{ fill: "#F3F4F6" }}
               contentStyle={{
-                backgroundColor: "#ffffff",
-                borderRadius: "8px",
-                border: "1px solid #E5E7EB",
-                boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
-                fontSize: "14px",
-                color: "#111827",
+                borderRadius: 8,
+                border: "1px solid #e5e7eb",
+                boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.05)",
               }}
-              itemStyle={{ color: "#111827", fontWeight: 500 }}
             />
-            
-            <Bar
-              dataKey="members"
-              name="New Members"
-              fill="#111827" // Using the gray-900 color from our design system
-              radius={[4, 4, 0, 0]} // Rounded top corners
-            />
+            <Bar dataKey="count" fill="#1f2937" radius={[6, 6, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
