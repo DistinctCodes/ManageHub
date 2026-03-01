@@ -78,7 +78,7 @@ const TermsOfServicePage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-[#faf9f7]">
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -98,7 +98,7 @@ const TermsOfServicePage = () => {
             </div>
             <Link
               href="/"
-              className="hidden md:inline-flex px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+              className="hidden md:inline-flex px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-700 transition-colors"
             >
               ← Back to Home
             </Link>
@@ -112,7 +112,7 @@ const TermsOfServicePage = () => {
           <div className="flex items-center text-sm text-gray-900">
             <Calendar className="h-4 w-4 mr-2" />
             <span className="font-medium">Last Updated:</span>
-            <span className="ml-2">January 27, 2025</span>
+            <span className="ml-2">January 27, 2026</span>
             <span className="ml-4 text-gray-600">Version 1.0</span>
           </div>
         </div>
@@ -134,7 +134,7 @@ const TermsOfServicePage = () => {
                       onClick={() => scrollToSection(item.id)}
                       className={`w-full flex items-center px-3 py-2 text-sm rounded-lg transition-colors text-left ${
                         activeSection === item.id
-                          ? "bg-gray-100 text-gray-900 font-medium"
+                          ? "bg-gray-50 text-gray-700 font-medium"
                           : "text-gray-700 hover:bg-gray-50"
                       }`}
                     >
@@ -149,13 +149,13 @@ const TermsOfServicePage = () => {
                 <div className="mt-6 pt-6 border-t border-gray-200">
                   <Link
                     href="/privacy-policy"
-                    className="block text-sm text-gray-900 hover:text-gray-700 font-medium mb-3"
+                    className="block text-sm text-gray-700 hover:text-gray-900 font-medium mb-3"
                   >
                     → Privacy Policy
                   </Link>
                   <Link
                     href="/contact"
-                    className="block text-sm text-gray-900 hover:text-gray-700 font-medium"
+                    className="block text-sm text-gray-700 hover:text-gray-900 font-medium"
                   >
                     → Contact Support
                   </Link>
@@ -171,7 +171,7 @@ const TermsOfServicePage = () => {
               <div className="mb-12">
                 <div className="bg-gray-50 border-l-4 border-gray-900 p-4 rounded-r-lg mb-6">
                   <div className="flex items-start">
-                    <AlertCircle className="h-5 w-5 text-gray-900 mt-0.5 mr-3 flex-shrink-0" />
+                    <AlertCircle className="h-5 w-5 text-gray-700 mt-0.5 mr-3 flex-shrink-0" />
                     <div>
                       <p className="text-sm font-medium text-gray-900">
                         Important Notice
@@ -197,7 +197,7 @@ const TermsOfServicePage = () => {
               {/* 1. Acceptance of Terms */}
               <section id="acceptance" className="mb-10 scroll-mt-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center">
-                  <FileText className="h-6 w-6 text-gray-900 mr-2" />
+                  <FileText className="h-6 w-6 text-gray-700 mr-2" />
                   1. Acceptance of Terms
                 </h2>
                 <div className="prose prose-gray max-w-none space-y-4 text-gray-700">
@@ -220,7 +220,7 @@ const TermsOfServicePage = () => {
               {/* 2. Description of Services */}
               <section id="services" className="mb-10 scroll-mt-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center">
-                  <Building2 className="h-6 w-6 text-gray-900 mr-2" />
+                  <Building2 className="h-6 w-6 text-gray-700 mr-2" />
                   2. Description of Services
                 </h2>
                 <div className="prose prose-gray max-w-none space-y-4 text-gray-700">
@@ -254,7 +254,7 @@ const TermsOfServicePage = () => {
               {/* 3. User Accounts */}
               <section id="accounts" className="mb-10 scroll-mt-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center">
-                  <User className="h-6 w-6 text-gray-900 mr-2" />
+                  <User className="h-6 w-6 text-gray-700 mr-2" />
                   3. User Accounts
                 </h2>
                 <div className="prose prose-gray max-w-none space-y-4 text-gray-700">
@@ -299,7 +299,7 @@ const TermsOfServicePage = () => {
               {/* 4. Payment & Billing */}
               <section id="payment" className="mb-10 scroll-mt-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center">
-                  <CreditCard className="h-6 w-6 text-gray-900 mr-2" />
+                  <CreditCard className="h-6 w-6 text-gray-700 mr-2" />
                   4. Payment & Billing
                 </h2>
                 <div className="prose prose-gray max-w-none space-y-4 text-gray-700">
@@ -345,7 +345,7 @@ const TermsOfServicePage = () => {
               {/* 5. User Conduct */}
               <section id="conduct" className="mb-10 scroll-mt-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center">
-                  <Shield className="h-6 w-6 text-gray-900 mr-2" />
+                  <Shield className="h-6 w-6 text-gray-700 mr-2" />
                   5. User Conduct
                 </h2>
                 <div className="prose prose-gray max-w-none space-y-4 text-gray-700">
@@ -397,7 +397,7 @@ const TermsOfServicePage = () => {
               {/* 6. Privacy & Data */}
               <section id="privacy" className="mb-10 scroll-mt-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center">
-                  <Lock className="h-6 w-6 text-gray-900 mr-2" />
+                  <Lock className="h-6 w-6 text-gray-700 mr-2" />
                   6. Privacy & Data Protection
                 </h2>
                 <div className="prose prose-gray max-w-none space-y-4 text-gray-700">
@@ -433,7 +433,7 @@ const TermsOfServicePage = () => {
               {/* 7. Termination */}
               <section id="termination" className="mb-10 scroll-mt-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center">
-                  <AlertCircle className="h-6 w-6 text-gray-900 mr-2" />
+                  <AlertCircle className="h-6 w-6 text-gray-700 mr-2" />
                   7. Termination
                 </h2>
                 <div className="prose prose-gray max-w-none space-y-4 text-gray-700">
@@ -472,7 +472,7 @@ const TermsOfServicePage = () => {
               {/* 8. Limitation of Liability */}
               <section id="liability" className="mb-10 scroll-mt-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center">
-                  <Scale className="h-6 w-6 text-gray-900 mr-2" />
+                  <Scale className="h-6 w-6 text-gray-700 mr-2" />
                   8. Limitation of Liability
                 </h2>
                 <div className="prose prose-gray max-w-none space-y-4 text-gray-700">
@@ -515,7 +515,7 @@ const TermsOfServicePage = () => {
               {/* 9. Changes to Terms */}
               <section id="changes" className="mb-10 scroll-mt-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center">
-                  <Bell className="h-6 w-6 text-gray-900 mr-2" />
+                  <Bell className="h-6 w-6 text-gray-700 mr-2" />
                   9. Changes to Terms
                 </h2>
                 <div className="prose prose-gray max-w-none space-y-4 text-gray-700">
@@ -548,7 +548,7 @@ const TermsOfServicePage = () => {
               {/* 10. Contact Us */}
               <section id="contact" className="mb-10 scroll-mt-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4 flex items-center">
-                  <Mail className="h-6 w-6 text-gray-900 mr-2" />
+                  <Mail className="h-6 w-6 text-gray-700 mr-2" />
                   10. Contact Us
                 </h2>
                 <div className="prose prose-gray max-w-none space-y-4 text-gray-700">
@@ -556,24 +556,24 @@ const TermsOfServicePage = () => {
                     If you have any questions, concerns, or feedback regarding
                     these Terms of Service, please contact us:
                   </p>
-                  <div className="bg-slate-50 border border-gray-200 rounded-lg p-6 mt-4">
+                  <div className="bg-[#faf9f7] border border-gray-200 rounded-lg p-6 mt-4">
                     <div className="space-y-3">
                       <div className="flex items-center">
-                        <Mail className="h-5 w-5 text-gray-900 mr-3" />
+                        <Mail className="h-5 w-5 text-gray-700 mr-3" />
                         <div>
                           <p className="text-sm font-medium text-gray-900">
                             Email
                           </p>
                           <a
                             href="mailto:legal@managehub.com"
-                            className="text-sm text-gray-900 hover:text-gray-700"
+                            className="text-sm text-gray-700 hover:text-gray-900"
                           >
                             legal@managehub.com
                           </a>
                         </div>
                       </div>
                       <div className="flex items-center">
-                        <Building2 className="h-5 w-5 text-gray-900 mr-3" />
+                        <Building2 className="h-5 w-5 text-gray-700 mr-3" />
                         <div>
                           <p className="text-sm font-medium text-gray-900">
                             Address
@@ -623,7 +623,7 @@ const TermsOfServicePage = () => {
             {/* Agreement Confirmation */}
             <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 mt-8">
               <div className="flex items-start">
-                <Shield className="h-6 w-6 text-gray-900 mt-0.5 mr-4 flex-shrink-0" />
+                <Shield className="h-6 w-6 text-gray-700 mt-0.5 mr-4 flex-shrink-0" />
                 <div>
                   <h3 className="text-lg font-bold text-gray-900 mb-2">
                     Agreement Acknowledgment
@@ -636,7 +636,7 @@ const TermsOfServicePage = () => {
                   <div className="flex flex-col sm:flex-row gap-3">
                     <Link
                       href="/privacy-policy"
-                      className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-900 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                      className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                     >
                       Read Privacy Policy
                     </Link>
@@ -658,7 +658,7 @@ const TermsOfServicePage = () => {
       <div className="bg-white border-t border-gray-200 mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center text-sm text-gray-500">
-            <p>© 2025 ManageHub. All rights reserved.</p>
+            <p>© 2026 ManageHub. All rights reserved.</p>
             <div className="mt-3 space-x-4">
               <Link href="/privacy-policy" className="hover:text-gray-700">
                 Privacy Policy
@@ -677,4 +677,4 @@ const TermsOfServicePage = () => {
   );
 };
 
-export default TermsOfServicePage
+export default TermsOfServicePage;

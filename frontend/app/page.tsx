@@ -1,21 +1,26 @@
 import { Navbar } from "@/components/ui/Navbar";
-import Newsletter from "../components/ui/Newsletter";
-import Footer from "../components/ui/Footer";
-import { useMemo } from "react";
 import { Hero } from "@/components/ui/Hero";
+import TrustedBy from "@/components/ui/TrustedBy";
 import FeaturesSection from "@/components/ui/FeaturesSection";
+import HowItWorks from "@/components/ui/HowItWorks";
+import Newsletter from "@/components/ui/Newsletter";
+import Footer from "@/components/ui/Footer";
+
+export const metadata = {
+  title: "ManageHub - Smart Hub & Workspace Management",
+  description:
+    "Simplify how you manage workspaces, teams, and resources. ManageHub brings everything together in one place.",
+};
 
 export default function Home() {
-  const launchDate = useMemo(
-    () => new Date(Date.now() + 1000 * 60 * 60 * 24 * 77 + 1000 * 60 * 10),
-    [],
-  );
   return (
     <main>
       <Navbar />
-      <Hero launchDate={launchDate} />
-      <Newsletter />
+      <Hero />
+      <TrustedBy />
       <FeaturesSection />
+      <HowItWorks />
+      <Newsletter />
       <Footer />
     </main>
   );

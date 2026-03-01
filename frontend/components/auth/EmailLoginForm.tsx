@@ -1,25 +1,30 @@
 "use client";
 
-import { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
-import { Input } from '@/components/ui/Input';
-import { cn } from '@/utils/cn';
-import { loginSchema, type LoginSchema } from '@/lib/schemas/loginSchema';
-import { toast } from 'sonner';
-import Link from 'next/link';
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { cn } from "@/utils/cn";
+import { loginSchema, type LoginSchema } from "@/lib/schemas/loginSchema";
+import { toast } from "sonner";
+import Link from "next/link";
 
 type EmailLoginFormData = LoginSchema & { rememberMe?: boolean };
 
 interface EmailLoginFormProps {
   onSubmit: (data: EmailLoginFormData) => void;
   className?: string;
-  isLoading?:boolean;
+  isLoading?: boolean;
 }
 
-export function EmailLoginForm({ onSubmit, className, isLoading }: EmailLoginFormProps) {
+export function EmailLoginForm({
+  onSubmit,
+  className,
+  isLoading,
+}: EmailLoginFormProps) {
   const [showPassword, setShowPassword] = useState(false);
 
   const {
@@ -31,10 +36,10 @@ export function EmailLoginForm({ onSubmit, className, isLoading }: EmailLoginFor
       loginSchema.and(
         z.object({
           rememberMe: z.boolean().optional(),
-        })
-      )
+        }),
+      ),
     ),
-    mode: 'onBlur',
+    mode: "onBlur",
     defaultValues: {
       email: "",
       password: "",
@@ -58,7 +63,7 @@ export function EmailLoginForm({ onSubmit, className, isLoading }: EmailLoginFor
   return (
     <form
       onSubmit={handleSubmit(handleLocalSubmit)}
-      className={cn('space-y-6', className)}
+      className={cn("space-y-6", className)}
     >
       <div className="space-y-2">
         <label htmlFor="email" className="text-sm font-medium">
@@ -70,7 +75,7 @@ export function EmailLoginForm({ onSubmit, className, isLoading }: EmailLoginFor
             id="email"
             type="email"
             placeholder="Enter your email"
-            className="pl-10 focus:border-gray-400 focus:ring-gray-300"
+            className="pl-10"
             error={errors.email?.message}
             {...register("email")}
           />
@@ -87,7 +92,7 @@ export function EmailLoginForm({ onSubmit, className, isLoading }: EmailLoginFor
             id="password"
             type={showPassword ? "text" : "password"}
             placeholder="Enter your password"
-            className="pl-10 pr-10 text-gray-900 focus:border-gray-400 focus:ring-gray-300"
+            className="pl-10 pr-10 text-black"
             error={errors.password?.message}
             {...register("password")}
           />
@@ -116,16 +121,16 @@ export function EmailLoginForm({ onSubmit, className, isLoading }: EmailLoginFor
         </label>
         <Link
           href={"/forgot-password"}
-          className="text-sm text-gray-900 hover:text-gray-700 focus:outline-none focus:underline"
+          className="text-sm text-gray-900 hover:text-blue-700 focus:outline-none focus:underline"
         >
           Forgot password?
         </Link>
       </div>
 
       <button
-  type="submit"
-  disabled={isLoading}
-  className={`
+        type="submit"
+        disabled={isLoading}
+        className={`
     w-full 
     bg-gray-900 
     text-white 
@@ -144,10 +149,9 @@ export function EmailLoginForm({ onSubmit, className, isLoading }: EmailLoginFor
     disabled:opacity-50 
     disabled:cursor-not-allowed
   `}
->
-  {isLoading ? 'Signing in...' : 'Sign In'}
-</button>
-
+      >
+        {isLoading ? "Signing in..." : "Sign In"}
+      </button>
     </form>
   );
 }

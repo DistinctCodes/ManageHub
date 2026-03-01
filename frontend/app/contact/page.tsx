@@ -17,8 +17,8 @@ import {
   Twitter,
   Linkedin,
   Github,
+  Link,
 } from "lucide-react";
-import Link from "next/link";
 import { apiClient } from "@/lib/apiClient";
 import { toast } from "sonner";
 
@@ -125,7 +125,7 @@ const ContactUsPage = () => {
           {/* Header */}
           <div className="text-center">
             <div className="flex justify-center items-center mb-6">
-              <div className="bg-gray-900 p-3 rounded-xl shadow-sm">
+              <div className="bg-gray-900 p-3 rounded-xl">
                 <Building2 className="h-8 w-8 text-white" />
               </div>
             </div>
@@ -133,7 +133,7 @@ const ContactUsPage = () => {
           </div>
 
           {/* Success Card */}
-          <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
             <div className="text-center space-y-6">
               <div className="flex justify-center">
                 <div className="bg-green-100 p-4 rounded-full">
@@ -194,7 +194,7 @@ const ContactUsPage = () => {
         {/* Header */}
         <div className="text-center mb-12">
           <div className="flex justify-center items-center mb-6">
-            <div className="bg-gray-900 p-3 rounded-xl shadow-sm">
+            <div className="bg-gray-900 p-3 rounded-xl">
               <Building2 className="h-8 w-8 text-white" />
             </div>
           </div>
@@ -210,7 +210,7 @@ const ContactUsPage = () => {
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Contact Form */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
               <div className="flex items-center mb-6">
                 <MessageSquare className="h-6 w-6 text-gray-700 mr-2" />
                 <h2 className="text-2xl font-bold text-gray-900">
@@ -410,7 +410,7 @@ const ContactUsPage = () => {
                 >
                   {isLoading ? (
                     <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-transparent border-t-white mr-2"></div>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                       Sending...
                     </>
                   ) : (
@@ -427,7 +427,7 @@ const ContactUsPage = () => {
           {/* Contact Information Sidebar */}
           <div className="space-y-6">
             {/* Contact Info Cards */}
-            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h3 className="text-lg font-bold text-gray-900 mb-4">
                 Contact Information
               </h3>
@@ -444,7 +444,7 @@ const ContactUsPage = () => {
                       {info.link ? (
                         <a
                           href={info.link}
-                          className="text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                          className="text-sm text-gray-600 hover:text-gray-700 transition-colors"
                         >
                           {info.content}
                         </a>
@@ -458,7 +458,7 @@ const ContactUsPage = () => {
             </div>
 
             {/* Social Media */}
-            <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <h3 className="text-lg font-bold text-gray-900 mb-4">
                 Follow Us
               </h3>
@@ -477,7 +477,7 @@ const ContactUsPage = () => {
             </div>
 
             {/* Help Box */}
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 rounded-xl p-6 shadow-sm">
+            <div className="bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 rounded-xl p-6">
               <h3 className="text-lg font-bold text-gray-900 mb-2">
                 Need Quick Help?
               </h3>
@@ -487,7 +487,7 @@ const ContactUsPage = () => {
               </p>
               <a
                 href="#"
-                className="inline-flex items-center text-sm font-medium text-gray-900 hover:text-gray-600 transition-colors"
+                className="inline-flex items-center text-sm font-medium text-gray-700 hover:text-gray-600"
               >
                 Visit Help Center
                 <span className="ml-1">→</span>
@@ -498,17 +498,17 @@ const ContactUsPage = () => {
 
         {/* Footer */}
         <div className="text-center mt-12 text-sm text-gray-500">
-          <p className="mb-2">© 2026 ManageHub. All rights reserved.</p>
-          <div className="flex justify-center gap-4">
-            <Link href="/privacy-policy" className="hover:text-gray-900 transition-colors">
+          <p>© 2026 ManageHub. All rights reserved.</p>
+          <div className="mt-2 space-x-4">
+            <a href="#" className="hover:text-gray-700">
               Privacy Policy
-            </Link>
-            <Link href="/terms-of-service" className="hover:text-gray-900 transition-colors">
+            </a>
+            <a href="#" className="hover:text-gray-700">
               Terms of Service
-            </Link>
-            <Link href="/support" className="hover:text-gray-900 transition-colors">
+            </a>
+            <a href="#" className="hover:text-gray-700">
               Support
-            </Link>
+            </a>
           </div>
         </div>
       </div>

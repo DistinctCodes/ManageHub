@@ -1,31 +1,34 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { z } from 'zod'
-import { zodResolver } from '@hookform/resolvers/zod'
-import Head from 'next/head'
+import { useEffect, useState, useRef } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useAuthState, useAuthActions } from "@/lib/store/authStore";
+import { apiClient } from "@/lib/apiClient";
+import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { Camera } from "lucide-react";
 
 const profileSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  email: z.string().email('Invalid email'),
-})
+  firstname: z.string().min(1, "First name is required"),
+  lastname: z.string().min(1, "Last name is required"),
+  email: z.string().email("Invalid email"),
+  phone: z.string().optional(),
+});
 
-type ProfileFormData = z.infer<typeof profileSchema>
-
-type UserProfile = {
-  id: string
-  name: string
-  email: string
-  walletAddress: string
-  accountType: string
-  dateJoined: string
-}
+type ProfileFormData = z.infer<typeof profileSchema>;
 
 export default function ProfilePage() {
-  const [user, setUser] = useState<UserProfile | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { user } = useAuthState();
+  const { initializeAuth } = useAuthActions();
+  const [saving, setSaving] = useState(false);
+  const [uploadingPic, setUploadingPic] = useState(false);
+  const [message, setMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
+  const [profilePic, setProfilePic] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const {
     register,
@@ -34,94 +37,226 @@ export default function ProfilePage() {
     reset,
   } = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
-  })
+  });
 
-  // Fetch user data
   useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const res = await fetch('/api/users/me')
-        if (!res.ok) throw new Error('Failed to fetch user data')
-        const data = await res.json()
-        setUser(data)
-        reset({ name: data.name, email: data.email })
-      } catch (err) {
-        setError((err as Error).message)
-      } finally {
-        setLoading(false)
-      }
+    if (user) {
+      reset({
+        firstname: user.firstname,
+        lastname: user.lastname,
+        email: user.email,
+      });
     }
-
-    fetchUser()
-  }, [reset])
+  }, [user, reset]);
 
   const onSubmit = async (data: ProfileFormData) => {
+    if (!user) return;
+    setSaving(true);
+    setMessage(null);
     try {
-      const res = await fetch('/api/users/me', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      })
-      if (!res.ok) throw new Error('Failed to update profile')
-      alert('Profile updated!')
+      await apiClient.patch(`/users/${user.id}`, data);
+      setMessage({ type: "success", text: "Profile updated." });
+      initializeAuth();
     } catch (err) {
-      alert((err as Error).message)
+      setMessage({
+        type: "error",
+        text: err instanceof Error ? err.message : "Update failed.",
+      });
+    } finally {
+      setSaving(false);
     }
+  };
+
+  const handlePictureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    setUploadingPic(true);
+    setMessage(null);
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:6001/api"}/users/${user.id}/profile-picture`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}`,
+          },
+          body: formData,
+        }
+      );
+
+      if (!res.ok) throw new Error("Upload failed");
+
+      const json = await res.json();
+      setProfilePic(json.data?.profilePicture || null);
+      setMessage({ type: "success", text: "Profile picture updated." });
+    } catch (err) {
+      setMessage({
+        type: "error",
+        text: err instanceof Error ? err.message : "Upload failed.",
+      });
+    } finally {
+      setUploadingPic(false);
+    }
+  };
+
+  if (!user) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="w-8 h-8 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin" />
+        </div>
+      </DashboardLayout>
+    );
   }
 
-  if (loading) return <p className="p-4">Loading...</p>
-  if (error) return <p className="p-4 text-red-500">{error}</p>
-  if (!user) return null
+  const initials = `${user.firstname?.[0] || ""}${user.lastname?.[0] || ""}`;
 
   return (
-    <div className="p-4 max-w-3xl mx-auto">
-      <Head>
-        <title>User Profile</title>
-      </Head>
-
-      <h1 className="text-2xl font-bold mb-6">User Profile</h1>
-
-      
-      <div className="bg-white dark:bg-gray-800 rounded shadow p-4 mb-8">
-        <p><strong>Full Name:</strong> {user.name}</p>
-        <p><strong>Email:</strong> {user.email}</p>
-        <p><strong>Wallet Address:</strong> {user.walletAddress}</p>
-        <p><strong>Account Type:</strong> {user.accountType}</p>
-        <p><strong>Date Joined:</strong> {new Date(user.dateJoined).toLocaleDateString()}</p>
+    <DashboardLayout>
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-gray-900">Profile</h1>
+        <p className="text-gray-500 mt-1 text-sm">
+          Manage your personal information.
+        </p>
       </div>
 
-      
-      <div className="bg-white dark:bg-gray-800 rounded shadow p-4">
-        <h2 className="text-xl font-semibold mb-4">Edit Profile</h2>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium">Name</label>
+      <div className="max-w-2xl space-y-6">
+        {/* Avatar */}
+        <div className="bg-white rounded-xl border border-gray-100 p-6 flex items-center gap-5">
+          <div className="relative">
+            {profilePic ? (
+              <img
+                src={profilePic}
+                alt="Profile"
+                className="w-20 h-20 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center text-xl font-bold text-gray-500">
+                {initials}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={uploadingPic}
+              className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-gray-900 text-white flex items-center justify-center hover:bg-gray-800 transition-colors"
+            >
+              <Camera className="w-3.5 h-3.5" />
+            </button>
             <input
-              type="text"
-              {...register('name')}
-              className="w-full mt-1 p-2 border rounded"
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handlePictureUpload}
             />
-            {errors.name && <p className="text-red-500 text-sm">{errors.name.message}</p>}
           </div>
-
           <div>
-            <label className="block text-sm font-medium">Email</label>
-            <input
-              type="email"
-              {...register('email')}
-              className="w-full mt-1 p-2 border rounded"
-            />
-            {errors.email && <p className="text-red-500 text-sm">{errors.email.message}</p>}
+            <p className="font-semibold text-gray-900">
+              {user.firstname} {user.lastname}
+            </p>
+            <p className="text-sm text-gray-400">{user.email}</p>
+            <p className="text-xs text-gray-400 mt-1 capitalize">
+              {user.role} &middot; Joined{" "}
+              {new Date(user.createdAt).toLocaleDateString("en", {
+                month: "long",
+                year: "numeric",
+              })}
+            </p>
           </div>
+        </div>
 
-          <button
-            type="submit"
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          >
-            Save Changes
-          </button>
-        </form>
+        {/* Edit form */}
+        <div className="bg-white rounded-xl border border-gray-100 p-6">
+          <h2 className="text-sm font-semibold text-gray-900 mb-5">
+            Edit profile
+          </h2>
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">
+                  First name
+                </label>
+                <input
+                  type="text"
+                  {...register("firstname")}
+                  className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-200"
+                />
+                {errors.firstname && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.firstname.message}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">
+                  Last name
+                </label>
+                <input
+                  type="text"
+                  {...register("lastname")}
+                  className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-200"
+                />
+                {errors.lastname && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.lastname.message}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1.5">
+                Email
+              </label>
+              <input
+                type="email"
+                {...register("email")}
+                className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-200"
+              />
+              {errors.email && (
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.email.message}
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1.5">
+                Phone (optional)
+              </label>
+              <input
+                type="tel"
+                {...register("phone")}
+                className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-200"
+              />
+            </div>
+
+            {message && (
+              <p
+                className={`text-sm ${
+                  message.type === "success"
+                    ? "text-emerald-600"
+                    : "text-red-500"
+                }`}
+              >
+                {message.text}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-5 py-2.5 text-sm font-medium rounded-lg bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-50 transition-colors"
+            >
+              {saving ? "Saving..." : "Save changes"}
+            </button>
+          </form>
+        </div>
       </div>
-    </div>
-  )
+    </DashboardLayout>
+  );
 }

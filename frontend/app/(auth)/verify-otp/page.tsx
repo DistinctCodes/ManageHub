@@ -50,7 +50,10 @@ export default function VerifyOtpPage() {
 
   const handlePaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
-    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 4);
+    const pasted = e.clipboardData
+      .getData("text")
+      .replace(/\D/g, "")
+      .slice(0, 4);
     const newOtp = [...otp];
     for (let i = 0; i < pasted.length; i++) {
       newOtp[i] = pasted[i];
@@ -134,7 +137,9 @@ export default function VerifyOtpPage() {
             {otp.map((digit, index) => (
               <input
                 key={index}
-                ref={(el) => { inputRefs.current[index] = el; }}
+                ref={(el) => {
+                  inputRefs.current[index] = el;
+                }}
                 type="text"
                 inputMode="numeric"
                 maxLength={1}
@@ -149,7 +154,7 @@ export default function VerifyOtpPage() {
           <button
             onClick={handleVerify}
             disabled={isVerifying || otp.join("").length !== 4}
-            className="w-full bg-gray-900 text-white py-3 px-4 rounded-lg font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+            className="w-full bg-gray-900 text-white py-3 px-4 rounded-lg font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
           >
             {isVerifying ? (
               <>
@@ -164,7 +169,7 @@ export default function VerifyOtpPage() {
           <div className="mt-6">
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
               <div className="flex items-start">
-                <Mail className="h-5 w-5 text-gray-600 mt-0.5 mr-3 flex-shrink-0" />
+                <Mail className="h-5 w-5 text-gray-700 mt-0.5 mr-3 flex-shrink-0" />
                 <div className="text-left">
                   <p className="text-sm font-medium text-gray-900 mb-1">
                     Didn&apos;t receive the code?
@@ -180,7 +185,7 @@ export default function VerifyOtpPage() {
           <button
             onClick={handleResend}
             disabled={isResending || countdown > 0}
-            className="w-full mt-4 bg-gray-900 text-white py-3 px-4 rounded-lg font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+            className="w-full mt-4 bg-gray-900 text-white py-3 px-4 rounded-lg font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
           >
             {countdown > 0 ? (
               <>
@@ -220,11 +225,17 @@ export default function VerifyOtpPage() {
 
         {/* Footer */}
         <div className="text-center text-xs text-gray-500">
-          <p>&copy; 2025 ManageHub. All rights reserved.</p>
+          <p>&copy; 2026 ManageHub. All rights reserved.</p>
           <div className="mt-2 space-x-4">
-            <a href="#" className="hover:text-gray-700">Privacy Policy</a>
-            <a href="#" className="hover:text-gray-700">Terms of Service</a>
-            <a href="#" className="hover:text-gray-700">Support</a>
+            <a href="#" className="hover:text-gray-700">
+              Privacy Policy
+            </a>
+            <a href="#" className="hover:text-gray-700">
+              Terms of Service
+            </a>
+            <a href="#" className="hover:text-gray-700">
+              Support
+            </a>
           </div>
         </div>
       </div>

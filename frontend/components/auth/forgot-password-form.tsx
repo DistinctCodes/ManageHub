@@ -47,7 +47,7 @@ const resetPasswordSchema = z
 type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>;
 
 const calculatePasswordStrength = (
-  password: string
+  password: string,
 ): { strength: number; label: string; color: string } => {
   if (!password) return { strength: 0, label: "", color: "" };
   let strength = 0;
@@ -93,9 +93,15 @@ export function ForgotPasswordForm() {
   const password = passwordForm.watch("password", "");
   const confirmPassword = passwordForm.watch("confirmPassword", "");
   const passwordStrength = calculatePasswordStrength(password);
-  const passwordsMatch = password && confirmPassword && password === confirmPassword;
+  const passwordsMatch =
+    password && confirmPassword && password === confirmPassword;
 
-  const { mutate: sendResetOtp, isPending: isSendingEmail, error: emailError, reset: resetEmailError } = useForgotPassword();
+  const {
+    mutate: sendResetOtp,
+    isPending: isSendingEmail,
+    error: emailError,
+    reset: resetEmailError,
+  } = useForgotPassword();
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -159,7 +165,10 @@ export function ForgotPasswordForm() {
 
   const handleOtpPaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
-    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 4);
+    const pasted = e.clipboardData
+      .getData("text")
+      .replace(/\D/g, "")
+      .slice(0, 4);
     const newOtp = [...otp];
     for (let i = 0; i < pasted.length; i++) newOtp[i] = pasted[i];
     setOtp(newOtp);
@@ -204,38 +213,59 @@ export function ForgotPasswordForm() {
     }
   };
 
-  const serverError = emailError instanceof Error ? emailError.message : emailError ? "Something went wrong" : null;
+  const serverError =
+    emailError instanceof Error
+      ? emailError.message
+      : emailError
+        ? "Something went wrong"
+        : null;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#faf9f7] flex items-center justify-center px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         {/* Header */}
         <div className="text-center">
           {step === "email" && (
             <>
-              <h2 className="mt-4 text-2xl font-bold text-gray-900">Forgot Password?</h2>
-              <p className="mt-2 text-gray-600">No worries, we&apos;ll send you a reset code</p>
+              <h2 className="mt-4 text-2xl font-bold text-gray-900">
+                Forgot Password?
+              </h2>
+              <p className="mt-2 text-gray-600">
+                No worries, we&apos;ll send you a reset code
+              </p>
             </>
           )}
           {step === "otp" && (
             <>
-              <h2 className="mt-4 text-2xl font-bold text-gray-900">Enter Reset Code</h2>
+              <h2 className="mt-4 text-2xl font-bold text-gray-900">
+                Enter Reset Code
+              </h2>
               <p className="mt-2 text-gray-600">
                 We sent a 4-digit code to{" "}
-                <span className="font-medium text-gray-900">{submittedEmail}</span>
+                <span className="font-medium text-gray-900">
+                  {submittedEmail}
+                </span>
               </p>
             </>
           )}
           {step === "new-password" && (
             <>
-              <h2 className="mt-4 text-2xl font-bold text-gray-900">Reset Password</h2>
-              <p className="mt-2 text-gray-600">Create a strong password for your account</p>
+              <h2 className="mt-4 text-2xl font-bold text-gray-900">
+                Reset Password
+              </h2>
+              <p className="mt-2 text-gray-600">
+                Create a strong password for your account
+              </p>
             </>
           )}
           {step === "success" && (
             <>
-              <h2 className="mt-4 text-2xl font-bold text-gray-900">Password Reset Complete</h2>
-              <p className="mt-2 text-gray-600">Your password has been successfully updated</p>
+              <h2 className="mt-4 text-2xl font-bold text-gray-900">
+                Password Reset Complete
+              </h2>
+              <p className="mt-2 text-gray-600">
+                Your password has been successfully updated
+              </p>
             </>
           )}
         </div>
@@ -244,9 +274,15 @@ export function ForgotPasswordForm() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
           {/* Step 1: Email */}
           {step === "email" && (
-            <form onSubmit={emailForm.handleSubmit(onSubmitEmail)} className="space-y-6">
+            <form
+              onSubmit={emailForm.handleSubmit(onSubmitEmail)}
+              className="space-y-6"
+            >
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                <label
+                  htmlFor="email"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
                   Email Address
                 </label>
                 <div className="relative">
@@ -257,7 +293,7 @@ export function ForgotPasswordForm() {
                     id="email"
                     type="email"
                     {...emailForm.register("email")}
-                    className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-all ${
+                    className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-transparent transition-all ${
                       emailError ? "border-red-500" : "border-gray-300"
                     }`}
                     placeholder="Enter your email address"
@@ -275,7 +311,7 @@ export function ForgotPasswordForm() {
               <button
                 type="submit"
                 disabled={isSendingEmail}
-                className="w-full bg-gray-900 text-white py-3 px-4 rounded-lg font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                className="w-full bg-gray-900 text-white py-3 px-4 rounded-lg font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
               >
                 {isSendingEmail ? (
                   <>
@@ -301,7 +337,7 @@ export function ForgotPasswordForm() {
 
               <Link
                 href="/login"
-                className="flex items-center justify-center text-gray-900 hover:text-gray-700 font-medium transition-colors"
+                className="flex items-center justify-center text-gray-700 hover:text-gray-900 font-medium transition-colors"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Sign In
@@ -314,22 +350,27 @@ export function ForgotPasswordForm() {
             <div className="space-y-6">
               <div className="flex justify-center mb-2">
                 <div className="bg-gray-100 p-4 rounded-full">
-                  <Mail className="h-10 w-10 text-gray-900" />
+                  <Mail className="h-10 w-10 text-gray-700" />
                 </div>
               </div>
 
-              <div className="flex justify-center gap-3" onPaste={handleOtpPaste}>
+              <div
+                className="flex justify-center gap-3"
+                onPaste={handleOtpPaste}
+              >
                 {otp.map((digit, index) => (
                   <input
                     key={index}
-                    ref={(el) => { inputRefs.current[index] = el; }}
+                    ref={(el) => {
+                      inputRefs.current[index] = el;
+                    }}
                     type="text"
                     inputMode="numeric"
                     maxLength={1}
                     value={digit}
                     onChange={(e) => handleOtpChange(index, e.target.value)}
                     onKeyDown={(e) => handleOtpKeyDown(index, e)}
-                    className="w-14 h-14 text-center text-2xl font-bold border-2 border-gray-300 rounded-lg focus:border-gray-900 focus:ring-2 focus:ring-gray-900 focus:outline-none bg-white text-gray-900 transition-all"
+                    className="w-14 h-14 text-center text-2xl font-bold border-2 border-gray-300 rounded-lg focus:border-gray-900 focus:ring-2 focus:ring-gray-300 focus:outline-none bg-white text-gray-900 transition-all"
                   />
                 ))}
               </div>
@@ -337,7 +378,7 @@ export function ForgotPasswordForm() {
               <button
                 onClick={onVerifyOtp}
                 disabled={isVerifyingOtp || otp.join("").length !== 4}
-                className="w-full bg-gray-900 text-white py-3 px-4 rounded-lg font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                className="w-full bg-gray-900 text-white py-3 px-4 rounded-lg font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
               >
                 {isVerifyingOtp ? (
                   <>
@@ -351,12 +392,12 @@ export function ForgotPasswordForm() {
 
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                 <div className="flex items-start">
-                  <Mail className="h-5 w-5 text-gray-600 mt-0.5 mr-3 flex-shrink-0" />
+                  <Mail className="h-5 w-5 text-gray-700 mt-0.5 mr-3 flex-shrink-0" />
                   <div className="text-left">
                     <p className="text-sm font-medium text-gray-900 mb-1">
                       Didn&apos;t receive the code?
                     </p>
-                    <p className="text-sm text-gray-700">
+                    <p className="text-sm text-gray-600">
                       Check your spam folder or click the resend button below
                     </p>
                   </div>
@@ -366,7 +407,7 @@ export function ForgotPasswordForm() {
               <button
                 onClick={onResendOtp}
                 disabled={cooldown > 0 || isSendingEmail}
-                className="w-full bg-gray-900 text-white py-3 px-4 rounded-lg font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                className="w-full bg-gray-900 text-white py-3 px-4 rounded-lg font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
               >
                 {cooldown > 0 ? (
                   <>
@@ -383,7 +424,7 @@ export function ForgotPasswordForm() {
 
               <Link
                 href="/login"
-                className="flex items-center justify-center text-gray-900 hover:text-gray-700 font-medium transition-colors"
+                className="flex items-center justify-center text-gray-700 hover:text-gray-900 font-medium transition-colors"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Sign In
@@ -393,9 +434,15 @@ export function ForgotPasswordForm() {
 
           {/* Step 3: New password */}
           {step === "new-password" && (
-            <form onSubmit={passwordForm.handleSubmit(onResetPassword)} className="space-y-6">
+            <form
+              onSubmit={passwordForm.handleSubmit(onResetPassword)}
+              className="space-y-6"
+            >
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
                   New Password
                 </label>
                 <div className="relative">
@@ -411,7 +458,7 @@ export function ForgotPasswordForm() {
                         ? "border-red-300 focus:ring-red-500"
                         : password
                           ? "border-teal-300 focus:ring-teal-500"
-                          : "border-gray-300 focus:ring-gray-900"
+                          : "border-gray-300 focus:ring-gray-300"
                     } disabled:bg-gray-50 disabled:cursor-not-allowed`}
                   />
                   <button
@@ -420,32 +467,49 @@ export function ForgotPasswordForm() {
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                     tabIndex={-1}
                   >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    {showPassword ? (
+                      <EyeOff className="w-5 h-5" />
+                    ) : (
+                      <Eye className="w-5 h-5" />
+                    )}
                   </button>
                 </div>
                 {password && (
                   <div className="mt-2">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium text-gray-600">Password Strength:</span>
-                      <span className="text-xs font-semibold" style={{ color: passwordStrength.color }}>
+                      <span className="text-xs font-medium text-gray-600">
+                        Password Strength:
+                      </span>
+                      <span
+                        className="text-xs font-semibold"
+                        style={{ color: passwordStrength.color }}
+                      >
                         {passwordStrength.label}
                       </span>
                     </div>
                     <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                       <div
                         className="h-full transition-all duration-300 rounded-full"
-                        style={{ width: `${passwordStrength.strength}%`, backgroundColor: passwordStrength.color }}
+                        style={{
+                          width: `${passwordStrength.strength}%`,
+                          backgroundColor: passwordStrength.color,
+                        }}
                       />
                     </div>
                   </div>
                 )}
                 {passwordForm.formState.errors.password && (
-                  <p className="mt-2 text-sm text-red-600">{passwordForm.formState.errors.password.message}</p>
+                  <p className="mt-2 text-sm text-red-600">
+                    {passwordForm.formState.errors.password.message}
+                  </p>
                 )}
               </div>
 
               <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                <label
+                  htmlFor="confirmPassword"
+                  className="block text-sm font-medium text-gray-700 mb-2"
+                >
                   Confirm New Password
                 </label>
                 <div className="relative">
@@ -461,7 +525,7 @@ export function ForgotPasswordForm() {
                         ? "border-red-300 focus:ring-red-500"
                         : passwordsMatch
                           ? "border-teal-300 focus:ring-teal-500"
-                          : "border-gray-300 focus:ring-gray-900"
+                          : "border-gray-300 focus:ring-gray-300"
                     } disabled:bg-gray-50 disabled:cursor-not-allowed`}
                   />
                   <button
@@ -470,7 +534,11 @@ export function ForgotPasswordForm() {
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                     tabIndex={-1}
                   >
-                    {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    {showConfirmPassword ? (
+                      <EyeOff className="w-5 h-5" />
+                    ) : (
+                      <Eye className="w-5 h-5" />
+                    )}
                   </button>
                 </div>
                 {confirmPassword && (
@@ -478,15 +546,21 @@ export function ForgotPasswordForm() {
                     {passwordsMatch ? (
                       <>
                         <CheckCircle2 className="w-4 h-4 text-teal-600" />
-                        <span className="text-sm text-teal-600 font-medium">Passwords match</span>
+                        <span className="text-sm text-teal-600 font-medium">
+                          Passwords match
+                        </span>
                       </>
                     ) : (
-                      <span className="text-sm text-red-600">Passwords do not match</span>
+                      <span className="text-sm text-red-600">
+                        Passwords do not match
+                      </span>
                     )}
                   </div>
                 )}
                 {passwordForm.formState.errors.confirmPassword && (
-                  <p className="mt-2 text-sm text-red-600">{passwordForm.formState.errors.confirmPassword.message}</p>
+                  <p className="mt-2 text-sm text-red-600">
+                    {passwordForm.formState.errors.confirmPassword.message}
+                  </p>
                 )}
               </div>
 
@@ -512,22 +586,29 @@ export function ForgotPasswordForm() {
             <div className="space-y-6 text-center">
               <div className="flex justify-center">
                 <div className="w-20 h-20 bg-teal-100 rounded-full flex items-center justify-center">
-                  <CheckCircle2 className="w-12 h-12 text-teal-600" strokeWidth={2.5} />
+                  <CheckCircle2
+                    className="w-12 h-12 text-teal-600"
+                    strokeWidth={2.5}
+                  />
                 </div>
               </div>
 
               <h2 className="text-2xl font-bold text-gray-900">Success!</h2>
               <p className="text-gray-600">
-                Your password has been reset successfully. You can now sign in with your new password.
+                Your password has been reset successfully. You can now sign in
+                with your new password.
               </p>
 
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                 <div className="flex items-start gap-3">
-                  <Lock className="w-5 h-5 text-gray-600 mt-0.5 flex-shrink-0" />
+                  <Lock className="w-5 h-5 text-gray-700 mt-0.5 flex-shrink-0" />
                   <div className="text-sm text-left">
-                    <p className="font-semibold text-gray-900 mb-1">Keep your password secure</p>
-                    <p className="text-gray-700">
-                      Never share your password with anyone and consider enabling two-factor authentication.
+                    <p className="font-semibold text-gray-900 mb-1">
+                      Keep your password secure
+                    </p>
+                    <p className="text-gray-600">
+                      Never share your password with anyone and consider
+                      enabling two-factor authentication.
                     </p>
                   </div>
                 </div>
@@ -549,13 +630,19 @@ export function ForgotPasswordForm() {
           <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
             <div className="flex items-start">
               <div className="flex-shrink-0">
-                <AlertCircle className="h-5 w-5 text-gray-900" />
+                <AlertCircle className="h-5 w-5 text-gray-700" />
               </div>
               <div className="ml-3">
-                <h3 className="text-sm font-medium text-gray-900">Need help?</h3>
-                <p className="mt-1 text-sm text-gray-700">
-                  If you&apos;re having trouble accessing your account, contact our support team at{" "}
-                  <a href="mailto:support@managehub.com" className="font-medium underline hover:text-gray-900">
+                <h3 className="text-sm font-medium text-gray-900">
+                  Need help?
+                </h3>
+                <p className="mt-1 text-sm text-gray-600">
+                  If you&apos;re having trouble accessing your account, contact
+                  our support team at{" "}
+                  <a
+                    href="mailto:support@managehub.com"
+                    className="font-medium underline hover:text-gray-700"
+                  >
                     support@managehub.com
                   </a>
                 </p>
@@ -569,7 +656,10 @@ export function ForgotPasswordForm() {
           <div className="text-center">
             <p className="text-gray-600">
               Don&apos;t have an account?{" "}
-              <Link href="/register" className="text-gray-900 hover:text-gray-700 font-medium">
+              <Link
+                href="/register"
+                className="text-gray-700 hover:text-gray-900 font-medium"
+              >
                 Sign up here
               </Link>
             </p>
@@ -578,11 +668,17 @@ export function ForgotPasswordForm() {
 
         {/* Footer */}
         <div className="text-center text-xs text-gray-500">
-          <p>&copy; 2025 ManageHub. All rights reserved.</p>
+          <p>&copy; 2026 ManageHub. All rights reserved.</p>
           <div className="mt-2 space-x-4">
-            <a href="#" className="hover:text-gray-700">Privacy Policy</a>
-            <a href="#" className="hover:text-gray-700">Terms of Service</a>
-            <a href="#" className="hover:text-gray-700">Support</a>
+            <a href="#" className="hover:text-gray-700">
+              Privacy Policy
+            </a>
+            <a href="#" className="hover:text-gray-700">
+              Terms of Service
+            </a>
+            <a href="#" className="hover:text-gray-700">
+              Support
+            </a>
           </div>
         </div>
       </div>

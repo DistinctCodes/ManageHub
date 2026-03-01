@@ -5,90 +5,94 @@ const Footer = () => {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="relative z-10 px-4 py-12 bg-gray-900">
-      <div className="max-w-6xl mx-auto">
-        {/* 3-Column Layout */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-          {/* Brand Column */}
+    <footer className="px-6 py-16 bg-gray-950">
+      <div className="max-w-5xl mx-auto">
+        <div className="grid sm:grid-cols-3 gap-12 mb-14">
+          {/* Brand */}
           <div>
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="bg-blue-600 p-2 rounded-xl">
-                <Building2 className="h-6 w-6 text-white" />
-              </div>
-              <span className="text-xl font-bold text-white">ManageHub</span>
+            <div className="flex items-center gap-2 mb-4">
+              <span className="bg-gray-800 p-2 rounded-lg">
+                <Building2 className="h-5 w-5 text-white" />
+              </span>
+              <span className="text-lg font-semibold text-white tracking-tight">
+                ManageHub
+              </span>
             </div>
-            <p className="text-gray-400 text-sm">
-              Revolutionizing workspace management for the digital age
+            <p className="text-sm text-gray-500 leading-relaxed">
+              Workspace management for modern teams.
             </p>
           </div>
 
-          {/* Product Column */}
+          {/* Product */}
           <div>
-            <h3 className="text-white font-semibold mb-4">Product</h3>
-            <ul className="space-y-2">
+            <p className="text-xs text-gray-500 uppercase tracking-widest mb-4">
+              Product
+            </p>
+            <ul className="space-y-2.5">
               <li>
                 <Link
-                  href="/dashboard"
-                  className="text-gray-400 text-sm hover:text-white transition-colors"
+                  href="#features"
+                  className="text-sm text-gray-400 hover:text-white transition-colors"
                 >
-                  Dashboard
+                  Features
                 </Link>
               </li>
               <li>
                 <Link
-                  href="/workspaces"
-                  className="text-gray-400 text-sm hover:text-white transition-colors"
+                  href="#how-it-works"
+                  className="text-sm text-gray-400 hover:text-white transition-colors"
                 >
-                  Workspaces
+                  How it works
                 </Link>
               </li>
               <li>
                 <Link
-                  href="/analytics"
-                  className="text-gray-400 text-sm hover:text-white transition-colors"
+                  href="#notify"
+                  className="text-sm text-gray-400 hover:text-white transition-colors"
                 >
-                  Analytics
+                  Early access
                 </Link>
               </li>
             </ul>
           </div>
 
-          {/* Legal Column */}
+          {/* Legal */}
           <div>
-            <h3 className="text-white font-semibold mb-4">Legal</h3>
-            <ul className="space-y-2">
+            <p className="text-xs text-gray-500 uppercase tracking-widest mb-4">
+              Legal
+            </p>
+            <ul className="space-y-2.5">
               <li>
                 <Link
-                  href="/privacy"
-                  className="text-gray-400 text-sm hover:text-white transition-colors"
+                  href="#"
+                  className="text-sm text-gray-400 hover:text-white transition-colors"
                 >
                   Privacy Policy
                 </Link>
               </li>
               <li>
                 <Link
-                  href="/terms"
-                  className="text-gray-400 text-sm hover:text-white transition-colors"
+                  href="#"
+                  className="text-sm text-gray-400 hover:text-white transition-colors"
                 >
                   Terms of Service
                 </Link>
               </li>
               <li>
                 <Link
-                  href="/contact"
-                  className="text-gray-400 text-sm hover:text-white transition-colors"
+                  href="#"
+                  className="text-sm text-gray-400 hover:text-white transition-colors"
                 >
-                  Contact
+                  Contact Us
                 </Link>
               </li>
             </ul>
           </div>
         </div>
 
-        {/* Copyright Line */}
         <div className="pt-8 border-t border-gray-800">
-          <p className="text-gray-500 text-sm text-center">
-            © {currentYear} ManageHub. All rights reserved.
+          <p className="text-gray-600 text-sm">
+            &copy; {currentYear} ManageHub. All rights reserved.
           </p>
         </div>
       </div>

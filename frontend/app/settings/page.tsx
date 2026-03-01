@@ -1,377 +1,360 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { z } from 'zod';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Input } from '@/components/ui/Input';
-import { Button, buttonVariants } from '@/components/ui/Button';
-import { Select } from '@/components/ui/Select';
-import { Switch } from '@/components/ui/Switch';
-import { Card } from '@/components/ui/Card';
-import { toast } from 'react-hot-toast';
-import { apiClient } from '@/lib/apiClient'; // Ensure this path is correct
-import { useAuth } from '@/store/authStore'; // Ensure this path is correct
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useAuthState, useAuthActions } from "@/lib/store/authStore";
+import { apiClient } from "@/lib/apiClient";
+import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { Eye, EyeOff, Shield, Bell, Palette } from "lucide-react";
 
-// Advanced schema to handle conditional password validation
-const SettingsSchema = z.object({
-  currentPassword: z.string().optional(),
-  newPassword: z.string().optional(),
-  confirmPassword: z.string().optional(),
-  twoFactorEnabled: z.boolean(),
-  emailNotifications: z.boolean(),
-  inAppNotifications: z.boolean(),
-  language: z.string(),
-  theme: z.enum(['light', 'dark']),
-}).superRefine((data, ctx) => {
-  if (data.newPassword) {
-    if (data.newPassword.length < 8) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.too_small,
-        minimum: 8,
-        type: "string",
-        inclusive: true,
-        message: "Password must be at least 8 characters",
-        path: ["newPassword"]
-      });
-    }
-    if (!data.currentPassword) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Current password is required to set a new password",
-        path: ["currentPassword"]
-      });
-    }
-    if (data.newPassword !== data.confirmPassword) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Passwords do not match",
-        path: ["confirmPassword"]
-      });
-    }
-  }
-});
+/* ── Password change schema ── */
+const passwordSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Current password is required"),
+    newPassword: z.string().min(8, "Must be at least 8 characters"),
+    confirmPassword: z.string(),
+  })
+  .refine((d) => d.newPassword === d.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  });
 
-type SettingsFormValues = z.infer<typeof SettingsSchema>;
+type PasswordForm = z.infer<typeof passwordSchema>;
 
-const mockUserSettings: SettingsFormValues = {
-  currentPassword: '',
-  newPassword: '',
-  confirmPassword: '',
-  twoFactorEnabled: false,
-  emailNotifications: true,
-  inAppNotifications: true,
-  language: 'en',
-  theme: 'system',
-};
-
-const THEME_OPTIONS: Array<{ label: string; value: SettingsFormValues['theme'] }> = [
-  { label: 'Light', value: 'light' },
-  { label: 'Dark', value: 'dark' },
-  { label: 'System', value: 'system' },
-];
+/* ── Toggle row ── */
+function ToggleRow({
+  label,
+  description,
+  checked,
+  onChange,
+}: {
+  label: string;
+  description: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between py-3">
+      <div>
+        <p className="text-sm font-medium text-gray-900">{label}</p>
+        <p className="text-xs text-gray-400">{description}</p>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors ${
+          checked ? "bg-gray-900" : "bg-gray-200"
+        }`}
+      >
+        <span
+          className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform transition-transform mt-0.5 ${
+            checked ? "translate-x-[22px]" : "translate-x-0.5"
+          }`}
+        />
+      </button>
+    </div>
+  );
+}
 
 export default function SettingsPage() {
-  const router = useRouter();
-  const user = useAuthStore((state) => state.user);
-  const clearAuth = useAuthStore((state) => state.clearAuth);
-  const [loading, setLoading] = useState(false);
-  const { user } = useAuth();
+  const { user } = useAuthState();
+  const { logout } = useAuthActions();
+
+  /* ── Password state ── */
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwMsg, setPwMsg] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
 
   const {
     register,
     handleSubmit,
-    reset,
-    setValue,
-    control,
     formState: { errors },
-  } = useForm<SettingsFormValues>({
-    resolver: zodResolver(SettingsSchema),
-    defaultValues: mockUserSettings,
+    reset,
+  } = useForm<PasswordForm>({
+    resolver: zodResolver(passwordSchema),
   });
 
-  useEffect(() => {
-    // In a real app, you might fetch actual user preferences here to populate the form
-    reset(mockUserSettings);
-    setSelectedTheme(mockUserSettings.theme);
-  }, [reset]);
-
-  const handleThemeSelect = (theme: SettingsFormValues['theme']) => {
-    setSelectedTheme(theme);
-    setValue('theme', theme, { shouldDirty: true });
-  };
-
-  const onSubmit = async (data: SettingsFormValues) => {
+  const onPasswordSubmit = async (data: PasswordForm) => {
+    if (!user) return;
+    setPwSaving(true);
+    setPwMsg(null);
     try {
-      setLoading(true);
-
-      // If the user is trying to change their password, handle the API call
-      if (data.newPassword && data.currentPassword) {
-        if (!user?.id) {
-          toast.error("User session not found.");
-          return;
-        }
-        await apiClient.patch(`/users/${user.id}`, {
-          currentPassword: data.currentPassword,
-          newPassword: data.newPassword,
-        });
-      }
-
-      // Handle saving general preferences (Mocked for now as per original code)
-      await new Promise((res) => setTimeout(res, 1000));
-      
-      toast.success('Settings saved successfully');
-      
-      // Clear password fields after successful submission
-      reset({
-        ...data,
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: '',
+      await apiClient.patch(`/users/${user.id}`, {
+        password: data.newPassword,
       });
-
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : "Failed to save settings";
-      toast.error(msg);
+      setPwMsg({ type: "success", text: "Password updated." });
+      reset();
+    } catch (err) {
+      setPwMsg({
+        type: "error",
+        text: err instanceof Error ? err.message : "Failed to update password.",
+      });
     } finally {
-      setLoading(false);
+      setPwSaving(false);
     }
   };
 
-  const openDeleteModal = () => {
-    setDeleteConfirmationText('');
-    setShowDeleteModal(true);
-  };
+  /* ── Notification preferences (local only for now) ── */
+  const [emailNotif, setEmailNotif] = useState(true);
+  const [inAppNotif, setInAppNotif] = useState(true);
 
-  const closeDeleteModal = (force = false) => {
-    if (isDeletingAccount && !force) return;
-    setShowDeleteModal(false);
-    setDeleteConfirmationText('');
-  };
+  /* ── 2FA (stub — backend has the column but no full flow yet) ── */
+  const [twoFactor, setTwoFactor] = useState(false);
+
+  /* ── Danger zone ── */
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const handleDeleteAccount = async () => {
-    if (!user?.id) {
-      toast.error('Unable to identify your account. Please sign in again.');
-      return;
-    }
-
-    if (deleteConfirmationText !== 'DELETE') {
-      toast.error('Please type DELETE to confirm.');
-      return;
-    }
-
+    if (!user) return;
+    setDeleting(true);
     try {
-      setIsDeletingAccount(true);
       await apiClient.delete(`/users/${user.id}`);
-      clearAuth();
-      closeDeleteModal(true);
-      toast.success('Account deleted successfully.');
-      router.push('/');
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Failed to delete account';
-      toast.error(message);
-    } finally {
-      setIsDeletingAccount(false);
+      logout();
+      window.location.href = "/";
+    } catch {
+      setDeleting(false);
+      setConfirmDelete(false);
     }
   };
 
-  return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
-      <h1 className="text-2xl font-semibold">User Settings</h1>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-
-        {/* Security Settings (Replaced Account Settings) */}
-        <Card title="Security Settings">
-          <p className="text-sm text-gray-500 mb-4">
-            Manage your password and secure your account.
-          </p>
-          <div className="space-y-4">
-            <Input
-              label="Current Password"
-              type="password"
-              {...register('currentPassword')}
-              error={errors.currentPassword?.message}
-            />
-            <Input
-              label="New Password"
-              type="password"
-              {...register('newPassword')}
-              error={errors.newPassword?.message}
-            />
-            <Input
-              label="Confirm New Password"
-              type="password"
-              {...register('confirmPassword')}
-              error={errors.confirmPassword?.message}
-            />
-            
-            <div className="pt-4 border-t border-gray-100">
-              <Controller
-                control={control}
-                name="twoFactorEnabled"
-                render={({ field: { value, onChange } }) => (
-                  <Switch
-                    label="Two-Factor Authentication (2FA)"
-                    description="Add an extra layer of security to your account."
-                    checked={value}
-                    onCheckedChange={(checked) => {
-                      onChange(checked);
-                      toast.success(
-                        checked 
-                          ? "Two-factor authentication enabled." 
-                          : "Two-factor authentication disabled."
-                      );
-                    }}
-                  />
-                )}
-              />
-            </div>
-          </div>
-        </Card>
-
-        {/* Notifications */}
-        <Card title="Notifications">
-          <p className="text-sm text-gray-500 mb-4">
-            Manage how and where you receive notifications.
-          </p>
-          <div className="space-y-4">
-            <Controller
-              control={control}
-              name="emailNotifications"
-              render={({ field: { value, onChange } }) => (
-                <Switch
-                  label="Email Notifications"
-                  description="Receive updates and alerts via email."
-                  checked={value}
-                  onCheckedChange={onChange}
-                />
-              )}
-            />
-            <Controller
-              control={control}
-              name="inAppNotifications"
-              render={({ field: { value, onChange } }) => (
-                <Switch
-                  label="In-App Notifications"
-                  description="See notifications inside the application."
-                  checked={value}
-                  onCheckedChange={onChange}
-                />
-              )}
-            />
-          </div>
-        </Card>
-
-        {/* Preferences */}
-        <Card title="Preferences">
-          <div className="space-y-4">
-            <Select
-              label="Language"
-              {...register('language')}
-              options={[
-                { label: 'English', value: 'en' },
-                { label: 'Spanish', value: 'es' },
-              ]}
-              defaultValue={mockUserSettings.language}
-            />
-          </div>
-        </Card>
-
-        {/* Appearance */}
-        <Card title="Appearance">
-          <div className="space-y-3">
-            <h2 className="text-base font-semibold text-gray-900">Appearance</h2>
-            <p className="text-sm text-gray-500">
-              Choose how ManageHub should look for your account.
-            </p>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              {THEME_OPTIONS.map((themeOption) => {
-                const isActive = selectedTheme === themeOption.value;
-
-                return (
-                  <button
-                    key={themeOption.value}
-                    type="button"
-                    className={cn(
-                      buttonVariants({ variant: 'outline' }),
-                      'h-11 w-full border text-sm font-medium transition-colors',
-                      isActive
-                        ? 'border-blue-600 bg-blue-600 text-white hover:bg-blue-700 hover:text-white'
-                        : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-900'
-                    )}
-                    onClick={() => handleThemeSelect(themeOption.value)}
-                  >
-                    {themeOption.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </Card>
-
-        <Button type="submit" disabled={loading}>
-          {loading ? 'Saving...' : 'Save Settings'}
-        </Button>
-
-        <div className="rounded-xl border border-red-300 bg-red-50 p-6">
-          <h2 className="text-lg font-semibold text-red-700">Danger Zone</h2>
-          <p className="mt-2 text-sm text-red-700/90">
-            Deleting your account is permanent and cannot be undone.
-          </p>
-          <div className="mt-4">
-            <Button type="button" variant="destructive" onClick={openDeleteModal}>
-              Delete Account
-            </Button>
-          </div>
+  if (!user) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="w-8 h-8 border-2 border-gray-300 border-t-gray-900 rounded-full animate-spin" />
         </div>
-      </form>
+      </DashboardLayout>
+    );
+  }
 
-      {showDeleteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
-            <h3 className="text-lg font-semibold text-gray-900">Delete Account</h3>
-            <p className="mt-2 text-sm text-gray-600">
-              To confirm account deletion, type <span className="font-semibold">DELETE</span>{' '}
-              below.
-            </p>
+  return (
+    <DashboardLayout>
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+        <p className="text-gray-500 mt-1 text-sm">
+          Manage your account preferences.
+        </p>
+      </div>
 
-            <div className="mt-4 space-y-2">
-              <label htmlFor="delete-confirmation" className="text-sm font-medium text-gray-700">
-                Confirmation
+      <div className="max-w-2xl space-y-6">
+        {/* ── Security ── */}
+        <div className="bg-white rounded-xl border border-gray-100 p-6">
+          <div className="flex items-center gap-2 mb-5">
+            <Shield className="w-4 h-4 text-gray-500" />
+            <h2 className="text-sm font-semibold text-gray-900">Security</h2>
+          </div>
+
+          <form
+            onSubmit={handleSubmit(onPasswordSubmit)}
+            className="space-y-4"
+          >
+            {/* Current password */}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1.5">
+                Current password
+              </label>
+              <div className="relative">
+                <input
+                  type={showCurrent ? "text" : "password"}
+                  {...register("currentPassword")}
+                  className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-200 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowCurrent((s) => !s)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showCurrent ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+              {errors.currentPassword && (
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.currentPassword.message}
+                </p>
+              )}
+            </div>
+
+            {/* New password */}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1.5">
+                New password
+              </label>
+              <div className="relative">
+                <input
+                  type={showNew ? "text" : "password"}
+                  {...register("newPassword")}
+                  className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-200 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNew((s) => !s)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showNew ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+              {errors.newPassword && (
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.newPassword.message}
+                </p>
+              )}
+            </div>
+
+            {/* Confirm password */}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1.5">
+                Confirm new password
               </label>
               <input
-                id="delete-confirmation"
-                type="text"
-                value={deleteConfirmationText}
-                onChange={(event) => setDeleteConfirmationText(event.target.value)}
-                placeholder="Type DELETE"
-                className="h-11 w-full rounded-lg border border-gray-300 px-3 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
+                type="password"
+                {...register("confirmPassword")}
+                className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-200"
               />
+              {errors.confirmPassword && (
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.confirmPassword.message}
+                </p>
+              )}
             </div>
 
-            <div className="mt-6 flex justify-end gap-3">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={closeDeleteModal}
-                disabled={isDeletingAccount}
+            {pwMsg && (
+              <p
+                className={`text-sm ${
+                  pwMsg.type === "success"
+                    ? "text-emerald-600"
+                    : "text-red-500"
+                }`}
               >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                onClick={handleDeleteAccount}
-                disabled={isDeletingAccount || deleteConfirmationText !== 'DELETE'}
-              >
-                {isDeletingAccount ? 'Deleting...' : 'Confirm Deletion'}
-              </Button>
-            </div>
+                {pwMsg.text}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={pwSaving}
+              className="px-5 py-2.5 text-sm font-medium rounded-lg bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-50 transition-colors"
+            >
+              {pwSaving ? "Updating..." : "Update password"}
+            </button>
+          </form>
+
+          {/* 2FA toggle */}
+          <div className="mt-6 pt-5 border-t border-gray-100">
+            <ToggleRow
+              label="Two-factor authentication"
+              description="Add an extra layer of security to your account (coming soon)"
+              checked={twoFactor}
+              onChange={setTwoFactor}
+            />
           </div>
         </div>
-      )}
-    </div>
+
+        {/* ── Notifications ── */}
+        <div className="bg-white rounded-xl border border-gray-100 p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Bell className="w-4 h-4 text-gray-500" />
+            <h2 className="text-sm font-semibold text-gray-900">
+              Notifications
+            </h2>
+          </div>
+          <div className="divide-y divide-gray-50">
+            <ToggleRow
+              label="Email notifications"
+              description="Receive updates and alerts via email"
+              checked={emailNotif}
+              onChange={setEmailNotif}
+            />
+            <ToggleRow
+              label="In-app notifications"
+              description="Show notifications inside the dashboard"
+              checked={inAppNotif}
+              onChange={setInAppNotif}
+            />
+          </div>
+        </div>
+
+        {/* ── Appearance ── */}
+        <div className="bg-white rounded-xl border border-gray-100 p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Palette className="w-4 h-4 text-gray-500" />
+            <h2 className="text-sm font-semibold text-gray-900">Appearance</h2>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-2">
+              Theme
+            </label>
+            <div className="flex gap-3">
+              {(["Light", "Dark", "System"] as const).map((theme) => (
+                <button
+                  key={theme}
+                  type="button"
+                  className="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:border-gray-400 transition-colors data-[active=true]:bg-gray-900 data-[active=true]:text-white data-[active=true]:border-gray-900"
+                  data-active={theme === "Light"}
+                >
+                  {theme}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-gray-400 mt-2">
+              Theme switching coming soon.
+            </p>
+          </div>
+        </div>
+
+        {/* ── Danger zone ── */}
+        <div className="bg-white rounded-xl border border-red-100 p-6">
+          <h2 className="text-sm font-semibold text-red-600 mb-1">
+            Danger zone
+          </h2>
+          <p className="text-xs text-gray-400 mb-4">
+            Permanently delete your account and all associated data.
+          </p>
+          {!confirmDelete ? (
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(true)}
+              className="px-5 py-2.5 text-sm font-medium rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+            >
+              Delete my account
+            </button>
+          ) : (
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleDeleteAccount}
+                disabled={deleting}
+                className="px-5 py-2.5 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
+              >
+                {deleting ? "Deleting..." : "Yes, delete my account"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(false)}
+                className="px-5 py-2.5 text-sm font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </DashboardLayout>
   );
 }

@@ -217,8 +217,8 @@ export default function LoginForm({
             <div className="text-center space-y-6">
               <div className="bg-[#faf9f7] rounded-xl p-8">
                 <div className="flex justify-center mb-4">
-                  <div className="bg-gray-200 p-4 rounded-full">
-                    <Scan className="h-12 w-12 text-gray-700" />
+                  <div className="bg-teal-100 p-4 rounded-full">
+                    <Scan className="h-12 w-12 text-teal-600" />
                   </div>
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
@@ -230,7 +230,7 @@ export default function LoginForm({
                 </p>
                 <button
                   onClick={handleBiometricLogin}
-                  className="bg-gray-900 text-white py-3 px-6 rounded-lg font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 transition-colors"
+                  className="bg-teal-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 transition-colors"
                 >
                   Start Scan
                 </button>
@@ -266,7 +266,7 @@ export default function LoginForm({
 
         {/* Footer */}
         <div className="text-center text-xs text-gray-500">
-          <p>© 2025 ManageHub. All rights reserved.</p>
+          <p>© 2026 ManageHub. All rights reserved.</p>
           <div className="mt-2 space-x-4">
             <a href="#" className="hover:text-gray-700">
               Privacy Policy

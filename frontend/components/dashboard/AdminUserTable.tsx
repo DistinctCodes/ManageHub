@@ -1,296 +1,236 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import {
-  Search,
-  MoreVertical,
-  Shield,
-  User as UserIcon,
-  Ban,
-  CheckCircle,
-  Trash2,
-  ChevronLeft,
-  ChevronRight,
-  Loader2,
-} from "lucide-react";
+import { useState } from "react";
 import { apiClient } from "@/lib/apiClient";
-import { toast } from "sonner";
+import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 
-// Define the User interface based on expected API data
-interface User {
+interface UserRow {
   id: string;
-  name: string;
+  firstname: string;
+  lastname: string;
   email: string;
-  role: "admin" | "user";
-  status: "active" | "suspended";
+  role: string;
+  isActive: boolean;
+  isSuspended: boolean;
+  isVerified: boolean;
   createdAt: string;
+  profilePicture?: string;
 }
 
-interface PaginatedResponse {
-  data: User[];
-  meta: {
-    total: number;
-    page: number;
-    totalPages: number;
-  };
+interface Props {
+  initialData: UserRow[];
+  meta: { total: number; page: number; limit: number; totalPages: number };
+  onRefresh: () => void;
 }
 
-export function AdminUserTable() {
-  const [users, setUsers] = useState<User[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
+export default function AdminUserTable({ initialData, meta, onRefresh }: Props) {
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(meta.page);
+  const [users, setUsers] = useState(initialData);
+  const [pageMeta, setPageMeta] = useState(meta);
 
-  // Debounce search input to avoid spamming the API
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedSearch(searchQuery);
-      setCurrentPage(1); // Reset to first page on new search
-    }, 500);
-    return () => clearTimeout(handler);
-  }, [searchQuery]);
-
-  // Fetch users from API
-  const fetchUsers = useCallback(async () => {
+  const fetchPage = async (p: number, s?: string) => {
+    setLoading(true);
     try {
-      setIsLoading(true);
-      const response = await apiClient.get<PaginatedResponse>(
-        "/dashboard/admin/users",
-        {
-          params: {
-            search: debouncedSearch,
-            page: currentPage,
-            limit: 10,
-          },
-        },
-      );
-
-      setUsers(response.data.data);
-      setTotalPages(response.data.meta.totalPages);
-    } catch (error) {
-      const msg =
-        error instanceof Error ? error.message : "Failed to load users";
-      toast.error(msg);
+      const params = new URLSearchParams({ page: String(p), limit: "10" });
+      if (s) params.set("search", s);
+      const res = await apiClient.get<{
+        success: boolean;
+        data: UserRow[];
+        meta: typeof meta;
+      }>(`/dashboard/admin/users?${params}`);
+      setUsers(res.data);
+      setPageMeta(res.meta);
+      setPage(p);
+    } catch {
+      // silently fail
     } finally {
-      setIsLoading(false);
-    }
-  }, [debouncedSearch, currentPage]);
-
-  useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
-
-  // Handle outside click to close dropdowns
-  useEffect(() => {
-    const handleClickOutside = () => setOpenDropdownId(null);
-    document.addEventListener("click", handleClickOutside);
-    return () => document.removeEventListener("click", handleClickOutside);
-  }, []);
-
-  // Action Handlers
-  const handleAction = async (
-    action: string,
-    userId: string,
-    e: React.MouseEvent,
-  ) => {
-    e.stopPropagation();
-    setOpenDropdownId(null);
-
-    try {
-      // Optimistic UI updates or API calls would go here
-      // Example: await apiClient.patch(`/dashboard/admin/users/${userId}/${action}`);
-      toast.success(`User ${action} action triggered successfully`);
-      await fetchUsers(); // Refresh data
-    } catch (error) {
-      toast.error(`Failed to execute ${action} action`);
+      setLoading(false);
     }
   };
 
-  const toggleDropdown = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setOpenDropdownId(openDropdownId === id ? null : id);
+  const handleAction = async (
+    userId: string,
+    action: "suspend" | "activate" | "delete" | "make-admin" | "make-user"
+  ) => {
+    try {
+      if (action === "delete") {
+        await apiClient.delete(`/users/${userId}`);
+      } else if (action === "suspend") {
+        await apiClient.patch(`/users/${userId}`, { isSuspended: true });
+      } else if (action === "activate") {
+        await apiClient.patch(`/users/${userId}`, {
+          isSuspended: false,
+          isActive: true,
+        });
+      } else if (action === "make-admin") {
+        await apiClient.patch(`/users/${userId}`, { role: "admin" });
+      } else if (action === "make-user") {
+        await apiClient.patch(`/users/${userId}`, { role: "user" });
+      }
+      fetchPage(page, search);
+      onRefresh();
+    } catch {
+      // silently fail
+    }
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    fetchPage(1, search);
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-      {/* Header & Search */}
-      <div className="p-6 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-bold text-gray-900">User Management</h2>
-          <p className="text-sm text-gray-500">View and manage system users</p>
-        </div>
-
-        <div className="relative w-full sm:w-72">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-4 w-4 text-gray-400" />
+    <div className="bg-white rounded-xl border border-gray-100">
+      <div className="p-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <h3 className="text-sm font-semibold text-gray-900">
+          All users{" "}
+          <span className="text-gray-400 font-normal">({pageMeta.total})</span>
+        </h3>
+        <form onSubmit={handleSearch} className="flex gap-2">
+          <div className="relative">
+            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search users..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-200 w-56"
+            />
           </div>
-          <input
-            type="text"
-            placeholder="Search by name or email..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition-colors"
-          />
-        </div>
+        </form>
       </div>
 
-      {/* Table Area */}
       <div className="overflow-x-auto">
-        <table className="w-full text-left text-sm text-gray-600">
-          <thead className="bg-gray-50 text-gray-900 text-xs uppercase font-semibold border-b border-gray-200">
-            <tr>
-              <th className="px-6 py-4">Name</th>
-              <th className="px-6 py-4">Email</th>
-              <th className="px-6 py-4">Role</th>
-              <th className="px-6 py-4">Status</th>
-              <th className="px-6 py-4">Joined Date</th>
-              <th className="px-6 py-4 text-right">Actions</th>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-xs text-gray-400 uppercase tracking-wider border-b border-gray-50">
+              <th className="px-5 py-3 font-medium">Name</th>
+              <th className="px-5 py-3 font-medium">Email</th>
+              <th className="px-5 py-3 font-medium">Role</th>
+              <th className="px-5 py-3 font-medium">Status</th>
+              <th className="px-5 py-3 font-medium">Joined</th>
+              <th className="px-5 py-3 font-medium">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
-            {isLoading ? (
-              <tr>
-                <td colSpan={6} className="px-6 py-12 text-center">
-                  <div className="flex flex-col items-center justify-center text-gray-500">
-                    <Loader2 className="h-8 w-8 animate-spin mb-2" />
-                    <p>Loading users...</p>
-                  </div>
+          <tbody className={loading ? "opacity-50" : ""}>
+            {users.map((u) => (
+              <tr
+                key={u.id}
+                className="border-b border-gray-50 last:border-0"
+              >
+                <td className="px-5 py-3.5 font-medium text-gray-900">
+                  {u.firstname} {u.lastname}
                 </td>
-              </tr>
-            ) : users.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={6}
-                  className="px-6 py-12 text-center text-gray-500"
-                >
-                  No users found matching your criteria.
+                <td className="px-5 py-3.5 text-gray-500">{u.email}</td>
+                <td className="px-5 py-3.5">
+                  <span
+                    className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                      u.role === "admin"
+                        ? "bg-purple-50 text-purple-600"
+                        : "bg-gray-50 text-gray-600"
+                    }`}
+                  >
+                    {u.role}
+                  </span>
                 </td>
-              </tr>
-            ) : (
-              users.map((user) => (
-                <tr
-                  key={user.id}
-                  className="hover:bg-gray-50 transition-colors"
-                >
-                  <td className="px-6 py-4 font-medium text-gray-900">
-                    {user.name}
-                  </td>
-                  <td className="px-6 py-4">{user.email}</td>
-                  <td className="px-6 py-4">
-                    <span className="flex items-center gap-1.5">
-                      {user.role === "admin" ? (
-                        <Shield className="w-4 h-4 text-gray-700" />
-                      ) : (
-                        <UserIcon className="w-4 h-4 text-gray-500" />
-                      )}
-                      <span className="capitalize">{user.role}</span>
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${
-                        user.status === "active"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
-                    >
-                      {user.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    {new Date(user.createdAt).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4 text-right relative">
-                    <button
-                      onClick={(e) => toggleDropdown(user.id, e)}
-                      className="p-1 rounded-md hover:bg-gray-200 text-gray-500 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-900"
-                    >
-                      <MoreVertical className="w-5 h-5" />
-                    </button>
-
-                    {/* Action Dropdown */}
-                    {openDropdownId === user.id && (
-                      <div className="absolute right-6 top-10 z-10 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 text-left">
-                        <button
-                          onClick={(e) =>
-                            handleAction("toggle_role", user.id, e)
-                          }
-                          className="w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                        >
-                          <Shield className="w-4 h-4" />
-                          Change Role
-                        </button>
-
-                        {user.status === "active" ? (
-                          <button
-                            onClick={(e) => handleAction("suspend", user.id, e)}
-                            className="w-full px-4 py-2 text-sm text-amber-600 hover:bg-amber-50 flex items-center gap-2"
-                          >
-                            <Ban className="w-4 h-4" />
-                            Suspend User
-                          </button>
-                        ) : (
-                          <button
-                            onClick={(e) =>
-                              handleAction("activate", user.id, e)
-                            }
-                            className="w-full px-4 py-2 text-sm text-green-600 hover:bg-green-50 flex items-center gap-2"
-                          >
-                            <CheckCircle className="w-4 h-4" />
-                            Activate User
-                          </button>
-                        )}
-
-                        <div className="border-t border-gray-100 my-1"></div>
-                        <button
-                          onClick={(e) => handleAction("delete", user.id, e)}
-                          className="w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          Delete User
-                        </button>
-                      </div>
+                <td className="px-5 py-3.5">
+                  <span
+                    className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                      u.isSuspended
+                        ? "bg-red-50 text-red-600"
+                        : u.isActive
+                        ? "bg-emerald-50 text-emerald-600"
+                        : "bg-gray-50 text-gray-500"
+                    }`}
+                  >
+                    {u.isSuspended
+                      ? "Suspended"
+                      : u.isActive
+                      ? "Active"
+                      : "Inactive"}
+                  </span>
+                </td>
+                <td className="px-5 py-3.5 text-gray-400">
+                  {new Date(u.createdAt).toLocaleDateString("en", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                </td>
+                <td className="px-5 py-3.5">
+                  <select
+                    className="text-xs border border-gray-200 rounded-md px-2 py-1 bg-white focus:outline-none"
+                    defaultValue=""
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        handleAction(
+                          u.id,
+                          e.target.value as
+                            | "suspend"
+                            | "activate"
+                            | "delete"
+                            | "make-admin"
+                            | "make-user"
+                        );
+                        e.target.value = "";
+                      }
+                    }}
+                  >
+                    <option value="" disabled>
+                      Action
+                    </option>
+                    {u.isSuspended ? (
+                      <option value="activate">Activate</option>
+                    ) : (
+                      <option value="suspend">Suspend</option>
                     )}
-                  </td>
-                </tr>
-              ))
+                    {u.role === "admin" ? (
+                      <option value="make-user">Demote to user</option>
+                    ) : (
+                      <option value="make-admin">Promote to admin</option>
+                    )}
+                    <option value="delete">Delete</option>
+                  </select>
+                </td>
+              </tr>
+            ))}
+            {users.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-5 py-8 text-center text-gray-400">
+                  No users found.
+                </td>
+              </tr>
             )}
           </tbody>
         </table>
       </div>
 
-      {/* Pagination Controls */}
-      <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between bg-gray-50">
-        <p className="text-sm text-gray-500">
-          Page <span className="font-medium text-gray-900">{currentPage}</span>{" "}
-          of{" "}
-          <span className="font-medium text-gray-900">{totalPages || 1}</span>
-        </p>
-
-        <div className="flex gap-2">
-          <button
-            onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-            disabled={currentPage === 1 || isLoading}
-            className="p-2 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() =>
-              setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-            }
-            disabled={
-              currentPage === totalPages || totalPages === 0 || isLoading
-            }
-            className="p-2 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
+      {/* Pagination */}
+      {pageMeta.totalPages > 1 && (
+        <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-between text-sm">
+          <p className="text-gray-400">
+            Page {pageMeta.page} of {pageMeta.totalPages}
+          </p>
+          <div className="flex gap-2">
+            <button
+              disabled={pageMeta.page <= 1}
+              onClick={() => fetchPage(pageMeta.page - 1, search)}
+              className="p-1.5 rounded-md border border-gray-200 disabled:opacity-30 hover:bg-gray-50"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              disabled={pageMeta.page >= pageMeta.totalPages}
+              onClick={() => fetchPage(pageMeta.page + 1, search)}
+              className="p-1.5 rounded-md border border-gray-200 disabled:opacity-30 hover:bg-gray-50"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

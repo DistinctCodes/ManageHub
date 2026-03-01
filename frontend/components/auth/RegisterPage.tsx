@@ -51,11 +51,10 @@ const userTypeOptions = [
 ];
 
 export function RegisterPage({ onRegister, isLoading }: RegisterPageProps) {
-  const [currentStep, setCurrentStep] = useState<RegisterStep>('personal-info');
+  const [currentStep, setCurrentStep] = useState<RegisterStep>("personal-info");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
- 
-  
+
   // Personal Info Form
   const personalInfoForm = useForm<PersonalInfoForm>({
     resolver: zodResolver(personalInfoSchema),
@@ -86,14 +85,12 @@ export function RegisterPage({ onRegister, isLoading }: RegisterPageProps) {
   };
 
   const handleAccountSetupSubmit = async (data: AccountSetupForm) => {
-    
-    
     // Get personal info data
     const personalInfoData = personalInfoForm.getValues();
 
     // Simulate API call
     // await new Promise(resolve => setTimeout(resolve, 2000));
-    
+
     // onRegister?.({
     //   ...personalInfoData,
     //   ...data,
@@ -113,7 +110,7 @@ export function RegisterPage({ onRegister, isLoading }: RegisterPageProps) {
   // };
 
   return (
-    <div className="min-h-screen bg-[#faf9f7] flex flex-col justify-center py-6 px-4 sm:py-12 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-6 px-4 sm:py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         {/* Header */}
         <div className="text-center mb-6 sm:mb-8">
@@ -140,7 +137,7 @@ export function RegisterPage({ onRegister, isLoading }: RegisterPageProps) {
                   "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium",
                   currentStep === "personal-info"
                     ? "bg-gray-900 text-white"
-                    : "bg-gray-200 text-gray-700"
+                    : "bg-gray-100 text-gray-900",
                 )}
               >
                 {currentStep === "account-setup" ? (
@@ -154,7 +151,7 @@ export function RegisterPage({ onRegister, isLoading }: RegisterPageProps) {
                   "ml-2 text-sm font-medium",
                   currentStep === "personal-info"
                     ? "text-gray-900"
-                    : "text-gray-500"
+                    : "text-gray-500",
                 )}
               >
                 Personal Info
@@ -165,7 +162,7 @@ export function RegisterPage({ onRegister, isLoading }: RegisterPageProps) {
             <div
               className={cn(
                 "w-12 h-0.5",
-                currentStep === "account-setup" ? "bg-gray-900" : "bg-gray-300"
+                currentStep === "account-setup" ? "bg-gray-900" : "bg-gray-300",
               )}
             />
 
@@ -176,7 +173,7 @@ export function RegisterPage({ onRegister, isLoading }: RegisterPageProps) {
                   "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium",
                   currentStep === "account-setup"
                     ? "bg-gray-900 text-white"
-                    : "bg-gray-200 text-gray-500"
+                    : "bg-gray-200 text-gray-500",
                 )}
               >
                 2
@@ -186,7 +183,7 @@ export function RegisterPage({ onRegister, isLoading }: RegisterPageProps) {
                   "ml-2 text-sm font-medium",
                   currentStep === "account-setup"
                     ? "text-gray-900"
-                    : "text-gray-500"
+                    : "text-gray-500",
                 )}
               >
                 Account Setup
@@ -201,13 +198,12 @@ export function RegisterPage({ onRegister, isLoading }: RegisterPageProps) {
             <PersonalInfoStep
               form={personalInfoForm}
               onSubmit={handlePersonalInfoSubmit}
-              
             />
           ) : (
             <AccountSetupStep
               form={accountSetupForm}
               onSubmit={handleAccountSetupSubmit}
-              onBack={() => setCurrentStep('personal-info')}
+              onBack={() => setCurrentStep("personal-info")}
               showPassword={showPassword}
               setShowPassword={setShowPassword}
               showConfirmPassword={showConfirmPassword}
@@ -234,7 +230,7 @@ export function RegisterPage({ onRegister, isLoading }: RegisterPageProps) {
       {/* Footer */}
       <footer className="mt-8 sm:mt-16 text-center px-4">
         <p className="text-xs sm:text-sm text-gray-500 mb-3 sm:mb-4">
-          © 2025 ManageHub. All rights reserved.
+          © 2026 ManageHub. All rights reserved.
         </p>
         <div className="flex flex-col space-y-2 sm:flex-row sm:justify-center sm:space-y-0 sm:space-x-6">
           <button className="text-xs sm:text-sm text-gray-500 hover:text-gray-700 focus:outline-none focus:underline transition-colors">
@@ -277,7 +273,7 @@ function PersonalInfoStep({ form, onSubmit }: PersonalInfoStepProps) {
         </label>
         <Input
           id="fullName"
-          className="text-black focus:border-gray-400 focus:ring-gray-300"
+          className="text-black"
           type="text"
           placeholder="Yusuf N M"
           {...register("fullName")}
@@ -297,7 +293,6 @@ function PersonalInfoStep({ form, onSubmit }: PersonalInfoStepProps) {
         <Input
           id="email"
           type="email"
-          className="focus:border-gray-400 focus:ring-gray-300"
           placeholder="faladeyusuf54@gmail.com"
           {...register("email")}
           error={errors.email?.message}
@@ -316,7 +311,6 @@ function PersonalInfoStep({ form, onSubmit }: PersonalInfoStepProps) {
         <Input
           id="phoneNumber"
           type="tel"
-          className="focus:border-gray-400 focus:ring-gray-300"
           placeholder="+234800033156218"
           {...register("phoneNumber")}
           error={errors.phoneNumber?.message}
@@ -335,7 +329,6 @@ function PersonalInfoStep({ form, onSubmit }: PersonalInfoStepProps) {
         <Input
           id="location"
           type="text"
-          className="focus:border-gray-400 focus:ring-gray-300"
           placeholder="City, Country"
           {...register("location")}
           error={errors.location?.message}
@@ -346,7 +339,7 @@ function PersonalInfoStep({ form, onSubmit }: PersonalInfoStepProps) {
       {/* Continue Button */}
       <Button
         type="submit"
-        className="w-full h-12 text-base font-medium bg-gray-900 hover:bg-gray-800"
+        className="w-full h-12 text-base font-medium bg-gray-900"
         size="lg"
       >
         Continue
@@ -402,8 +395,8 @@ function AccountSetupStep({
               className={cn(
                 "p-4 border rounded-lg text-left transition-all",
                 userType === option.id
-                  ? "border-gray-900 bg-gray-100"
-                  : "border-gray-200 hover:border-gray-300"
+                  ? "border-gray-900 bg-gray-50"
+                  : "border-gray-200 hover:border-gray-300",
               )}
             >
               <div className="font-medium text-gray-900">{option.title}</div>
@@ -429,7 +422,6 @@ function AccountSetupStep({
         <Input
           id="organizationName"
           type="text"
-          className="focus:border-gray-400 focus:ring-gray-300"
           placeholder="Your organization name"
           {...register("organizationName")}
           error={errors.organizationName?.message}
@@ -449,7 +441,6 @@ function AccountSetupStep({
           <Input
             id="password"
             type={showPassword ? "text" : "password"}
-            className="focus:border-gray-400 focus:ring-gray-300"
             placeholder="Create a strong password"
             {...register("password")}
             error={errors.password?.message}
@@ -481,7 +472,6 @@ function AccountSetupStep({
           <Input
             id="confirmPassword"
             type={showConfirmPassword ? "text" : "password"}
-            className="focus:border-gray-400 focus:ring-gray-300"
             placeholder="Re-enter your password"
             {...register("confirmPassword")}
             error={errors.confirmPassword?.message}
@@ -540,7 +530,7 @@ function AccountSetupStep({
           type="button"
           variant="outline"
           onClick={onBack}
-          className="flex-1 h-12 bg-gray-900 hover:bg-gray-800"
+          className="flex-1 h-12 bg-gray-900"
           size="lg"
         >
           Back
@@ -549,7 +539,7 @@ function AccountSetupStep({
           type="submit"
           loading={isSubmitting}
           disabled={isSubmitting}
-          className="flex-1 h-12 text-base font-medium bg-gray-900 hover:bg-gray-800"
+          className="flex-1 h-12 text-base font-medium bg-gray-900"
           size="lg"
         >
           Create Account

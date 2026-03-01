@@ -1,68 +1,59 @@
-import React from "react";
+"use client";
 
-type ActivityItem = {
-    id: string;
-    icon: React.ReactNode;
-    color?: string;
-    description: string;
-    timestamp: Date | string;
-};
+import { UserPlus, UserCheck } from "lucide-react";
 
-interface ActivityFeedProps {
-    activities?: ActivityItem[];
+interface ActivityItem {
+  id: string;
+  type: string;
+  description: string;
+  timestamp: string;
 }
 
-const ActivityFeed: React.FC<ActivityFeedProps> = ({ activities = [] }) => {
-    const formatRelativeTime = (time: Date | string) => {
-        const date = typeof time === "string" ? new Date(time) : time;
-        const diff = Date.now() - date.getTime();
-
-        const seconds = Math.floor(diff / 1000);
-        const minutes = Math.floor(seconds / 60);
-        const hours = Math.floor(minutes / 60);
-        const days = Math.floor(hours / 24);
-
-        if (seconds < 60) return "just now";
-        if (minutes < 60) return `${minutes}m ago`;
-        if (hours < 24) return `${hours}h ago`;
-        return `${days}d ago`;
-    };
-
-    if (activities.length === 0) {
-        return (
-            <div className="flex items-center justify-center h-full text-sm text-gray-500">
-                No recent activity
-            </div>
-        );
-    }
-
+export default function ActivityFeed({
+  activities,
+}: {
+  activities: ActivityItem[];
+}) {
+  if (!activities.length) {
     return (
-        <div className="max-h-80 overflow-y-auto pr-2">
-            <ul className="space-y-4">
-                {activities.map((activity) => (
-                    <li key={activity.id} className="flex items-start gap-3">
-                        {/* Icon */}
-                        <div
-                            className="flex items-center justify-center w-8 h-8 rounded-full shrink-0"
-                            style={{ backgroundColor: activity.color ?? "#E5E7EB" }}
-                        >
-                            {activity.icon}
-                        </div>
-
-                        {/* Content */}
-                        <div className="flex-1">
-                            <p className="text-sm text-gray-800">
-                                {activity.description}
-                            </p>
-                            <span className="text-xs text-gray-500">
-                                {formatRelativeTime(activity.timestamp)}
-                            </span>
-                        </div>
-                    </li>
-                ))}
-            </ul>
-        </div>
+      <div className="bg-white rounded-xl border border-gray-100 p-6">
+        <h3 className="text-sm font-semibold text-gray-900 mb-4">
+          Recent activity
+        </h3>
+        <p className="text-sm text-gray-400">No recent activity.</p>
+      </div>
     );
-};
+  }
 
-export default ActivityFeed;
+  return (
+    <div className="bg-white rounded-xl border border-gray-100 p-6">
+      <h3 className="text-sm font-semibold text-gray-900 mb-4">
+        Recent activity
+      </h3>
+      <div className="space-y-4">
+        {activities.slice(0, 6).map((item) => {
+          const Icon =
+            item.type === "member_verified" ? UserCheck : UserPlus;
+          return (
+            <div key={item.id} className="flex items-start gap-3">
+              <span className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center shrink-0 mt-0.5">
+                <Icon className="w-3.5 h-3.5 text-gray-500" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm text-gray-700">{item.description}</p>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {new Date(item.timestamp).toLocaleDateString("en", {
+                    month: "short",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

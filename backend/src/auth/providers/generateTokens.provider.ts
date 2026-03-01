@@ -9,14 +9,14 @@ export class GenerateTokensProvider {
   async generateAccessToken(user: User): Promise<string> {
     return this.jwtService.signAsync(
       { sub: user.id, role: user.role, email: user.email },
-      { expiresIn: process.env.JWT_ACCESS_EXPIRATION ?? '15m' },
+      { expiresIn: (process.env.JWT_ACCESS_EXPIRATION ?? '15m') as any },
     );
   }
 
   async generateRefreshToken(user: User): Promise<string> {
     return this.jwtService.signAsync(
       { sub: user.id },
-      { expiresIn: process.env.JWT_REFRESH_EXPIRATION ?? '7d' },
+      { expiresIn: (process.env.JWT_REFRESH_EXPIRATION ?? '7d') as any },
     );
   }
 

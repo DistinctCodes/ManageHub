@@ -20,7 +20,7 @@ const resetPasswordSchema = z
       .regex(/[0-9]/, "Password must contain at least one number")
       .regex(
         /[^A-Za-z0-9]/,
-        "Password must contain at least one special character"
+        "Password must contain at least one special character",
       ),
     confirmPassword: z.string(),
   })
@@ -33,7 +33,7 @@ type ResetPasswordForm = z.infer<typeof resetPasswordSchema>;
 
 // Password strength calculator
 const calculatePasswordStrength = (
-  password: string
+  password: string,
 ): { strength: number; label: string; color: string } => {
   if (!password) return { strength: 0, label: "", color: "" };
 
@@ -135,12 +135,12 @@ const ResetPasswordPage: React.FC = () => {
 
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
               <div className="flex items-start gap-3">
-                <Lock className="w-5 h-5 text-gray-600 mt-0.5 flex-shrink-0" />
+                <Lock className="w-5 h-5 text-gray-700 mt-0.5 flex-shrink-0" />
                 <div className="text-sm">
                   <p className="font-semibold text-gray-900 mb-1">
                     Keep your password secure
                   </p>
-                  <p className="text-gray-700">
+                  <p className="text-gray-600">
                     Never share your password with anyone and consider enabling
                     two-factor authentication for extra security.
                   </p>
@@ -158,7 +158,7 @@ const ResetPasswordPage: React.FC = () => {
           </div>
 
           <footer className="text-center mt-8 text-sm text-gray-600">
-            <p className="mb-2">© 2025 ManageHub. All rights reserved.</p>
+            <p className="mb-2">© 2026 ManageHub. All rights reserved.</p>
             <div className="flex justify-center gap-4">
               <a
                 href="/privacy-policy"
@@ -222,8 +222,8 @@ const ResetPasswordPage: React.FC = () => {
                   errors.password
                     ? "border-red-300 focus:ring-red-500"
                     : password
-                    ? "border-teal-300 focus:ring-teal-500"
-                    : "border-gray-300 focus:ring-gray-900"
+                      ? "border-teal-300 focus:ring-teal-500"
+                      : "border-gray-300 focus:ring-gray-300"
                 } disabled:bg-gray-50 disabled:cursor-not-allowed`}
               />
               <button
@@ -294,8 +294,8 @@ const ResetPasswordPage: React.FC = () => {
                   errors.confirmPassword
                     ? "border-red-300 focus:ring-red-500"
                     : passwordsMatch
-                    ? "border-teal-300 focus:ring-teal-500"
-                    : "border-gray-300 focus:ring-gray-900"
+                      ? "border-teal-300 focus:ring-teal-500"
+                      : "border-gray-300 focus:ring-gray-300"
                 } disabled:bg-gray-50 disabled:cursor-not-allowed`}
               />
               <button
@@ -357,10 +357,10 @@ const ResetPasswordPage: React.FC = () => {
         {/* Security Tip */}
         <div className="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
           <div className="flex items-start gap-3">
-            <Info className="w-5 h-5 text-gray-600 mt-0.5 flex-shrink-0" />
+            <Info className="w-5 h-5 text-gray-700 mt-0.5 flex-shrink-0" />
             <div className="text-sm">
               <p className="font-semibold text-gray-900 mb-1">Security Tip</p>
-              <p className="text-gray-700">
+              <p className="text-gray-600">
                 Use a unique password that you don&#39;t use for other accounts.
                 Consider using a password manager to keep track of your
                 passwords securely.
@@ -371,7 +371,7 @@ const ResetPasswordPage: React.FC = () => {
 
         {/* Footer */}
         <footer className="text-center mt-8 text-sm text-gray-600">
-          <p className="mb-2">© 2025 ManageHub. All rights reserved.</p>
+          <p className="mb-2">© 2026 ManageHub. All rights reserved.</p>
           <div className="flex justify-center gap-4">
             <a
               href="/privacy-policy"
