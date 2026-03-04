@@ -4,7 +4,9 @@ members = [
     "access_control",
     "manage_hub",
     "membership_token",
-    "common_types"
+    "common_types",
+     "workspace_booking",
+    "payment_escrow"
 ]
 
 [workspace.dependencies]
