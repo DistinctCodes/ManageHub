@@ -22,6 +22,17 @@ pub enum DataKey {
     DefaultDisputeWindow,
     Escrow(String),
     DepositorEscrows(Address),
+    /// Contract administrator address.
+    Admin,
+    /// Address of the accepted payment token.
+    PaymentToken,
+    /// Default dispute window in seconds (applied to every new escrow).
+    DefaultDisputeWindow,
+    /// Escrow record keyed by escrow ID.
+    Escrow(String),
+    /// List of escrow IDs created by a depositor.
+    DepositorEscrows(Address),
+    /// List of escrow IDs where this address is the beneficiary.
     BeneficiaryEscrows(Address),
 }
 
@@ -79,6 +90,12 @@ impl PaymentEscrowContract {
 
     // ── Initialisation ────────────────────────────────────────────────────────
 
+    /// One-time setup.
+    ///
+    /// * `admin`               — contract administrator.
+    /// * `payment_token`       — the only accepted token for all escrows.
+    /// * `dispute_window_secs` — seconds after escrow creation during which
+    ///                           the depositor may raise a dispute (0 = disabled).
     pub fn initialize(
         env: Env,
         admin: Address,
