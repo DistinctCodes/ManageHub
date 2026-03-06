@@ -4,10 +4,6 @@
 mod errors;
 mod types;
 
-// Uncomment once all functions are implemented (Issue #5):
-// #[cfg(test)]
-// mod test;
-
 pub use errors::Error;
 pub use types::{Escrow, EscrowStatus};
 
@@ -22,17 +18,6 @@ pub enum DataKey {
     DefaultDisputeWindow,
     Escrow(String),
     DepositorEscrows(Address),
-    /// Contract administrator address.
-    Admin,
-    /// Address of the accepted payment token.
-    PaymentToken,
-    /// Default dispute window in seconds (applied to every new escrow).
-    DefaultDisputeWindow,
-    /// Escrow record keyed by escrow ID.
-    Escrow(String),
-    /// List of escrow IDs created by a depositor.
-    DepositorEscrows(Address),
-    /// List of escrow IDs where this address is the beneficiary.
     BeneficiaryEscrows(Address),
 }
 
@@ -90,12 +75,6 @@ impl PaymentEscrowContract {
 
     // ── Initialisation ────────────────────────────────────────────────────────
 
-    /// One-time setup.
-    ///
-    /// * `admin`               — contract administrator.
-    /// * `payment_token`       — the only accepted token for all escrows.
-    /// * `dispute_window_secs` — seconds after escrow creation during which
-    ///                           the depositor may raise a dispute (0 = disabled).
     pub fn initialize(
         env: Env,
         admin: Address,
@@ -212,9 +191,8 @@ impl PaymentEscrowContract {
         Ok(())
     }
 
-    // ── Admin release / refund (Pending escrows) ──────────────────────────────
+    // ── Admin release / refund ────────────────────────────────────────────────
 
-    /// Release escrow funds to the beneficiary (admin only, Pending status).
     pub fn release(env: Env, caller: Address, escrow_id: String) -> Result<(), Error> {
         Self::require_admin(&env, &caller)?;
 
@@ -241,7 +219,6 @@ impl PaymentEscrowContract {
         Ok(())
     }
 
-    /// Refund escrow funds to the depositor (admin only, Pending status).
     pub fn refund(env: Env, caller: Address, escrow_id: String) -> Result<(), Error> {
         Self::require_admin(&env, &caller)?;
 
@@ -264,6 +241,90 @@ impl PaymentEscrowContract {
         env.events().publish(
             (symbol_short!("refunded"), escrow_id),
             (escrow.depositor, escrow.amount),
+        );
+        Ok(())
+    }
+
+    // ── Dispute flow ──────────────────────────────────────────────────────────
+
+    /// Raise a dispute on a Pending escrow.
+    ///
+    /// Only the depositor may call this, and only within the escrow's dispute
+    /// window. Once disputed, only the admin can move the funds via
+    /// `resolve_dispute`.
+    pub fn raise_dispute(env: Env, caller: Address, escrow_id: String) -> Result<(), Error> {
+        caller.require_auth();
+
+        let mut escrow = Self::load_escrow(&env, &escrow_id)?;
+
+        if caller != escrow.depositor {
+            return Err(Error::Unauthorized);
+        }
+        if escrow.status != EscrowStatus::Pending {
+            return Err(Error::EscrowNotPending);
+        }
+
+        // Dispute window of 0 means disputes are disabled for this escrow
+        if escrow.dispute_window == 0 {
+            return Err(Error::DisputeWindowClosed);
+        }
+        if env.ledger().timestamp() > escrow.created_at + escrow.dispute_window {
+            return Err(Error::DisputeWindowClosed);
+        }
+
+        let now = env.ledger().timestamp();
+        escrow.status = EscrowStatus::Disputed;
+        escrow.dispute_raised_at = Some(now);
+        Self::save_escrow(&env, &escrow);
+
+        env.events().publish(
+            (symbol_short!("disputed"), escrow_id),
+            (escrow.depositor, now),
+        );
+        Ok(())
+    }
+
+    /// Resolve a Disputed escrow (admin only).
+    ///
+    /// * `release_to_beneficiary` — `true` releases funds to beneficiary;
+    ///                              `false` refunds them to the depositor.
+    pub fn resolve_dispute(
+        env: Env,
+        caller: Address,
+        escrow_id: String,
+        release_to_beneficiary: bool,
+    ) -> Result<(), Error> {
+        Self::require_admin(&env, &caller)?;
+
+        let mut escrow = Self::load_escrow(&env, &escrow_id)?;
+        if escrow.status != EscrowStatus::Disputed {
+            return Err(Error::EscrowNotDisputed);
+        }
+
+        let now = env.ledger().timestamp();
+        let recipient = if release_to_beneficiary {
+            escrow.beneficiary.clone()
+        } else {
+            escrow.depositor.clone()
+        };
+
+        token::Client::new(&env, &escrow.payment_token).transfer(
+            &env.current_contract_address(),
+            &recipient,
+            &escrow.amount,
+        );
+
+        escrow.status = if release_to_beneficiary {
+            EscrowStatus::Released
+        } else {
+            EscrowStatus::Refunded
+        };
+        escrow.resolved_at = Some(now);
+        Self::save_escrow(&env, &escrow);
+
+        env.events().publish(
+            (symbol_short!("resolved"), escrow_id),
+            (recipient, escrow.amount, release_to_beneficiary),
         );
         Ok(())
     }
