@@ -1,8 +1,12 @@
+// contracts/payment_escrow/src/lib.rs
 #![no_std]
 #![allow(deprecated)]
 
 mod errors;
 mod types;
+
+#[cfg(test)]
+mod test;
 
 pub use errors::Error;
 pub use types::{Escrow, EscrowStatus};
@@ -13,11 +17,17 @@ use soroban_sdk::{contract, contractimpl, contracttype, symbol_short, token, Add
 
 #[contracttype]
 pub enum DataKey {
+    /// Contract administrator address.
     Admin,
+    /// Address of the accepted payment token.
     PaymentToken,
+    /// Default dispute window in seconds (applied to every new escrow).
     DefaultDisputeWindow,
+    /// Escrow record keyed by escrow ID.
     Escrow(String),
+    /// List of escrow IDs created by a depositor.
     DepositorEscrows(Address),
+    /// List of escrow IDs where this address is the beneficiary.
     BeneficiaryEscrows(Address),
 }
 
@@ -75,6 +85,12 @@ impl PaymentEscrowContract {
 
     // ── Initialisation ────────────────────────────────────────────────────────
 
+    /// One-time setup.
+    ///
+    /// * `admin`               — contract administrator.
+    /// * `payment_token`       — the only accepted token for all escrows.
+    /// * `dispute_window_secs` — seconds after escrow creation during which
+    ///                           the depositor may raise a dispute (0 = disabled).
     pub fn initialize(
         env: Env,
         admin: Address,
@@ -100,6 +116,8 @@ impl PaymentEscrowContract {
 
     // ── Admin configuration ───────────────────────────────────────────────────
 
+    /// Update the default dispute window. Applies to escrows created after
+    /// this call; existing escrows keep their original window.
     pub fn set_dispute_window(
         env: Env,
         caller: Address,
@@ -119,6 +137,14 @@ impl PaymentEscrowContract {
 
     // ── Escrow creation ───────────────────────────────────────────────────────
 
+    /// Lock funds in escrow.
+    ///
+    /// * `escrow_id`     — unique ID chosen by the caller (e.g. a UUID).
+    /// * `beneficiary`   — address that receives funds on release.
+    /// * `amount`        — tokens to lock (> 0).
+    /// * `description`   — human-readable purpose.
+    /// * `release_after` — Unix timestamp after which auto-claim is allowed
+    ///                     (0 = auto-claim disabled; admin-only release).
     pub fn create_escrow(
         env: Env,
         depositor: Address,
@@ -141,6 +167,7 @@ impl PaymentEscrowContract {
         let dispute_window = Self::get_dispute_window(&env);
         let now = env.ledger().timestamp();
 
+        // Pull funds from depositor into the contract
         token::Client::new(&env, &payment_token).transfer(
             &depositor,
             env.current_contract_address(),
@@ -164,6 +191,7 @@ impl PaymentEscrowContract {
 
         Self::save_escrow(&env, &escrow);
 
+        // Index: depositor → escrow IDs
         let mut dep_list: Vec<String> = env
             .storage()
             .persistent()
@@ -174,6 +202,7 @@ impl PaymentEscrowContract {
             .persistent()
             .set(&DataKey::DepositorEscrows(depositor.clone()), &dep_list);
 
+        // Index: beneficiary → escrow IDs
         let mut ben_list: Vec<String> = env
             .storage()
             .persistent()
@@ -191,8 +220,9 @@ impl PaymentEscrowContract {
         Ok(())
     }
 
-    // ── Admin release / refund ────────────────────────────────────────────────
+    // ── Admin release / refund (Pending escrows) ──────────────────────────────
 
+    /// Release escrow funds to the beneficiary (admin only, Pending status).
     pub fn release(env: Env, caller: Address, escrow_id: String) -> Result<(), Error> {
         Self::require_admin(&env, &caller)?;
 
@@ -219,6 +249,7 @@ impl PaymentEscrowContract {
         Ok(())
     }
 
+    /// Refund escrow funds to the depositor (admin only, Pending status).
     pub fn refund(env: Env, caller: Address, escrow_id: String) -> Result<(), Error> {
         Self::require_admin(&env, &caller)?;
 
@@ -329,12 +360,56 @@ impl PaymentEscrowContract {
         Ok(())
     }
 
+    // ── Beneficiary self-claim ────────────────────────────────────────────────
+
+    /// Claim funds without admin approval once `release_after` has passed.
+    ///
+    /// Only works when the escrow has `release_after > 0` and the current
+    /// ledger timestamp has reached or exceeded that value.
+    pub fn claim(env: Env, caller: Address, escrow_id: String) -> Result<(), Error> {
+        caller.require_auth();
+
+        let mut escrow = Self::load_escrow(&env, &escrow_id)?;
+
+        if caller != escrow.beneficiary {
+            return Err(Error::Unauthorized);
+        }
+        if escrow.status != EscrowStatus::Pending {
+            return Err(Error::EscrowNotPending);
+        }
+        if escrow.release_after == 0 {
+            return Err(Error::AutoClaimDisabled);
+        }
+        if env.ledger().timestamp() < escrow.release_after {
+            return Err(Error::ClaimTooEarly);
+        }
+
+        let now = env.ledger().timestamp();
+        token::Client::new(&env, &escrow.payment_token).transfer(
+            &env.current_contract_address(),
+            &escrow.beneficiary,
+            &escrow.amount,
+        );
+
+        escrow.status = EscrowStatus::Released;
+        escrow.resolved_at = Some(now);
+        Self::save_escrow(&env, &escrow);
+
+        env.events().publish(
+            (symbol_short!("claimed"), escrow_id),
+            (escrow.beneficiary, escrow.amount),
+        );
+        Ok(())
+    }
+
     // ── Queries ───────────────────────────────────────────────────────────────
 
+    /// Fetch an escrow record by ID.
     pub fn get_escrow(env: Env, escrow_id: String) -> Result<Escrow, Error> {
         Self::load_escrow(&env, &escrow_id)
     }
 
+    /// Return all escrow IDs created by a depositor.
     pub fn get_depositor_escrows(env: Env, depositor: Address) -> Vec<String> {
         env.storage()
             .persistent()
@@ -342,6 +417,7 @@ impl PaymentEscrowContract {
             .unwrap_or(Vec::new(&env))
     }
 
+    /// Return all escrow IDs where the address is the beneficiary.
     pub fn get_beneficiary_escrows(env: Env, beneficiary: Address) -> Vec<String> {
         env.storage()
             .persistent()
@@ -349,14 +425,17 @@ impl PaymentEscrowContract {
             .unwrap_or(Vec::new(&env))
     }
 
+    /// Return the current admin address.
     pub fn admin(env: Env) -> Result<Address, Error> {
         Self::get_admin(&env)
     }
 
+    /// Return the accepted payment token address.
     pub fn payment_token(env: Env) -> Result<Address, Error> {
         Self::get_payment_token(&env)
     }
 
+    /// Return the current default dispute window in seconds.
     pub fn dispute_window(env: Env) -> u64 {
         Self::get_dispute_window(&env)
     }
