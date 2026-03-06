@@ -621,5 +621,3 @@ fn test_set_dispute_window_applies_to_new_escrows() {
     // New escrow picks up the updated window
     assert_eq!(escrow.dispute_window, 172_800u64);
 }
-// Second commit addition
-// Third commit addition
