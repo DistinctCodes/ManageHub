@@ -7,8 +7,8 @@
 mod errors;
 mod types;
 
-// #[cfg(test)]
-// mod test;
+#[cfg(test)]
+mod test;
 
 pub use errors::Error;
 pub use types::{Booking, BookingStatus, Workspace, WorkspaceType};
@@ -425,6 +425,31 @@ impl WorkspaceBookingContract {
             .persistent()
             .get(&DataKey::WorkspaceBookings(workspace_id))
             .unwrap_or(Vec::new(&env))
+    }
+
+    /// Check whether a workspace has no conflicting active booking in the
+    /// requested slot. Returns `false` if the workspace does not exist or is
+    /// marked unavailable.
+    pub fn check_availability(
+        env: Env,
+        workspace_id: String,
+        start_time: u64,
+        end_time: u64,
+    ) -> bool {
+        let workspace: Workspace = match env
+            .storage()
+            .persistent()
+            .get(&DataKey::Workspace(workspace_id.clone()))
+        {
+            Some(ws) => ws,
+            None => return false,
+        };
+
+        if !workspace.is_available {
+            return false;
+        }
+
+        Self::is_slot_available(&env, &workspace_id, start_time, end_time)
     }
 
     /// Return the current admin address.
