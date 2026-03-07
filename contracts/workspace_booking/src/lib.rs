@@ -93,4 +93,162 @@ impl WorkspaceBookingContract {
         }
         true
     }
+
+    // ── Initialisation ────────────────────────────────────────────────────────
+
+    /// One-time setup. Sets the admin and the payment token address.
+    pub fn initialize(env: Env, admin: Address, payment_token: Address) -> Result<(), Error> {
+        if env.storage().instance().has(&DataKey::Admin) {
+            return Err(Error::AlreadyInitialized);
+        }
+        admin.require_auth();
+        env.storage().instance().set(&DataKey::Admin, &admin);
+        env.storage().instance().set(&DataKey::PaymentToken, &payment_token);
+
+        env.events().publish(
+            (symbol_short!("init"),),
+            (admin, payment_token),
+        );
+        Ok(())
+    }
+
+    // ── Workspace management (admin-only) ─────────────────────────────────────
+
+    /// Register a new bookable workspace.
+    ///
+    /// * `id`             – unique identifier for this workspace.
+    /// * `name`           – human-readable name.
+    /// * `workspace_type` – category (HotDesk / DedicatedDesk / PrivateOffice / MeetingRoom).
+    /// * `capacity`       – max simultaneous occupants (≥ 1).
+    /// * `hourly_rate`    – price per hour in smallest payment-token units (> 0).
+    pub fn register_workspace(
+        env: Env,
+        caller: Address,
+        id: String,
+        name: String,
+        workspace_type: WorkspaceType,
+        capacity: u32,
+        hourly_rate: i128,
+    ) -> Result<(), Error> {
+        Self::require_admin(&env, &caller)?;
+
+        if capacity == 0 {
+            return Err(Error::InvalidCapacity);
+        }
+        if hourly_rate <= 0 {
+            return Err(Error::InvalidRate);
+        }
+        if env.storage().persistent().has(&DataKey::Workspace(id.clone())) {
+            return Err(Error::WorkspaceAlreadyExists);
+        }
+
+        let workspace = Workspace {
+            id: id.clone(),
+            name: name.clone(),
+            workspace_type: workspace_type.clone(),
+            capacity,
+            hourly_rate,
+            is_available: true,
+            created_at: env.ledger().timestamp(),
+        };
+
+        env.storage().persistent().set(&DataKey::Workspace(id.clone()), &workspace);
+
+        let mut list: Vec<String> = env
+            .storage()
+            .instance()
+            .get(&DataKey::WorkspaceList)
+            .unwrap_or(Vec::new(&env));
+        list.push_back(id.clone());
+        env.storage().instance().set(&DataKey::WorkspaceList, &list);
+
+        env.events().publish(
+            (symbol_short!("ws_reg"), id),
+            (name, workspace_type, capacity, hourly_rate),
+        );
+        Ok(())
+    }
+
+    /// Toggle a workspace's availability. Unavailable workspaces cannot accept
+    /// new bookings but existing active bookings are unaffected.
+    pub fn set_workspace_availability(
+        env: Env,
+        caller: Address,
+        workspace_id: String,
+        is_available: bool,
+    ) -> Result<(), Error> {
+        Self::require_admin(&env, &caller)?;
+
+        let mut workspace: Workspace = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Workspace(workspace_id.clone()))
+            .ok_or(Error::WorkspaceNotFound)?;
+
+        workspace.is_available = is_available;
+        env.storage().persistent().set(&DataKey::Workspace(workspace_id.clone()), &workspace);
+
+        env.events().publish(
+            (symbol_short!("ws_avail"), workspace_id),
+            (is_available,),
+        );
+        Ok(())
+    }
+
+    /// Update the hourly rate for a workspace (applies to future bookings only).
+    pub fn set_workspace_rate(
+        env: Env,
+        caller: Address,
+        workspace_id: String,
+        hourly_rate: i128,
+    ) -> Result<(), Error> {
+        Self::require_admin(&env, &caller)?;
+
+        if hourly_rate <= 0 {
+            return Err(Error::InvalidRate);
+        }
+
+        let mut workspace: Workspace = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Workspace(workspace_id.clone()))
+            .ok_or(Error::WorkspaceNotFound)?;
+
+        workspace.hourly_rate = hourly_rate;
+        env.storage().persistent().set(&DataKey::Workspace(workspace_id.clone()), &workspace);
+
+        env.events().publish(
+            (symbol_short!("ws_rate"), workspace_id),
+            (hourly_rate,),
+        );
+        Ok(())
+    }
+
+    // ── Queries ───────────────────────────────────────────────────────────────
+
+    /// Fetch a workspace record by ID.
+    pub fn get_workspace(env: Env, workspace_id: String) -> Result<Workspace, Error> {
+        env.storage()
+            .persistent()
+            .get(&DataKey::Workspace(workspace_id))
+            .ok_or(Error::WorkspaceNotFound)
+    }
+
+    /// Return all registered workspace IDs (in registration order).
+    pub fn get_all_workspaces(env: Env) -> Vec<String> {
+        env.storage()
+            .instance()
+            .get(&DataKey::WorkspaceList)
+            .unwrap_or(Vec::new(&env))
+    }
+
+    /// Return the current admin address.
+    pub fn admin(env: Env) -> Result<Address, Error> {
+        Self::get_admin(&env)
+    }
+
+    /// Return the payment token address.
+    pub fn payment_token(env: Env) -> Result<Address, Error> {
+        Self::get_payment_token(&env)
+    }
 }
