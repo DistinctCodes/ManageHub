@@ -14,6 +14,7 @@ import { NewsletterModule } from './newsletter/newsletter.module';
 import { EmailModule } from './email/email.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { ContactModule } from './contact/contact.module';
+import { FeedbackModule } from './feedback/feedback.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { ContactModule } from './contact/contact.module';
       },
       { name: 'newsletter', ttl: 60_000, limit: 10 },
       { name: 'contact', ttl: 60_000, limit: 5 },
+      { name: 'feedback', ttl: 60_000, limit: 10 },
     ]),
     BullModule.forRootAsync({
       imports: [ConfigModule],
@@ -81,6 +83,7 @@ import { ContactModule } from './contact/contact.module';
     UsersModule,
     NewsletterModule,
     ContactModule,
+    FeedbackModule,
     DashboardModule,
   ],
   controllers: [AppController],
