@@ -321,6 +321,70 @@ impl WorkspaceBookingContract {
         Ok(())
     }
 
+    /// Cancel an active booking and refund the full amount to the member.
+    ///
+    /// Only the booking member or the admin may cancel.
+    pub fn cancel_booking(env: Env, caller: Address, booking_id: String) -> Result<(), Error> {
+        caller.require_auth();
+
+        let mut booking: Booking = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Booking(booking_id.clone()))
+            .ok_or(Error::BookingNotFound)?;
+
+        let admin = Self::get_admin(&env)?;
+        if caller != booking.member && caller != admin {
+            return Err(Error::Unauthorized);
+        }
+        if booking.status != BookingStatus::Active {
+            return Err(Error::BookingNotActive);
+        }
+
+        // Refund payment from contract → member
+        let payment_token = Self::get_payment_token(&env)?;
+        token::Client::new(&env, &payment_token).transfer(
+            &env.current_contract_address(),
+            &booking.member,
+            &booking.amount_paid,
+        );
+
+        booking.status = BookingStatus::Cancelled;
+        env.storage().persistent().set(&DataKey::Booking(booking_id.clone()), &booking);
+
+        env.events().publish(
+            (symbol_short!("cancel"), booking_id),
+            (caller, booking.amount_paid),
+        );
+        Ok(())
+    }
+
+    /// Mark an active booking as completed (admin only).
+    ///
+    /// Call this after the member has checked out to close the booking record.
+    pub fn complete_booking(env: Env, caller: Address, booking_id: String) -> Result<(), Error> {
+        Self::require_admin(&env, &caller)?;
+
+        let mut booking: Booking = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Booking(booking_id.clone()))
+            .ok_or(Error::BookingNotFound)?;
+
+        if booking.status != BookingStatus::Active {
+            return Err(Error::BookingNotActive);
+        }
+
+        booking.status = BookingStatus::Completed;
+        env.storage().persistent().set(&DataKey::Booking(booking_id.clone()), &booking);
+
+        env.events().publish(
+            (symbol_short!("complete"), booking_id),
+            (booking.workspace_id, booking.member),
+        );
+        Ok(())
+    }
+
     // ── Queries ───────────────────────────────────────────────────────────────
 
     /// Fetch a workspace record by ID.
