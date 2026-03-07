@@ -93,34 +93,4 @@ impl WorkspaceBookingContract {
         }
         true
     }
-
-    // ── Initialisation ────────────────────────────────────────────────────────
-
-    /// One-time setup. Sets the admin and the payment token address.
-    pub fn initialize(env: Env, admin: Address, payment_token: Address) -> Result<(), Error> {
-        if env.storage().instance().has(&DataKey::Admin) {
-            return Err(Error::AlreadyInitialized);
-        }
-        admin.require_auth();
-        env.storage().instance().set(&DataKey::Admin, &admin);
-        env.storage().instance().set(&DataKey::PaymentToken, &payment_token);
-
-        env.events().publish(
-            (symbol_short!("init"),),
-            (admin, payment_token),
-        );
-        Ok(())
-    }
-
-    // ── Queries ───────────────────────────────────────────────────────────────
-
-    /// Return the current admin address.
-    pub fn admin(env: Env) -> Result<Address, Error> {
-        Self::get_admin(&env)
-    }
-
-    /// Return the payment token address.
-    pub fn payment_token(env: Env) -> Result<Address, Error> {
-        Self::get_payment_token(&env)
-    }
 }
