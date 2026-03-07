@@ -553,3 +553,71 @@ fn test_claim_when_auto_claim_disabled_fails() {
     // AutoClaimDisabled = 10
     client.claim(&beneficiary, &String::from_str(&env, "esc-001"));
 }
+
+// ── Indexes ───────────────────────────────────────────────────────────────────
+
+#[test]
+fn test_depositor_and_beneficiary_indexes() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let depositor = Address::generate(&env);
+    let beneficiary = Address::generate(&env);
+    let token = setup_token(&env, &admin, &depositor, 50_000);
+
+    let contract_id = setup_contract(&env);
+    let client = init(&env, &contract_id, &admin, &token);
+
+    for i in 0u32..3 {
+        let id = match i {
+            0 => String::from_str(&env, "esc-001"),
+            1 => String::from_str(&env, "esc-002"),
+            _ => String::from_str(&env, "esc-003"),
+        };
+        client.create_escrow(
+            &depositor,
+            &id,
+            &beneficiary,
+            &1_000i128,
+            &String::from_str(&env, "Deposit"),
+            &0u64,
+        );
+    }
+
+    assert_eq!(client.get_depositor_escrows(&depositor).len(), 3u32);
+    assert_eq!(client.get_beneficiary_escrows(&beneficiary).len(), 3u32);
+}
+
+// ── Dispute window update ─────────────────────────────────────────────────────
+
+#[test]
+fn test_set_dispute_window_applies_to_new_escrows() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let depositor = Address::generate(&env);
+    let beneficiary = Address::generate(&env);
+    let token = setup_token(&env, &admin, &depositor, 20_000);
+
+    let contract_id = setup_contract(&env);
+    let client = init(&env, &contract_id, &admin, &token);
+
+    // Change window to 48 hours
+    client.set_dispute_window(&admin, &172_800u64);
+    assert_eq!(client.dispute_window(), 172_800u64);
+
+    client.create_escrow(
+        &depositor,
+        &String::from_str(&env, "esc-002"),
+        &beneficiary,
+        &5_000i128,
+        &String::from_str(&env, "Deposit"),
+        &0u64,
+    );
+
+    let escrow = client.get_escrow(&String::from_str(&env, "esc-002"));
+    // New escrow picks up the updated window
+    assert_eq!(escrow.dispute_window, 172_800u64);
+}
