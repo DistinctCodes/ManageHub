@@ -166,6 +166,7 @@ fn test_book_workspace_success() {
         &1_000i128,
     );
 
+
     let now = env.ledger().timestamp();
     let start = now + 60;
     let end = start + 7_200;
@@ -183,6 +184,7 @@ fn test_book_workspace_success() {
     assert_eq!(booking.member, member);
     assert_eq!(booking.status, BookingStatus::Active);
     assert_eq!(booking.amount_paid, 2_000i128);
+
 
     let balance = TokenClient::new(&env, &token_address).balance(&member);
     assert_eq!(balance, 10_000 - 2_000);
@@ -493,4 +495,100 @@ fn test_multiple_workspaces_independent_availability() {
     assert!(client.check_availability(&String::from_str(&env, "ws-003"), &start, &end));
 
     assert!(!client.check_availability(&String::from_str(&env, "ws-001"), &start, &end));
+}
+
+#[test]
+fn test_member_and_workspace_booking_indexes() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = setup_contract(&env);
+    let client = WorkspaceBookingContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let member = Address::generate(&env);
+    let token_address = setup_token(&env, &admin, &member, 50_000i128);
+
+    client.initialize(&admin, &token_address);
+    client.register_workspace(
+        &admin,
+        &String::from_str(&env, "ws-001"),
+        &String::from_str(&env, "Desk A"),
+        &WorkspaceType::DedicatedDesk,
+        &1u32,
+        &300i128,
+    );
+
+    let now = env.ledger().timestamp();
+
+
+    let s1 = now + 100;
+    let e1 = s1 + 3_600;
+    let s2 = e1 + 600;
+    let e2 = s2 + 3_600;
+
+    client.book_workspace(
+        &member,
+        &String::from_str(&env, "bk-1"),
+        &String::from_str(&env, "ws-001"),
+        &s1,
+        &e1,
+    );
+    client.book_workspace(
+        &member,
+        &String::from_str(&env, "bk-2"),
+        &String::from_str(&env, "ws-001"),
+        &s2,
+        &e2,
+    );
+
+    assert_eq!(client.get_member_bookings(&member).len(), 2u32);
+    assert_eq!(
+        client.get_workspace_bookings(&String::from_str(&env, "ws-001")).len(),
+        2u32
+    );
+}
+
+#[test]
+fn test_hourly_rate_update_applies_to_future_bookings() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = setup_contract(&env);
+    let client = WorkspaceBookingContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let member = Address::generate(&env);
+    let token_address = setup_token(&env, &admin, &member, 50_000i128);
+
+    client.initialize(&admin, &token_address);
+    client.register_workspace(
+        &admin,
+        &String::from_str(&env, "ws-001"),
+        &String::from_str(&env, "Office"),
+        &WorkspaceType::PrivateOffice,
+        &1u32,
+        &1_000i128,
+    );
+
+
+    client.set_workspace_rate(&admin, &String::from_str(&env, "ws-001"), &2_000i128);
+
+    let ws = client.get_workspace(&String::from_str(&env, "ws-001"));
+    assert_eq!(ws.hourly_rate, 2_000i128);
+
+    let now = env.ledger().timestamp();
+    let start = now + 60;
+    let end = start + 3_600;
+
+    client.book_workspace(
+        &member,
+        &String::from_str(&env, "bk-001"),
+        &String::from_str(&env, "ws-001"),
+        &start,
+        &end,
+    );
+
+    let booking = client.get_booking(&String::from_str(&env, "bk-001"));
+    assert_eq!(booking.amount_paid, 2_000i128);
 }
