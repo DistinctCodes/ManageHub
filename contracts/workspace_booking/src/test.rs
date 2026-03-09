@@ -81,7 +81,7 @@ fn test_register_workspace_success() {
         &String::from_str(&env, "Hot Desk A"),
         &WorkspaceType::HotDesk,
         &1u32,
-        &500i128, // 500 units per hour
+        &500i128,
     );
 
     let ws = client.get_workspace(&String::from_str(&env, "ws-001"));
@@ -148,5 +148,96 @@ fn test_register_workspace_non_admin_fails() {
         &WorkspaceType::HotDesk,
         &1u32,
         &500i128,
+    );
+}
+
+#[test]
+fn test_book_workspace_success() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = setup_contract(&env);
+    let client = WorkspaceBookingContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let member = Address::generate(&env);
+    let token_address = setup_token(&env, &admin, &member, 10_000i128);
+
+    client.initialize(&admin, &token_address);
+    client.register_workspace(
+        &admin,
+        &String::from_str(&env, "ws-001"),
+        &String::from_str(&env, "Meeting Room Alpha"),
+        &WorkspaceType::MeetingRoom,
+        &10u32,
+        &1_000i128, // 1000 units/hr
+    );
+
+    // Book for 2 hours starting 60 seconds from now
+    let now = env.ledger().timestamp();
+    let start = now + 60;
+    let end = start + 7_200; // 2 hours
+
+    client.book_workspace(
+        &member,
+        &String::from_str(&env, "booking-001"),
+        &String::from_str(&env, "ws-001"),
+        &start,
+        &end,
+    );
+
+    let booking = client.get_booking(&String::from_str(&env, "booking-001"));
+    assert_eq!(booking.workspace_id, String::from_str(&env, "ws-001"));
+    assert_eq!(booking.member, member);
+    assert_eq!(booking.status, BookingStatus::Active);
+    assert_eq!(booking.amount_paid, 2_000i128); // 2 hrs × 1000
+
+    // Member balance should have decreased
+    let balance = TokenClient::new(&env, &token_address).balance(&member);
+    assert_eq!(balance, 10_000 - 2_000);
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #7)")]
+fn test_book_workspace_conflict_fails() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = setup_contract(&env);
+    let client = WorkspaceBookingContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let member = Address::generate(&env);
+    let token_address = setup_token(&env, &admin, &member, 50_000i128);
+
+    client.initialize(&admin, &token_address);
+    client.register_workspace(
+        &admin,
+        &String::from_str(&env, "ws-001"),
+        &String::from_str(&env, "Desk A"),
+        &WorkspaceType::HotDesk,
+        &1u32,
+        &500i128,
+    );
+
+    let now = env.ledger().timestamp();
+    let start = now + 60;
+    let end = start + 3_600;
+
+    client.book_workspace(
+        &member,
+        &String::from_str(&env, "booking-001"),
+        &String::from_str(&env, "ws-001"),
+        &start,
+        &end,
+    );
+
+    // Second booking overlaps — BookingConflict = 7
+    client.book_workspace(
+        &member,
+        &String::from_str(&env, "booking-002"),
+        &String::from_str(&env, "ws-001"),
+        &(start + 1_800), // starts in the middle of first booking
+        &(end + 1_800),
     );
 }
