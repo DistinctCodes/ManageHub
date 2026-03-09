@@ -1,4 +1,4 @@
-
+// contracts/workspace_booking/src/test.rs
 #![cfg(test)]
 
 use super::*;
@@ -8,15 +8,15 @@ use soroban_sdk::{
     Address, Env, String,
 };
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-
-
+/// Register the workspace_booking contract and return its address.
 fn setup_contract(env: &Env) -> Address {
     env.register(WorkspaceBookingContract, ())
 }
 
-
-
+/// Register a mock token (Stellar Asset Contract), mint `amount` to `recipient`,
+/// and return the token address.
 fn setup_token(env: &Env, admin: &Address, recipient: &Address, amount: i128) -> Address {
     let token_address = env.register_stellar_asset_contract_v2(admin.clone()).address();
     StellarAssetClient::new(env, &token_address)
@@ -25,12 +25,12 @@ fn setup_token(env: &Env, admin: &Address, recipient: &Address, amount: i128) ->
     token_address
 }
 
-
+/// Advance the ledger timestamp by `seconds`.
 fn advance_time(env: &Env, seconds: u64) {
     env.ledger().with_mut(|l| l.timestamp += seconds);
 }
 
-
+// ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[test]
 fn test_initialize_success() {
@@ -60,7 +60,7 @@ fn test_initialize_twice_fails() {
 
     env.mock_all_auths();
     client.initialize(&admin, &token);
-    client.initialize(&admin, &token); 
+    client.initialize(&admin, &token); // AlreadyInitialized = 3
 }
 
 #[test]
@@ -81,7 +81,7 @@ fn test_register_workspace_success() {
         &String::from_str(&env, "Hot Desk A"),
         &WorkspaceType::HotDesk,
         &1u32,
-        &500i128, 
+        &500i128, // 500 units per hour
     );
 
     let ws = client.get_workspace(&String::from_str(&env, "ws-001"));
@@ -116,7 +116,7 @@ fn test_register_workspace_duplicate_id_fails() {
         &1u32,
         &500i128,
     );
-    
+    // WorkspaceAlreadyExists = 5
     client.register_workspace(
         &admin,
         &String::from_str(&env, "ws-001"),
@@ -140,7 +140,7 @@ fn test_register_workspace_non_admin_fails() {
 
     env.mock_all_auths();
     client.initialize(&admin, &token);
-    
+    // Unauthorized = 2
     client.register_workspace(
         &non_admin,
         &String::from_str(&env, "ws-001"),
@@ -170,13 +170,13 @@ fn test_book_workspace_success() {
         &String::from_str(&env, "Meeting Room Alpha"),
         &WorkspaceType::MeetingRoom,
         &10u32,
-        &1_000i128, 
+        &1_000i128, // 1000 units/hr
     );
 
-    
+    // Book for 2 hours starting 60 seconds from now
     let now = env.ledger().timestamp();
     let start = now + 60;
-    let end = start + 7_200; 
+    let end = start + 7_200; // 2 hours
 
     client.book_workspace(
         &member,
@@ -190,9 +190,9 @@ fn test_book_workspace_success() {
     assert_eq!(booking.workspace_id, String::from_str(&env, "ws-001"));
     assert_eq!(booking.member, member);
     assert_eq!(booking.status, BookingStatus::Active);
-    assert_eq!(booking.amount_paid, 2_000i128); 
+    assert_eq!(booking.amount_paid, 2_000i128); // 2 hrs × 1000
 
-    
+    // Member balance should have decreased
     let balance = TokenClient::new(&env, &token_address).balance(&member);
     assert_eq!(balance, 10_000 - 2_000);
 }
@@ -232,12 +232,12 @@ fn test_book_workspace_conflict_fails() {
         &end,
     );
 
-    
+    // Second booking overlaps — BookingConflict = 7
     client.book_workspace(
         &member,
         &String::from_str(&env, "booking-002"),
         &String::from_str(&env, "ws-001"),
-        &(start + 1_800), 
+        &(start + 1_800), // starts in the middle of first booking
         &(end + 1_800),
     );
 }
@@ -266,7 +266,7 @@ fn test_cancel_booking_refunds_member() {
 
     let now = env.ledger().timestamp();
     let start = now + 60;
-    let end = start + 3_600; 
+    let end = start + 3_600; // 1 hour → cost 2000
 
     client.book_workspace(
         &member,
@@ -282,7 +282,7 @@ fn test_cancel_booking_refunds_member() {
     client.cancel_booking(&member, &String::from_str(&env, "booking-001"));
 
     let balance_after_cancel = TokenClient::new(&env, &token_address).balance(&member);
-    assert_eq!(balance_after_cancel, 10_000i128); 
+    assert_eq!(balance_after_cancel, 10_000i128); // full refund
 
     let booking = client.get_booking(&String::from_str(&env, "booking-001"));
     assert_eq!(booking.status, BookingStatus::Cancelled);
@@ -322,7 +322,7 @@ fn test_complete_booking_by_admin() {
         &end,
     );
 
-    
+    // Advance time past end
     advance_time(&env, 4_000);
 
     client.complete_booking(&admin, &String::from_str(&env, "booking-001"));
@@ -367,7 +367,7 @@ fn test_cancel_already_cancelled_fails() {
     );
 
     client.cancel_booking(&member, &String::from_str(&env, "booking-001"));
-    
+    // BookingNotActive = 10
     client.cancel_booking(&member, &String::from_str(&env, "booking-001"));
 }
 
@@ -397,10 +397,10 @@ fn test_check_availability_no_conflict() {
     let start = now + 3_600;
     let end = start + 3_600;
 
-    
+    // No bookings yet — should be available
     assert!(client.check_availability(&String::from_str(&env, "ws-001"), &start, &end));
 
-    
+    // Book it
     client.book_workspace(
         &member,
         &String::from_str(&env, "booking-001"),
@@ -409,10 +409,10 @@ fn test_check_availability_no_conflict() {
         &end,
     );
 
-    
+    // Same slot should no longer be available
     assert!(!client.check_availability(&String::from_str(&env, "ws-001"), &start, &end));
 
-    
+    // Non-overlapping slot after the booking should still be available
     assert!(client.check_availability(
         &String::from_str(&env, "ws-001"),
         &end,
@@ -442,7 +442,7 @@ fn test_set_workspace_availability_blocks_new_bookings() {
         &400i128,
     );
 
-    
+    // Disable the workspace
     client.set_workspace_availability(&admin, &String::from_str(&env, "ws-001"), &false);
 
     assert!(!client.check_availability(
@@ -488,7 +488,7 @@ fn test_multiple_workspaces_independent_availability() {
     let start = now + 60;
     let end = start + 3_600;
 
-    
+    // Book ws-001 for the slot
     client.book_workspace(
         &member,
         &String::from_str(&env, "booking-001"),
@@ -497,10 +497,10 @@ fn test_multiple_workspaces_independent_availability() {
         &end,
     );
 
-    
+    // ws-002 and ws-003 should still be available for the same slot
     assert!(client.check_availability(&String::from_str(&env, "ws-002"), &start, &end));
     assert!(client.check_availability(&String::from_str(&env, "ws-003"), &start, &end));
-    
+    // ws-001 should NOT be available
     assert!(!client.check_availability(&String::from_str(&env, "ws-001"), &start, &end));
 }
 
@@ -528,7 +528,7 @@ fn test_member_and_workspace_booking_indexes() {
 
     let now = env.ledger().timestamp();
 
-    
+    // Make two non-overlapping bookings for the same member and workspace
     let s1 = now + 100;
     let e1 = s1 + 3_600;
     let s2 = e1 + 600;
@@ -578,7 +578,7 @@ fn test_hourly_rate_update_applies_to_future_bookings() {
         &1_000i128,
     );
 
-    
+    // Update rate to 2000
     client.set_workspace_rate(&admin, &String::from_str(&env, "ws-001"), &2_000i128);
 
     let ws = client.get_workspace(&String::from_str(&env, "ws-001"));
@@ -586,7 +586,7 @@ fn test_hourly_rate_update_applies_to_future_bookings() {
 
     let now = env.ledger().timestamp();
     let start = now + 60;
-    let end = start + 3_600; 
+    let end = start + 3_600; // 1 hour
 
     client.book_workspace(
         &member,
@@ -597,5 +597,5 @@ fn test_hourly_rate_update_applies_to_future_bookings() {
     );
 
     let booking = client.get_booking(&String::from_str(&env, "bk-001"));
-    assert_eq!(booking.amount_paid, 2_000i128); 
+    assert_eq!(booking.amount_paid, 2_000i128); // new rate applied
 }
