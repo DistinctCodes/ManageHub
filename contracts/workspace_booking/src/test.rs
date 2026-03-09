@@ -62,3 +62,91 @@ fn test_initialize_twice_fails() {
     client.initialize(&admin, &token);
     client.initialize(&admin, &token); // AlreadyInitialized = 3
 }
+
+#[test]
+fn test_register_workspace_success() {
+    let env = Env::default();
+    let contract_id = setup_contract(&env);
+    let client = WorkspaceBookingContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let token = Address::generate(&env);
+
+    env.mock_all_auths();
+    client.initialize(&admin, &token);
+
+    client.register_workspace(
+        &admin,
+        &String::from_str(&env, "ws-001"),
+        &String::from_str(&env, "Hot Desk A"),
+        &WorkspaceType::HotDesk,
+        &1u32,
+        &500i128, // 500 units per hour
+    );
+
+    let ws = client.get_workspace(&String::from_str(&env, "ws-001"));
+    assert_eq!(ws.name, String::from_str(&env, "Hot Desk A"));
+    assert_eq!(ws.workspace_type, WorkspaceType::HotDesk);
+    assert_eq!(ws.capacity, 1u32);
+    assert_eq!(ws.hourly_rate, 500i128);
+    assert!(ws.is_available);
+
+    let all = client.get_all_workspaces();
+    assert_eq!(all.len(), 1u32);
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #5)")]
+fn test_register_workspace_duplicate_id_fails() {
+    let env = Env::default();
+    let contract_id = setup_contract(&env);
+    let client = WorkspaceBookingContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let token = Address::generate(&env);
+
+    env.mock_all_auths();
+    client.initialize(&admin, &token);
+
+    client.register_workspace(
+        &admin,
+        &String::from_str(&env, "ws-001"),
+        &String::from_str(&env, "Hot Desk A"),
+        &WorkspaceType::HotDesk,
+        &1u32,
+        &500i128,
+    );
+    // WorkspaceAlreadyExists = 5
+    client.register_workspace(
+        &admin,
+        &String::from_str(&env, "ws-001"),
+        &String::from_str(&env, "Hot Desk B"),
+        &WorkspaceType::HotDesk,
+        &1u32,
+        &500i128,
+    );
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #2)")]
+fn test_register_workspace_non_admin_fails() {
+    let env = Env::default();
+    let contract_id = setup_contract(&env);
+    let client = WorkspaceBookingContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let non_admin = Address::generate(&env);
+    let token = Address::generate(&env);
+
+    env.mock_all_auths();
+    client.initialize(&admin, &token);
+    // Unauthorized = 2
+    client.register_workspace(
+        &non_admin,
+        &String::from_str(&env, "ws-001"),
+        &String::from_str(&env, "Hot Desk A"),
+        &WorkspaceType::HotDesk,
+        &1u32,
+        &500i128,
+    );
+}
