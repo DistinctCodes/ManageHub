@@ -13,7 +13,9 @@ mod test;
 pub use errors::Error;
 pub use types::{Booking, BookingStatus, Workspace, WorkspaceType};
 
-use soroban_sdk::{contract, contractimpl, contracttype, symbol_short, token, Address, Env, String, Vec};
+use soroban_sdk::{
+    contract, contractimpl, contracttype, symbol_short, token, Address, Env, String, Vec,
+};
 
 // ── Storage keys ──────────────────────────────────────────────────────────────
 
@@ -103,12 +105,12 @@ impl WorkspaceBookingContract {
         }
         admin.require_auth();
         env.storage().instance().set(&DataKey::Admin, &admin);
-        env.storage().instance().set(&DataKey::PaymentToken, &payment_token);
+        env.storage()
+            .instance()
+            .set(&DataKey::PaymentToken, &payment_token);
 
-        env.events().publish(
-            (symbol_short!("init"),),
-            (admin, payment_token),
-        );
+        env.events()
+            .publish((symbol_short!("init"),), (admin, payment_token));
         Ok(())
     }
 
@@ -138,7 +140,11 @@ impl WorkspaceBookingContract {
         if hourly_rate <= 0 {
             return Err(Error::InvalidRate);
         }
-        if env.storage().persistent().has(&DataKey::Workspace(id.clone())) {
+        if env
+            .storage()
+            .persistent()
+            .has(&DataKey::Workspace(id.clone()))
+        {
             return Err(Error::WorkspaceAlreadyExists);
         }
 
@@ -152,7 +158,9 @@ impl WorkspaceBookingContract {
             created_at: env.ledger().timestamp(),
         };
 
-        env.storage().persistent().set(&DataKey::Workspace(id.clone()), &workspace);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Workspace(id.clone()), &workspace);
 
         let mut list: Vec<String> = env
             .storage()
@@ -186,12 +194,12 @@ impl WorkspaceBookingContract {
             .ok_or(Error::WorkspaceNotFound)?;
 
         workspace.is_available = is_available;
-        env.storage().persistent().set(&DataKey::Workspace(workspace_id.clone()), &workspace);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Workspace(workspace_id.clone()), &workspace);
 
-        env.events().publish(
-            (symbol_short!("ws_avail"), workspace_id),
-            (is_available,),
-        );
+        env.events()
+            .publish((symbol_short!("ws_avail"), workspace_id), (is_available,));
         Ok(())
     }
 
@@ -215,12 +223,12 @@ impl WorkspaceBookingContract {
             .ok_or(Error::WorkspaceNotFound)?;
 
         workspace.hourly_rate = hourly_rate;
-        env.storage().persistent().set(&DataKey::Workspace(workspace_id.clone()), &workspace);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Workspace(workspace_id.clone()), &workspace);
 
-        env.events().publish(
-            (symbol_short!("ws_rate"), workspace_id),
-            (hourly_rate,),
-        );
+        env.events()
+            .publish((symbol_short!("ws_rate"), workspace_id), (hourly_rate,));
         Ok(())
     }
 
@@ -246,7 +254,11 @@ impl WorkspaceBookingContract {
     ) -> Result<(), Error> {
         member.require_auth();
 
-        if env.storage().persistent().has(&DataKey::Booking(booking_id.clone())) {
+        if env
+            .storage()
+            .persistent()
+            .has(&DataKey::Booking(booking_id.clone()))
+        {
             return Err(Error::BookingAlreadyExists);
         }
 
@@ -294,7 +306,9 @@ impl WorkspaceBookingContract {
             created_at: now,
         };
 
-        env.storage().persistent().set(&DataKey::Booking(booking_id.clone()), &booking);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Booking(booking_id.clone()), &booking);
 
         // Index: workspace → bookings
         let mut ws_bookings: Vec<String> = env
@@ -303,7 +317,10 @@ impl WorkspaceBookingContract {
             .get(&DataKey::WorkspaceBookings(workspace_id.clone()))
             .unwrap_or(Vec::new(&env));
         ws_bookings.push_back(booking_id.clone());
-        env.storage().persistent().set(&DataKey::WorkspaceBookings(workspace_id.clone()), &ws_bookings);
+        env.storage().persistent().set(
+            &DataKey::WorkspaceBookings(workspace_id.clone()),
+            &ws_bookings,
+        );
 
         // Index: member → bookings
         let mut member_bookings: Vec<String> = env
@@ -312,7 +329,9 @@ impl WorkspaceBookingContract {
             .get(&DataKey::MemberBookings(member.clone()))
             .unwrap_or(Vec::new(&env));
         member_bookings.push_back(booking_id.clone());
-        env.storage().persistent().set(&DataKey::MemberBookings(member.clone()), &member_bookings);
+        env.storage()
+            .persistent()
+            .set(&DataKey::MemberBookings(member.clone()), &member_bookings);
 
         env.events().publish(
             (symbol_short!("booked"), booking_id),
@@ -350,7 +369,9 @@ impl WorkspaceBookingContract {
         );
 
         booking.status = BookingStatus::Cancelled;
-        env.storage().persistent().set(&DataKey::Booking(booking_id.clone()), &booking);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Booking(booking_id.clone()), &booking);
 
         env.events().publish(
             (symbol_short!("cancel"), booking_id),
@@ -376,7 +397,9 @@ impl WorkspaceBookingContract {
         }
 
         booking.status = BookingStatus::Completed;
-        env.storage().persistent().set(&DataKey::Booking(booking_id.clone()), &booking);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Booking(booking_id.clone()), &booking);
 
         env.events().publish(
             (symbol_short!("complete"), booking_id),

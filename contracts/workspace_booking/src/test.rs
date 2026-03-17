@@ -18,7 +18,9 @@ fn setup_contract(env: &Env) -> Address {
 /// Register a mock token (Stellar Asset Contract), mint `amount` to `recipient`,
 /// and return the token address.
 fn setup_token(env: &Env, admin: &Address, recipient: &Address, amount: i128) -> Address {
-    let token_address = env.register_stellar_asset_contract_v2(admin.clone()).address();
+    let token_address = env
+        .register_stellar_asset_contract_v2(admin.clone())
+        .address();
     StellarAssetClient::new(env, &token_address)
         .mock_all_auths()
         .mint(recipient, &amount);
@@ -413,11 +415,7 @@ fn test_check_availability_no_conflict() {
     assert!(!client.check_availability(&String::from_str(&env, "ws-001"), &start, &end));
 
     // Non-overlapping slot after the booking should still be available
-    assert!(client.check_availability(
-        &String::from_str(&env, "ws-001"),
-        &end,
-        &(end + 3_600)
-    ));
+    assert!(client.check_availability(&String::from_str(&env, "ws-001"), &end, &(end + 3_600)));
 }
 
 #[test]
@@ -551,7 +549,9 @@ fn test_member_and_workspace_booking_indexes() {
 
     assert_eq!(client.get_member_bookings(&member).len(), 2u32);
     assert_eq!(
-        client.get_workspace_bookings(&String::from_str(&env, "ws-001")).len(),
+        client
+            .get_workspace_bookings(&String::from_str(&env, "ws-001"))
+            .len(),
         2u32
     );
 }

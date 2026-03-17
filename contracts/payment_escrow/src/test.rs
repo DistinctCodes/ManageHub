@@ -17,7 +17,9 @@ fn setup_contract(env: &Env) -> Address {
 }
 
 fn setup_token(env: &Env, admin: &Address, recipient: &Address, amount: i128) -> Address {
-    let token_address = env.register_stellar_asset_contract_v2(admin.clone()).address();
+    let token_address = env
+        .register_stellar_asset_contract_v2(admin.clone())
+        .address();
     StellarAssetClient::new(env, &token_address)
         .mock_all_auths()
         .mint(recipient, &amount);

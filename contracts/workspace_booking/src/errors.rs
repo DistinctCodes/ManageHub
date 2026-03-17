@@ -12,7 +12,6 @@ use soroban_sdk::contracterror;
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[repr(u32)]
 pub enum Error {
-
     /// No admin has been set yet.
     AdminNotSet = 1,
 
@@ -37,11 +36,9 @@ pub enum Error {
     /// Invalid booking time window.
     InvalidTimeRange = 8,
 
-
     // -----------------------------
     // Booking Errors (100–199)
     // -----------------------------
-
     /// Booking ID not found.
     BookingNotFound = 100,
 
@@ -66,11 +63,9 @@ pub enum Error {
     /// Member balance insufficient for payment.
     InsufficientBalance = 107,
 
-
     // -----------------------------
     // Workspace Errors (200–299)
     // -----------------------------
-
     /// Workspace ID not found.
     WorkspaceNotFound = 200,
 

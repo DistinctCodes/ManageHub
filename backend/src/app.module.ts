@@ -14,7 +14,6 @@ import { NewsletterModule } from './newsletter/newsletter.module';
 import { EmailModule } from './email/email.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { ContactModule } from './contact/contact.module';
-import { FeedbackModule } from './feedback/feedback.module';
 
 @Module({
   imports: [
@@ -83,7 +82,6 @@ import { FeedbackModule } from './feedback/feedback.module';
     UsersModule,
     NewsletterModule,
     ContactModule,
-    FeedbackModule,
     DashboardModule,
   ],
   controllers: [AppController],
