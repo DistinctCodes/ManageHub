@@ -1,9 +1,11 @@
 use soroban_sdk::{contracttype, Address, String};
 
 /// Maximum allowed length for workspace identifiers.
+#[allow(dead_code)]
 pub const MAX_ID_LEN: u32 = 64;
 
 /// Maximum allowed length for workspace names.
+#[allow(dead_code)]
 pub const MAX_NAME_LEN: u32 = 128;
 
 /// Category of workspace being registered.

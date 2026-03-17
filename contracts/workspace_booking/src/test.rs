@@ -90,8 +90,8 @@ fn test_register_workspace_success() {
     assert_eq!(ws.name, String::from_str(&env, "Hot Desk A"));
     assert_eq!(ws.workspace_type, WorkspaceType::HotDesk);
     assert_eq!(ws.capacity, 1u32);
-    assert_eq!(ws.hourly_rate, 500i128);
-    assert!(ws.is_available);
+    assert_eq!(ws.hourly_rate, 500u128);
+    assert_eq!(ws.availability, WorkspaceAvailability::Available);
 
     let all = client.get_all_workspaces();
     assert_eq!(all.len(), 1u32);
@@ -192,7 +192,7 @@ fn test_book_workspace_success() {
     assert_eq!(booking.workspace_id, String::from_str(&env, "ws-001"));
     assert_eq!(booking.member, member);
     assert_eq!(booking.status, BookingStatus::Active);
-    assert_eq!(booking.amount_paid, 2_000i128); // 2 hrs × 1000
+    assert_eq!(booking.amount_paid, 2_000u128); // 2 hrs × 1000
 
     // Member balance should have decreased
     let balance = TokenClient::new(&env, &token_address).balance(&member);
@@ -582,7 +582,7 @@ fn test_hourly_rate_update_applies_to_future_bookings() {
     client.set_workspace_rate(&admin, &String::from_str(&env, "ws-001"), &2_000i128);
 
     let ws = client.get_workspace(&String::from_str(&env, "ws-001"));
-    assert_eq!(ws.hourly_rate, 2_000i128);
+    assert_eq!(ws.hourly_rate, 2_000u128);
 
     let now = env.ledger().timestamp();
     let start = now + 60;
@@ -597,5 +597,5 @@ fn test_hourly_rate_update_applies_to_future_bookings() {
     );
 
     let booking = client.get_booking(&String::from_str(&env, "bk-001"));
-    assert_eq!(booking.amount_paid, 2_000i128); // new rate applied
+    assert_eq!(booking.amount_paid, 2_000u128); // new rate applied
 }
