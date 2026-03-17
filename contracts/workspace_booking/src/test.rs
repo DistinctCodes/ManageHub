@@ -83,7 +83,7 @@ fn test_register_workspace_success() {
         &String::from_str(&env, "Hot Desk A"),
         &WorkspaceType::HotDesk,
         &1u32,
-        &500i128, // 500 units per hour
+        &500u128, // 500 units per hour
     );
 
     let ws = client.get_workspace(&String::from_str(&env, "ws-001"));
@@ -116,7 +116,7 @@ fn test_register_workspace_duplicate_id_fails() {
         &String::from_str(&env, "Hot Desk A"),
         &WorkspaceType::HotDesk,
         &1u32,
-        &500i128,
+        &500u128,
     );
     // WorkspaceAlreadyExists = 5
     client.register_workspace(
@@ -125,7 +125,7 @@ fn test_register_workspace_duplicate_id_fails() {
         &String::from_str(&env, "Hot Desk B"),
         &WorkspaceType::HotDesk,
         &1u32,
-        &500i128,
+        &500u128,
     );
 }
 
@@ -149,7 +149,7 @@ fn test_register_workspace_non_admin_fails() {
         &String::from_str(&env, "Hot Desk A"),
         &WorkspaceType::HotDesk,
         &1u32,
-        &500i128,
+        &500u128,
     );
 }
 
@@ -172,7 +172,7 @@ fn test_book_workspace_success() {
         &String::from_str(&env, "Meeting Room Alpha"),
         &WorkspaceType::MeetingRoom,
         &10u32,
-        &1_000i128, // 1000 units/hr
+        &1_000u128, // 1000 units/hr
     );
 
     // Book for 2 hours starting 60 seconds from now
@@ -219,7 +219,7 @@ fn test_book_workspace_conflict_fails() {
         &String::from_str(&env, "Desk A"),
         &WorkspaceType::HotDesk,
         &1u32,
-        &500i128,
+        &500u128,
     );
 
     let now = env.ledger().timestamp();
@@ -263,7 +263,7 @@ fn test_cancel_booking_refunds_member() {
         &String::from_str(&env, "Private Office"),
         &WorkspaceType::PrivateOffice,
         &4u32,
-        &2_000i128,
+        &2_000u128,
     );
 
     let now = env.ledger().timestamp();
@@ -309,7 +309,7 @@ fn test_complete_booking_by_admin() {
         &String::from_str(&env, "Dedicated Desk"),
         &WorkspaceType::DedicatedDesk,
         &1u32,
-        &300i128,
+        &300u128,
     );
 
     let now = env.ledger().timestamp();
@@ -353,7 +353,7 @@ fn test_cancel_already_cancelled_fails() {
         &String::from_str(&env, "Hot Desk"),
         &WorkspaceType::HotDesk,
         &1u32,
-        &500i128,
+        &500u128,
     );
 
     let now = env.ledger().timestamp();
@@ -392,7 +392,7 @@ fn test_check_availability_no_conflict() {
         &String::from_str(&env, "Room B"),
         &WorkspaceType::MeetingRoom,
         &8u32,
-        &1_500i128,
+        &1_500u128,
     );
 
     let now = env.ledger().timestamp();
@@ -437,7 +437,7 @@ fn test_set_workspace_availability_blocks_new_bookings() {
         &String::from_str(&env, "Desk C"),
         &WorkspaceType::HotDesk,
         &1u32,
-        &400i128,
+        &400u128,
     );
 
     // Disable the workspace
@@ -476,7 +476,7 @@ fn test_multiple_workspaces_independent_availability() {
             &String::from_str(&env, "Workspace"),
             &WorkspaceType::HotDesk,
             &1u32,
-            &500i128,
+            &500u128,
         );
     }
 
@@ -521,7 +521,7 @@ fn test_member_and_workspace_booking_indexes() {
         &String::from_str(&env, "Desk A"),
         &WorkspaceType::DedicatedDesk,
         &1u32,
-        &300i128,
+        &300u128,
     );
 
     let now = env.ledger().timestamp();
@@ -575,11 +575,11 @@ fn test_hourly_rate_update_applies_to_future_bookings() {
         &String::from_str(&env, "Office"),
         &WorkspaceType::PrivateOffice,
         &1u32,
-        &1_000i128,
+        &1_000u128,
     );
 
     // Update rate to 2000
-    client.set_workspace_rate(&admin, &String::from_str(&env, "ws-001"), &2_000i128);
+    client.set_workspace_rate(&admin, &String::from_str(&env, "ws-001"), &2_000u128);
 
     let ws = client.get_workspace(&String::from_str(&env, "ws-001"));
     assert_eq!(ws.hourly_rate, 2_000u128);
