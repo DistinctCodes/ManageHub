@@ -98,7 +98,7 @@ fn test_register_workspace_success() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #5)")]
+#[should_panic(expected = "Error(Contract, #201)")]
 fn test_register_workspace_duplicate_id_fails() {
     let env = Env::default();
     let contract_id = setup_contract(&env);
@@ -118,7 +118,7 @@ fn test_register_workspace_duplicate_id_fails() {
         &1u32,
         &500u128,
     );
-    // WorkspaceAlreadyExists = 5
+    // WorkspaceAlreadyExists = 201
     client.register_workspace(
         &admin,
         &String::from_str(&env, "ws-001"),
@@ -200,7 +200,7 @@ fn test_book_workspace_success() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #7)")]
+#[should_panic(expected = "Error(Contract, #102)")]
 fn test_book_workspace_conflict_fails() {
     let env = Env::default();
     env.mock_all_auths();
@@ -234,7 +234,7 @@ fn test_book_workspace_conflict_fails() {
         &end,
     );
 
-    // Second booking overlaps — BookingConflict = 7
+    // Second booking overlaps — BookingConflict = 102
     client.book_workspace(
         &member,
         &String::from_str(&env, "booking-002"),
@@ -334,7 +334,7 @@ fn test_complete_booking_by_admin() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #10)")]
+#[should_panic(expected = "Error(Contract, #103)")]
 fn test_cancel_already_cancelled_fails() {
     let env = Env::default();
     env.mock_all_auths();
@@ -369,7 +369,7 @@ fn test_cancel_already_cancelled_fails() {
     );
 
     client.cancel_booking(&member, &String::from_str(&env, "booking-001"));
-    // BookingNotActive = 10
+    // BookingNotActive = 103
     client.cancel_booking(&member, &String::from_str(&env, "booking-001"));
 }
 
