@@ -1,4 +1,4 @@
-// import { Booking } from "@/lib/types/booking"
+//import { Booking } from "@/lib/types/booking"
 
 export type PaymentStatus = "PENDING" | "SUCCESS" | "FAILED"
 
@@ -10,7 +10,7 @@ status: PaymentStatus
 paidAt: string | null
 userId: string
 bookingId: string
-booking?: Booking 
+//booking?: Booking 
 user?: { id: string; firstname: string; lastname: string; email: string }
 createdAt: string
 updatedAt: string
