@@ -14,6 +14,7 @@ import { NewsletterModule } from './newsletter/newsletter.module';
 import { EmailModule } from './email/email.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { ContactModule } from './contact/contact.module';
+import { PaymentsModule } from './payments/payments.module';
 
 @Module({
   imports: [
@@ -83,6 +84,7 @@ import { ContactModule } from './contact/contact.module';
     NewsletterModule,
     ContactModule,
     DashboardModule,
+    PaymentsModule
   ],
   controllers: [AppController],
   providers: [
