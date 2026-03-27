@@ -10,6 +10,16 @@ type JwtExpiry = `${number}${'s' | 'm' | 'h' | 'd'}` | number;
 export class JwtHelper {
   constructor(private readonly jwtService: JwtService) {}
 
+  public verifyWithSecret<T extends object = JwtPayload>(token: string): T {
+    try {
+      return this.jwtService.verify<T>(token, {
+        secret: process.env.JWT_SECRET as string,
+      });
+    } catch {
+      throw new UnauthorizedException('Invalid or expired token');
+    }
+  }
+
   public validateRefreshToken(refreshToken: string): string | null {
     try {
       const payload = this.jwtService.verify<JwtPayload>(refreshToken, {

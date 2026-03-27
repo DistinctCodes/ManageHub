@@ -110,6 +110,14 @@ export class User {
   @Column({ default: false })
   twoFactorEnabled: boolean;
 
+  @Exclude()
+  @Column({ nullable: true })
+  totpSecret?: string;
+
+  @Exclude()
+  @Column('text', { array: true, nullable: true })
+  totpBackupCodes?: string[];
+
   @DeleteDateColumn()
   deletedAt: Date;
   get fullName(): string {
