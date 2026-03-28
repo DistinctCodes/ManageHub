@@ -10,6 +10,7 @@ import {
 import { Exclude } from 'class-transformer';
 import { RefreshToken } from '../../auth/entities/refreshToken.entity';
 import { UserRole } from '../enums/userRoles.enum';
+import { Invoice } from '../../invoices/entities/invoice.entity';
 
 @Entity('users')
 export class User {
@@ -100,6 +101,9 @@ export class User {
   @Exclude()
   @OneToMany(() => RefreshToken, (refreshToken) => refreshToken.user)
   refreshTokens: RefreshToken[];
+
+  @OneToMany(() => Invoice, (invoice) => invoice.user)
+  invoices: Invoice[];
 
   @CreateDateColumn()
   createdAt: Date;

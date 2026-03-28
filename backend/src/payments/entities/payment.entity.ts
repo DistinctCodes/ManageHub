@@ -3,45 +3,52 @@ import {
   PrimaryGeneratedColumn,
   Column,
   ManyToOne,
+  OneToMany,
   CreateDateColumn,
   UpdateDateColumn,
-} from "typeorm";
-import { User } from "../../users/entities/user.entity";
-import { Booking } from "../../bookings/entities/booking.entity";
-import { PaymentStatus } from "../enums/payment-status.enum";
+} from 'typeorm';
+import { User } from '../../users/entities/user.entity';
+import { Booking } from '../../bookings/entities/booking.entity';
+import { PaymentStatus } from '../enums/payment-status.enum';
+import { Invoice } from '../../invoices/entities/invoice.entity';
 
-@Entity("payments")
+@Entity('payments')
 export class Payment {
-  @PrimaryGeneratedColumn("uuid")
+  @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column({ unique: true })
   reference: string; // Paystack transaction reference
 
-  @Column({ type: "int" })
+  @Column({ type: 'int' })
   amountKobo: number; // monetary values stored in kobo
 
   @Column({
-    type: "enum",
+    type: 'enum',
     enum: PaymentStatus,
     default: PaymentStatus.PENDING,
   })
   status: PaymentStatus;
 
-  @Column({ type: "timestamp", nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   paidAt: Date | null;
 
-  @Column({ type: "uuid" })
+  @Column({ type: 'uuid' })
   userId: string;
 
-  @Column({ type: "uuid" })
+  @Column({ type: 'uuid' })
   bookingId: string;
 
-  @ManyToOne(() => User, (user) => user.payments, { onDelete: "CASCADE" })
+  @ManyToOne(() => User, (user) => user.payments, { onDelete: 'CASCADE' })
   user: User;
 
-  @ManyToOne(() => Booking, (booking) => booking.payments, { onDelete: "CASCADE" })
+  @ManyToOne(() => Booking, (booking) => booking.payments, {
+    onDelete: 'CASCADE',
+  })
   booking: Booking;
+
+  @OneToMany(() => Invoice, (invoice) => invoice.payment)
+  invoices: Invoice[];
 
   @CreateDateColumn()
   createdAt: Date;

@@ -40,6 +40,7 @@ export class EmailService {
     to: string,
     subject: string,
     html: string,
+    attachments?: nodemailer.Attachment[],
   ): Promise<boolean> {
     try {
       await this.transporter.sendMail({
@@ -47,6 +48,7 @@ export class EmailService {
         to,
         subject,
         html,
+        attachments,
       });
       this.logger.log(`Email sent to ${to}: ${subject}`);
       return true;
@@ -146,5 +148,41 @@ export class EmailService {
       message,
     });
     return this.send(adminEmail, `New Contact: ${subject}`, html);
+  }
+
+  async sendInvoiceReadyEmail(
+    to: string,
+    fullName: string,
+    data: {
+      invoiceNumber: string;
+      workspaceName: string;
+      amount: string;
+      paymentDate: string;
+    },
+    pdfBuffer: Buffer,
+  ): Promise<boolean> {
+    const html = this.compileTemplate('invoice-ready', {
+      fullName,
+      invoiceNumber: data.invoiceNumber,
+      workspaceName: data.workspaceName,
+      amount: data.amount,
+      paymentDate: data.paymentDate,
+      year: new Date().getFullYear().toString(),
+    });
+
+    const attachments: nodemailer.Attachment[] = [
+      {
+        filename: `invoice-${data.invoiceNumber}.pdf`,
+        content: pdfBuffer,
+        contentType: 'application/pdf',
+      },
+    ];
+
+    return this.send(
+      to,
+      `Invoice ${data.invoiceNumber} - Ready for Download`,
+      html,
+      attachments,
+    );
   }
 }
