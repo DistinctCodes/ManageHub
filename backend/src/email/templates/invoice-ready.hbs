@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f4f7; margin: 0; padding: 0; }
+    .container { max-width: 560px; margin: 40px auto; background: #fff; border-radius: 8px; padding: 40px; }
+    .header { text-align: center; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
+    .invoice-details { background: #f8fafc; padding: 20px; border-radius: 6px; margin: 20px 0; }
+    .detail-row { display: flex; justify-content: space-between; margin: 10px 0; }
+    .detail-label { font-weight: 600; color: #4a5568; }
+    .detail-value { color: #2d3748; }
+    .amount { font-size: 24px; font-weight: bold; color: #2d3748; text-align: center; margin: 20px 0; }
+    .attachment-note { background: #edf2f7; padding: 15px; border-radius: 6px; text-align: center; margin: 20px 0; }
+    .footer { text-align: center; color: #718096; font-size: 13px; margin-top: 32px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h2>Invoice Ready</h2>
+    </div>
+    
+    <p>Hi {{fullName}},</p>
+    
+    <p>Your invoice is now ready. Thank you for your payment!</p>
+    
+    <div class="invoice-details">
+      <div class="detail-row">
+        <span class="detail-label">Invoice Number:</span>
+        <span class="detail-value">{{invoiceNumber}}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Workspace:</span>
+        <span class="detail-value">{{workspaceName}}</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Payment Date:</span>
+        <span class="detail-value">{{paymentDate}}</span>
+      </div>
+    </div>
+    
+    <div class="amount">
+      ₦{{amount}}
+    </div>
+    
+    <div class="attachment-note">
+      <strong>Your invoice PDF is attached to this email.</strong><br>
+      Please save it for your records.
+    </div>
+    
+    <p>If you have any questions about your invoice, please don't hesitate to contact us.</p>
+    
+    <div class="footer">&copy; {{year}} ManageHub</div>
+  </div>
+</body>
+</html>
