@@ -15,6 +15,7 @@ import { EmailModule } from './email/email.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { ContactModule } from './contact/contact.module';
 import { PaymentsModule } from './payments/payments.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -84,7 +85,8 @@ import { PaymentsModule } from './payments/payments.module';
     NewsletterModule,
     ContactModule,
     DashboardModule,
-    PaymentsModule
+    PaymentsModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [
