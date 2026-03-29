@@ -10,7 +10,7 @@ import { useMarkAllRead } from "@/lib/react-query/hooks/notifications/useMarkAll
 export default function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const { data, isLoading, isError } = useGetNotifications(10);
+  const { data, isLoading, isError } = useGetNotifications(1, 10);
   const markAsRead = useMarkNotificationRead();
   const markAllAsRead = useMarkAllRead();
 

@@ -31,9 +31,9 @@ export const queryKeys = {
 
     /**
      * Paginated list key.
-     * @example queryKeys.notifications.list({ limit: 10 })
+     * @example queryKeys.notifications.list({ page: 1, limit: 10 })
      */
-    list: (params: { limit?: number }) =>
+    list: (params: { page?: number; limit?: number }) =>
       ["notifications", "list", params] as const,
   },
 };

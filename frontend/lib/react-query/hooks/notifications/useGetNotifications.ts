@@ -28,12 +28,13 @@ interface NotificationsResponse {
   unreadCount: number;
 }
 
-export const useGetNotifications = (limit = 10) => {
+export const useGetNotifications = (page = 1, limit = 10) => {
   return useQuery({
-    queryKey: queryKeys.notifications.list({ limit }),
+    queryKey: queryKeys.notifications.list({ page, limit }),
     queryFn: () =>
       apiClient.get<NotificationsResponse>(
-        `/notifications?limit=${limit}`
+        `/notifications?page=${page}&limit=${limit}`
       ),
+    staleTime: 30000, // 30 seconds
   });
 };
