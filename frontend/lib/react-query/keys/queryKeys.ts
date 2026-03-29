@@ -24,6 +24,11 @@ export const queryKeys = {
     detail: (id: string) => ["invoices", "detail", id] as const,
   },
 
+  adminAnalytics: (from?: string, to?: string) =>
+    ["adminAnalytics", { from, to }] as const,
+
+  memberDashboard: () => ["memberDashboard"] as const,
+
   // ── Notification keys ──────────────────────────────────────────────────────
   notifications: {
     /** Base key — used for invalidating all notification queries at once */
