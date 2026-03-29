@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { DashboardService } from './dashboard.service';
 import { AdminAnalyticsProvider } from './providers/admin-analytics.provider';
+import { MemberDashboardProvider } from './providers/member-dashboard.provider';
 import { AnalyticsQueryDto } from './dto/analytics-query.dto';
 import { JwtAuthGuard } from '../auth/guard/jwt.auth.guard';
 import { RolesGuard } from '../auth/guard/roles.guard';
@@ -16,6 +17,8 @@ import { UserRole } from '../users/enums/userRoles.enum';
 import { CurrentUser } from '../auth/decorators/current.user.decorators';
 import { User } from '../users/entities/user.entity';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { GetCurrentUser } from 'src/auth/decorators/getCurrentUser.decorator';
+import { MemberDashboardProvider } from './providers/member-dashboard.provide';
 
 @ApiTags('dashboard')
 @ApiBearerAuth()
@@ -23,7 +26,9 @@ import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 export class DashboardController {
   constructor(
     private readonly dashboardService: DashboardService,
+    private readonly memberDashboardProvider: MemberDashboardProvider,
     private readonly adminAnalyticsProvider: AdminAnalyticsProvider,
+    private readonly memberDashboardProvider: MemberDashboardProvider,
   ) {}
 
   @Get('stats')
@@ -66,15 +71,22 @@ export class DashboardController {
     return { success: true, ...data };
   }
 
-  @Get('admin/analytics')
+  // ──────────────────────────────────────────────
+  // Member endpoints
+  // ──────────────────────────────────────────────
+
+  @Get('member')
   @HttpCode(HttpStatus.OK)
-  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.STAFF)
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  async getAdminAnalytics(@Query() query: AnalyticsQueryDto) {
-    const data = await this.adminAnalyticsProvider.getFullAdminDashboard(
-      query.from,
-      query.to,
-    );
+  async getMemberDashboard(@GetCurrentUser('id') userId: string) {
+    const data = await this.memberDashboardProvider.getMemberDashboard(userId);
+    return { success: true, data };
+  }
+
+  @Get('member')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  async getMemberDashboard(@CurrentUser() user: User) {
+    const data = await this.memberDashboardProvider.getMemberDashboard(user.id);
     return { success: true, data };
   }
 }
