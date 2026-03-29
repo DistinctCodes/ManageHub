@@ -7,6 +7,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { DashboardService } from './dashboard.service';
+import { AdminAnalyticsProvider } from './providers/admin-analytics.provider';
+import { AnalyticsQueryDto } from './dto/analytics-query.dto';
 import { JwtAuthGuard } from '../auth/guard/jwt.auth.guard';
 import { RolesGuard } from '../auth/guard/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorators';
@@ -19,7 +21,10 @@ import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 @ApiBearerAuth()
 @Controller('dashboard')
 export class DashboardController {
-  constructor(private readonly dashboardService: DashboardService) {}
+  constructor(
+    private readonly dashboardService: DashboardService,
+    private readonly adminAnalyticsProvider: AdminAnalyticsProvider,
+  ) {}
 
   @Get('stats')
   @HttpCode(HttpStatus.OK)
@@ -59,5 +64,17 @@ export class DashboardController {
       search,
     );
     return { success: true, ...data };
+  }
+
+  @Get('admin/analytics')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.STAFF)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  async getAdminAnalytics(@Query() query: AnalyticsQueryDto) {
+    const data = await this.adminAnalyticsProvider.getFullAdminDashboard(
+      query.from,
+      query.to,
+    );
+    return { success: true, data };
   }
 }

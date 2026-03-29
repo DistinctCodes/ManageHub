@@ -10,9 +10,7 @@ export const useMarkAllRead = () => {
 
   return useMutation({
     mutationFn: () =>
-      apiClient.patch<{ message: string; data: { updatedCount: number } }>(
-        "/notifications/read-all"
-      ),
+      apiClient.patch<{ message: string }>("/notifications/read-all"),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all });
       toast.success("All notifications marked as read");

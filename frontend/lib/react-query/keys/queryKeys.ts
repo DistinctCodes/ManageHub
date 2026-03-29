@@ -41,4 +41,17 @@ export const queryKeys = {
       ["invoices", "list", params] as const,
     detail: (id: string) => ["invoices", "detail", id] as const,
   },
-} as const;
+
+  // ── Notification keys ──────────────────────────────────────────────────────
+  notifications: {
+    /** Base key — used for invalidating all notification queries at once */
+    all: ["notifications"] as const,
+
+    /**
+     * Paginated list key.
+     * @example queryKeys.notifications.list({ page: 1, limit: 10 })
+     */
+    list: (params: { page?: number; limit?: number }) =>
+      ["notifications", "list", params] as const,
+  },
+};
