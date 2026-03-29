@@ -1,30 +1,57 @@
-import { Controller, Get, Param, Post, Body } from "@nestjs/common";
-import { PaymentsService } from "./providers/payments.service";
-import { Payment } from "./entities/payment.entity";
-import { InitiatePaymentDto } from "./dto/initiate-payment.dto";
-import { InitiatePaymentProvider } from "./providers/initiate-payment.provider";
-import { GetCurrentUser } from "../auth/decorators/get-current-user.decorator";
+import {
+  Controller,
+  Get,
+  Param,
+  Query,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
+import { PaymentsService } from './payments.service';
+import { GetCurrentUser } from '../auth/decorators/get-current-user.decorator';
 
-@Controller("payments")
+@Controller('payments')
 export class PaymentsController {
-      constructor(private readonly initiatePaymentProvider: InitiatePaymentProvider) {}
-
-
-   @Post("initiate")
-  async initiate(
-    @Body() dto: InitiatePaymentDto,
-    @GetCurrentUser("id") userId: string,
-  ) {
-    return this.initiatePaymentProvider.initiatePayment(userId, dto.bookingId);
-  }
+  constructor(private readonly paymentsService: PaymentsService) {}
 
   @Get()
-  async getAll(): Promise<Payment[]> {
-    return this.paymentsService.findAll();
+  async getPayments(
+    @GetCurrentUser('id') userId: string,
+    @GetCurrentUser('role') role: string,
+    @Query('page') page = 1,
+    @Query('limit') limit = 10,
+    @Query('status') status?: string,
+  ) {
+    return this.paymentsService.getPayments({
+      userId,
+      role,
+      page: Number(page),
+      limit: Number(limit),
+      status,
+    });
   }
 
-  @Get(":id")
-  async getOne(@Param("id") id: string): Promise<Payment | null> {
-    return this.paymentsService.findOne(id);
+  @Get(':id')
+  async getPaymentById(
+    @Param('id') id: string,
+    @GetCurrentUser('id') userId: string,
+    @GetCurrentUser('role') role: string,
+  ) {
+    const payment = await this.paymentsService.getPaymentById(id);
+
+    if (!payment) {
+      throw new NotFoundException('Payment not found');
+    }
+
+    if (
+      role === 'USER' &&
+      payment.userId !== userId
+    ) {
+      throw new ForbiddenException();
+    }
+
+    return {
+      success: true,
+      data: payment,
+    };
   }
 }
