@@ -7,6 +7,7 @@ import {
   OneToMany,
 } from 'typeorm';
 import { WorkspaceType } from '../enums/workspace-type.enum';
+import { Booking } from '../../bookings/entities/booking.entity';
 
 @Entity('workspaces')
 export class Workspace {
@@ -46,4 +47,7 @@ export class Workspace {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @OneToMany(() => Booking, booking => booking.workspace)
+  bookings: Booking[];
 }
