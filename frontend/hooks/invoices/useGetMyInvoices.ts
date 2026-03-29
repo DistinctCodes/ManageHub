@@ -47,7 +47,7 @@ export function useGetMyInvoices({
       return apiClient.get<InvoiceListResponse>(`/invoices?${qs}`);
     },
     // Keep previous page data visible while the next page loads
-    placeholderData: (prev) => prev,
+    placeholderData: (prev: InvoiceListResponse | undefined) => prev,
     staleTime: 30_000, // 30 s — invoices don't change frequently
   });
 }

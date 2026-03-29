@@ -60,4 +60,35 @@ export class JwtHelper {
       refreshToken: this.generateRefreshToken(user),
     };
   }
+
+  public generateTempToken(userId: string): string {
+    return this.jwtService.sign(
+      { sub: userId, type: '2fa-temp' },
+      {
+        secret: (process.env.JWT_TEMP_SECRET ??
+          process.env.JWT_SECRET) as string,
+        expiresIn: (process.env.JWT_TEMP_EXPIRATION ?? '10m') as JwtExpiry,
+      },
+    );
+  }
+
+  public validateTempToken(tempToken: string): string {
+    try {
+      const payload = this.jwtService.verify<JwtPayload & { type?: string }>(
+        tempToken,
+        {
+          secret: (process.env.JWT_TEMP_SECRET ??
+            process.env.JWT_SECRET) as string,
+        },
+      );
+
+      if (payload.type !== '2fa-temp' || !payload.sub) {
+        throw new UnauthorizedException('Invalid temp token');
+      }
+
+      return payload.sub;
+    } catch (error) {
+      throw new UnauthorizedException('Invalid or expired temp token');
+    }
+  }
 }
