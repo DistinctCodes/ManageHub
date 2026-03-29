@@ -1,19 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import DashboardLayout from "@/app/(dashboard)/layout";
-import { useGetAllBookings } from "@/lib/hooks/useGetAllBookings"; // from Issue #22
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableHeader, TableRow, TableCell, TableBody } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { useGetAllBookings } from "@/lib/hooks/useGetAllBookings";
 import { toast } from "sonner";
 
 type Status = "ALL" | "PENDING" | "CONFIRMED" | "COMPLETED" | "CANCELLED";
@@ -47,14 +36,21 @@ export default function AdminBookingsPage() {
         {/* Status filter tabs */}
         <div className="flex gap-4">
           {(["ALL", "PENDING", "CONFIRMED", "COMPLETED", "CANCELLED"] as Status[]).map((status) => (
-            <Button
+            <button
               key={status}
-              variant={statusFilter === status ? "default" : "outline"}
+              type="button"
               onClick={() => setStatusFilter(status)}
+              className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+                statusFilter === status
+                  ? "bg-gray-900 text-white"
+                  : "border border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+              }`}
             >
               {status}
-              <Badge className="ml-2">{counts[status.toLowerCase()] ?? 0}</Badge>
-            </Button>
+              <span className="ml-2 rounded-full bg-black/10 px-2 py-0.5 text-xs">
+                {counts[status.toLowerCase()] ?? 0}
+              </span>
+            </button>
           ))}
         </div>
 
@@ -62,7 +58,7 @@ export default function AdminBookingsPage() {
         {loading && (
           <div className="grid grid-cols-1 gap-4">
             {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-12 w-full rounded-md" />
+              <div key={i} className="h-12 w-full animate-pulse rounded-md bg-gray-200" />
             ))}
           </div>
         )}
@@ -75,96 +71,128 @@ export default function AdminBookingsPage() {
 
         {/* Table */}
         {!loading && bookings.length > 0 && (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableCell>Member</TableCell>
-                <TableCell>Workspace</TableCell>
-                <TableCell>Plan</TableCell>
-                <TableCell>Dates</TableCell>
-                <TableCell>Seats</TableCell>
-                <TableCell>Total (₦)</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {bookings.map((b) => (
-                <TableRow key={b.id}>
-                  <TableCell>{b.memberName}</TableCell>
-                  <TableCell>{b.workspaceName}</TableCell>
-                  <TableCell>{b.planType}</TableCell>
-                  <TableCell>{b.startDate} - {b.endDate}</TableCell>
-                  <TableCell>{b.seats}</TableCell>
-                  <TableCell>₦{b.totalAmount}</TableCell>
-                  <TableCell>
-                    <Badge>{b.status}</Badge>
-                  </TableCell>
-                  <TableCell>
+          <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
+                <tr>
+                  <th className="px-4 py-3">Member</th>
+                  <th className="px-4 py-3">Workspace</th>
+                  <th className="px-4 py-3">Plan</th>
+                  <th className="px-4 py-3">Dates</th>
+                  <th className="px-4 py-3">Seats</th>
+                  <th className="px-4 py-3">Total (₦)</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {bookings.map((b) => (
+                  <tr key={b.id} className="border-t border-gray-100">
+                    <td className="px-4 py-3">{b.memberName ?? "Unknown member"}</td>
+                    <td className="px-4 py-3">{b.workspaceName ?? "Unknown workspace"}</td>
+                    <td className="px-4 py-3">{b.planType}</td>
+                    <td className="px-4 py-3">{b.startDate} - {b.endDate}</td>
+                    <td className="px-4 py-3">{b.seats ?? b.seatCount}</td>
+                    <td className="px-4 py-3">₦{b.totalAmount}</td>
+                    <td className="px-4 py-3">
+                      <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
+                        {b.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
                     {b.status === "PENDING" && (
                       <div className="flex gap-2">
-                        <Button onClick={() => handleAction(b.id, "confirm")}>Confirm</Button>
-                        <Button
-                          variant="destructive"
+                        <button
+                          type="button"
+                          onClick={() => handleAction(b.id, "confirm")}
+                          className="rounded-md bg-gray-900 px-3 py-2 text-white"
+                        >
+                          Confirm
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => setConfirmDialog({ open: true, action: "cancel", bookingId: b.id })}
+                          className="rounded-md bg-red-600 px-3 py-2 text-white"
                         >
                           Cancel
-                        </Button>
+                        </button>
                       </div>
                     )}
                     {b.status === "CONFIRMED" && (
                       <div className="flex gap-2">
-                        <Button
-                          variant="destructive"
+                        <button
+                          type="button"
                           onClick={() => setConfirmDialog({ open: true, action: "complete", bookingId: b.id })}
+                          className="rounded-md bg-emerald-600 px-3 py-2 text-white"
                         >
                           Complete
-                        </Button>
-                        <Button
-                          variant="destructive"
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => setConfirmDialog({ open: true, action: "cancel", bookingId: b.id })}
+                          className="rounded-md bg-red-600 px-3 py-2 text-white"
                         >
                           Cancel
-                        </Button>
+                        </button>
                       </div>
                     )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
 
         {/* Pagination controls */}
         {pagination.totalPages > 1 && (
           <div className="flex justify-end gap-2 mt-4">
-            <Button disabled={pagination.page === 1} onClick={pagination.prev}>Previous</Button>
-            <Button disabled={pagination.page === pagination.totalPages} onClick={pagination.next}>Next</Button>
+            <button
+              type="button"
+              disabled={pagination.page === 1}
+              onClick={pagination.prev}
+              className="rounded-lg border border-gray-200 px-4 py-2 disabled:opacity-50"
+            >
+              Previous
+            </button>
+            <button
+              type="button"
+              disabled={pagination.page === pagination.totalPages}
+              onClick={pagination.next}
+              className="rounded-lg border border-gray-200 px-4 py-2 disabled:opacity-50"
+            >
+              Next
+            </button>
           </div>
         )}
 
         {/* Confirmation dialog */}
-        <Dialog open={confirmDialog.open} onOpenChange={(open) => setConfirmDialog({ ...confirmDialog, open })}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Confirm Action</DialogTitle>
-            </DialogHeader>
-            <p>
+        {confirmDialog.open && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+            <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+              <h2 className="text-lg font-semibold text-gray-900">Confirm Action</h2>
+              <p className="mt-3 text-sm text-gray-600">
               Are you sure you want to {confirmDialog.action} this booking? This action cannot be undone.
-            </p>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setConfirmDialog({ open: false, action: null, bookingId: null })}>
+              </p>
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setConfirmDialog({ open: false, action: null, bookingId: null })}
+                  className="rounded-lg border border-gray-200 px-4 py-2"
+                >
                 Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={() => confirmDialog.bookingId && confirmDialog.action && handleAction(confirmDialog.bookingId, confirmDialog.action)}
-              >
+                </button>
+                <button
+                  type="button"
+                  onClick={() => confirmDialog.bookingId && confirmDialog.action && handleAction(confirmDialog.bookingId, confirmDialog.action)}
+                  className="rounded-lg bg-red-600 px-4 py-2 text-white"
+                >
                 Yes, {confirmDialog.action}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );

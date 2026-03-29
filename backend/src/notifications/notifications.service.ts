@@ -25,4 +25,8 @@ export class NotificationsService {
   markAsRead(id: string, userId: string): Promise<Notification> {
     return this.markNotificationReadProvider.markAsRead(id, userId);
   }
+
+  markAllAsRead(userId: string): Promise<{ updatedCount: number }> {
+    return this.markNotificationReadProvider.markAllAsRead(userId);
+  }
 }

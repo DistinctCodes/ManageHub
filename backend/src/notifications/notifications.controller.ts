@@ -52,4 +52,19 @@ export class NotificationsController {
     const notification = await this.notificationsService.markAsRead(id, userId);
     return { message: 'Notification marked as read', data: notification };
   }
+
+  @Patch('read-all')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Mark all notifications as read',
+    description:
+      'Marks every unread notification belonging to the current user as read.',
+  })
+  async markAllAsRead(@GetCurrentUser('id') userId: string) {
+    const result = await this.notificationsService.markAllAsRead(userId);
+    return {
+      message: 'All notifications marked as read',
+      data: result,
+    };
+  }
 }

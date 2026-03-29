@@ -36,4 +36,21 @@ export class MarkNotificationReadProvider {
     notification.isRead = true;
     return this.notificationRepository.save(notification);
   }
+
+  async markAllAsRead(userId: string): Promise<{ updatedCount: number }> {
+    const unreadNotifications = await this.notificationRepository.find({
+      where: { userId, isRead: false },
+    });
+
+    if (unreadNotifications.length === 0) {
+      return { updatedCount: 0 };
+    }
+
+    await this.notificationRepository.update(
+      { userId, isRead: false },
+      { isRead: true },
+    );
+
+    return { updatedCount: unreadNotifications.length };
+  }
 }

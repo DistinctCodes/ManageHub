@@ -1,6 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersController } from './users.controller';
+import { MembersController } from './members.controller';
 import { UsersService } from './providers/users.service';
 import { AuthModule } from '../auth/auth.module';
 import { User } from './entities/user.entity';
@@ -24,7 +25,7 @@ import { FindAdminByIdProvider } from './providers/findAdminById.provider';
     forwardRef(() => AuthModule),
     CloudinaryModule,
   ],
-  controllers: [UsersController],
+  controllers: [UsersController, MembersController],
   providers: [
     UsersService,
     CreateUserProvider,

@@ -5,7 +5,7 @@ import { apiClient } from "@/lib/apiClient";
 import { queryKeys } from "@/lib/react-query/keys/queryKeys";
 import { PlanType } from "@/lib/types/booking";
 
-interface PriceEstimateParams {
+interface PriceEstimateParams extends Record<string, unknown> {
   workspaceId: string;
   planType: PlanType;
   startDate: string;
@@ -51,6 +51,5 @@ export const usePriceEstimate = (params: PriceEstimateParams | null) => {
     enabled,
   });
 };
-
 
 

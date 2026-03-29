@@ -14,6 +14,9 @@ import { HashingProvider } from './providers/hashing.provider';
 import { GenerateTokensProvider } from './providers/generateTokens.provider';
 import { RefreshTokenRepositoryOperations } from './providers/refreshToken.repository';
 import { RefreshToken } from './entities/refreshToken.entity';
+import { SetupTotpProvider } from './providers/setupTotp.provider';
+import { VerifyTotpProvider } from './providers/verifyTotp.provider';
+import { ManageTotpProvider } from './providers/manageTotp.provider';
 
 @Module({
   imports: [
@@ -40,6 +43,9 @@ import { RefreshToken } from './entities/refreshToken.entity';
     HashingProvider,
     GenerateTokensProvider,
     RefreshTokenRepositoryOperations,
+    SetupTotpProvider,
+    VerifyTotpProvider,
+    ManageTotpProvider,
   ],
   exports: [
     AuthService,

@@ -21,6 +21,10 @@ import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ResendOtpDto } from './dto/resend-otp.dto';
 import { SendPasswordResetOtpDto } from './dto/send-password-reset-otp.dto';
+import { VerifyTotpDto } from './dto/verify-totp.dto';
+import { UseBackupCodeDto } from './dto/use-backup-code.dto';
+import { Setup2faDto } from './dto/setup-2fa.dto';
+import { Disable2faDto } from './dto/disable-2fa.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -71,6 +75,54 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   retrieveCurrentUser(@CurrentUser() user: User) {
     return user;
+  }
+
+  @Get('2fa/status')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  get2faStatus(@CurrentUser() user: User) {
+    return this.authService.get2faStatus(user.id);
+  }
+
+  @Post('2fa/setup')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  setup2fa(@CurrentUser() user: User) {
+    return this.authService.initiate2faSetup(user.id);
+  }
+
+  @Post('2fa/confirm')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  confirm2fa(@CurrentUser() user: User, @Body() setup2faDto: Setup2faDto) {
+    return this.authService.confirm2faSetup(user.id, setup2faDto.token);
+  }
+
+  @Public()
+  @Post('2fa/verify')
+  @HttpCode(HttpStatus.OK)
+  verify2fa(@Body() verifyTotpDto: VerifyTotpDto) {
+    return this.authService.verifyTotpLogin(
+      verifyTotpDto.token,
+      verifyTotpDto.tempToken,
+    );
+  }
+
+  @Public()
+  @Post('2fa/backup-code')
+  @HttpCode(HttpStatus.OK)
+  useBackupCode(@Body() useBackupCodeDto: UseBackupCodeDto) {
+    return this.authService.verifyBackupCode(
+      useBackupCodeDto.backupCode,
+      useBackupCodeDto.tempToken,
+    );
+  }
+
+  @Post('2fa/disable')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  disable2fa(@CurrentUser() user: User, @Body() disable2faDto: Disable2faDto) {
+    return this.authService.disable2fa(user.id, disable2faDto.password);
   }
 
   @Public()
