@@ -11,7 +11,9 @@ mod test;
 pub use errors::Error;
 pub use types::{Escrow, EscrowStatus};
 
-use soroban_sdk::{contract, contractimpl, contracttype, symbol_short, token, Address, Env, String, Vec};
+use soroban_sdk::{
+    contract, contractimpl, contracttype, symbol_short, token, Address, Env, String, Vec,
+};
 
 // ── Storage keys ──────────────────────────────────────────────────────────────
 
@@ -102,7 +104,9 @@ impl PaymentEscrowContract {
         }
         admin.require_auth();
         env.storage().instance().set(&DataKey::Admin, &admin);
-        env.storage().instance().set(&DataKey::PaymentToken, &payment_token);
+        env.storage()
+            .instance()
+            .set(&DataKey::PaymentToken, &payment_token);
         env.storage()
             .instance()
             .set(&DataKey::DefaultDisputeWindow, &dispute_window_secs);
@@ -118,20 +122,14 @@ impl PaymentEscrowContract {
 
     /// Update the default dispute window. Applies to escrows created after
     /// this call; existing escrows keep their original window.
-    pub fn set_dispute_window(
-        env: Env,
-        caller: Address,
-        window_secs: u64,
-    ) -> Result<(), Error> {
+    pub fn set_dispute_window(env: Env, caller: Address, window_secs: u64) -> Result<(), Error> {
         Self::require_admin(&env, &caller)?;
         env.storage()
             .instance()
             .set(&DataKey::DefaultDisputeWindow, &window_secs);
 
-        env.events().publish(
-            (symbol_short!("dw_set"),),
-            (window_secs,),
-        );
+        env.events()
+            .publish((symbol_short!("dw_set"),), (window_secs,));
         Ok(())
     }
 
@@ -159,7 +157,11 @@ impl PaymentEscrowContract {
         if amount <= 0 {
             return Err(Error::InvalidAmount);
         }
-        if env.storage().persistent().has(&DataKey::Escrow(escrow_id.clone())) {
+        if env
+            .storage()
+            .persistent()
+            .has(&DataKey::Escrow(escrow_id.clone()))
+        {
             return Err(Error::EscrowAlreadyExists);
         }
 

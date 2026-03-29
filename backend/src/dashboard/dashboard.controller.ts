@@ -7,6 +7,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { DashboardService } from './dashboard.service';
+import { AdminAnalyticsProvider } from './providers/admin-analytics.provider';
+import { AnalyticsQueryDto } from './dto/analytics-query.dto';
 import { JwtAuthGuard } from '../auth/guard/jwt.auth.guard';
 import { RolesGuard } from '../auth/guard/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorators';
@@ -24,6 +26,7 @@ export class DashboardController {
   constructor(
     private readonly dashboardService: DashboardService,
     private readonly memberDashboardProvider: MemberDashboardProvider,
+    private readonly adminAnalyticsProvider: AdminAnalyticsProvider,
   ) {}
 
   @Get('stats')

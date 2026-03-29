@@ -7,13 +7,17 @@
 mod errors;
 mod types;
 
-// #[cfg(test)]
-// mod test;
+#[cfg(test)]
+mod test;
 
 pub use errors::Error;
-pub use types::{Booking, BookingStatus, Workspace, WorkspaceType};
+pub use types::{
+    Booking, BookingStatus, UnavailabilityReason, Workspace, WorkspaceAvailability, WorkspaceType,
+};
 
-use soroban_sdk::{contract, contractimpl, contracttype, symbol_short, token, Address, Env, String, Vec};
+use soroban_sdk::{
+    contract, contractimpl, contracttype, symbol_short, token, Address, Env, String, Vec,
+};
 
 // ── Storage keys ──────────────────────────────────────────────────────────────
 
@@ -103,12 +107,12 @@ impl WorkspaceBookingContract {
         }
         admin.require_auth();
         env.storage().instance().set(&DataKey::Admin, &admin);
-        env.storage().instance().set(&DataKey::PaymentToken, &payment_token);
+        env.storage()
+            .instance()
+            .set(&DataKey::PaymentToken, &payment_token);
 
-        env.events().publish(
-            (symbol_short!("init"),),
-            (admin, payment_token),
-        );
+        env.events()
+            .publish((symbol_short!("init"),), (admin, payment_token));
         Ok(())
     }
 
@@ -128,17 +132,21 @@ impl WorkspaceBookingContract {
         name: String,
         workspace_type: WorkspaceType,
         capacity: u32,
-        hourly_rate: i128,
+        hourly_rate: u128,
     ) -> Result<(), Error> {
         Self::require_admin(&env, &caller)?;
 
         if capacity == 0 {
             return Err(Error::InvalidCapacity);
         }
-        if hourly_rate <= 0 {
+        if hourly_rate == 0 {
             return Err(Error::InvalidRate);
         }
-        if env.storage().persistent().has(&DataKey::Workspace(id.clone())) {
+        if env
+            .storage()
+            .persistent()
+            .has(&DataKey::Workspace(id.clone()))
+        {
             return Err(Error::WorkspaceAlreadyExists);
         }
 
@@ -148,11 +156,13 @@ impl WorkspaceBookingContract {
             workspace_type: workspace_type.clone(),
             capacity,
             hourly_rate,
-            is_available: true,
+            availability: WorkspaceAvailability::Available,
             created_at: env.ledger().timestamp(),
         };
 
-        env.storage().persistent().set(&DataKey::Workspace(id.clone()), &workspace);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Workspace(id.clone()), &workspace);
 
         let mut list: Vec<String> = env
             .storage()
@@ -185,13 +195,17 @@ impl WorkspaceBookingContract {
             .get(&DataKey::Workspace(workspace_id.clone()))
             .ok_or(Error::WorkspaceNotFound)?;
 
-        workspace.is_available = is_available;
-        env.storage().persistent().set(&DataKey::Workspace(workspace_id.clone()), &workspace);
+        workspace.availability = if is_available {
+            WorkspaceAvailability::Available
+        } else {
+            WorkspaceAvailability::Unavailable(UnavailabilityReason::AdminHold)
+        };
+        env.storage()
+            .persistent()
+            .set(&DataKey::Workspace(workspace_id.clone()), &workspace);
 
-        env.events().publish(
-            (symbol_short!("ws_avail"), workspace_id),
-            (is_available,),
-        );
+        env.events()
+            .publish((symbol_short!("ws_avail"), workspace_id), (is_available,));
         Ok(())
     }
 
@@ -200,11 +214,11 @@ impl WorkspaceBookingContract {
         env: Env,
         caller: Address,
         workspace_id: String,
-        hourly_rate: i128,
+        hourly_rate: u128,
     ) -> Result<(), Error> {
         Self::require_admin(&env, &caller)?;
 
-        if hourly_rate <= 0 {
+        if hourly_rate == 0 {
             return Err(Error::InvalidRate);
         }
 
@@ -215,12 +229,12 @@ impl WorkspaceBookingContract {
             .ok_or(Error::WorkspaceNotFound)?;
 
         workspace.hourly_rate = hourly_rate;
-        env.storage().persistent().set(&DataKey::Workspace(workspace_id.clone()), &workspace);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Workspace(workspace_id.clone()), &workspace);
 
-        env.events().publish(
-            (symbol_short!("ws_rate"), workspace_id),
-            (hourly_rate,),
-        );
+        env.events()
+            .publish((symbol_short!("ws_rate"), workspace_id), (hourly_rate,));
         Ok(())
     }
 
@@ -246,7 +260,11 @@ impl WorkspaceBookingContract {
     ) -> Result<(), Error> {
         member.require_auth();
 
-        if env.storage().persistent().has(&DataKey::Booking(booking_id.clone())) {
+        if env
+            .storage()
+            .persistent()
+            .has(&DataKey::Booking(booking_id.clone()))
+        {
             return Err(Error::BookingAlreadyExists);
         }
 
@@ -262,7 +280,7 @@ impl WorkspaceBookingContract {
             .get(&DataKey::Workspace(workspace_id.clone()))
             .ok_or(Error::WorkspaceNotFound)?;
 
-        if !workspace.is_available {
+        if workspace.availability != WorkspaceAvailability::Available {
             return Err(Error::WorkspaceUnavailable);
         }
 
@@ -273,14 +291,14 @@ impl WorkspaceBookingContract {
         // Cost = hourly_rate × ⌈duration_seconds / 3600⌉
         let duration_secs = end_time - start_time;
         let duration_hours = duration_secs.div_ceil(3600);
-        let amount: i128 = workspace.hourly_rate * duration_hours as i128;
+        let amount: u128 = workspace.hourly_rate * duration_hours as u128;
 
         // Collect payment from member → contract
         let payment_token = Self::get_payment_token(&env)?;
         token::Client::new(&env, &payment_token).transfer(
             &member,
             env.current_contract_address(),
-            &amount,
+            &(amount as i128),
         );
 
         let booking = Booking {
@@ -292,9 +310,13 @@ impl WorkspaceBookingContract {
             status: BookingStatus::Active,
             amount_paid: amount,
             created_at: now,
+            cancelled_at: None,
+            completed_at: None,
         };
 
-        env.storage().persistent().set(&DataKey::Booking(booking_id.clone()), &booking);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Booking(booking_id.clone()), &booking);
 
         // Index: workspace → bookings
         let mut ws_bookings: Vec<String> = env
@@ -303,7 +325,10 @@ impl WorkspaceBookingContract {
             .get(&DataKey::WorkspaceBookings(workspace_id.clone()))
             .unwrap_or(Vec::new(&env));
         ws_bookings.push_back(booking_id.clone());
-        env.storage().persistent().set(&DataKey::WorkspaceBookings(workspace_id.clone()), &ws_bookings);
+        env.storage().persistent().set(
+            &DataKey::WorkspaceBookings(workspace_id.clone()),
+            &ws_bookings,
+        );
 
         // Index: member → bookings
         let mut member_bookings: Vec<String> = env
@@ -312,11 +337,83 @@ impl WorkspaceBookingContract {
             .get(&DataKey::MemberBookings(member.clone()))
             .unwrap_or(Vec::new(&env));
         member_bookings.push_back(booking_id.clone());
-        env.storage().persistent().set(&DataKey::MemberBookings(member.clone()), &member_bookings);
+        env.storage()
+            .persistent()
+            .set(&DataKey::MemberBookings(member.clone()), &member_bookings);
 
         env.events().publish(
             (symbol_short!("booked"), booking_id),
             (member, workspace_id, start_time, end_time, amount),
+        );
+        Ok(())
+    }
+
+    /// Cancel an active booking and refund the full amount to the member.
+    ///
+    /// Only the booking member or the admin may cancel.
+    pub fn cancel_booking(env: Env, caller: Address, booking_id: String) -> Result<(), Error> {
+        caller.require_auth();
+
+        let mut booking: Booking = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Booking(booking_id.clone()))
+            .ok_or(Error::BookingNotFound)?;
+
+        let admin = Self::get_admin(&env)?;
+        if caller != booking.member && caller != admin {
+            return Err(Error::Unauthorized);
+        }
+        if booking.status != BookingStatus::Active {
+            return Err(Error::BookingNotActive);
+        }
+
+        // Refund payment from contract → member
+        let payment_token = Self::get_payment_token(&env)?;
+        token::Client::new(&env, &payment_token).transfer(
+            &env.current_contract_address(),
+            &booking.member,
+            &(booking.amount_paid as i128),
+        );
+
+        booking.status = BookingStatus::Cancelled;
+        booking.cancelled_at = Some(env.ledger().timestamp());
+        env.storage()
+            .persistent()
+            .set(&DataKey::Booking(booking_id.clone()), &booking);
+
+        env.events().publish(
+            (symbol_short!("cancel"), booking_id),
+            (caller, booking.amount_paid),
+        );
+        Ok(())
+    }
+
+    /// Mark an active booking as completed (admin only).
+    ///
+    /// Call this after the member has checked out to close the booking record.
+    pub fn complete_booking(env: Env, caller: Address, booking_id: String) -> Result<(), Error> {
+        Self::require_admin(&env, &caller)?;
+
+        let mut booking: Booking = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Booking(booking_id.clone()))
+            .ok_or(Error::BookingNotFound)?;
+
+        if booking.status != BookingStatus::Active {
+            return Err(Error::BookingNotActive);
+        }
+
+        booking.status = BookingStatus::Completed;
+        booking.completed_at = Some(env.ledger().timestamp());
+        env.storage()
+            .persistent()
+            .set(&DataKey::Booking(booking_id.clone()), &booking);
+
+        env.events().publish(
+            (symbol_short!("complete"), booking_id),
+            (booking.workspace_id, booking.member),
         );
         Ok(())
     }
@@ -361,6 +458,31 @@ impl WorkspaceBookingContract {
             .persistent()
             .get(&DataKey::WorkspaceBookings(workspace_id))
             .unwrap_or(Vec::new(&env))
+    }
+
+    /// Check whether a workspace has no conflicting active booking in the
+    /// requested slot. Returns `false` if the workspace does not exist or is
+    /// marked unavailable.
+    pub fn check_availability(
+        env: Env,
+        workspace_id: String,
+        start_time: u64,
+        end_time: u64,
+    ) -> bool {
+        let workspace: Workspace = match env
+            .storage()
+            .persistent()
+            .get(&DataKey::Workspace(workspace_id.clone()))
+        {
+            Some(ws) => ws,
+            None => return false,
+        };
+
+        if workspace.availability != WorkspaceAvailability::Available {
+            return false;
+        }
+
+        Self::is_slot_available(&env, &workspace_id, start_time, end_time)
     }
 
     /// Return the current admin address.
