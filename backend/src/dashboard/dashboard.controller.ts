@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { DashboardService } from './dashboard.service';
 import { AdminAnalyticsProvider } from './providers/admin-analytics.provider';
+import { MemberDashboardProvider } from './providers/member-dashboard.provider';
 import { AnalyticsQueryDto } from './dto/analytics-query.dto';
 import { JwtAuthGuard } from '../auth/guard/jwt.auth.guard';
 import { RolesGuard } from '../auth/guard/roles.guard';
@@ -27,6 +28,7 @@ export class DashboardController {
     private readonly dashboardService: DashboardService,
     private readonly memberDashboardProvider: MemberDashboardProvider,
     private readonly adminAnalyticsProvider: AdminAnalyticsProvider,
+    private readonly memberDashboardProvider: MemberDashboardProvider,
   ) {}
 
   @Get('stats')
@@ -80,57 +82,11 @@ export class DashboardController {
     return { success: true, data };
   }
 
-  @Get('member/bookings')
+  @Get('member')
   @HttpCode(HttpStatus.OK)
-  async getMemberBookings(
-    @GetCurrentUser('id') userId: string,
-    @Query('page') page: string = '1',
-    @Query('limit') limit: string = '10',
-  ) {
-    const parsedPage = Math.max(1, parseInt(page, 10) || 1);
-    const parsedLimit = Math.min(50, Math.max(1, parseInt(limit, 10) || 10));
-
-    const data = await this.dashboardService.getMemberBookings(
-      userId,
-      parsedPage,
-      parsedLimit,
-    );
-    return { success: true, ...data };
-  }
-
-  @Get('member/payments')
-  @HttpCode(HttpStatus.OK)
-  async getMemberPayments(
-    @GetCurrentUser('id') userId: string,
-    @Query('page') page: string = '1',
-    @Query('limit') limit: string = '10',
-  ) {
-    const parsedPage = Math.max(1, parseInt(page, 10) || 1);
-    const parsedLimit = Math.min(50, Math.max(1, parseInt(limit, 10) || 10));
-
-    const data = await this.dashboardService.getMemberPayments(
-      userId,
-      parsedPage,
-      parsedLimit,
-    );
-    return { success: true, ...data };
-  }
-
-  @Get('member/invoices')
-  @HttpCode(HttpStatus.OK)
-  async getMemberInvoices(
-    @GetCurrentUser('id') userId: string,
-    @Query('page') page: string = '1',
-    @Query('limit') limit: string = '10',
-  ) {
-    const parsedPage = Math.max(1, parseInt(page, 10) || 1);
-    const parsedLimit = Math.min(50, Math.max(1, parseInt(limit, 10) || 10));
-
-    const data = await this.dashboardService.getMemberInvoices(
-      userId,
-      parsedPage,
-      parsedLimit,
-    );
-    return { success: true, ...data };
+  @UseGuards(JwtAuthGuard)
+  async getMemberDashboard(@CurrentUser() user: User) {
+    const data = await this.memberDashboardProvider.getMemberDashboard(user.id);
+    return { success: true, data };
   }
 }
