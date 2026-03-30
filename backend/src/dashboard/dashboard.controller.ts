@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { DashboardService } from './dashboard.service';
 import { AdminAnalyticsProvider } from './providers/admin-analytics.provider';
+import { MemberDashboardProvider } from './providers/member-dashboard.provider';
 import { AnalyticsQueryDto } from './dto/analytics-query.dto';
 import { JwtAuthGuard } from '../auth/guard/jwt.auth.guard';
 import { RolesGuard } from '../auth/guard/roles.guard';
@@ -24,6 +25,7 @@ export class DashboardController {
   constructor(
     private readonly dashboardService: DashboardService,
     private readonly adminAnalyticsProvider: AdminAnalyticsProvider,
+    private readonly memberDashboardProvider: MemberDashboardProvider,
   ) {}
 
   @Get('stats')
@@ -75,6 +77,14 @@ export class DashboardController {
       query.from,
       query.to,
     );
+    return { success: true, data };
+  }
+
+  @Get('member')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  async getMemberDashboard(@CurrentUser() user: User) {
+    const data = await this.memberDashboardProvider.getMemberDashboard(user.id);
     return { success: true, data };
   }
 }
