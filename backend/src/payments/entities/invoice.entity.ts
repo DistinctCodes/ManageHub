@@ -8,6 +8,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
+import { Booking } from '../../bookings/entities/booking.entity';
 import { InvoiceStatus } from '../enums/invoice-status.enum';
 
 @Entity('invoices')
@@ -24,6 +25,10 @@ export class Invoice {
 
   @Column('uuid', { nullable: true })
   bookingId: string;
+
+  @ManyToOne(() => Booking, { onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'bookingId' })
+  booking: Booking;
 
   @Column({ type: 'varchar', length: 50, unique: true })
   invoiceNumber: string;

@@ -5,6 +5,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { InvoicesModule } from './invoices/invoices.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guard/jwt.auth.guard';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
@@ -82,6 +83,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     EmailModule,
     AuthModule,
     UsersModule,
+    InvoicesModule,
     NewsletterModule,
     ContactModule,
     DashboardModule,
