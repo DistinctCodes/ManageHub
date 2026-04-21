@@ -1,23 +1,18 @@
+export type NotificationType =
+  | "PAYMENT_SUCCESS"
+  | "PAYMENT_FAILED"
+  | "BOOKING_CONFIRMED"
+  | "BOOKING_CANCELLED"
+  | "GENERAL";
+
 export interface Notification {
   id: string;
   userId: string;
-  type: string;
+  type: NotificationType;
   title: string;
   message: string;
   isRead: boolean;
-  metadata?: Record<string, unknown> | null;
+  metadata?: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
-}
-
-export interface NotificationsResponse {
-  message: string;
-  data: Notification[];
-  meta: {
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  };
-  unreadCount: number;
 }

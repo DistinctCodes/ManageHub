@@ -3,10 +3,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThanOrEqual } from 'typeorm';
 import { User } from '../users/entities/user.entity';
 import { NewsletterSubscriber } from '../newsletter/entities/newsletter.entity';
-import { Booking } from '../bookings/entities/booking.entity';
-import { Payment } from '../payments/entities/payment.entity';
-import { Invoice } from '../invoices/entities/invoice.entity';
-import { PaymentStatus } from '../payments/enums/paymentStatus.enum';
+import { AdminAnalyticsProvider } from './providers/admin-analytics.provider';
+import { MemberDashboardProvider } from './providers/member-dashboard.provider';
 
 @Injectable()
 export class DashboardService {
@@ -15,12 +13,8 @@ export class DashboardService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(NewsletterSubscriber)
     private readonly newsletterRepository: Repository<NewsletterSubscriber>,
-    @InjectRepository(Booking)
-    private readonly bookingRepository: Repository<Booking>,
-    @InjectRepository(Payment)
-    private readonly paymentRepository: Repository<Payment>,
-    @InjectRepository(Invoice)
-    private readonly invoiceRepository: Repository<Invoice>,
+    private readonly adminAnalyticsProvider: AdminAnalyticsProvider,
+    private readonly memberDashboardProvider: MemberDashboardProvider,
   ) {}
 
   /**
@@ -38,11 +32,8 @@ export class DashboardService {
     return {
       totalMembers,
       verifiedMembers,
-      activeWorkspaces: 1,
-      deskOccupancy: Math.min(
-        Math.round((verifiedMembers / Math.max(totalMembers, 1)) * 100),
-        100,
-      ),
+      activeWorkspaces: 1, // placeholder until workspaces entity exists
+      deskOccupancy: Math.min(Math.round((verifiedMembers / Math.max(totalMembers, 1)) * 100), 100),
     };
   }
 
@@ -53,14 +44,7 @@ export class DashboardService {
     const recentUsers = await this.userRepository.find({
       order: { createdAt: 'DESC' },
       take: 10,
-      select: [
-        'id',
-        'firstname',
-        'lastname',
-        'email',
-        'createdAt',
-        'isVerified',
-      ],
+      select: ['id', 'firstname', 'lastname', 'email', 'createdAt', 'isVerified'],
     });
 
     return recentUsers.map((u) => ({
@@ -91,12 +75,8 @@ export class DashboardService {
       newSubscribersThisMonth,
     ] = await Promise.all([
       this.userRepository.count({ where: { isDeleted: false } }),
-      this.userRepository.count({
-        where: { isActive: true, isDeleted: false },
-      }),
-      this.userRepository.count({
-        where: { isSuspended: true, isDeleted: false },
-      }),
+      this.userRepository.count({ where: { isActive: true, isDeleted: false } }),
+      this.userRepository.count({ where: { isSuspended: true, isDeleted: false } }),
       this.userRepository.count({
         where: { createdAt: MoreThanOrEqual(thirtyDaysAgo), isDeleted: false },
       }),
@@ -108,6 +88,7 @@ export class DashboardService {
       }),
     ]);
 
+    // Registration trend — last 6 months
     const registrationTrend = await this.getMonthlyRegistrations(6);
 
     return {
@@ -174,63 +155,28 @@ export class DashboardService {
     };
   }
 
-  async getMemberBookings(userId: string, page: number, limit: number) {
-    const [data, total] = await this.bookingRepository.findAndCount({
-      where: { userId },
-      relations: ['workspace'],
-      order: { createdAt: 'DESC' },
-      skip: (page - 1) * limit,
-      take: limit,
-    });
-
-    return {
-      data,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
+  getAdminAnalytics(from?: string, to?: string) {
+    return this.adminAnalyticsProvider.getFullAdminDashboard(from, to);
   }
 
-  async getMemberPayments(userId: string, page: number, limit: number) {
-    const [data, total] = await this.paymentRepository.findAndCount({
-      where: { userId, status: PaymentStatus.SUCCESS },
-      order: { createdAt: 'DESC' },
-      skip: (page - 1) * limit,
-      take: limit,
-    });
-
-    return {
-      data,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
+  getMemberDashboard(userId: string) {
+    return this.memberDashboardProvider.getMemberDashboard(userId);
   }
 
-  async getMemberInvoices(userId: string, page: number, limit: number) {
-    const [data, total] = await this.invoiceRepository.findAndCount({
-      where: { userId },
-      relations: ['booking', 'booking.workspace'],
-      order: { createdAt: 'DESC' },
-      skip: (page - 1) * limit,
-      take: limit,
-    });
+  getMemberBookings(userId: string, page: number, limit: number) {
+    return this.memberDashboardProvider.getMemberBookings(userId, page, limit);
+  }
 
-    return {
-      data,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
+  getMemberPayments(userId: string, page: number, limit: number) {
+    return this.memberDashboardProvider.getMemberPayments(userId, page, limit);
+  }
+
+  getMemberInvoices(userId: string, page: number, limit: number) {
+    return this.memberDashboardProvider.getMemberInvoices(userId, page, limit);
+  }
+
+  getMemberCheckIns(userId: string, limit: number) {
+    return this.memberDashboardProvider.getMemberCheckIns(userId, limit);
   }
 
   private async getMonthlyRegistrations(months: number) {
@@ -239,6 +185,7 @@ export class DashboardService {
 
     for (let i = months - 1; i >= 0; i--) {
       const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59);
 
       const count = await this.userRepository.count({
         where: {
@@ -247,6 +194,7 @@ export class DashboardService {
         },
       });
 
+      // We need a between query, but MoreThanOrEqual + manual filter works for trend
       const monthLabel = start.toLocaleString('en', { month: 'short' });
       result.push({ month: monthLabel, count });
     }

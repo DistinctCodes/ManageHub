@@ -1,10 +1,9 @@
+import { IsEnum } from 'class-validator';
+import { MembershipStatus } from '../enums/membership-status.enum';
 import { ApiProperty } from '@nestjs/swagger';
-import { IsIn } from 'class-validator';
 
 export class UpdateMemberStatusDto {
-  @ApiProperty({
-    enum: ['suspend', 'activate', 'promote', 'demote'],
-  })
-  @IsIn(['suspend', 'activate', 'promote', 'demote'])
-  action: 'suspend' | 'activate' | 'promote' | 'demote';
+  @ApiProperty({ enum: MembershipStatus })
+  @IsEnum(MembershipStatus)
+  status: MembershipStatus;
 }

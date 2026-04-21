@@ -1,54 +1,58 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { RefreshToken } from '../entities/refreshToken.entity';
+import { generateSecret, generateURI } from 'otplib';
+import * as QRCode from 'qrcode';
+import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { User } from '../../users/entities/user.entity';
+import { Setup2faDto } from '../dto/setup-2fa.dto';
+import { verifySync } from 'otplib';
 
 @Injectable()
-export class RefreshTokenRepositoryOperations {
+export class SetupTotpProvider {
   constructor(
-    @InjectRepository(RefreshToken)
-    private readonly repo: Repository<RefreshToken>,
+    @InjectRepository(User)
+    private readonly usersRepository: Repository<User>,
   ) {}
 
-  async saveRefreshToken(user: User, token: string): Promise<RefreshToken> {
-    const expiresAt = this.computeExpiryFromEnv();
+  async initiate2faSetup(userId: string) {
+    const user = await this.usersRepository.findOne({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException('User not found');
 
-    const rt = this.repo.create({
-      userId: user.id,
-      token,
-      expiresAt,
-      revoked: false,
-    });
+    const secret = generateSecret();
+    user.totpSecret = secret;
+    await this.usersRepository.save(user);
 
-    return this.repo.save(rt);
+    const otpauth = generateURI({ issuer: 'ManageHub', label: user.email, secret });
+    const qrCodeDataUrl = await QRCode.toDataURL(otpauth);
+
+    return { secret, qrCodeDataUrl };
   }
 
-  async revokeToken(token: string): Promise<void> {
-    await this.repo.update({ token }, { revoked: true });
-  }
-
-  async findValidToken(token: string): Promise<RefreshToken | null> {
-    const rt = await this.repo.findOne({ where: { token } });
-    if (!rt) return null;
-    if (rt.revoked) return null;
-    if (rt.expiresAt && rt.expiresAt < new Date()) return null;
-    return rt;
-  }
-
-  private computeExpiryFromEnv(): Date | undefined {
-    // supports ms number or '7d' etc? We'll keep ms for now.
-    const raw = process.env.JWT_REFRESH_EXPIRATION;
-    if (!raw) return undefined;
-
-    const ms = Number(raw);
-    if (Number.isFinite(ms) && ms > 0) {
-      return new Date(Date.now() + ms);
+  async confirm2faSetup(userId: string, dto: Setup2faDto) {
+    const user = await this.usersRepository.findOne({ where: { id: userId } });
+    if (!user || !user.totpSecret) {
+      throw new UnauthorizedException('2FA setup not initiated');
     }
-    return undefined;
-  }
 
-  async revokeAllRefreshTokens(userId: string): Promise<void> {
-    await this.repo.update({ userId }, { revoked: true });
+    const result = verifySync({ token: dto.token, secret: user.totpSecret });
+    if (!result?.valid) {
+      throw new UnauthorizedException('Invalid TOTP code');
+    }
+
+    // Generate 8 plain backup codes, store hashed
+    const plainCodes = Array.from({ length: 8 }, () =>
+      crypto.randomBytes(5).toString('hex'),
+    );
+    const hashedCodes = await Promise.all(
+      plainCodes.map((c) => bcrypt.hash(c, 10)),
+    );
+
+    user.twoFactorEnabled = true;
+    user.totpBackupCodes = hashedCodes;
+    await this.usersRepository.save(user);
+
+    return { backupCodes: plainCodes };
   }
 }

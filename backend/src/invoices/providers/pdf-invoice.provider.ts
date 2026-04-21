@@ -1,171 +1,133 @@
 import { Injectable } from '@nestjs/common';
-import * as PDFDocument from 'pdfkit';
-import { Invoice } from '../../payments/entities/invoice.entity';
-import { Booking } from '../../bookings/entities/booking.entity';
-import { User } from '../../users/entities/user.entity';
-import { Workspace } from '../../workspaces/entities/workspace.entity';
-
-interface InvoiceWithRelations extends Invoice {
-  user: User;
-  booking: Booking & {
-    workspace: Workspace;
-  };
-}
+import { Invoice } from '../entities/invoice.entity';
+// pdfkit is a CommonJS module; use require() to avoid ESM interop issues
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const PDFDocument = require('pdfkit') as typeof import('pdfkit');
 
 @Injectable()
 export class PdfInvoiceProvider {
-  async generate(invoice: InvoiceWithRelations): Promise<Buffer> {
+  /**
+   * Generates a PDF buffer for the given invoice.
+   */
+  generate(invoice: Invoice): Promise<Buffer> {
     return new Promise((resolve, reject) => {
-      try {
-        const doc = new PDFDocument({
-          size: 'A4',
-          margins: {
-            top: 50,
-            bottom: 50,
-            left: 50,
-            right: 50,
-          },
-        });
+      const doc = new PDFDocument({ size: 'A4', margin: 50 });
+      const chunks: Buffer[] = [];
 
-        const chunks: Buffer[] = [];
+      doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
 
-        doc.on('data', (chunk) => {
-          chunks.push(chunk);
-        });
-
-        doc.on('end', () => {
-          const pdfBuffer = Buffer.concat(chunks);
-          resolve(pdfBuffer);
-        });
-
-        doc.on('error', (error) => {
-          reject(error);
-        });
-
-        // Header Section
-        this.addHeader(doc);
-
-        // Invoice Metadata Section
-        this.addInvoiceMetadata(doc, invoice);
-
-        // Bill To Section
-        this.addBillToSection(doc, invoice.user);
-
-        // Service Details Section
-        this.addServiceDetails(doc, invoice.booking);
-
-        // Amount Summary Section
-        this.addAmountSummary(doc, invoice);
-
-        // Footer Section
-        this.addFooter(doc);
-
-        doc.end();
-      } catch (error) {
-        reject(error);
-      }
+      this.renderPdf(doc, invoice);
+      doc.end();
     });
   }
 
-  private addHeader(doc: typeof PDFDocument): void {
-    // ManageHub logo/name
-    doc.fontSize(24).font('Helvetica-Bold').text('ManageHub', 50, 50);
-    
-    // TAX INVOICE title
-    doc.fontSize(18).font('Helvetica-Bold').text('TAX INVOICE', 50, 85);
-    
-    // Add a line under the header
-    doc.moveTo(50, 110).lineTo(545, 110).stroke();
-  }
+  private renderPdf(doc: PDFKit.PDFDocument, invoice: Invoice): void {
+    const amountNaira = (invoice.amountKobo / 100).toFixed(2);
 
-  private addInvoiceMetadata(doc: typeof PDFDocument, invoice: InvoiceWithRelations): void {
-    const yPosition = 130;
-    
-    doc.fontSize(12).font('Helvetica');
-    
-    // Invoice Number
-    doc.text(`Invoice Number: ${invoice.invoiceNumber}`, 50, yPosition);
-    
-    // Issue Date
-    doc.text(`Issue Date: ${invoice.createdAt.toLocaleDateString()}`, 50, yPosition + 20);
-    
-    // Payment Date (if paid)
-    if (invoice.paidAt) {
-      doc.text(`Payment Date: ${invoice.paidAt.toLocaleDateString()}`, 50, yPosition + 40);
+    // Header
+    doc
+      .fontSize(22)
+      .font('Helvetica-Bold')
+      .text('ManageHub', 50, 50)
+      .fontSize(10)
+      .font('Helvetica')
+      .text('Coworking Space Management', 50, 76)
+      .moveDown(2);
+
+    // Invoice meta
+    doc
+      .fontSize(18)
+      .font('Helvetica-Bold')
+      .text('INVOICE', { align: 'right' })
+      .fontSize(10)
+      .font('Helvetica')
+      .text(`Invoice #: ${invoice.invoiceNumber}`, { align: 'right' })
+      .text(
+        `Date: ${invoice.createdAt ? new Date(invoice.createdAt).toLocaleDateString() : '—'}`,
+        { align: 'right' },
+      )
+      .text(
+        `Status: ${invoice.status.toUpperCase()}`,
+        { align: 'right' },
+      )
+      .moveDown(2);
+
+    // Divider
+    doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke().moveDown(1);
+
+    // Line items table header
+    doc
+      .fontSize(10)
+      .font('Helvetica-Bold')
+      .text('Description', 50, doc.y, { width: 300 })
+      .text('Amount', 350, doc.y - doc.currentLineHeight(), {
+        width: 195,
+        align: 'right',
+      })
+      .moveDown(0.5);
+
+    doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke().moveDown(0.5);
+
+    // Line items
+    const lineItems = Array.isArray(invoice.lineItems) ? invoice.lineItems : [];
+    doc.font('Helvetica');
+
+    if (lineItems.length === 0) {
+      const lineY = doc.y;
+      doc.text('Workspace booking', 50, lineY, { width: 300 });
+      doc.text(`₦${amountNaira}`, 350, lineY, {
+        width: 195,
+        align: 'right',
+      });
+      doc.moveDown(0.5);
+    } else {
+      for (const item of lineItems) {
+        const desc = String(item['description'] ?? 'Workspace booking');
+        const itemAmount = item['amountNaira']
+          ? Number(item['amountNaira']).toFixed(2)
+          : amountNaira;
+        const lineY = doc.y;
+        doc.text(desc, 50, lineY, { width: 300 });
+        doc.text(`₦${itemAmount}`, 350, lineY, {
+          width: 195,
+          align: 'right',
+        });
+        if (item['startDate'] && item['endDate']) {
+          doc
+            .fontSize(9)
+            .fillColor('#666666')
+            .text(
+              `${item['startDate']} → ${item['endDate']}`,
+              50,
+              doc.y,
+              { width: 300 },
+            )
+            .fillColor('#000000')
+            .fontSize(10);
+        }
+        doc.moveDown(0.5);
+      }
     }
-    
-    // Due Date
-    if (invoice.dueDate) {
-      doc.text(`Due Date: ${invoice.dueDate.toLocaleDateString()}`, 50, yPosition + 60);
-    }
-  }
 
-  private addBillToSection(doc: typeof PDFDocument, user: User): void {
-    const yPosition = 220;
-    
-    doc.fontSize(14).font('Helvetica-Bold').text('Bill To:', 50, yPosition);
-    
-    doc.fontSize(12).font('Helvetica');
-    
-    // Member's full name
-    const fullName = user.fullName || user.email;
-    doc.text(fullName, 50, yPosition + 25);
-    
-    // Email address
-    doc.text(user.email, 50, yPosition + 45);
-  }
+    // Total
+    doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke().moveDown(0.5);
 
-  private addServiceDetails(doc: typeof PDFDocument, booking: Booking & { workspace: Workspace }): void {
-    const yPosition = 320;
-    
-    doc.fontSize(14).font('Helvetica-Bold').text('Service Details:', 50, yPosition);
-    
-    doc.fontSize(12).font('Helvetica');
-    
-    // Workspace name
-    doc.text(`Workspace: ${booking.workspace.name}`, 50, yPosition + 25);
-    
-    // Plan type
-    doc.text(`Plan Type: ${booking.workspace.type}`, 50, yPosition + 45);
-    
-    // Start date
-    doc.text(`Start Date: ${booking.startDate.toLocaleDateString()}`, 50, yPosition + 65);
-    
-    // End date
-    doc.text(`End Date: ${booking.endDate.toLocaleDateString()}`, 50, yPosition + 85);
-    
-    // Number of seats
-    doc.text(`Number of Seats: ${booking.seatCount}`, 50, yPosition + 105);
-  }
+    doc
+      .font('Helvetica-Bold')
+      .text('Total', 50, doc.y, { width: 300 })
+      .text(`₦${amountNaira}`, 350, doc.y - doc.currentLineHeight(), {
+        width: 195,
+        align: 'right',
+      })
+      .moveDown(2);
 
-  private addAmountSummary(doc: typeof PDFDocument, invoice: InvoiceWithRelations): void {
-    const yPosition = 460;
-    
-    doc.fontSize(14).font('Helvetica-Bold').text('Amount Summary:', 50, yPosition);
-    
-    doc.fontSize(12).font('Helvetica');
-    
-    // Subtotal (same as total for now, but keeping structure)
-    const subtotal = invoice.amountKobo / 100; // Convert from kobo to Naira
-    doc.text(`Subtotal: ₦${subtotal.toFixed(2)}`, 50, yPosition + 25);
-    
-    // Total amount
-    doc.font('Helvetica-Bold').text(`Total Amount: ₦${subtotal.toFixed(2)}`, 50, yPosition + 45);
-    
-    // Status
-    const statusColor = invoice.status === 'PAID' ? 'green' : 'red';
-    doc.fillColor(statusColor).text(`Status: ${invoice.status}`, 50, yPosition + 65);
-    doc.fillColor('black'); // Reset color
-  }
-
-  private addFooter(doc: typeof PDFDocument): void {
-    // Move to bottom of page
-    doc.fontSize(10).font('Helvetica-Oblique');
-    
-    const footerText = 'Thank you for your business';
-    const textWidth = doc.widthOfString(footerText);
-    const centerX = (doc.page.width - textWidth) / 2;
-    
-    doc.text(footerText, centerX, doc.page.height - 80, { align: 'center' });
+    // Footer
+    doc
+      .fontSize(9)
+      .font('Helvetica')
+      .fillColor('#999999')
+      .text('Thank you for choosing ManageHub.', { align: 'center' });
   }
 }

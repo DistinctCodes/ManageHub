@@ -3,38 +3,27 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/apiClient";
 import { queryKeys } from "@/lib/react-query/keys/queryKeys";
-
-export interface Notification {
-  id: string;
-  userId: string;
-  type: string;
-  title: string;
-  message: string;
-  isRead: boolean;
-  metadata?: Record<string, unknown>;
-  createdAt: string;
-  updatedAt: string;
-}
+import { Notification } from "@/lib/types/notification";
 
 interface NotificationsResponse {
-  message: string;
+  success: boolean;
   data: Notification[];
   meta: {
     total: number;
     page: number;
     limit: number;
     totalPages: number;
+    unreadCount: number;
   };
-  unreadCount: number;
 }
 
-export const useGetNotifications = (page = 1, limit = 10) => {
+export const useGetNotifications = (page = 1, limit = 20) => {
   return useQuery({
     queryKey: queryKeys.notifications.list({ page, limit }),
     queryFn: () =>
       apiClient.get<NotificationsResponse>(
         `/notifications?page=${page}&limit=${limit}`
       ),
-    staleTime: 30000, // 30 seconds
+    staleTime: 30_000,
   });
 };

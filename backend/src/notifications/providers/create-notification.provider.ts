@@ -2,36 +2,38 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Notification } from '../entities/notification.entity';
-import { CreateNotificationDto } from '../dto/create-notification.dto';
+import { NotificationType } from '../enums/notification-type.enum';
+import { NotificationsGateway } from '../gateway/notifications.gateway';
 
-/**
- * Internal-only provider for persisting notification records.
- * Has no HTTP endpoint — call notify() from any module that needs
- * to surface an in-app notification to a member.
- *
- * Must be injected via NotificationsModule (which exports this provider).
- */
+export interface CreateNotificationInput {
+  userId: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  metadata?: Record<string, unknown>;
+}
+
 @Injectable()
 export class CreateNotificationProvider {
   constructor(
     @InjectRepository(Notification)
-    private readonly notificationRepository: Repository<Notification>,
+    private readonly notificationsRepository: Repository<Notification>,
+    private readonly gateway: NotificationsGateway,
   ) {}
 
-  /**
-   * Persist a new notification for the given user.
-   * @param dto - userId, type, title, message, and optional metadata
-   * @returns The saved Notification record
-   */
-  async notify(dto: CreateNotificationDto): Promise<Notification> {
-    const notification = this.notificationRepository.create({
-      userId: dto.userId,
-      type: dto.type,
-      title: dto.title,
-      message: dto.message,
-      metadata: dto.metadata,
+  async create(input: CreateNotificationInput): Promise<Notification> {
+    const notification = this.notificationsRepository.create(input);
+    const saved = await this.notificationsRepository.save(notification);
+
+    // Push real-time event to user's socket room
+    this.gateway.sendToUser(input.userId, 'notification', {
+      id: saved.id,
+      type: saved.type,
+      title: saved.title,
+      message: saved.message,
+      createdAt: saved.createdAt,
     });
 
-    return this.notificationRepository.save(notification);
+    return saved;
   }
 }

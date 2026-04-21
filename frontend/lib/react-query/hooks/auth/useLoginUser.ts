@@ -38,6 +38,12 @@ export const useLoginUser = () => {
       }
     },
     onError: (error: any) => {
+      if (error?.twoFactorRequired) {
+        router.push(
+          `/verify-2fa?tempToken=${encodeURIComponent(error.tempToken)}&email=${encodeURIComponent(error.email)}`
+        );
+        return;
+      }
       if (error?.unverified) {
         toast.info("Please verify your email to continue.");
         router.push(`/verify-otp?email=${encodeURIComponent(error.email)}`);

@@ -5,7 +5,6 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
-import { InvoicesModule } from './invoices/invoices.module';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from './auth/guard/jwt.auth.guard';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
@@ -15,8 +14,12 @@ import { NewsletterModule } from './newsletter/newsletter.module';
 import { EmailModule } from './email/email.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { ContactModule } from './contact/contact.module';
+import { WorkspacesModule } from './workspaces/workspaces.module';
+import { BookingsModule } from './bookings/bookings.module';
 import { PaymentsModule } from './payments/payments.module';
+import { InvoicesModule } from './invoices/invoices.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { WorkspaceTrackingModule } from './workspace-tracking/workspace-tracking.module';
 
 @Module({
   imports: [
@@ -46,14 +49,18 @@ import { NotificationsModule } from './notifications/notifications.module';
     ]),
     BullModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
-        redis: {
-          host: configService.get<string>('REDIS_HOST') || 'localhost',
-          port: configService.get<number>('REDIS_PORT') || 6379,
-          password: configService.get<string>('REDIS_PASSWORD'),
-          db: configService.get<number>('REDIS_DB') || 0,
-        },
-      }),
+      useFactory: async (configService: ConfigService) => {
+        const tls = configService.get<string>('REDIS_TLS') === 'true';
+        return {
+          redis: {
+            host: configService.get<string>('REDIS_HOST') || 'localhost',
+            port: configService.get<number>('REDIS_PORT') || 6379,
+            password: configService.get<string>('REDIS_PASSWORD'),
+            db: configService.get<number>('REDIS_DB') || 0,
+            ...(tls && { tls: {} }),
+          },
+        };
+      },
       inject: [ConfigService],
     }),
     TypeOrmModule.forRootAsync({
@@ -83,12 +90,15 @@ import { NotificationsModule } from './notifications/notifications.module';
     EmailModule,
     AuthModule,
     UsersModule,
-    InvoicesModule,
     NewsletterModule,
     ContactModule,
     DashboardModule,
+    WorkspacesModule,
+    BookingsModule,
     PaymentsModule,
+    InvoicesModule,
     NotificationsModule,
+    WorkspaceTrackingModule,
   ],
   controllers: [AppController],
   providers: [

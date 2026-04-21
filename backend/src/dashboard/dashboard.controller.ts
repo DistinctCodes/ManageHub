@@ -7,29 +7,20 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { DashboardService } from './dashboard.service';
-import { AdminAnalyticsProvider } from './providers/admin-analytics.provider';
-import { MemberDashboardProvider } from './providers/member-dashboard.provider';
-import { AnalyticsQueryDto } from './dto/analytics-query.dto';
 import { JwtAuthGuard } from '../auth/guard/jwt.auth.guard';
 import { RolesGuard } from '../auth/guard/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorators';
 import { UserRole } from '../users/enums/userRoles.enum';
 import { CurrentUser } from '../auth/decorators/current.user.decorators';
+import { GetCurrentUser } from '../auth/decorators/getCurrentUser.decorator';
 import { User } from '../users/entities/user.entity';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
-import { GetCurrentUser } from 'src/auth/decorators/getCurrentUser.decorator';
-import { MemberDashboardProvider } from './providers/member-dashboard.provide';
 
 @ApiTags('dashboard')
 @ApiBearerAuth()
 @Controller('dashboard')
 export class DashboardController {
-  constructor(
-    private readonly dashboardService: DashboardService,
-    private readonly memberDashboardProvider: MemberDashboardProvider,
-    private readonly adminAnalyticsProvider: AdminAnalyticsProvider,
-    private readonly memberDashboardProvider: MemberDashboardProvider,
-  ) {}
+  constructor(private readonly dashboardService: DashboardService) {}
 
   @Get('stats')
   @HttpCode(HttpStatus.OK)
@@ -71,22 +62,85 @@ export class DashboardController {
     return { success: true, ...data };
   }
 
-  // ──────────────────────────────────────────────
-  // Member endpoints
-  // ──────────────────────────────────────────────
-
-  @Get('member')
+  @Get('admin/analytics')
   @HttpCode(HttpStatus.OK)
-  async getMemberDashboard(@GetCurrentUser('id') userId: string) {
-    const data = await this.memberDashboardProvider.getMemberDashboard(userId);
+  @Roles(UserRole.ADMIN, UserRole.STAFF)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  async getAdminAnalytics(
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    const data = await this.dashboardService.getAdminAnalytics(from, to);
     return { success: true, data };
   }
 
   @Get('member')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
-  async getMemberDashboard(@CurrentUser() user: User) {
-    const data = await this.memberDashboardProvider.getMemberDashboard(user.id);
+  async getMemberDashboard(@GetCurrentUser('id') userId: string) {
+    const data = await this.dashboardService.getMemberDashboard(userId);
+    return { success: true, data };
+  }
+
+  @Get('member/bookings')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  async getMemberBookings(
+    @GetCurrentUser('id') userId: string,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+  ) {
+    const data = await this.dashboardService.getMemberBookings(
+      userId,
+      Math.max(1, parseInt(page, 10) || 1),
+      Math.min(50, Math.max(1, parseInt(limit, 10) || 10)),
+    );
+    return { success: true, ...data };
+  }
+
+  @Get('member/payments')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  async getMemberPayments(
+    @GetCurrentUser('id') userId: string,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+  ) {
+    const data = await this.dashboardService.getMemberPayments(
+      userId,
+      Math.max(1, parseInt(page, 10) || 1),
+      Math.min(50, Math.max(1, parseInt(limit, 10) || 10)),
+    );
+    return { success: true, ...data };
+  }
+
+  @Get('member/invoices')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  async getMemberInvoices(
+    @GetCurrentUser('id') userId: string,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10',
+  ) {
+    const data = await this.dashboardService.getMemberInvoices(
+      userId,
+      Math.max(1, parseInt(page, 10) || 1),
+      Math.min(50, Math.max(1, parseInt(limit, 10) || 10)),
+    );
+    return { success: true, ...data };
+  }
+
+  @Get('member/check-ins')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  async getMemberCheckIns(
+    @GetCurrentUser('id') userId: string,
+    @Query('limit') limit: string = '10',
+  ) {
+    const data = await this.dashboardService.getMemberCheckIns(
+      userId,
+      Math.min(50, Math.max(1, parseInt(limit, 10) || 10)),
+    );
     return { success: true, data };
   }
 }

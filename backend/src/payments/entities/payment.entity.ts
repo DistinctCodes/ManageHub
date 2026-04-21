@@ -5,21 +5,28 @@ import {
   ManyToOne,
   CreateDateColumn,
   UpdateDateColumn,
+  Index,
   JoinColumn,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
-
-export enum PaymentStatus {
-  PENDING = 'PENDING',
-  SUCCESSFUL = 'SUCCESSFUL',
-  FAILED = 'FAILED',
-  REFUNDED = 'REFUNDED',
-}
+import { Booking } from '../../bookings/entities/booking.entity';
+import { PaymentProvider } from '../enums/payment-provider.enum';
+import { PaymentStatus } from '../enums/payment-status.enum';
 
 @Entity('payments')
+@Index(['bookingId'])
+@Index(['userId'])
+@Index(['providerReference'])
 export class Payment {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  @Column('uuid')
+  bookingId: string;
+
+  @ManyToOne(() => Booking, { onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'bookingId' })
+  booking: Booking;
 
   @Column('uuid')
   userId: string;
@@ -28,24 +35,31 @@ export class Payment {
   @JoinColumn({ name: 'userId' })
   user: User;
 
-  @Column('uuid', { nullable: true })
-  bookingId: string;
+  // Amount in kobo
+  @Column({ type: 'bigint' })
+  amount: number;
 
-  @Column('bigint')
-  amountKobo: number;
+  @Column({ type: 'varchar', length: 3, default: 'NGN' })
+  currency: string;
+
+  @Column({ type: 'enum', enum: PaymentProvider })
+  provider: PaymentProvider;
+
+  @Column({ nullable: true })
+  providerReference: string;
 
   @Column({ type: 'enum', enum: PaymentStatus, default: PaymentStatus.PENDING })
   status: PaymentStatus;
 
-  @Column({ nullable: true })
-  reference: string;
+  @Column({ type: 'timestamptz', nullable: true })
+  paidAt: Date;
 
-  @Column({ nullable: true })
-  provider: string;
+  @Column({ type: 'jsonb', nullable: true })
+  metadata: Record<string, unknown>;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn()
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'timestamptz' })
+  @UpdateDateColumn()
   updatedAt: Date;
 }

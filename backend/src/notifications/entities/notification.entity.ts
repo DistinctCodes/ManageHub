@@ -3,30 +3,27 @@ import {
   PrimaryGeneratedColumn,
   Column,
   ManyToOne,
-  JoinColumn,
   CreateDateColumn,
-  UpdateDateColumn,
+  Index,
+  JoinColumn,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { NotificationType } from '../enums/notification-type.enum';
 
 @Entity('notifications')
+@Index(['userId', 'isRead'])
 export class Notification {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'uuid' })
+  @Column('uuid')
   userId: string;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'userId' })
   user: User;
 
-  @Column({
-    type: 'enum',
-    enum: NotificationType,
-    default: NotificationType.GENERAL,
-  })
+  @Column({ type: 'enum', enum: NotificationType })
   type: NotificationType;
 
   @Column({ type: 'varchar', length: 255 })
@@ -35,15 +32,13 @@ export class Notification {
   @Column({ type: 'text' })
   message: string;
 
-  @Column({ default: false })
+  @Column({ type: 'boolean', default: false })
   isRead: boolean;
 
+  /** Optional reference to the related entity (booking ID, payment ID, etc.) */
   @Column({ type: 'jsonb', nullable: true })
-  metadata?: Record<string, unknown>;
+  metadata: Record<string, unknown>;
 
   @CreateDateColumn()
   createdAt: Date;
-
-  @UpdateDateColumn()
-  updatedAt: Date;
 }

@@ -16,7 +16,7 @@ const features = [
   {
     emoji: "🔐",
     title: "Access control",
-    desc: "Secure entry with biometrics or key cards.",
+    desc: "Role-based access control for all users and resources.",
     accent: "bg-emerald-50",
     area: "c",
   },

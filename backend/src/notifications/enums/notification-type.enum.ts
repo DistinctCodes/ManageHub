@@ -4,6 +4,7 @@ export enum NotificationType {
   BOOKING_COMPLETED = 'booking_completed',
   PAYMENT_SUCCESS = 'payment_success',
   PAYMENT_FAILED = 'payment_failed',
-  INVOICE_ISSUED = 'invoice_issued',
+  PAYMENT_REFUNDED = 'payment_refunded',
+  INVOICE_GENERATED = 'invoice_generated',
   GENERAL = 'general',
 }

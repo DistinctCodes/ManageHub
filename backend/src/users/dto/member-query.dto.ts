@@ -1,8 +1,7 @@
-import { Type } from 'class-transformer';
-import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
-import { UserRole } from '../enums/userRoles.enum';
+import { Type } from 'class-transformer';
 import { MembershipStatus } from '../enums/membership-status.enum';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class MemberQueryDto {
   @ApiPropertyOptional({ default: 1 })
@@ -12,27 +11,20 @@ export class MemberQueryDto {
   @Min(1)
   page?: number = 1;
 
-  @ApiPropertyOptional({ default: 15 })
+  @ApiPropertyOptional({ default: 20 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  limit?: number = 15;
-
-  @ApiPropertyOptional({
-    description: 'Search by firstname, lastname, or email',
-  })
-  @IsOptional()
-  @IsString()
-  search?: string;
-
-  @ApiPropertyOptional({ enum: UserRole })
-  @IsOptional()
-  @IsEnum(UserRole)
-  role?: UserRole;
+  limit?: number = 20;
 
   @ApiPropertyOptional({ enum: MembershipStatus })
   @IsOptional()
   @IsEnum(MembershipStatus)
   status?: MembershipStatus;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  search?: string;
 }

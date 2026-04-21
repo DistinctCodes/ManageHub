@@ -1,62 +1,47 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InitializePaymentProvider } from './providers/initialize-payment.provider';
+import { HandleWebhookProvider } from './providers/handle-webhook.provider';
+import { RefundPaymentProvider } from './providers/refund-payment.provider';
+import {
+  FindPaymentsProvider,
+  PaymentQuery,
+} from './providers/find-payments.provider';
+import { UserRole } from '../users/enums/userRoles.enum';
 
 @Injectable()
 export class PaymentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly initializePaymentProvider: InitializePaymentProvider,
+    private readonly handleWebhookProvider: HandleWebhookProvider,
+    private readonly refundPaymentProvider: RefundPaymentProvider,
+    private readonly findPaymentsProvider: FindPaymentsProvider,
+  ) {}
 
-  async getPayments(params: {
-    userId: string;
-    role: string;
-    page: number;
-    limit: number;
-    status?: string;
-  }) {
-    const { userId, role, page, limit, status } = params;
-
-    const where: any = {};
-
-    if (status) {
-      where.status = status;
-    }
-
-    if (role === 'USER') {
-      where.userId = userId;
-    }
-
-    const [payments, total] = await Promise.all([
-      this.prisma.payment.findMany({
-        where,
-        include: {
-          user: true,
-          booking: true,
-        },
-        skip: (page - 1) * limit,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-      }),
-      this.prisma.payment.count({ where }),
-    ]);
-
-    return {
-      success: true,
-      data: payments,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
+  initialize(bookingId: string, userId: string) {
+    return this.initializePaymentProvider.initialize(bookingId, userId);
   }
 
-  async getPaymentById(id: string) {
-    return this.prisma.payment.findUnique({
-      where: { id },
-      include: {
-        user: true,
-        booking: true,
-      },
-    });
+  handleWebhook(rawBody: Buffer, signature: string) {
+    return this.handleWebhookProvider.handle(rawBody, signature);
+  }
+
+  refund(paymentId: string, userId: string, userRole: UserRole) {
+    return this.refundPaymentProvider.refund(paymentId, userId, userRole);
+  }
+
+  findAll(query: PaymentQuery, userId: string, userRole: UserRole) {
+    return this.findPaymentsProvider.findAll(query, userId, userRole);
+  }
+
+  async findById(paymentId: string, userId: string, userRole: UserRole) {
+    const payment = await this.findPaymentsProvider.findById(
+      paymentId,
+      userId,
+      userRole,
+    );
+    if (!payment) {
+      throw new NotFoundException(`Payment "${paymentId}" not found`);
+    }
+    return payment;
   }
 }

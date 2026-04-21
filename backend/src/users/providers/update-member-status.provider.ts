@@ -1,58 +1,35 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../entities/user.entity';
-import { UserRole } from '../enums/userRoles.enum';
-import { CloudinaryService } from '../../cloudinary/cloudinary.service';
+import { MembershipStatus } from '../enums/membership-status.enum';
 
 @Injectable()
-export class UploadProfilePictureProvider {
+export class UpdateMemberStatusProvider {
   constructor(
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
-    private readonly cloudinaryService: CloudinaryService,
   ) {}
 
-  async uploadProfilePicture(
-    targetUserId: string,
-    file: Express.Multer.File,
-    currentUserId: string,
-    currentUserRole: UserRole,
-  ): Promise<{ id: string; profilePicture: string }> {
-    if (currentUserId !== targetUserId && currentUserRole !== UserRole.ADMIN) {
-      throw new BadRequestException(
-        'You can only update your own profile picture',
-      );
+  async updateStatus(memberId: string, status: MembershipStatus): Promise<User> {
+    const user = await this.usersRepository.findOne({
+      where: { id: memberId },
+    });
+    if (!user) {
+      throw new NotFoundException(`Member with id "${memberId}" not found`);
     }
 
-    try {
-      const targetUser = await this.usersRepository.findOne({
-        where: { id: targetUserId },
-      });
-      if (!targetUser) {
-        throw new BadRequestException('User not found');
-      }
+    user.membershipStatus = status;
 
-      const uploadResult: any = await this.cloudinaryService.uploadImage(
-        file,
-        'profile-pictures',
-      );
+    // Keep isSuspended in sync for backward compatibility
+    user.isSuspended = status === MembershipStatus.SUSPENDED;
+    user.isActive = status !== MembershipStatus.SUSPENDED;
 
-      if (targetUser.profilePicture) {
-        try {
-          const publicId = this.cloudinaryService.extractPublicIdFromUrl(
-            targetUser.profilePicture,
-          );
-          await this.cloudinaryService.deleteImage(publicId);
-        } catch {}
-      }
-
-      targetUser.profilePicture = uploadResult.secure_url;
-      const saved = await this.usersRepository.save(targetUser);
-
-      return { id: saved.id, profilePicture: saved.profilePicture };
-    } catch (error) {
-      throw new BadRequestException('Failed to upload profile picture');
+    // Set memberSince when activating for the first time
+    if (status === MembershipStatus.ACTIVE && !user.memberSince) {
+      user.memberSince = new Date();
     }
+
+    return this.usersRepository.save(user);
   }
 }
