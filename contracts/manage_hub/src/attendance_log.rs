@@ -253,8 +253,9 @@ impl AttendanceLogModule {
 
         // Calculate number of days in range
         let days_in_range = ((date_range.end_time - date_range.start_time) / 86400) + 1;
-        let average_daily_attendance =
-            (total_attendances as u64).checked_div(days_in_range).unwrap_or(0) as u32;
+        let average_daily_attendance = (total_attendances as u64)
+            .checked_div(days_in_range)
+            .unwrap_or(0) as u32;
 
         Ok(AttendanceFrequency {
             period: TimePeriod::Custom,
