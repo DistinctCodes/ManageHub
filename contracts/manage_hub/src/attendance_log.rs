@@ -253,11 +253,8 @@ impl AttendanceLogModule {
 
         // Calculate number of days in range
         let days_in_range = ((date_range.end_time - date_range.start_time) / 86400) + 1;
-        let average_daily_attendance = if days_in_range > 0 {
-            (total_attendances as u64 / days_in_range) as u32
-        } else {
-            0
-        };
+        let average_daily_attendance =
+            (total_attendances as u64).checked_div(days_in_range).unwrap_or(0) as u32;
 
         Ok(AttendanceFrequency {
             period: TimePeriod::Custom,
@@ -395,11 +392,7 @@ impl AttendanceLogModule {
         let mut result: Vec<PeakHourData> = Vec::new(&env);
         for hour in 0..24 {
             if let Some(count) = hour_counts.get(hour) {
-                let percentage = if total_attendances > 0 {
-                    (count * 100) / total_attendances
-                } else {
-                    0
-                };
+                let percentage = (count * 100).checked_div(total_attendances).unwrap_or(0);
 
                 result.push_back(PeakHourData {
                     hour,
@@ -456,11 +449,7 @@ impl AttendanceLogModule {
         let mut result: Vec<DayPattern> = Vec::new(&env);
         for day in 0..7 {
             if let Some(count) = day_counts.get(day) {
-                let percentage = if total_attendances > 0 {
-                    (count * 100) / total_attendances
-                } else {
-                    0
-                };
+                let percentage = (count * 100).checked_div(total_attendances).unwrap_or(0);
 
                 result.push_back(DayPattern {
                     day_of_week: day,
