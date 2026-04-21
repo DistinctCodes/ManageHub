@@ -21,9 +21,13 @@ import { SendPasswordResetOtpDto } from './dto/send-password-reset-otp.dto';
 import { ResendOtpDto } from './dto/resend-otp.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { EmailService } from '../email/email.service';
-import { SetupTotpProvider } from './providers/setupTotp.provider';
-import { VerifyTotpProvider } from './providers/verifyTotp.provider';
-import { ManageTotpProvider } from './providers/manageTotp.provider';
+import { SetupTotpProvider } from './providers/setup-totp.provider';
+import { VerifyTotpProvider } from './providers/verify-totp.provider';
+import { ManageTotpProvider } from './providers/manage-totp.provider';
+import { Setup2faDto } from './dto/setup-2fa.dto';
+import { VerifyTotpDto } from './dto/verify-totp.dto';
+import { UseBackupCodeDto } from './dto/use-backup-code.dto';
+import { Disable2faDto } from './dto/disable-2fa.dto';
 
 @Injectable()
 export class AuthService {
@@ -215,13 +219,9 @@ export class AuthService {
       };
     }
 
-    if (user.twoFactorEnabled === true) {
+    if (user.twoFactorEnabled) {
       const tempToken = this.jwtHelper.generateTempToken(user.id);
-
-      return {
-        requiresTwoFactor: true,
-        tempToken,
-      };
+      return { requiresTwoFactor: true, tempToken };
     }
 
     const { accessToken } = this.jwtHelper.generateTokens(user);
@@ -229,30 +229,6 @@ export class AuthService {
       user: this.userHelper.formatUserResponse(user),
       accessToken,
     };
-  }
-
-  async get2faStatus(userId: string) {
-    return this.manageTotpProvider.get2faStatus(userId);
-  }
-
-  async initiate2faSetup(userId: string) {
-    return this.setupTotpProvider.initiate2faSetup(userId);
-  }
-
-  async confirm2faSetup(userId: string, token: string) {
-    return this.setupTotpProvider.confirm2faSetup(userId, token);
-  }
-
-  async verifyTotpLogin(token: string, tempToken: string) {
-    return this.verifyTotpProvider.verifyTotpLogin(token, tempToken);
-  }
-
-  async verifyBackupCode(backupCode: string, tempToken: string) {
-    return this.verifyTotpProvider.verifyBackupCode(backupCode, tempToken);
-  }
-
-  async disable2fa(userId: string, password: string) {
-    return this.manageTotpProvider.disable2fa(userId, password);
   }
   async refreshToken(refreshToken: string) {
     const userId = this.jwtHelper.validateRefreshToken(refreshToken);
@@ -371,6 +347,30 @@ export class AuthService {
     await this.userRepository.save(user);
 
     return { message: UserMessages.OTP_VERIFIED };
+  }
+
+  setup2fa(userId: string) {
+    return this.setupTotpProvider.initiate2faSetup(userId);
+  }
+
+  confirm2fa(userId: string, dto: Setup2faDto) {
+    return this.setupTotpProvider.confirm2faSetup(userId, dto);
+  }
+
+  verifyTotpLogin(dto: VerifyTotpDto) {
+    return this.verifyTotpProvider.verifyTotpLogin(dto);
+  }
+
+  verifyBackupCode(dto: UseBackupCodeDto) {
+    return this.verifyTotpProvider.verifyBackupCode(dto);
+  }
+
+  disable2fa(userId: string, dto: Disable2faDto) {
+    return this.manageTotpProvider.disable2fa(userId, dto);
+  }
+
+  get2faStatus(userId: string) {
+    return this.manageTotpProvider.get2faStatus(userId);
   }
 
   async resetPassword(resetPasswordDto: ResetPasswordDto) {

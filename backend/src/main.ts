@@ -4,23 +4,11 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ValidationPipe, ClassSerializerInterceptor } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { HttpLogger } from './common/middlewares/httpLogger.middleware';
-import * as bodyParser from 'body-parser';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { rawBody: true });
 
-  // HTTP request logging
   app.use(new HttpLogger().use);
-
-  // Capture raw body for Paystack webhook signature verification
-  app.use(
-    '/payments/webhook',
-    bodyParser.json({
-      verify: (req: any, res, buf) => {
-        req.rawBody = buf;
-      },
-    }),
-  );
 
   // GLOBAL VALIDATION
   app.useGlobalPipes(
@@ -57,15 +45,12 @@ async function bootstrap() {
     .setVersion('1.0')
     .addBearerAuth()
     .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('swagger', app, document);
+  const document = SwaggerModule.createDocument(app as any, config);
+  SwaggerModule.setup('swagger', app as any, document);
 
-  // Global prefix
   app.setGlobalPrefix('/api');
 
-  // Start server
   await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
   console.log(`Server is listening at: ${await app.getUrl()}`);
 }
-
 bootstrap();

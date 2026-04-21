@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Invoice Ready</title></head>
+<body style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:0 auto;padding:20px">
+  <div style="background:#1a1a2e;padding:20px;border-radius:8px 8px 0 0">
+    <h1 style="color:#fff;margin:0;font-size:24px">ManageHub</h1>
+  </div>
+  <div style="background:#f9f9f9;padding:30px;border-radius:0 0 8px 8px;border:1px solid #e0e0e0">
+    <h2 style="color:#1a1a2e">Your Invoice is Ready</h2>
+    <p>Hi <strong>{{fullName}}</strong>,</p>
+    <p>Your invoice has been generated and is attached to this email.</p>
+    <table style="width:100%;border-collapse:collapse;margin:20px 0">
+      <tr style="background:#eee">
+        <td style="padding:10px;font-weight:bold">Invoice Number</td>
+        <td style="padding:10px">{{invoiceNumber}}</td>
+      </tr>
+      <tr>
+        <td style="padding:10px;font-weight:bold">Amount</td>
+        <td style="padding:10px">₦{{amountNaira}}</td>
+      </tr>
+      <tr style="background:#eee">
+        <td style="padding:10px;font-weight:bold">Paid At</td>
+        <td style="padding:10px">{{paidAt}}</td>
+      </tr>
+    </table>
+    <p>Please find the PDF invoice attached.</p>
+    <p style="color:#999;font-size:12px">Thank you for choosing ManageHub.</p>
+  </div>
+</body>
+</html>

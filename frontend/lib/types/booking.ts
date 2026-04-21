@@ -1,30 +1,36 @@
 export type BookingStatus =
   | "PENDING"
   | "CONFIRMED"
-  | "COMPLETED"
-  | "CANCELLED";
+  | "CANCELLED"
+  | "COMPLETED";
 
 export type PlanType =
   | "HOURLY"
   | "DAILY"
   | "WEEKLY"
   | "MONTHLY"
-  | "CUSTOM";
+  | "QUARTERLY"
+  | "YEARLY";
 
 export interface Booking {
   id: string;
+  userId: string;
   workspaceId: string;
-  workspaceName?: string;
-  memberName?: string;
-  planType: PlanType | string;
+  planType: PlanType;
   startDate: string;
   endDate: string;
-  seatCount: number;
-  seats?: number;
-  totalAmount: number;
+  totalAmount: number; // in kobo
   status: BookingStatus;
-  createdAt?: string;
-  updatedAt?: string;
+  seatCount: number;
+  notes?: string;
+  sorobanEscrowId?: string;
+  createdAt: string;
+  updatedAt: string;
+  workspace?: {
+    id: string;
+    name: string;
+    type: string;
+  };
 }
 
 export interface CreateBookingDto {
@@ -32,5 +38,15 @@ export interface CreateBookingDto {
   planType: PlanType;
   startDate: string;
   endDate: string;
-  seatCount?: number;
+  seatCount: number;
+  notes?: string;
+}
+
+export interface PriceEstimate {
+  totalAmount: number; // kobo
+  totalAmountNaira: number;
+  planType: PlanType;
+  seatCount: number;
+  startDate: string;
+  endDate: string;
 }

@@ -1,54 +1,66 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { RefreshToken } from '../entities/refreshToken.entity';
-import { User } from '../../users/entities/user.entity';
+import { User } from '../entities/user.entity';
+import { MemberQueryDto } from '../dto/member-query.dto';
+
+export interface PaginatedMembers {
+  data: Partial<User>[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
 
 @Injectable()
-export class RefreshTokenRepositoryOperations {
+export class GetMembersProvider {
   constructor(
-    @InjectRepository(RefreshToken)
-    private readonly repo: Repository<RefreshToken>,
+    @InjectRepository(User)
+    private readonly usersRepository: Repository<User>,
   ) {}
 
-  async saveRefreshToken(user: User, token: string): Promise<RefreshToken> {
-    const expiresAt = this.computeExpiryFromEnv();
+  async getMembers(query: MemberQueryDto): Promise<PaginatedMembers> {
+    const { page = 1, limit = 20, status, search } = query;
 
-    const rt = this.repo.create({
-      userId: user.id,
-      token,
-      expiresAt,
-      revoked: false,
-    });
+    const qb = this.usersRepository
+      .createQueryBuilder('user')
+      .select([
+        'user.id',
+        'user.firstname',
+        'user.lastname',
+        'user.email',
+        'user.phone',
+        'user.username',
+        'user.profilePicture',
+        'user.role',
+        'user.membershipStatus',
+        'user.memberSince',
+        'user.profileCompleteness',
+        'user.isVerified',
+        'user.isActive',
+        'user.isSuspended',
+        'user.createdAt',
+      ])
+      .where('user.isDeleted = :isDeleted', { isDeleted: false });
 
-    return this.repo.save(rt);
-  }
-
-  async revokeToken(token: string): Promise<void> {
-    await this.repo.update({ token }, { revoked: true });
-  }
-
-  async findValidToken(token: string): Promise<RefreshToken | null> {
-    const rt = await this.repo.findOne({ where: { token } });
-    if (!rt) return null;
-    if (rt.revoked) return null;
-    if (rt.expiresAt && rt.expiresAt < new Date()) return null;
-    return rt;
-  }
-
-  private computeExpiryFromEnv(): Date | undefined {
-    // supports ms number or '7d' etc? We'll keep ms for now.
-    const raw = process.env.JWT_REFRESH_EXPIRATION;
-    if (!raw) return undefined;
-
-    const ms = Number(raw);
-    if (Number.isFinite(ms) && ms > 0) {
-      return new Date(Date.now() + ms);
+    if (status) {
+      qb.andWhere('user.membershipStatus = :status', { status });
     }
-    return undefined;
-  }
 
-  async revokeAllRefreshTokens(userId: string): Promise<void> {
-    await this.repo.update({ userId }, { revoked: true });
+    if (search) {
+      qb.andWhere(
+        '(LOWER(user.firstname) LIKE :search OR LOWER(user.lastname) LIKE :search OR LOWER(user.email) LIKE :search)',
+        { search: `%${search.toLowerCase()}%` },
+      );
+    }
+
+    const total = await qb.getCount();
+    const data = await qb
+      .skip((page - 1) * limit)
+      .take(limit)
+      .orderBy('user.createdAt', 'DESC')
+      .getMany();
+
+    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 }

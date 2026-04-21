@@ -2,198 +2,246 @@
 
 import { useState } from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
-import { useGetAllBookings } from "@/lib/hooks/useGetAllBookings";
-import { toast } from "sonner";
+import { useGetAllBookings } from "@/lib/react-query/hooks/admin/bookings/useGetAllBookings";
+import { useUpdateBookingStatus } from "@/lib/react-query/hooks/admin/bookings/useUpdateBookingStatus";
+import { BookingStatus } from "@/lib/types/booking";
+import { BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
 
-type Status = "ALL" | "PENDING" | "CONFIRMED" | "COMPLETED" | "CANCELLED";
+const STATUSES: { value: BookingStatus | ""; label: string }[] = [
+  { value: "", label: "All" },
+  { value: "PENDING", label: "Pending" },
+  { value: "CONFIRMED", label: "Confirmed" },
+  { value: "COMPLETED", label: "Completed" },
+  { value: "CANCELLED", label: "Cancelled" },
+];
+
+const STATUS_COLORS: Record<BookingStatus, string> = {
+  PENDING: "bg-amber-50 text-amber-700",
+  CONFIRMED: "bg-blue-50 text-blue-700",
+  COMPLETED: "bg-emerald-50 text-emerald-600",
+  CANCELLED: "bg-red-50 text-red-600",
+};
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-NG", { dateStyle: "medium" });
+}
+
+function formatNaira(kobo: number): string {
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    minimumFractionDigits: 0,
+  }).format(kobo / 100);
+}
 
 export default function AdminBookingsPage() {
-  const [statusFilter, setStatusFilter] = useState<Status>("ALL");
-  const [confirmDialog, setConfirmDialog] = useState<{
-    open: boolean;
-    action: "cancel" | "complete" | null;
-    bookingId: string | null;
-  }>({ open: false, action: null, bookingId: null });
+  const [page, setPage] = useState(1);
+  const [statusFilter, setStatusFilter] = useState<BookingStatus | "">("");
+  const [confirmAction, setConfirmAction] = useState<{
+    id: string;
+    action: "confirm" | "cancel" | "complete";
+  } | null>(null);
 
-  const { bookings, counts, loading, error, mutateBooking, pagination } = useGetAllBookings(statusFilter);
+  const { data, isLoading } = useGetAllBookings(
+    page,
+    15,
+    statusFilter || undefined
+  );
+  const updateStatus = useUpdateBookingStatus();
 
-  const handleAction = async (id: string, action: "cancel" | "complete" | "confirm") => {
-    try {
-      await mutateBooking(id, action);
-      toast.success(`Booking ${action}ed successfully`);
-    } catch (err: any) {
-      toast.error(err.message || `Failed to ${action} booking`);
-    } finally {
-      setConfirmDialog({ open: false, action: null, bookingId: null });
-    }
+  const bookings = data?.data ?? [];
+  const meta = data?.meta;
+
+  const handleAction = async (
+    id: string,
+    action: "confirm" | "cancel" | "complete"
+  ) => {
+    await updateStatus.mutateAsync({ id, action });
+    setConfirmAction(null);
   };
 
   return (
     <DashboardLayout>
-      <div className="p-6 space-y-6">
-        <h1 className="text-2xl font-bold">Admin Bookings Management</h1>
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-gray-900">All Bookings</h1>
+        <p className="text-gray-500 mt-1 text-sm">
+          {meta?.total ?? 0} total bookings
+        </p>
+      </div>
 
-        {/* Status filter tabs */}
-        <div className="flex gap-4">
-          {(["ALL", "PENDING", "CONFIRMED", "COMPLETED", "CANCELLED"] as Status[]).map((status) => (
-            <button
-              key={status}
-              type="button"
-              onClick={() => setStatusFilter(status)}
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
-                statusFilter === status
-                  ? "bg-gray-900 text-white"
-                  : "border border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
-              }`}
-            >
-              {status}
-              <span className="ml-2 rounded-full bg-black/10 px-2 py-0.5 text-xs">
-                {counts[status.toLowerCase()] ?? 0}
-              </span>
-            </button>
+      {/* Status filter tabs */}
+      <div className="flex gap-2 mb-6 flex-wrap">
+        {STATUSES.map(({ value, label }) => (
+          <button
+            key={label}
+            type="button"
+            onClick={() => {
+              setStatusFilter(value as BookingStatus | "");
+              setPage(1);
+            }}
+            className={`px-4 py-2 text-sm font-medium rounded-lg border transition-colors ${
+              statusFilter === value
+                ? "bg-gray-900 text-white border-gray-900"
+                : "border-gray-200 text-gray-600 hover:bg-gray-50"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="bg-white rounded-xl border border-gray-100 h-20 animate-pulse"
+            />
           ))}
         </div>
-
-        {/* Loading state */}
-        {loading && (
-          <div className="grid grid-cols-1 gap-4">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-12 w-full animate-pulse rounded-md bg-gray-200" />
-            ))}
-          </div>
-        )}
-
-        {/* Error state */}
-        {error && <p className="text-red-600">Failed to load bookings.</p>}
-
-        {/* Empty state */}
-        {!loading && bookings.length === 0 && <p>No bookings found.</p>}
-
-        {/* Table */}
-        {!loading && bookings.length > 0 && (
-          <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
-                <tr>
-                  <th className="px-4 py-3">Member</th>
-                  <th className="px-4 py-3">Workspace</th>
-                  <th className="px-4 py-3">Plan</th>
-                  <th className="px-4 py-3">Dates</th>
-                  <th className="px-4 py-3">Seats</th>
-                  <th className="px-4 py-3">Total (₦)</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {bookings.map((b) => (
-                  <tr key={b.id} className="border-t border-gray-100">
-                    <td className="px-4 py-3">{b.memberName ?? "Unknown member"}</td>
-                    <td className="px-4 py-3">{b.workspaceName ?? "Unknown workspace"}</td>
-                    <td className="px-4 py-3">{b.planType}</td>
-                    <td className="px-4 py-3">{b.startDate} - {b.endDate}</td>
-                    <td className="px-4 py-3">{b.seats ?? b.seatCount}</td>
-                    <td className="px-4 py-3">₦{b.totalAmount}</td>
-                    <td className="px-4 py-3">
-                      <span className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
-                        {b.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                    {b.status === "PENDING" && (
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleAction(b.id, "confirm")}
-                          className="rounded-md bg-gray-900 px-3 py-2 text-white"
-                        >
-                          Confirm
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setConfirmDialog({ open: true, action: "cancel", bookingId: b.id })}
-                          className="rounded-md bg-red-600 px-3 py-2 text-white"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    )}
-                    {b.status === "CONFIRMED" && (
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setConfirmDialog({ open: true, action: "complete", bookingId: b.id })}
-                          className="rounded-md bg-emerald-600 px-3 py-2 text-white"
-                        >
-                          Complete
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setConfirmDialog({ open: true, action: "cancel", bookingId: b.id })}
-                          className="rounded-md bg-red-600 px-3 py-2 text-white"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    )}
-                    </td>
+      ) : bookings.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <BookOpen className="w-10 h-10 text-gray-200 mb-4" />
+          <p className="text-sm font-medium text-gray-500">No bookings found</p>
+        </div>
+      ) : (
+        <>
+          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-gray-400 uppercase tracking-wider border-b border-gray-50">
+                    <th className="px-5 py-3 font-medium">Booking ID</th>
+                    <th className="px-5 py-3 font-medium">Workspace</th>
+                    <th className="px-5 py-3 font-medium">Plan</th>
+                    <th className="px-5 py-3 font-medium">Dates</th>
+                    <th className="px-5 py-3 font-medium">Amount</th>
+                    <th className="px-5 py-3 font-medium">Status</th>
+                    <th className="px-5 py-3 font-medium">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* Pagination controls */}
-        {pagination.totalPages > 1 && (
-          <div className="flex justify-end gap-2 mt-4">
-            <button
-              type="button"
-              disabled={pagination.page === 1}
-              onClick={pagination.prev}
-              className="rounded-lg border border-gray-200 px-4 py-2 disabled:opacity-50"
-            >
-              Previous
-            </button>
-            <button
-              type="button"
-              disabled={pagination.page === pagination.totalPages}
-              onClick={pagination.next}
-              className="rounded-lg border border-gray-200 px-4 py-2 disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
-        )}
-
-        {/* Confirmation dialog */}
-        {confirmDialog.open && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-            <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-              <h2 className="text-lg font-semibold text-gray-900">Confirm Action</h2>
-              <p className="mt-3 text-sm text-gray-600">
-              Are you sure you want to {confirmDialog.action} this booking? This action cannot be undone.
-              </p>
-              <div className="mt-6 flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setConfirmDialog({ open: false, action: null, bookingId: null })}
-                  className="rounded-lg border border-gray-200 px-4 py-2"
-                >
-                Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => confirmDialog.bookingId && confirmDialog.action && handleAction(confirmDialog.bookingId, confirmDialog.action)}
-                  className="rounded-lg bg-red-600 px-4 py-2 text-white"
-                >
-                Yes, {confirmDialog.action}
-                </button>
-              </div>
+                </thead>
+                <tbody>
+                  {bookings.map((b) => (
+                    <tr
+                      key={b.id}
+                      className="border-b border-gray-50 last:border-0"
+                    >
+                      <td className="px-5 py-3.5 text-gray-500 font-mono text-xs">
+                        {b.id.slice(0, 8)}
+                      </td>
+                      <td className="px-5 py-3.5 text-gray-700">
+                        {b.workspace?.name ?? (
+                          <span className="text-gray-400 text-xs">
+                            {b.workspaceId.slice(0, 8)}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-5 py-3.5 text-gray-600 capitalize">
+                        {b.planType.toLowerCase()} × {b.seatCount}
+                      </td>
+                      <td className="px-5 py-3.5 text-gray-500 text-xs whitespace-nowrap">
+                        {formatDate(b.startDate)} → {formatDate(b.endDate)}
+                      </td>
+                      <td className="px-5 py-3.5 font-medium text-gray-900">
+                        {formatNaira(b.totalAmount)}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span
+                          className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                            STATUS_COLORS[b.status]
+                          }`}
+                        >
+                          {b.status}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        {confirmAction?.id === b.id ? (
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleAction(b.id, confirmAction.action)
+                              }
+                              disabled={updateStatus.isPending}
+                              className="text-xs px-2.5 py-1 rounded-md bg-gray-900 text-white disabled:opacity-50"
+                            >
+                              {updateStatus.isPending
+                                ? "..."
+                                : "Confirm"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmAction(null)}
+                              className="text-xs px-2.5 py-1 rounded-md border border-gray-200 text-gray-600"
+                            >
+                              No
+                            </button>
+                          </div>
+                        ) : (
+                          <select
+                            defaultValue=""
+                            className="text-xs border border-gray-200 rounded-md px-2 py-1 bg-white focus:outline-none"
+                            onChange={(e) => {
+                              const action = e.target.value as
+                                | "confirm"
+                                | "cancel"
+                                | "complete"
+                                | "";
+                              if (action) {
+                                setConfirmAction({ id: b.id, action });
+                                e.target.value = "";
+                              }
+                            }}
+                          >
+                            <option value="" disabled>
+                              Action
+                            </option>
+                            {b.status === "PENDING" && (
+                              <option value="confirm">Confirm</option>
+                            )}
+                            {b.status === "CONFIRMED" && (
+                              <option value="complete">Complete</option>
+                            )}
+                            {(b.status === "PENDING" ||
+                              b.status === "CONFIRMED") && (
+                              <option value="cancel">Cancel</option>
+                            )}
+                          </select>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
+
+            {/* Pagination */}
+            {meta && meta.totalPages > 1 && (
+              <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-between text-sm">
+                <p className="text-gray-400">
+                  Page {meta.page} of {meta.totalPages}
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    disabled={page <= 1}
+                    onClick={() => setPage((p) => p - 1)}
+                    className="p-1.5 rounded-md border border-gray-200 disabled:opacity-30 hover:bg-gray-50"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    disabled={page >= meta.totalPages}
+                    onClick={() => setPage((p) => p + 1)}
+                    className="p-1.5 rounded-md border border-gray-200 disabled:opacity-30 hover:bg-gray-50"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
     </DashboardLayout>
   );
 }

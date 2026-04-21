@@ -20,6 +20,12 @@ import { ForgotPasswordProvider } from './forgotPassword.provider';
 import { ResetPasswordProvider } from './resetPassword.provider';
 import { FindAllAdminsProvider } from './findAllAdmins.provider';
 import { FindAdminByIdProvider } from './findAdminById.provider';
+import { GetMembersProvider } from './get-members.provider';
+import { UpdateMemberStatusProvider } from './update-member-status.provider';
+import { GetMemberStatsProvider } from './get-member-stats.provider';
+import { MemberQueryDto } from '../dto/member-query.dto';
+import { MembershipStatus } from '../enums/membership-status.enum';
+import { computeProfileCompleteness } from '../utils/profile-completeness.util';
 
 @Injectable()
 export class UsersService {
@@ -51,6 +57,9 @@ export class UsersService {
 
     private readonly findAllAdminsProvider: FindAllAdminsProvider,
     private readonly findAdminByIdProvider: FindAdminByIdProvider,
+    private readonly getMembersProvider: GetMembersProvider,
+    private readonly updateMemberStatusProvider: UpdateMemberStatusProvider,
+    private readonly getMemberStatsProvider: GetMemberStatsProvider,
   ) {}
 
   // CREATE USER
@@ -165,5 +174,30 @@ export class UsersService {
   // RESET PASSWORD
   async resetPassword(token: string, newPassword: string) {
     return await this.resetPasswordProvider.execute(token, newPassword);
+  }
+
+  // MEMBERS
+  async getMembers(query: MemberQueryDto) {
+    return this.getMembersProvider.getMembers(query);
+  }
+
+  async updateMemberStatus(memberId: string, status: MembershipStatus) {
+    return this.updateMemberStatusProvider.updateStatus(memberId, status);
+  }
+
+  async getMemberStats() {
+    return this.getMemberStatsProvider.getStats();
+  }
+
+  async getMemberProfile(userId: string) {
+    const user = await this.findUserById(userId);
+    const completeness = computeProfileCompleteness(user);
+    if (user.profileCompleteness !== completeness) {
+      await this.usersRepository.update(user.id, {
+        profileCompleteness: completeness,
+      });
+      user.profileCompleteness = completeness;
+    }
+    return user;
   }
 }

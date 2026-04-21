@@ -13,15 +13,9 @@ export default function LoginPageRoute() {
     loginUser(data);
   };
 
-  const handleBiometricScan = () => {
-    console.log("Biometric scan initiated");
-    // TODO: Implement actual biometric authentication
-  };
-
   return (
     <LoginForm
       onEmailLogin={handleEmailLogin}
-      onBiometricScan={handleBiometricScan}
       isLoading={isPending}
     />
   );

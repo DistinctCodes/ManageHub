@@ -1,70 +1,56 @@
 import {
   Controller,
   Get,
-  Patch,
   Param,
-  Query,
   ParseUUIDPipe,
+  Patch,
+  Query,
+  UseGuards,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { NotificationsService } from './notifications.service';
 import { NotificationQueryDto } from './dto/notification-query.dto';
 import { GetCurrentUser } from '../auth/decorators/getCurrentUser.decorator';
+import { Roles } from '../auth/decorators/roles.decorators';
+import { RolesGuard } from '../auth/guard/roles.guard';
+import { UserRole } from '../users/enums/userRoles.enum';
 
-@ApiTags('notifications')
+@ApiTags('Notifications')
 @ApiBearerAuth()
+@UseGuards(RolesGuard)
+@Roles(UserRole.USER, UserRole.STAFF, UserRole.ADMIN, UserRole.SUPER_ADMIN)
 @Controller('notifications')
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
   @Get()
-  @ApiOperation({
-    summary: 'Get paginated notifications for the current member',
-    description:
-      'Returns a paginated list of notifications and a separate unreadCount for the bell badge.',
-  })
+  @ApiOperation({ summary: 'Get my notifications' })
   async findAll(
     @Query() query: NotificationQueryDto,
     @GetCurrentUser('id') userId: string,
   ) {
     const result = await this.notificationsService.findAll(userId, query);
-    return {
-      message: 'Notifications retrieved successfully',
-      data: result.data,
-      meta: result.meta,
-      unreadCount: result.unreadCount,
-    };
+    return { message: 'Notifications retrieved successfully', ...result };
   }
 
   @Patch(':id/read')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Mark a single notification as read',
-    description:
-      'Marks the notification with the given ID as read. Returns 403 if the notification does not belong to the requesting user.',
-  })
-  async markAsRead(
+  @ApiOperation({ summary: 'Mark a notification as read' })
+  async markRead(
     @Param('id', ParseUUIDPipe) id: string,
     @GetCurrentUser('id') userId: string,
   ) {
-    const notification = await this.notificationsService.markAsRead(id, userId);
-    return { message: 'Notification marked as read', data: notification };
+    await this.notificationsService.markRead(id, userId);
+    return { message: 'Notification marked as read' };
   }
 
   @Patch('read-all')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Mark all notifications as read',
-    description:
-      'Marks every unread notification belonging to the current user as read.',
-  })
-  async markAllAsRead(@GetCurrentUser('id') userId: string) {
-    const result = await this.notificationsService.markAllAsRead(userId);
-    return {
-      message: 'All notifications marked as read',
-      data: result,
-    };
+  @ApiOperation({ summary: 'Mark all my notifications as read' })
+  async markAllRead(@GetCurrentUser('id') userId: string) {
+    await this.notificationsService.markAllRead(userId);
+    return { message: 'All notifications marked as read' };
   }
 }

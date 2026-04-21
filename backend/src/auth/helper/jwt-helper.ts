@@ -4,6 +4,8 @@ import { UserMessages } from './user-messages';
 import { JwtPayload } from '../interface/user.interface';
 import { User } from '../../users/entities/user.entity';
 
+type TwoFaPendingPayload = { sub: string; type: '2fa_pending'; iat?: number; exp?: number };
+
 type JwtExpiry = `${number}${'s' | 'm' | 'h' | 'd'}` | number;
 
 @Injectable()
@@ -62,33 +64,24 @@ export class JwtHelper {
   }
 
   public generateTempToken(userId: string): string {
-    return this.jwtService.sign(
-      { sub: userId, type: '2fa-temp' },
-      {
-        secret: (process.env.JWT_TEMP_SECRET ??
-          process.env.JWT_SECRET) as string,
-        expiresIn: (process.env.JWT_TEMP_EXPIRATION ?? '10m') as JwtExpiry,
-      },
-    );
+    const payload: TwoFaPendingPayload = { sub: userId, type: '2fa_pending' };
+    return this.jwtService.sign(payload, {
+      secret: process.env.JWT_SECRET as string,
+      expiresIn: '5m' as any,
+    });
   }
 
-  public validateTempToken(tempToken: string): string {
+  public verifyTempToken(token: string): TwoFaPendingPayload {
     try {
-      const payload = this.jwtService.verify<JwtPayload & { type?: string }>(
-        tempToken,
-        {
-          secret: (process.env.JWT_TEMP_SECRET ??
-            process.env.JWT_SECRET) as string,
-        },
-      );
-
-      if (payload.type !== '2fa-temp' || !payload.sub) {
-        throw new UnauthorizedException('Invalid temp token');
+      const payload = this.jwtService.verify<TwoFaPendingPayload>(token, {
+        secret: process.env.JWT_SECRET as string,
+      });
+      if (payload.type !== '2fa_pending') {
+        throw new UnauthorizedException('Invalid token type');
       }
-
-      return payload.sub;
-    } catch (error) {
-      throw new UnauthorizedException('Invalid or expired temp token');
+      return payload;
+    } catch {
+      throw new UnauthorizedException('Invalid or expired 2FA token');
     }
   }
 }

@@ -46,12 +46,17 @@ export const useAuthStore = create<AuthStore>()(
           try {
             set({ isLoading: true });
 
-            const response = await apiClient.post<AuthResponse & { message?: string }>(
-              "/auth/login",
-              data
-            );
+            const response = await apiClient.post<
+              AuthResponse & { message?: string; requiresTwoFactor?: boolean; tempToken?: string }
+            >("/auth/login", data);
 
-            const { user, accessToken, message } = response;
+            const { user, accessToken, message, requiresTwoFactor, tempToken } = response;
+
+            // If 2FA is required, surface a typed error so useLoginUser can redirect
+            if (requiresTwoFactor && tempToken) {
+              set({ isLoading: false });
+              throw { twoFactorRequired: true, tempToken, email: data.email };
+            }
 
             // If user is not verified, the backend returns a message without accessToken
             if (!accessToken && message) {
@@ -150,8 +155,11 @@ export const useAuthStore = create<AuthStore>()(
           try {
             set({ isLoading: true });
 
+            const currentUser = get().user;
+            if (!currentUser) throw new Error("Not authenticated");
+
             const user = await apiClient.patch<User>(
-              "/users/profile",
+              `/users/${currentUser.id}`,
               userData
             );
 

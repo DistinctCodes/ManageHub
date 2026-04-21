@@ -6,6 +6,7 @@ import { queryKeys } from "@/lib/react-query/keys/queryKeys";
 import { Workspace, WorkspaceQuery } from "@/lib/types/workspace";
 
 interface WorkspacesResponse {
+  success: boolean;
   data: Workspace[];
   meta: {
     total: number;
@@ -15,27 +16,18 @@ interface WorkspacesResponse {
   };
 }
 
-export const useGetWorkspaces = ({
-  search,
-  type,
-  page = 1,
-  limit = 9,
-}: WorkspaceQuery) => {
-  const params = new URLSearchParams({
-    page: String(page),
-    limit: String(limit),
-  });
-
-  if (search) {
-    params.set("search", search);
-  }
-
-  if (type) {
-    params.set("type", type);
-  }
+export const useGetWorkspaces = (params: WorkspaceQuery = {}) => {
+  const queryString = new URLSearchParams(
+    Object.entries(params)
+      .filter(([, v]) => v !== undefined && v !== "")
+      .map(([k, v]) => [k, String(v)])
+  ).toString();
 
   return useQuery({
-    queryKey: queryKeys.workspaces.list({ search, type, page, limit }),
-    queryFn: () => apiClient.get<WorkspacesResponse>(`/workspaces?${params}`),
+    queryKey: queryKeys.workspaces.list(params),
+    queryFn: () =>
+      apiClient.get<WorkspacesResponse>(
+        `/workspaces${queryString ? `?${queryString}` : ""}`
+      ),
   });
 };

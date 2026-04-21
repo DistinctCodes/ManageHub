@@ -14,9 +14,9 @@ import { HashingProvider } from './providers/hashing.provider';
 import { GenerateTokensProvider } from './providers/generateTokens.provider';
 import { RefreshTokenRepositoryOperations } from './providers/refreshToken.repository';
 import { RefreshToken } from './entities/refreshToken.entity';
-import { SetupTotpProvider } from './providers/setupTotp.provider';
-import { VerifyTotpProvider } from './providers/verifyTotp.provider';
-import { ManageTotpProvider } from './providers/manageTotp.provider';
+import { SetupTotpProvider } from './providers/setup-totp.provider';
+import { VerifyTotpProvider } from './providers/verify-totp.provider';
+import { ManageTotpProvider } from './providers/manage-totp.provider';
 
 @Module({
   imports: [

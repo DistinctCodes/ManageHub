@@ -7,6 +7,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuthState, useAuthActions } from "@/lib/store/authStore";
 import { apiClient } from "@/lib/apiClient";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import TwoFactorModal from "@/components/settings/TwoFactorModal";
+import { use2faStatus } from "@/lib/react-query/hooks/two-factor/use2faStatus";
 import { Eye, EyeOff, Shield, Bell, Palette } from "lucide-react";
 
 /* ── Password change schema ── */
@@ -106,8 +108,12 @@ export default function SettingsPage() {
   const [emailNotif, setEmailNotif] = useState(true);
   const [inAppNotif, setInAppNotif] = useState(true);
 
-  /* ── 2FA (stub — backend has the column but no full flow yet) ── */
-  const [twoFactor, setTwoFactor] = useState(false);
+  /* ── 2FA ── */
+  const { data: twoFaData } = use2faStatus();
+  const twoFaEnabled = twoFaData?.data?.enabled ?? false;
+  const [twoFaModal, setTwoFaModal] = useState<"setup" | "disable" | null>(
+    null
+  );
 
   /* ── Danger zone ── */
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -259,9 +265,15 @@ export default function SettingsPage() {
           <div className="mt-6 pt-5 border-t border-gray-100">
             <ToggleRow
               label="Two-factor authentication"
-              description="Add an extra layer of security to your account (coming soon)"
-              checked={twoFactor}
-              onChange={setTwoFactor}
+              description={
+                twoFaEnabled
+                  ? `Enabled — ${twoFaData?.data?.backupCodesRemaining ?? 0} backup codes remaining`
+                  : "Add an extra layer of security using an authenticator app"
+              }
+              checked={twoFaEnabled}
+              onChange={() =>
+                setTwoFaModal(twoFaEnabled ? "disable" : "setup")
+              }
             />
           </div>
         </div>
@@ -355,6 +367,13 @@ export default function SettingsPage() {
           )}
         </div>
       </div>
+
+      {twoFaModal && (
+        <TwoFactorModal
+          mode={twoFaModal}
+          onClose={() => setTwoFaModal(null)}
+        />
+      )}
     </DashboardLayout>
   );
 }

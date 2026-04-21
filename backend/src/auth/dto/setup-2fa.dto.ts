@@ -1,7 +1,7 @@
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsString, Length } from 'class-validator';
 
 export class Setup2faDto {
   @IsString()
-  @IsNotEmpty()
+  @Length(6, 6)
   token: string;
 }

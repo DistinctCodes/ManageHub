@@ -1,330 +1,195 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Workspace } from '../../workspaces/entities/workspace.entity';
-import { WorkspaceLog } from '../../workspace-tracking/entities/workspace-log.entity';
+import { Repository, DataSource } from 'typeorm';
 import { Booking } from '../../bookings/entities/booking.entity';
 import { Payment } from '../../payments/entities/payment.entity';
-import { Invoice } from '../../payments/entities/invoice.entity';
-import { BookingStatus } from '../../bookings/enums/booking-status.enum';
+import { Invoice } from '../../invoices/entities/invoice.entity';
+import { WorkspaceLog } from '../../workspace-tracking/entities/workspace-log.entity';
+import { Workspace } from '../../workspaces/entities/workspace.entity';
+import { PaymentStatus } from '../../payments/enums/payment-status.enum';
+import { InvoiceStatus } from '../../invoices/enums/invoice-status.enum';
 
 @Injectable()
 export class AdminAnalyticsProvider {
   constructor(
-    @InjectRepository(Workspace)
-    private readonly workspaceRepository: Repository<Workspace>,
-    @InjectRepository(WorkspaceLog)
-    private readonly workspaceLogRepository: Repository<WorkspaceLog>,
     @InjectRepository(Booking)
-    private readonly bookingRepository: Repository<Booking>,
+    private readonly bookingsRepository: Repository<Booking>,
     @InjectRepository(Payment)
-    private readonly paymentRepository: Repository<Payment>,
+    private readonly paymentsRepository: Repository<Payment>,
     @InjectRepository(Invoice)
-    private readonly invoiceRepository: Repository<Invoice>,
+    private readonly invoicesRepository: Repository<Invoice>,
+    @InjectRepository(WorkspaceLog)
+    private readonly workspaceLogsRepository: Repository<WorkspaceLog>,
+    @InjectRepository(Workspace)
+    private readonly workspacesRepository: Repository<Workspace>,
+    private readonly dataSource: DataSource,
   ) {}
-
-  async getOccupancySnapshot() {
-    // Get total seats from all active workspaces
-    const activeWorkspacesResult = await this.workspaceRepository
-      .createQueryBuilder('workspace')
-      .select('COUNT(workspace.id)', 'activeWorkspaces')
-      .addSelect('SUM(workspace.totalSeats)', 'totalSeats')
-      .where('workspace.isActive = :isActive', { isActive: true })
-      .getRawOne();
-
-    const activeWorkspaces = parseInt(activeWorkspacesResult.activeWorkspaces) || 0;
-    const totalSeats = parseInt(activeWorkspacesResult.totalSeats) || 0;
-
-    // Get occupied seats (check-ins without check-outs)
-    const occupiedSeatsResult = await this.workspaceLogRepository
-      .createQueryBuilder('log')
-      .select('COUNT(log.id)', 'occupiedSeats')
-      .where('log.checkedOutAt IS NULL')
-      .getRawOne();
-
-    const occupiedSeats = parseInt(occupiedSeatsResult.occupiedSeats) || 0;
-    const availableSeats = totalSeats - occupiedSeats;
-    const occupancyPercent = totalSeats > 0 ? Math.round((occupiedSeats / totalSeats) * 100) : 0;
-
-    return {
-      totalSeats,
-      occupiedSeats,
-      availableSeats,
-      occupancyPercent,
-      activeWorkspaces,
-    };
-  }
 
   async getRevenueStats(from?: string, to?: string) {
     const now = new Date();
-    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
 
-    // Base query for successful payments
-    const baseQuery = this.paymentRepository
-      .createQueryBuilder('payment')
-      .where('payment.status = :status', { status: 'SUCCESSFUL' });
+    const qb = this.paymentsRepository
+      .createQueryBuilder('p')
+      .where('p.status = :status', { status: PaymentStatus.SUCCESS });
 
-    // Apply date range filters if provided
-    if (from) {
-      baseQuery.andWhere('payment.createdAt >= :from', { from });
-    }
-    if (to) {
-      baseQuery.andWhere('payment.createdAt <= :to', { to });
-    }
+    if (from) qb.andWhere('p.paidAt >= :from', { from });
+    if (to) qb.andWhere('p.paidAt <= :to', { to });
 
-    // Get total revenue (with date range filters)
-    const totalQuery = baseQuery.clone();
-    const totalResult = await totalQuery
-      .select('SUM(payment.amountKobo)', 'total')
-      .getRawOne();
-    const total = parseInt(totalResult.total) || 0;
+    const totalResult = await qb.select('COALESCE(SUM(p.amount), 0)', 'total').getRawOne<{ total: string }>();
 
-    // Get this month revenue (without date range filters for month calculation)
-    const thisMonthQuery = this.paymentRepository
-      .createQueryBuilder('payment')
-      .where('payment.status = :status', { status: 'SUCCESSFUL' })
-      .andWhere('payment.createdAt >= :thisMonthStart', { thisMonthStart: currentMonthStart });
-    
-    if (from && new Date(from) > currentMonthStart) {
-      thisMonthQuery.andWhere('payment.createdAt >= :from', { from });
-    }
-    if (to) {
-      thisMonthQuery.andWhere('payment.createdAt <= :to', { to });
-    }
+    const thisMonthResult = await this.paymentsRepository
+      .createQueryBuilder('p')
+      .where('p.status = :status', { status: PaymentStatus.SUCCESS })
+      .andWhere('p.paidAt >= :start', { start: thisMonthStart })
+      .select('COALESCE(SUM(p.amount), 0)', 'total')
+      .getRawOne<{ total: string }>();
 
-    const thisMonthResult = await thisMonthQuery
-      .select('SUM(payment.amountKobo)', 'thisMonth')
-      .getRawOne();
-    const thisMonthRevenue = parseInt(thisMonthResult.thisMonth) || 0;
+    const lastMonthResult = await this.paymentsRepository
+      .createQueryBuilder('p')
+      .where('p.status = :status', { status: PaymentStatus.SUCCESS })
+      .andWhere('p.paidAt >= :start', { start: lastMonthStart })
+      .andWhere('p.paidAt <= :end', { end: lastMonthEnd })
+      .select('COALESCE(SUM(p.amount), 0)', 'total')
+      .getRawOne<{ total: string }>();
 
-    // Get last month revenue (without date range filters for month calculation)
-    const lastMonthQuery = this.paymentRepository
-      .createQueryBuilder('payment')
-      .where('payment.status = :status', { status: 'SUCCESSFUL' })
-      .andWhere('payment.createdAt >= :lastMonthStart', { lastMonthStart })
-      .andWhere('payment.createdAt <= :lastMonthEnd', { lastMonthEnd });
-
-    const lastMonthResult = await lastMonthQuery
-      .select('SUM(payment.amountKobo)', 'lastMonth')
-      .getRawOne();
-    const lastMonthRevenue = parseInt(lastMonthResult.lastMonth) || 0;
-
-    // Get 6-month trend
-    const trendQuery = this.paymentRepository
-      .createQueryBuilder('payment')
-      .select("DATE_TRUNC('month', payment.createdAt)", 'month')
-      .addSelect('SUM(payment.amountKobo)', 'totalKobo')
-      .where('payment.status = :status', { status: 'SUCCESSFUL' })
-      .andWhere('payment.createdAt >= NOW() - INTERVAL \'6 months\'')
-      .groupBy("DATE_TRUNC('month', payment.createdAt)")
-      .orderBy("DATE_TRUNC('month', payment.createdAt)", 'ASC');
-
-    // Apply date range filters to trend if provided
-    if (from) {
-      trendQuery.andWhere('payment.createdAt >= :from', { from });
-    }
-    if (to) {
-      trendQuery.andWhere('payment.createdAt <= :to', { to });
-    }
-
-    const trendResults = await trendQuery.getRawMany();
-    const trend = trendResults.map(result => ({
-      month: result.month,
-      totalKobo: parseInt(result.totalKobo) || 0,
-      totalNaira: Math.round((parseInt(result.totalKobo) || 0) / 100),
-    }));
+    // 6-month trend
+    const trend = await this.dataSource.query<{ month: string; total: string }[]>(`
+      SELECT DATE_TRUNC('month', "paidAt") AS month, COALESCE(SUM(amount), 0) AS total
+      FROM payments
+      WHERE status = 'SUCCESS' AND "paidAt" >= NOW() - INTERVAL '6 months'
+      GROUP BY month
+      ORDER BY month ASC
+    `);
 
     return {
-      total,
-      thisMonth: thisMonthRevenue,
-      lastMonth: lastMonthRevenue,
-      trend,
+      total: Number(totalResult?.total ?? 0),
+      thisMonth: Number(thisMonthResult?.total ?? 0),
+      lastMonth: Number(lastMonthResult?.total ?? 0),
+      trend: trend.map((r) => ({
+        month: new Date(r.month).toLocaleString('en', { month: 'short', year: 'numeric' }),
+        totalKobo: Number(r.total),
+        totalNaira: Number(r.total) / 100,
+      })),
     };
   }
 
   async getBookingStats(from?: string, to?: string) {
-    // Get booking counts by status
-    const statusQuery = this.bookingRepository
-      .createQueryBuilder('booking')
-      .select('booking.status', 'status')
-      .addSelect('COUNT(booking.id)', 'count')
-      .groupBy('booking.status');
+    const qb = this.bookingsRepository.createQueryBuilder('b');
+    if (from) qb.where('b.createdAt >= :from', { from });
+    if (to) qb.andWhere('b.createdAt <= :to', { to });
 
-    if (from) {
-      statusQuery.andWhere('booking.createdAt >= :from', { from });
-    }
-    if (to) {
-      statusQuery.andWhere('booking.createdAt <= :to', { to });
-    }
+    const statusCounts = await qb
+      .select('b.status', 'status')
+      .addSelect('COUNT(*)', 'count')
+      .groupBy('b.status')
+      .getRawMany<{ status: string; count: string }>();
 
-    const statusResults = await statusQuery.getRawMany();
-    const byStatus = statusResults.reduce((acc, result) => {
-      acc[result.status] = parseInt(result.count);
-      return acc;
-    }, {} as Record<string, number>);
-
-    // Get monthly trend for last 6 months
-    const trendQuery = this.bookingRepository
-      .createQueryBuilder('booking')
-      .select("DATE_TRUNC('month', booking.createdAt)", 'month')
-      .addSelect('COUNT(booking.id)', 'count')
-      .where('booking.createdAt >= NOW() - INTERVAL \'6 months\'')
-      .groupBy("DATE_TRUNC('month', booking.createdAt)")
-      .orderBy("DATE_TRUNC('month', booking.createdAt)", 'ASC');
-
-    if (from) {
-      trendQuery.andWhere('booking.createdAt >= :from', { from });
-    }
-    if (to) {
-      trendQuery.andWhere('booking.createdAt <= :to', { to });
-    }
-
-    const trendResults = await trendQuery.getRawMany();
-    const trend = trendResults.map(result => ({
-      month: result.month,
-      count: parseInt(result.count),
-    }));
+    const trend = await this.dataSource.query<{ month: string; count: string }[]>(`
+      SELECT DATE_TRUNC('month', "createdAt") AS month, COUNT(*) AS count
+      FROM bookings
+      WHERE "createdAt" >= NOW() - INTERVAL '6 months'
+      GROUP BY month
+      ORDER BY month ASC
+    `);
 
     return {
-      byStatus,
-      trend,
+      byStatus: statusCounts.reduce(
+        (acc, r) => ({ ...acc, [r.status]: Number(r.count) }),
+        {} as Record<string, number>,
+      ),
+      trend: trend.map((r) => ({
+        month: new Date(r.month).toLocaleString('en', { month: 'short', year: 'numeric' }),
+        count: Number(r.count),
+      })),
     };
   }
 
-  async getTopWorkspaces(limit = 5, from?: string, to?: string) {
-    const query = this.workspaceRepository
-      .createQueryBuilder('workspace')
-      .leftJoin('booking', 'booking', 'booking.workspaceId = workspace.id')
-      .leftJoin('payment', 'payment', 'payment.bookingId = booking.id AND payment.status = :paymentStatus', { paymentStatus: 'SUCCESSFUL' })
-      .select('workspace.id', 'id')
-      .addSelect('workspace.name', 'name')
-      .addSelect('COUNT(DISTINCT booking.id)', 'bookings')
-      .addSelect('COALESCE(SUM(payment.amountKobo), 0)', 'revenueKobo')
-      .where('workspace.isActive = :isActive', { isActive: true })
-      .groupBy('workspace.id, workspace.name')
-      .orderBy('COUNT(DISTINCT booking.id)', 'DESC')
-      .limit(limit);
-
-    if (from) {
-      query.andWhere('booking.createdAt >= :from', { from });
-    }
-    if (to) {
-      query.andWhere('booking.createdAt <= :to', { to });
-    }
-
-    const results = await query.getRawMany();
-    return results.map(result => ({
-      id: result.id,
-      name: result.name,
-      bookings: parseInt(result.bookings) || 0,
-      revenueKobo: parseInt(result.revenueKobo) || 0,
-    }));
+  async getTopWorkspaces(limit = 5) {
+    return this.dataSource.query<{ id: string; name: string; bookings: string; revenueKobo: string }[]>(`
+      SELECT w.id, w.name,
+             COUNT(b.id) AS bookings,
+             COALESCE(SUM(p.amount), 0) AS "revenueKobo"
+      FROM workspaces w
+      LEFT JOIN bookings b ON b."workspaceId" = w.id
+      LEFT JOIN payments p ON p."bookingId" = b.id AND p.status = 'SUCCESS'
+      GROUP BY w.id, w.name
+      ORDER BY bookings DESC
+      LIMIT $1
+    `, [limit]);
   }
 
-  async getTopMembers(limit = 5, from?: string, to?: string) {
-    const query = this.paymentRepository
-      .createQueryBuilder('payment')
-      .leftJoin('user', 'user', 'user.id = payment.userId')
-      .select('user.id', 'id')
-      .addSelect("user.firstname || ' ' || user.lastname", 'fullName')
-      .addSelect('SUM(payment.amountKobo)', 'totalKobo')
-      .where('payment.status = :status', { status: 'SUCCESSFUL' })
-      .groupBy('user.id, user.firstname, user.lastname')
-      .orderBy('SUM(payment.amountKobo)', 'DESC')
-      .limit(limit);
-
-    if (from) {
-      query.andWhere('payment.createdAt >= :from', { from });
-    }
-    if (to) {
-      query.andWhere('payment.createdAt <= :to', { to });
-    }
-
-    const results = await query.getRawMany();
-    return results.map(result => ({
-      id: result.id,
-      fullName: result.fullName || 'Unknown User',
-      totalKobo: parseInt(result.totalKobo) || 0,
-    }));
+  async getTopMembers(limit = 5) {
+    return this.dataSource.query<{ id: string; fullName: string; totalKobo: string }[]>(`
+      SELECT u.id,
+             CONCAT(u.firstname, ' ', u.lastname) AS "fullName",
+             COALESCE(SUM(p.amount), 0) AS "totalKobo"
+      FROM users u
+      LEFT JOIN payments p ON p."userId" = u.id AND p.status = 'SUCCESS'
+      GROUP BY u.id, u.firstname, u.lastname
+      ORDER BY "totalKobo" DESC
+      LIMIT $1
+    `, [limit]);
   }
 
   async getInvoiceStats(from?: string, to?: string) {
-    const baseQuery = this.invoiceRepository.createQueryBuilder('invoice');
+    const qb = this.invoicesRepository.createQueryBuilder('i');
+    if (from) qb.where('i.createdAt >= :from', { from });
+    if (to) qb.andWhere('i.createdAt <= :to', { to });
 
-    // Apply date range filters if provided
-    if (from) {
-      baseQuery.andWhere('invoice.createdAt >= :from', { from });
-    }
-    if (to) {
-      baseQuery.andWhere('invoice.createdAt <= :to', { to });
-    }
-
-    // Get total count
-    const totalQuery = baseQuery.clone();
-    const totalResult = await totalQuery
-      .select('COUNT(invoice.id)', 'total')
-      .getRawOne();
-    const total = parseInt(totalResult.total) || 0;
-
-    // Get paid count
-    const paidQuery = baseQuery.clone();
-    const paidResult = await paidQuery
-      .select('COUNT(invoice.id)', 'paid')
-      .where('invoice.status = :status', { status: 'PAID' })
-      .getRawOne();
-    const paid = parseInt(paidResult.paid) || 0;
-
-    // Get pending count
-    const pendingQuery = baseQuery.clone();
-    const pendingResult = await pendingQuery
-      .select('COUNT(invoice.id)', 'pending')
-      .where('invoice.status = :status', { status: 'PENDING' })
-      .getRawOne();
-    const pending = parseInt(pendingResult.pending) || 0;
-
-    // Get total amount
-    const amountQuery = baseQuery.clone();
-    const amountResult = await amountQuery
-      .select('SUM(invoice.amountKobo)', 'totalAmountKobo')
-      .getRawOne();
-    const totalAmountKobo = parseInt(amountResult.totalAmountKobo) || 0;
-    const totalAmountNaira = Math.round(totalAmountKobo / 100);
+    const [total, totalAmount, paid, pending] = await Promise.all([
+      qb.clone().getCount(),
+      qb.clone().select('COALESCE(SUM(i.amountKobo), 0)', 'total').getRawOne<{ total: string }>(),
+      qb.clone().andWhere('i.status = :s', { s: InvoiceStatus.PAID }).getCount(),
+      qb.clone().andWhere('i.status = :s', { s: InvoiceStatus.PENDING }).getCount(),
+    ]);
 
     return {
       total,
+      totalAmountKobo: Number(totalAmount?.total ?? 0),
+      totalAmountNaira: Number(totalAmount?.total ?? 0) / 100,
       paid,
       pending,
-      totalAmountKobo,
-      totalAmountNaira,
+    };
+  }
+
+  async getOccupancySnapshot() {
+    const [totalSeats, activeCheckIns, totalWorkspaces] = await Promise.all([
+      this.workspacesRepository
+        .createQueryBuilder('w')
+        .where('w.isActive = true')
+        .select('COALESCE(SUM(w.totalSeats), 0)', 'total')
+        .getRawOne<{ total: string }>(),
+      this.workspaceLogsRepository
+        .createQueryBuilder('l')
+        .where('l.checkedOutAt IS NULL')
+        .getCount(),
+      this.workspacesRepository.count({ where: { isActive: true } }),
+    ]);
+
+    const total = Number(totalSeats?.total ?? 0);
+    return {
+      totalSeats: total,
+      occupiedSeats: activeCheckIns,
+      availableSeats: Math.max(0, total - activeCheckIns),
+      occupancyPercent: total > 0 ? Math.round((activeCheckIns / total) * 100) : 0,
+      activeWorkspaces: totalWorkspaces,
     };
   }
 
   async getFullAdminDashboard(from?: string, to?: string) {
-    const [
-      revenue,
-      bookings,
-      topWorkspaces,
-      topMembers,
-      invoices,
-      occupancy,
-    ] = await Promise.all([
-      this.getRevenueStats(from, to),
-      this.getBookingStats(from, to),
-      this.getTopWorkspaces(5, from, to),
-      this.getTopMembers(5, from, to),
-      this.getInvoiceStats(from, to),
-      this.getOccupancySnapshot(),
-    ]);
+    const [revenue, bookings, topWorkspaces, topMembers, invoices, occupancy] =
+      await Promise.all([
+        this.getRevenueStats(from, to),
+        this.getBookingStats(from, to),
+        this.getTopWorkspaces(),
+        this.getTopMembers(),
+        this.getInvoiceStats(from, to),
+        this.getOccupancySnapshot(),
+      ]);
 
-    return {
-      revenue,
-      bookings,
-      topWorkspaces,
-      topMembers,
-      invoices,
-      occupancy,
-    };
+    return { revenue, bookings, topWorkspaces, topMembers, invoices, occupancy };
   }
 }

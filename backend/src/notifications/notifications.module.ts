@@ -1,26 +1,32 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { JwtModule } from '@nestjs/jwt';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { Notification } from './entities/notification.entity';
 import { NotificationsService } from './notifications.service';
 import { NotificationsController } from './notifications.controller';
+import { NotificationsGateway } from './gateway/notifications.gateway';
 import { CreateNotificationProvider } from './providers/create-notification.provider';
-import { GetNotificationsProvider } from './providers/get-notifications.provider';
-import { MarkNotificationReadProvider } from './providers/mark-notification-read.provider';
+import { FindNotificationsProvider } from './providers/find-notifications.provider';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Notification])],
+  imports: [
+    TypeOrmModule.forFeature([Notification]),
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => ({
+        secret: configService.get<string>('JWT_SECRET'),
+      }),
+      inject: [ConfigService],
+    }),
+  ],
   controllers: [NotificationsController],
   providers: [
     NotificationsService,
+    NotificationsGateway,
     CreateNotificationProvider,
-    GetNotificationsProvider,
-    MarkNotificationReadProvider,
+    FindNotificationsProvider,
   ],
-  /**
-   * CreateNotificationProvider is exported so that other modules
-   * (e.g. BookingsModule, PaymentsModule) can inject it to fire
-   * in-app notifications after key events without duplicating logic.
-   */
-  exports: [CreateNotificationProvider],
+  exports: [NotificationsService],
 })
 export class NotificationsModule {}
