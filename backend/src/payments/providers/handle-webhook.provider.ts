@@ -67,7 +67,9 @@ export class HandleWebhookProvider {
     const reference = data?.reference as string;
 
     if (!reference) {
-      this.logger.warn(`Webhook event "${eventType}" has no reference — skipped`);
+      this.logger.warn(
+        `Webhook event "${eventType}" has no reference — skipped`,
+      );
       return;
     }
 
@@ -89,12 +91,16 @@ export class HandleWebhookProvider {
     });
 
     if (!payment) {
-      this.logger.warn(`charge.success: no payment found for reference ${reference}`);
+      this.logger.warn(
+        `charge.success: no payment found for reference ${reference}`,
+      );
       return;
     }
 
     if (payment.status === PaymentStatus.SUCCESS) {
-      this.logger.log(`charge.success: payment ${payment.id} already succeeded — idempotent skip`);
+      this.logger.log(
+        `charge.success: payment ${payment.id} already succeeded — idempotent skip`,
+      );
       return;
     }
 
@@ -164,7 +170,9 @@ export class HandleWebhookProvider {
     });
 
     if (!payment) {
-      this.logger.warn(`charge.failed: no payment found for reference ${reference}`);
+      this.logger.warn(
+        `charge.failed: no payment found for reference ${reference}`,
+      );
       return;
     }
 

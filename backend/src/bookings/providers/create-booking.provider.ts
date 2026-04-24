@@ -40,9 +40,7 @@ export class CreateBookingProvider {
         .getOne();
 
       if (!workspace) {
-        throw new NotFoundException(
-          `Workspace "${dto.workspaceId}" not found`,
-        );
+        throw new NotFoundException(`Workspace "${dto.workspaceId}" not found`);
       }
       if (!workspace.isActive) {
         throw new BadRequestException('Workspace is not active');

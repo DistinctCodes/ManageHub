@@ -60,7 +60,10 @@ export class MemberDashboardProvider {
       skip: (page - 1) * limit,
       take: limit,
     });
-    return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
   }
 
   async getMemberPayments(userId: string, page: number, limit: number) {
@@ -70,7 +73,10 @@ export class MemberDashboardProvider {
       skip: (page - 1) * limit,
       take: limit,
     });
-    return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
   }
 
   async getMemberInvoices(userId: string, page: number, limit: number) {
@@ -80,7 +86,10 @@ export class MemberDashboardProvider {
       skip: (page - 1) * limit,
       take: limit,
     });
-    return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
   }
 
   async getMemberCheckIns(userId: string, limit: number) {
@@ -97,6 +106,10 @@ export class MemberDashboardProvider {
       this.getMemberBookings(userId, 1, 5),
       this.getMemberPayments(userId, 1, 5),
     ]);
-    return { stats, recentBookings: recentBookings.data, recentPayments: recentPayments.data };
+    return {
+      stats,
+      recentBookings: recentBookings.data,
+      recentPayments: recentPayments.data,
+    };
   }
 }

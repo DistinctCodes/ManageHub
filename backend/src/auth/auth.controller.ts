@@ -81,9 +81,7 @@ export class AuthController {
   @Public()
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
-  forgotPassword(
-    @Body() sendPasswordResetOtpDto: SendPasswordResetOtpDto,
-  ) {
+  forgotPassword(@Body() sendPasswordResetOtpDto: SendPasswordResetOtpDto) {
     return this.authService.requestResetPasswordOtp(sendPasswordResetOtpDto);
   }
 
@@ -126,10 +124,7 @@ export class AuthController {
   @Post('2fa/confirm')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
-  confirm2fa(
-    @GetCurrentUser('id') userId: string,
-    @Body() dto: Setup2faDto,
-  ) {
+  confirm2fa(@GetCurrentUser('id') userId: string, @Body() dto: Setup2faDto) {
     return this.authService.confirm2fa(userId, dto);
   }
 
@@ -150,10 +145,7 @@ export class AuthController {
   @Post('2fa/disable')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
-  disable2fa(
-    @GetCurrentUser('id') userId: string,
-    @Body() dto: Disable2faDto,
-  ) {
+  disable2fa(@GetCurrentUser('id') userId: string, @Body() dto: Disable2faDto) {
     return this.authService.disable2fa(userId, dto);
   }
 

@@ -27,7 +27,11 @@ export class PaystackProvider {
     reference: string,
     callbackUrl: string,
     metadata?: Record<string, unknown>,
-  ): Promise<{ authorization_url: string; access_code: string; reference: string }> {
+  ): Promise<{
+    authorization_url: string;
+    access_code: string;
+    reference: string;
+  }> {
     const { data } = await axios.post(
       `${PAYSTACK_BASE}/transaction/initialize`,
       {
@@ -54,14 +58,14 @@ export class PaystackProvider {
     transactionReference: string,
     amountKobo?: number,
   ): Promise<Record<string, unknown>> {
-    const payload: Record<string, unknown> = { transaction: transactionReference };
+    const payload: Record<string, unknown> = {
+      transaction: transactionReference,
+    };
     if (amountKobo) payload.amount = amountKobo;
 
-    const { data } = await axios.post(
-      `${PAYSTACK_BASE}/refund`,
-      payload,
-      { headers: this.headers },
-    );
+    const { data } = await axios.post(`${PAYSTACK_BASE}/refund`, payload, {
+      headers: this.headers,
+    });
     return data.data as Record<string, unknown>;
   }
 

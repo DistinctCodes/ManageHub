@@ -11,7 +11,12 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { BookingsService } from './bookings.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { BookingQueryDto } from './dto/booking-query.dto';
@@ -38,7 +43,9 @@ export class BookingsController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'List bookings (own for users, all for admin/staff)' })
+  @ApiOperation({
+    summary: 'List bookings (own for users, all for admin/staff)',
+  })
   async findAll(
     @Query() query: BookingQueryDto,
     @GetCurrentUser('id') userId: string,

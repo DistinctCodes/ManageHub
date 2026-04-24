@@ -11,7 +11,10 @@ export class UpdateMemberStatusProvider {
     private readonly usersRepository: Repository<User>,
   ) {}
 
-  async updateStatus(memberId: string, status: MembershipStatus): Promise<User> {
+  async updateStatus(
+    memberId: string,
+    status: MembershipStatus,
+  ): Promise<User> {
     const user = await this.usersRepository.findOne({
       where: { id: memberId },
     });

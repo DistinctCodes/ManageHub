@@ -17,11 +17,7 @@ export class InvoicesService {
     return this.generateInvoiceProvider.generateForPayment(paymentId);
   }
 
-  findAll(
-    query: InvoiceQueryDto,
-    userId: string,
-    userRole: UserRole,
-  ) {
+  findAll(query: InvoiceQueryDto, userId: string, userRole: UserRole) {
     return this.findInvoicesProvider.findAll(query, userId, userRole);
   }
 

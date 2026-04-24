@@ -1,4 +1,11 @@
-import { IsEnum, IsInt, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import {
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Min,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { BookingStatus } from '../enums/booking-status.enum';
 import { ApiPropertyOptional } from '@nestjs/swagger';

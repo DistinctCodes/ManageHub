@@ -25,6 +25,10 @@ import { Workspace } from '../workspaces/entities/workspace.entity';
     ]),
   ],
   controllers: [DashboardController],
-  providers: [DashboardService, AdminAnalyticsProvider, MemberDashboardProvider],
+  providers: [
+    DashboardService,
+    AdminAnalyticsProvider,
+    MemberDashboardProvider,
+  ],
 })
 export class DashboardModule {}

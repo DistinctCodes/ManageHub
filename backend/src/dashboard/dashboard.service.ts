@@ -33,7 +33,10 @@ export class DashboardService {
       totalMembers,
       verifiedMembers,
       activeWorkspaces: 1, // placeholder until workspaces entity exists
-      deskOccupancy: Math.min(Math.round((verifiedMembers / Math.max(totalMembers, 1)) * 100), 100),
+      deskOccupancy: Math.min(
+        Math.round((verifiedMembers / Math.max(totalMembers, 1)) * 100),
+        100,
+      ),
     };
   }
 
@@ -44,7 +47,14 @@ export class DashboardService {
     const recentUsers = await this.userRepository.find({
       order: { createdAt: 'DESC' },
       take: 10,
-      select: ['id', 'firstname', 'lastname', 'email', 'createdAt', 'isVerified'],
+      select: [
+        'id',
+        'firstname',
+        'lastname',
+        'email',
+        'createdAt',
+        'isVerified',
+      ],
     });
 
     return recentUsers.map((u) => ({
@@ -75,8 +85,12 @@ export class DashboardService {
       newSubscribersThisMonth,
     ] = await Promise.all([
       this.userRepository.count({ where: { isDeleted: false } }),
-      this.userRepository.count({ where: { isActive: true, isDeleted: false } }),
-      this.userRepository.count({ where: { isSuspended: true, isDeleted: false } }),
+      this.userRepository.count({
+        where: { isActive: true, isDeleted: false },
+      }),
+      this.userRepository.count({
+        where: { isSuspended: true, isDeleted: false },
+      }),
       this.userRepository.count({
         where: { createdAt: MoreThanOrEqual(thirtyDaysAgo), isDeleted: false },
       }),
@@ -185,7 +199,14 @@ export class DashboardService {
 
     for (let i = months - 1; i >= 0; i--) {
       const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59);
+      const end = new Date(
+        now.getFullYear(),
+        now.getMonth() - i + 1,
+        0,
+        23,
+        59,
+        59,
+      );
 
       const count = await this.userRepository.count({
         where: {

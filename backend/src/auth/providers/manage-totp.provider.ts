@@ -17,7 +17,10 @@ export class ManageTotpProvider {
     const user = await this.usersRepository.findOne({ where: { id: userId } });
     if (!user) throw new UnauthorizedException('User not found');
 
-    const passwordValid = await this.hashingProvider.compare(dto.password, user.password);
+    const passwordValid = await this.hashingProvider.compare(
+      dto.password,
+      user.password,
+    );
     if (!passwordValid) {
       throw new UnauthorizedException('Invalid password');
     }

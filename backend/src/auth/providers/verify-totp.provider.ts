@@ -18,7 +18,9 @@ export class VerifyTotpProvider {
 
   async verifyTotpLogin(dto: VerifyTotpDto) {
     const payload = this.jwtHelper.verifyTempToken(dto.tempToken);
-    const user = await this.usersRepository.findOne({ where: { id: payload.sub } });
+    const user = await this.usersRepository.findOne({
+      where: { id: payload.sub },
+    });
     if (!user || !user.totpSecret) {
       throw new UnauthorizedException('User not found or 2FA not set up');
     }
@@ -29,19 +31,29 @@ export class VerifyTotpProvider {
     }
 
     const tokens = this.jwtHelper.generateTokens(user);
-    return { user: { id: user.id, email: user.email, role: user.role }, ...tokens };
+    return {
+      user: { id: user.id, email: user.email, role: user.role },
+      ...tokens,
+    };
   }
 
   async verifyBackupCode(dto: UseBackupCodeDto) {
     const payload = this.jwtHelper.verifyTempToken(dto.tempToken);
-    const user = await this.usersRepository.findOne({ where: { id: payload.sub } });
+    const user = await this.usersRepository.findOne({
+      where: { id: payload.sub },
+    });
     if (!user || !user.totpBackupCodes?.length) {
-      throw new UnauthorizedException('User not found or no backup codes available');
+      throw new UnauthorizedException(
+        'User not found or no backup codes available',
+      );
     }
 
     let matchedIndex = -1;
     for (let i = 0; i < user.totpBackupCodes.length; i++) {
-      const match = await bcrypt.compare(dto.backupCode, user.totpBackupCodes[i]);
+      const match = await bcrypt.compare(
+        dto.backupCode,
+        user.totpBackupCodes[i],
+      );
       if (match) {
         matchedIndex = i;
         break;
@@ -53,7 +65,9 @@ export class VerifyTotpProvider {
     }
 
     // Remove the used code
-    user.totpBackupCodes = user.totpBackupCodes.filter((_, i) => i !== matchedIndex);
+    user.totpBackupCodes = user.totpBackupCodes.filter(
+      (_, i) => i !== matchedIndex,
+    );
     await this.usersRepository.save(user);
 
     const tokens = this.jwtHelper.generateTokens(user);
