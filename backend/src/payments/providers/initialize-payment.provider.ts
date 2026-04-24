@@ -30,7 +30,11 @@ export class InitializePaymentProvider {
   async initialize(
     bookingId: string,
     userId: string,
-  ): Promise<{ paymentId: string; authorizationUrl: string; reference: string }> {
+  ): Promise<{
+    paymentId: string;
+    authorizationUrl: string;
+    reference: string;
+  }> {
     const booking = await this.bookingsRepository.findOne({
       where: { id: bookingId, userId },
     });

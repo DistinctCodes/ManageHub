@@ -48,10 +48,7 @@ export class PdfInvoiceProvider {
         `Date: ${invoice.createdAt ? new Date(invoice.createdAt).toLocaleDateString() : '—'}`,
         { align: 'right' },
       )
-      .text(
-        `Status: ${invoice.status.toUpperCase()}`,
-        { align: 'right' },
-      )
+      .text(`Status: ${invoice.status.toUpperCase()}`, { align: 'right' })
       .moveDown(2);
 
     // Divider
@@ -98,12 +95,9 @@ export class PdfInvoiceProvider {
           doc
             .fontSize(9)
             .fillColor('#666666')
-            .text(
-              `${item['startDate']} → ${item['endDate']}`,
-              50,
-              doc.y,
-              { width: 300 },
-            )
+            .text(`${item['startDate']} → ${item['endDate']}`, 50, doc.y, {
+              width: 300,
+            })
             .fillColor('#000000')
             .fontSize(10);
         }

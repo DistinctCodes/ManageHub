@@ -25,8 +25,14 @@ export class FindBookingsProvider {
     userId: string,
     userRole: UserRole,
   ): Promise<PaginatedBookings> {
-    const { page = 1, limit = 20, status, workspaceId, startDate, endDate } =
-      query;
+    const {
+      page = 1,
+      limit = 20,
+      status,
+      workspaceId,
+      startDate,
+      endDate,
+    } = query;
 
     const isAdmin =
       userRole === UserRole.ADMIN ||

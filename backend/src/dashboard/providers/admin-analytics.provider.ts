@@ -29,7 +29,14 @@ export class AdminAnalyticsProvider {
     const now = new Date();
     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+    const lastMonthEnd = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      0,
+      23,
+      59,
+      59,
+    );
 
     const qb = this.paymentsRepository
       .createQueryBuilder('p')
@@ -38,7 +45,9 @@ export class AdminAnalyticsProvider {
     if (from) qb.andWhere('p.paidAt >= :from', { from });
     if (to) qb.andWhere('p.paidAt <= :to', { to });
 
-    const totalResult = await qb.select('COALESCE(SUM(p.amount), 0)', 'total').getRawOne<{ total: string }>();
+    const totalResult = await qb
+      .select('COALESCE(SUM(p.amount), 0)', 'total')
+      .getRawOne<{ total: string }>();
 
     const thisMonthResult = await this.paymentsRepository
       .createQueryBuilder('p')
@@ -56,7 +65,9 @@ export class AdminAnalyticsProvider {
       .getRawOne<{ total: string }>();
 
     // 6-month trend
-    const trend = await this.dataSource.query<{ month: string; total: string }[]>(`
+    const trend = await this.dataSource.query<
+      { month: string; total: string }[]
+    >(`
       SELECT DATE_TRUNC('month', "paidAt") AS month, COALESCE(SUM(amount), 0) AS total
       FROM payments
       WHERE status = 'SUCCESS' AND "paidAt" >= NOW() - INTERVAL '6 months'
@@ -69,7 +80,10 @@ export class AdminAnalyticsProvider {
       thisMonth: Number(thisMonthResult?.total ?? 0),
       lastMonth: Number(lastMonthResult?.total ?? 0),
       trend: trend.map((r) => ({
-        month: new Date(r.month).toLocaleString('en', { month: 'short', year: 'numeric' }),
+        month: new Date(r.month).toLocaleString('en', {
+          month: 'short',
+          year: 'numeric',
+        }),
         totalKobo: Number(r.total),
         totalNaira: Number(r.total) / 100,
       })),
@@ -87,7 +101,9 @@ export class AdminAnalyticsProvider {
       .groupBy('b.status')
       .getRawMany<{ status: string; count: string }>();
 
-    const trend = await this.dataSource.query<{ month: string; count: string }[]>(`
+    const trend = await this.dataSource.query<
+      { month: string; count: string }[]
+    >(`
       SELECT DATE_TRUNC('month', "createdAt") AS month, COUNT(*) AS count
       FROM bookings
       WHERE "createdAt" >= NOW() - INTERVAL '6 months'
@@ -101,14 +117,20 @@ export class AdminAnalyticsProvider {
         {} as Record<string, number>,
       ),
       trend: trend.map((r) => ({
-        month: new Date(r.month).toLocaleString('en', { month: 'short', year: 'numeric' }),
+        month: new Date(r.month).toLocaleString('en', {
+          month: 'short',
+          year: 'numeric',
+        }),
         count: Number(r.count),
       })),
     };
   }
 
   async getTopWorkspaces(limit = 5) {
-    return this.dataSource.query<{ id: string; name: string; bookings: string; revenueKobo: string }[]>(`
+    return this.dataSource.query<
+      { id: string; name: string; bookings: string; revenueKobo: string }[]
+    >(
+      `
       SELECT w.id, w.name,
              COUNT(b.id) AS bookings,
              COALESCE(SUM(p.amount), 0) AS "revenueKobo"
@@ -118,11 +140,16 @@ export class AdminAnalyticsProvider {
       GROUP BY w.id, w.name
       ORDER BY bookings DESC
       LIMIT $1
-    `, [limit]);
+    `,
+      [limit],
+    );
   }
 
   async getTopMembers(limit = 5) {
-    return this.dataSource.query<{ id: string; fullName: string; totalKobo: string }[]>(`
+    return this.dataSource.query<
+      { id: string; fullName: string; totalKobo: string }[]
+    >(
+      `
       SELECT u.id,
              CONCAT(u.firstname, ' ', u.lastname) AS "fullName",
              COALESCE(SUM(p.amount), 0) AS "totalKobo"
@@ -131,7 +158,9 @@ export class AdminAnalyticsProvider {
       GROUP BY u.id, u.firstname, u.lastname
       ORDER BY "totalKobo" DESC
       LIMIT $1
-    `, [limit]);
+    `,
+      [limit],
+    );
   }
 
   async getInvoiceStats(from?: string, to?: string) {
@@ -141,9 +170,18 @@ export class AdminAnalyticsProvider {
 
     const [total, totalAmount, paid, pending] = await Promise.all([
       qb.clone().getCount(),
-      qb.clone().select('COALESCE(SUM(i.amountKobo), 0)', 'total').getRawOne<{ total: string }>(),
-      qb.clone().andWhere('i.status = :s', { s: InvoiceStatus.PAID }).getCount(),
-      qb.clone().andWhere('i.status = :s', { s: InvoiceStatus.PENDING }).getCount(),
+      qb
+        .clone()
+        .select('COALESCE(SUM(i.amountKobo), 0)', 'total')
+        .getRawOne<{ total: string }>(),
+      qb
+        .clone()
+        .andWhere('i.status = :s', { s: InvoiceStatus.PAID })
+        .getCount(),
+      qb
+        .clone()
+        .andWhere('i.status = :s', { s: InvoiceStatus.PENDING })
+        .getCount(),
     ]);
 
     return {
@@ -174,7 +212,8 @@ export class AdminAnalyticsProvider {
       totalSeats: total,
       occupiedSeats: activeCheckIns,
       availableSeats: Math.max(0, total - activeCheckIns),
-      occupancyPercent: total > 0 ? Math.round((activeCheckIns / total) * 100) : 0,
+      occupancyPercent:
+        total > 0 ? Math.round((activeCheckIns / total) * 100) : 0,
       activeWorkspaces: totalWorkspaces,
     };
   }
@@ -190,6 +229,13 @@ export class AdminAnalyticsProvider {
         this.getOccupancySnapshot(),
       ]);
 
-    return { revenue, bookings, topWorkspaces, topMembers, invoices, occupancy };
+    return {
+      revenue,
+      bookings,
+      topWorkspaces,
+      topMembers,
+      invoices,
+      occupancy,
+    };
   }
 }

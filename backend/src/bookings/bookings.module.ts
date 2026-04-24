@@ -11,11 +11,13 @@ import { FindBookingsProvider } from './providers/find-bookings.provider';
 import { PricingService } from './pricing/pricing.service';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { User } from '../users/entities/user.entity';
+import { WaitlistModule } from '../sandbox/waitlist/waitlist.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Booking, User]),
     WorkspacesModule,
+    WaitlistModule,
   ],
   controllers: [BookingsController],
   providers: [

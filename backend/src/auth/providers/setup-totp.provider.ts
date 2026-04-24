@@ -24,7 +24,11 @@ export class SetupTotpProvider {
     user.totpSecret = secret;
     await this.usersRepository.save(user);
 
-    const otpauth = generateURI({ issuer: 'ManageHub', label: user.email, secret });
+    const otpauth = generateURI({
+      issuer: 'ManageHub',
+      label: user.email,
+      secret,
+    });
     const qrCodeDataUrl = await QRCode.toDataURL(otpauth);
 
     return { secret, qrCodeDataUrl };

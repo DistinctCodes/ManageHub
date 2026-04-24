@@ -4,7 +4,12 @@ import { UserMessages } from './user-messages';
 import { JwtPayload } from '../interface/user.interface';
 import { User } from '../../users/entities/user.entity';
 
-type TwoFaPendingPayload = { sub: string; type: '2fa_pending'; iat?: number; exp?: number };
+type TwoFaPendingPayload = {
+  sub: string;
+  type: '2fa_pending';
+  iat?: number;
+  exp?: number;
+};
 
 type JwtExpiry = `${number}${'s' | 'm' | 'h' | 'd'}` | number;
 
