@@ -63,6 +63,9 @@ export class Booking {
   @Column({ nullable: true })
   sorobanEscrowId: string;
 
+  @Column({ default: false })
+  reminderSent: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
 

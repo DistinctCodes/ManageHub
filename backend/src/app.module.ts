@@ -24,6 +24,7 @@ import { SandboxAnalyticsModule } from './sandbox/analytics/analytics.module';
 import { SandboxBookingsModule } from './sandbox/bookings/bookings.module';
 import { SandboxReportsModule } from './sandbox/reports/reports.module';
 import { WaitlistModule } from './sandbox/waitlist/waitlist.module';
+import { SandboxModule } from './sandbox/sandbox.module';
 
 @Module({
   imports: [
@@ -107,6 +108,7 @@ import { WaitlistModule } from './sandbox/waitlist/waitlist.module';
     SandboxBookingsModule,
     SandboxReportsModule,
     WaitlistModule,
+    SandboxModule,
   ],
   controllers: [AppController],
   providers: [
