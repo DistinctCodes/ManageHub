@@ -24,11 +24,11 @@ export default function SandboxPage() {
       <section>
         <h2 className="text-lg font-semibold mb-4">Booking Timeline</h2>
         <BookingTimeline
-          currentStatus="confirmed"
+          currentStatus="Confirmed"
           timestamps={{
-            created: "2024-06-10 09:00",
-            paymentReceived: "2024-06-10 09:05",
-            confirmed: "2024-06-10 09:10",
+            "Created": "2024-06-10 09:00",
+            "Payment Received": "2024-06-10 09:05",
+            "Confirmed": "2024-06-10 09:10",
           }}
         />
       </section>
