@@ -116,3 +116,5 @@ export function CancelBookingFlow({ booking, onSuccess, onClose }: Props) {
     </div>
   );
 }
+
+export default CancelBookingFlow;

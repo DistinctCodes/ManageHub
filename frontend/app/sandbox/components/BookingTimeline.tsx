@@ -72,3 +72,5 @@ export function BookingTimeline({ currentStatus, timestamps }: Props) {
     </ol>
   );
 }
+
+export default BookingTimeline;
