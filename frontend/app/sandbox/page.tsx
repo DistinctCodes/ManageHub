@@ -6,10 +6,9 @@ import CancelBookingFlow from "./components/CancelBookingFlow";
 
 const DEMO_BOOKING = {
   id: "BK-1042",
-  workspace: "The Innovation Hub",
+  workspaceName: "The Innovation Hub",
   date: "2024-06-15",
-  time: "10:00 AM – 12:00 PM",
-  total: 50,
+  amount: "$50.00",
 };
 
 export default function SandboxPage() {
