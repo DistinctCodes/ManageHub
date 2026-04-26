@@ -4,12 +4,17 @@
 mod errors;
 mod types;
 
+#[cfg(test)]
+mod test;
+
 pub use errors::Error;
 pub use types::{Proposal, ProposalStatus, Vote, VoteChoice};
 
 use soroban_sdk::{contract, contractimpl, contracttype, symbol_short, Address, Env, String, Vec};
 
 /// CT-15: DataKey covers all required variants.
+// ── Storage keys ──────────────────────────────────────────────────────────────
+
 #[contracttype]
 pub enum DataKey {
     Admin,
@@ -18,6 +23,8 @@ pub enum DataKey {
     Vote(String, Address),
     MemberVotes(Address),
 }
+
+// ── Contract ──────────────────────────────────────────────────────────────────
 
 #[contract]
 pub struct GovernanceContract;
@@ -43,6 +50,14 @@ impl GovernanceContract {
     }
 
     // ── CT-15: initialize stub ────────────────────────────────────────────────
+    fn load_proposal(env: &Env, proposal_id: &String) -> Result<Proposal, Error> {
+        env.storage()
+            .persistent()
+            .get(&DataKey::Proposal(proposal_id.clone()))
+            .ok_or(Error::ProposalNotFound)
+    }
+
+    // ── Initialisation ────────────────────────────────────────────────────────
 
     pub fn initialize(env: Env, admin: Address) -> Result<(), Error> {
         if env.storage().instance().has(&DataKey::Admin) {
@@ -55,6 +70,7 @@ impl GovernanceContract {
     }
 
     // ── CT-16: create_proposal ────────────────────────────────────────────────
+    // ── Proposal creation ─────────────────────────────────────────────────────
 
     pub fn create_proposal(
         env: Env,
@@ -62,6 +78,8 @@ impl GovernanceContract {
         id: String,
         title: String,
         description: String,
+        proposal_id: String,
+        title: String,
         start_time: u64,
         end_time: u64,
     ) -> Result<(), Error> {
@@ -74,6 +92,7 @@ impl GovernanceContract {
             .storage()
             .persistent()
             .has(&DataKey::Proposal(id.clone()))
+            .has(&DataKey::Proposal(proposal_id.clone()))
         {
             return Err(Error::ProposalAlreadyExists);
         }
@@ -89,12 +108,22 @@ impl GovernanceContract {
             yes_votes: 0,
             no_votes: 0,
             abstain_votes: 0,
+            id: proposal_id.clone(),
+            title: title.clone(),
+            proposer: proposer.clone(),
+            start_time,
+            end_time,
+            yes_votes: 0,
+            no_votes: 0,
+            abstain_votes: 0,
+            status: ProposalStatus::Active,
             created_at: env.ledger().timestamp(),
         };
 
         env.storage()
             .persistent()
             .set(&DataKey::Proposal(id.clone()), &proposal);
+            .set(&DataKey::Proposal(proposal_id.clone()), &proposal);
 
         let mut list: Vec<String> = env
             .storage()
@@ -106,12 +135,20 @@ impl GovernanceContract {
 
         env.events().publish(
             (symbol_short!("created"), id),
+        list.push_back(proposal_id.clone());
+        env.storage()
+            .instance()
+            .set(&DataKey::ProposalList, &list);
+
+        env.events().publish(
+            (symbol_short!("created"), proposal_id),
             (proposer, title, start_time, end_time),
         );
         Ok(())
     }
 
     // ── CT-17: cast_vote ──────────────────────────────────────────────────────
+    // ── Voting ────────────────────────────────────────────────────────────────
 
     pub fn cast_vote(
         env: Env,
@@ -126,6 +163,7 @@ impl GovernanceContract {
             .persistent()
             .get(&DataKey::Proposal(proposal_id.clone()))
             .ok_or(Error::ProposalNotFound)?;
+        let mut proposal = Self::load_proposal(&env, &proposal_id)?;
 
         if proposal.status != ProposalStatus::Active {
             return Err(Error::ProposalNotActive);
@@ -153,6 +191,8 @@ impl GovernanceContract {
         let vote = Vote {
             proposal_id: proposal_id.clone(),
             voter: voter.clone(),
+            voter: voter.clone(),
+            proposal_id: proposal_id.clone(),
             choice: choice.clone(),
             voted_at: now,
         };
@@ -160,8 +200,12 @@ impl GovernanceContract {
         env.storage().persistent().set(&vote_key, &vote);
         env.storage()
             .persistent()
+            .set(&vote_key, &vote);
+        env.storage()
+            .persistent()
             .set(&DataKey::Proposal(proposal_id.clone()), &proposal);
 
+        // Index: member → voted proposal IDs
         let mut member_votes: Vec<String> = env
             .storage()
             .persistent()
@@ -186,12 +230,24 @@ impl GovernanceContract {
             .persistent()
             .get(&DataKey::Proposal(proposal_id.clone()))
             .ok_or(Error::ProposalNotFound)?;
+    // ── CT-18: Finalization ───────────────────────────────────────────────────
+
+    pub fn finalize_proposal(
+        env: Env,
+        caller: Address,
+        proposal_id: String,
+    ) -> Result<(), Error> {
+        Self::require_admin(&env, &caller)?;
+
+        let mut proposal = Self::load_proposal(&env, &proposal_id)?;
+
         if proposal.status != ProposalStatus::Active {
             return Err(Error::ProposalNotActive);
         }
         if env.ledger().timestamp() < proposal.end_time {
             return Err(Error::VotingPeriodNotEnded);
         }
+
         proposal.status = if proposal.yes_votes > proposal.no_votes {
             ProposalStatus::Passed
         } else {
@@ -200,6 +256,11 @@ impl GovernanceContract {
         env.storage()
             .persistent()
             .set(&DataKey::Proposal(proposal_id.clone()), &proposal);
+
+        env.storage()
+            .persistent()
+            .set(&DataKey::Proposal(proposal_id.clone()), &proposal);
+
         env.events().publish(
             (symbol_short!("final"), proposal_id),
             (proposal.yes_votes, proposal.no_votes, proposal.status),
@@ -217,10 +278,26 @@ impl GovernanceContract {
         if proposal.status != ProposalStatus::Active {
             return Err(Error::ProposalNotActive);
         }
+    // ── CT-19: Cancellation ───────────────────────────────────────────────────
+
+    pub fn cancel_proposal(
+        env: Env,
+        caller: Address,
+        proposal_id: String,
+    ) -> Result<(), Error> {
+        Self::require_admin(&env, &caller)?;
+
+        let mut proposal = Self::load_proposal(&env, &proposal_id)?;
+
+        if proposal.status != ProposalStatus::Active {
+            return Err(Error::ProposalNotActive);
+        }
+
         proposal.status = ProposalStatus::Cancelled;
         env.storage()
             .persistent()
             .set(&DataKey::Proposal(proposal_id.clone()), &proposal);
+
         env.events()
             .publish((symbol_short!("cancel"), proposal_id), (caller,));
         Ok(())
@@ -233,6 +310,10 @@ impl GovernanceContract {
             .persistent()
             .get(&DataKey::Proposal(proposal_id))
             .ok_or(Error::ProposalNotFound)
+    // ── CT-20: Queries ────────────────────────────────────────────────────────
+
+    pub fn get_proposal(env: Env, proposal_id: String) -> Result<Proposal, Error> {
+        Self::load_proposal(&env, &proposal_id)
     }
 
     pub fn get_all_proposals(env: Env) -> Vec<String> {
@@ -259,6 +340,22 @@ impl GovernanceContract {
             .persistent()
             .get(&DataKey::MemberVotes(voter))
             .unwrap_or(Vec::new(&env))
+    pub fn get_member_votes(env: Env, voter: Address) -> Vec<String> {
+        env.storage()
+            .persistent()
+            .get(&DataKey::MemberVotes(voter))
+            .unwrap_or(Vec::new(&env))
+    }
+
+    pub fn has_voted(env: Env, proposal_id: String, voter: Address) -> bool {
+        env.storage()
+            .persistent()
+            .has(&DataKey::Vote(proposal_id, voter))
+    }
+
+    pub fn get_proposal_result(env: Env, proposal_id: String) -> Result<ProposalStatus, Error> {
+        let proposal = Self::load_proposal(&env, &proposal_id)?;
+        Ok(proposal.status)
     }
 
     pub fn admin(env: Env) -> Result<Address, Error> {
