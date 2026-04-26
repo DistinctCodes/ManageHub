@@ -1,59 +1,57 @@
-"use client";
+import { Suspense } from "react";
+import { WorkspaceFilterSidebar } from "./components/WorkspaceFilterSidebar";
+import { AvailabilityCalendar } from "./components/AvailabilityCalendar";
+import { NotificationBadge } from "./components/NotificationBadge";
 
-import { useState } from "react";
-import BookingTimeline from "./components/BookingTimeline";
-import CancelBookingFlow from "./components/CancelBookingFlow";
-
-const DEMO_BOOKING = {
-  id: "BK-1042",
-  workspaceName: "The Innovation Hub",
-  date: "2024-06-15",
-  amount: "$50.00",
-};
+const MOCK_AVAILABILITY = [
+  { date: "2026-05-01", availableSeats: 3 },
+  { date: "2026-05-02", availableSeats: 0 },
+  { date: "2026-05-05", availableSeats: 2 },
+  { date: "2026-05-06", availableSeats: 0 },
+  { date: "2026-05-07", availableSeats: 5 },
+  { date: "2026-05-12", availableSeats: 0 },
+  { date: "2026-05-15", availableSeats: 1 },
+];
 
 export default function SandboxPage() {
-  const [showCancel, setShowCancel] = useState(false);
-  const [cancelled, setCancelled] = useState(false);
-
   return (
-    <div className="p-6 max-w-3xl mx-auto space-y-10">
-      <h1 className="text-2xl font-bold">Sandbox</h1>
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="mx-auto max-w-5xl space-y-10">
+        <h1 className="text-2xl font-bold text-gray-900">Sandbox — Component Demos</h1>
 
-      {/* BookingTimeline demo */}
-      <section>
-        <h2 className="text-lg font-semibold mb-4">Booking Timeline</h2>
-        <BookingTimeline
-          currentStatus="Confirmed"
-          timestamps={{
-            "Created": "2024-06-10 09:00",
-            "Payment Received": "2024-06-10 09:05",
-            "Confirmed": "2024-06-10 09:10",
-          }}
-        />
-      </section>
+        {/* Mock navbar with notification badge */}
+        <section>
+          <h2 className="mb-3 text-lg font-semibold text-gray-700">FE-03: Notification Badge</h2>
+          <div className="flex items-center gap-4 rounded-lg border bg-white px-4 py-3 shadow-sm">
+            <span className="text-sm text-gray-500">Mock Navbar</span>
+            <div className="ml-auto">
+              <NotificationBadge wsUrl={undefined} />
+            </div>
+          </div>
+        </section>
 
-      {/* CancelBookingFlow demo */}
-      <section>
-        <h2 className="text-lg font-semibold mb-4">Cancel Booking Flow</h2>
-        {cancelled ? (
-          <p className="text-green-600 font-medium">Booking was successfully cancelled.</p>
-        ) : (
-          <button
-            onClick={() => setShowCancel(true)}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-          >
-            Cancel Booking
-          </button>
-        )}
+        {/* Workspace filter sidebar */}
+        <section>
+          <h2 className="mb-3 text-lg font-semibold text-gray-700">FE-01: Workspace Filter Sidebar</h2>
+          <div className="flex gap-6">
+            <Suspense>
+              <WorkspaceFilterSidebar />
+            </Suspense>
+            <div className="flex-1 rounded-lg border bg-white p-4 text-sm text-gray-400 shadow-sm">
+              Workspace listing area — filters applied via URL params
+            </div>
+          </div>
+        </section>
 
-        {showCancel && (
-          <CancelBookingFlow
-            booking={DEMO_BOOKING}
-            onSuccess={() => { setCancelled(true); setShowCancel(false); }}
-            onClose={() => setShowCancel(false)}
+        {/* Availability calendar */}
+        <section>
+          <h2 className="mb-3 text-lg font-semibold text-gray-700">FE-02: Availability Calendar</h2>
+          <AvailabilityCalendar
+            availabilityData={MOCK_AVAILABILITY}
+            onDateSelect={(date) => console.log("Selected:", date)}
           />
-        )}
-      </section>
+        </section>
+      </div>
     </div>
   );
 }
