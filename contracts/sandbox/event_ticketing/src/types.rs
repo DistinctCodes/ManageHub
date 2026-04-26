@@ -1,42 +1,5 @@
 use soroban_sdk::{contracttype, Address, String};
 
-#[contracttype]
-#[derive(Clone, Debug, PartialEq)]
-pub enum EventStatus {
-    Active,
-    Cancelled,
-    Ended,
-}
-
-#[contracttype]
-#[derive(Clone, Debug, PartialEq)]
-pub enum TicketStatus {
-    Valid,
-    Cancelled,
-    Used,
-}
-
-#[contracttype]
-#[derive(Clone, Debug, PartialEq)]
-pub struct Event {
-    pub id: String,
-    pub name: String,
-    pub organizer: Address,
-    pub start_time: u64,
-    pub ticket_price: u128,
-    pub capacity: u32,
-    pub tickets_sold: u32,
-    pub status: EventStatus,
-}
-
-#[contracttype]
-#[derive(Clone, Debug, PartialEq)]
-pub struct Ticket {
-    pub id: String,
-    pub event_id: String,
-    pub owner: Address,
-    pub purchased_at: u64,
-    pub status: TicketStatus,
 /// Lifecycle status of an event.
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
@@ -45,30 +8,8 @@ pub enum EventStatus {
     Active,
     /// Event has been cancelled.
     Cancelled,
-    /// Event has concluded.
+    /// Event has concluded / been closed.
     Completed,
-}
-
-/// An event that members can purchase tickets for.
-#[contracttype]
-#[derive(Clone, Debug, PartialEq)]
-pub struct Event {
-    /// Unique event identifier.
-    pub id: String,
-    /// Human-readable event name.
-    pub name: String,
-    /// Unix timestamp when the event starts.
-    pub start_time: u64,
-    /// Price per ticket in smallest payment-token units.
-    pub ticket_price: u128,
-    /// Total ticket capacity.
-    pub capacity: u32,
-    /// Remaining tickets available.
-    pub remaining_capacity: u32,
-    /// Current event status.
-    pub status: EventStatus,
-    /// Ledger timestamp when event was created.
-    pub created_at: u64,
 }
 
 /// Lifecycle status of a ticket.
@@ -79,6 +20,32 @@ pub enum TicketStatus {
     Active,
     /// Ticket has been cancelled and refunded.
     Cancelled,
+}
+
+/// An event that members can purchase tickets for.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct Event {
+    /// Unique event identifier.
+    pub id: String,
+    /// Human-readable event name.
+    pub name: String,
+    /// Organizer / admin of the event.
+    pub organizer: Address,
+    /// Unix timestamp when the event starts.
+    pub start_time: u64,
+    /// Unix timestamp when the event ends.
+    pub end_time: u64,
+    /// Price per ticket in smallest payment-token units.
+    pub ticket_price: u128,
+    /// Total ticket capacity.
+    pub capacity: u32,
+    /// Remaining tickets available.
+    pub remaining_capacity: u32,
+    /// Current event status.
+    pub status: EventStatus,
+    /// Ledger timestamp when event was created.
+    pub created_at: u64,
 }
 
 /// A ticket purchased for an event.

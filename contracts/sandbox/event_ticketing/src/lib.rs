@@ -10,10 +10,6 @@ mod test;
 pub use errors::Error;
 pub use types::{Event, EventStatus, Ticket, TicketStatus};
 
-use soroban_sdk::{contract, contractimpl, contracttype, symbol_short, token, Address, Env, String};
-pub use errors::Error;
-pub use types::{Event, EventStatus, Ticket, TicketStatus};
-
 use soroban_sdk::{contract, contractimpl, contracttype, symbol_short, token, Address, Env, String, Vec};
 
 // ── Storage keys ──────────────────────────────────────────────────────────────
@@ -22,11 +18,9 @@ use soroban_sdk::{contract, contractimpl, contracttype, symbol_short, token, Add
 pub enum DataKey {
     Admin,
     PaymentToken,
-    Event(String),
-    Ticket(String),
-}
-
+    /// Ordered list of all event IDs.
     EventList,
+    Event(String),
     Ticket(String),
     /// All ticket IDs for an event.
     EventTickets(String),
@@ -74,40 +68,45 @@ impl EventTicketingContract {
         }
         admin.require_auth();
         env.storage().instance().set(&DataKey::Admin, &admin);
-        env.storage()
-            .instance()
-            .set(&DataKey::PaymentToken, &payment_token);
+        env.storage().instance().set(&DataKey::PaymentToken, &payment_token);
         env.events()
             .publish((symbol_short!("init"),), (admin, payment_token));
         Ok(())
     }
 
-        env.storage().instance().set(&DataKey::PaymentToken, &payment_token);
-        env.events().publish((symbol_short!("init"),), (admin, payment_token));
-        Ok(())
-    }
-
     // ── Event management (admin-only) ─────────────────────────────────────────
 
+    /// Create a new event. Admin-gated.
+    /// Validates: start_time < end_time, capacity > 0, ticket_price > 0.
+    /// Returns Error::EventAlreadyExists if the event ID already exists.
     pub fn create_event(
         env: Env,
         caller: Address,
         event_id: String,
         name: String,
-        start_time: u64,
-        ticket_price: u128,
         capacity: u32,
+        ticket_price: u128,
+        start_time: u64,
+        end_time: u64,
     ) -> Result<(), Error> {
         Self::require_admin(&env, &caller)?;
 
-        if capacity == 0 || start_time == 0 {
+        // Validate start_time < end_time
+        if start_time >= end_time {
             return Err(Error::InvalidTimeRange);
         }
-        if env
-            .storage()
-            .persistent()
-            .has(&DataKey::Event(event_id.clone()))
-        {
+
+        // Validate capacity > 0
+        if capacity == 0 {
+            return Err(Error::InvalidCapacity);
+        }
+
+        // Validate ticket_price > 0
+        if ticket_price == 0 {
+            return Err(Error::InvalidPrice);
+        }
+
+        // Check for duplicate event ID
         if env.storage().persistent().has(&DataKey::Event(event_id.clone())) {
             return Err(Error::EventAlreadyExists);
         }
@@ -117,19 +116,101 @@ impl EventTicketingContract {
             name: name.clone(),
             organizer: caller.clone(),
             start_time,
+            end_time,
             ticket_price,
             capacity,
-            tickets_sold: 0,
+            remaining_capacity: capacity,
             status: EventStatus::Active,
+            created_at: env.ledger().timestamp(),
         };
+
         env.storage()
             .persistent()
             .set(&DataKey::Event(event_id.clone()), &event);
-        env.events()
-            .publish((symbol_short!("ev_create"), event_id), (name, capacity));
+
+        // Append to event list
+        let mut list: Vec<String> = env
+            .storage()
+            .instance()
+            .get(&DataKey::EventList)
+            .unwrap_or(Vec::new(&env));
+        list.push_back(event_id.clone());
+        env.storage().instance().set(&DataKey::EventList, &list);
+
+        env.events().publish(
+            (symbol_short!("ev_create"), event_id),
+            (name, start_time, end_time, ticket_price, capacity),
+        );
         Ok(())
     }
 
+    /// Update the capacity of an existing event. Admin-gated.
+    /// New capacity must be >= tickets already sold.
+    pub fn update_availability(
+        env: Env,
+        caller: Address,
+        event_id: String,
+        new_capacity: u32,
+    ) -> Result<(), Error> {
+        Self::require_admin(&env, &caller)?;
+
+        if new_capacity == 0 {
+            return Err(Error::InvalidCapacity);
+        }
+
+        let mut event: Event = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Event(event_id.clone()))
+            .ok_or(Error::EventNotFound)?;
+
+        if event.status != EventStatus::Active {
+            return Err(Error::EventNotActive);
+        }
+
+        let sold = event.capacity - event.remaining_capacity;
+        if new_capacity < sold {
+            return Err(Error::InvalidCapacity);
+        }
+
+        event.capacity = new_capacity;
+        event.remaining_capacity = new_capacity - sold;
+        env.storage()
+            .persistent()
+            .set(&DataKey::Event(event_id.clone()), &event);
+
+        env.events().publish(
+            (symbol_short!("ev_update"), event_id),
+            (new_capacity, event.remaining_capacity),
+        );
+        Ok(())
+    }
+
+    /// Close an active event (set status to Completed). Admin-gated.
+    pub fn close_event(env: Env, caller: Address, event_id: String) -> Result<(), Error> {
+        Self::require_admin(&env, &caller)?;
+
+        let mut event: Event = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Event(event_id.clone()))
+            .ok_or(Error::EventNotFound)?;
+
+        if event.status != EventStatus::Active {
+            return Err(Error::EventNotActive);
+        }
+
+        event.status = EventStatus::Completed;
+        env.storage()
+            .persistent()
+            .set(&DataKey::Event(event_id.clone()), &event);
+
+        env.events()
+            .publish((symbol_short!("ev_close"), event_id), (caller,));
+        Ok(())
+    }
+
+    /// Cancel an active event (set status to Cancelled). Admin-gated.
     pub fn cancel_event(env: Env, caller: Address, event_id: String) -> Result<(), Error> {
         Self::require_admin(&env, &caller)?;
 
@@ -142,46 +223,18 @@ impl EventTicketingContract {
         if event.status != EventStatus::Active {
             return Err(Error::EventNotActive);
         }
+
         event.status = EventStatus::Cancelled;
         env.storage()
             .persistent()
             .set(&DataKey::Event(event_id.clone()), &event);
+
         env.events()
             .publish((symbol_short!("ev_cancel"), event_id), (caller,));
         Ok(())
     }
 
-    pub fn buy_ticket(
-        env: Env,
-        buyer: Address,
-        event_id: String,
-        ticket_id: String,
-    ) -> Result<(), Error> {
-        buyer.require_auth();
-
-            start_time,
-            ticket_price,
-            capacity,
-            remaining_capacity: capacity,
-            status: EventStatus::Active,
-            created_at: env.ledger().timestamp(),
-        };
-
-        env.storage().persistent().set(&DataKey::Event(event_id.clone()), &event);
-
-        let mut list: Vec<String> = env
-            .storage()
-            .instance()
-            .get(&DataKey::EventList)
-            .unwrap_or(Vec::new(&env));
-        list.push_back(event_id.clone());
-        env.storage().instance().set(&DataKey::EventList, &list);
-
-        env.events().publish((symbol_short!("ev_create"), event_id), (name, start_time, ticket_price, capacity));
-        Ok(())
-    }
-
-    // ── CT-10: Buy ticket ─────────────────────────────────────────────────────
+    // ── Buy ticket ────────────────────────────────────────────────────────────
 
     pub fn buy_ticket(
         env: Env,
@@ -207,24 +260,11 @@ impl EventTicketingContract {
         if event.status != EventStatus::Active {
             return Err(Error::EventNotActive);
         }
-        if event.tickets_sold >= event.capacity {
-            return Err(Error::SoldOut);
-        }
-
-        let payment_token: Address = env
-            .storage()
-            .instance()
-            .get(&DataKey::PaymentToken)
-            .ok_or(Error::PaymentTokenNotSet)?;
-
-        if event.status != EventStatus::Active {
-            return Err(Error::EventNotActive);
-        }
         if event.remaining_capacity == 0 {
             return Err(Error::EventSoldOut);
         }
 
-        // Transfer ticket_price from buyer to contract.
+        // Transfer ticket_price from buyer to contract
         let payment_token = Self::get_payment_token(&env)?;
         token::Client::new(&env, &payment_token).transfer(
             &buyer,
@@ -232,61 +272,46 @@ impl EventTicketingContract {
             &(event.ticket_price as i128),
         );
 
-        event.tickets_sold += 1;
+        // Decrement remaining capacity
+        event.remaining_capacity -= 1;
         env.storage()
             .persistent()
             .set(&DataKey::Event(event_id.clone()), &event);
 
-        // Decrement capacity.
-        event.remaining_capacity -= 1;
-        env.storage().persistent().set(&DataKey::Event(event_id.clone()), &event);
-
-        // Store ticket.
+        // Store ticket
         let ticket = Ticket {
             id: ticket_id.clone(),
             event_id: event_id.clone(),
             owner: buyer.clone(),
-            purchased_at: env.ledger().timestamp(),
-            status: TicketStatus::Valid,
-        };
-        env.storage()
-            .persistent()
-            .set(&DataKey::Ticket(ticket_id.clone()), &ticket);
-        env.events()
-            .publish((symbol_short!("buy"), ticket_id), (buyer, event_id));
-        Ok(())
-    }
-
-    pub fn transfer_ticket(
-        env: Env,
-        caller: Address,
-        ticket_id: String,
-        new_owner: Address,
-    ) -> Result<(), Error> {
-        caller.require_auth();
             price_paid: event.ticket_price,
             status: TicketStatus::Active,
             purchased_at: env.ledger().timestamp(),
         };
-        env.storage().persistent().set(&DataKey::Ticket(ticket_id.clone()), &ticket);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Ticket(ticket_id.clone()), &ticket);
 
-        // Index: event → tickets.
+        // Index: event → tickets
         let mut ev_tickets: Vec<String> = env
             .storage()
             .persistent()
             .get(&DataKey::EventTickets(event_id.clone()))
             .unwrap_or(Vec::new(&env));
         ev_tickets.push_back(ticket_id.clone());
-        env.storage().persistent().set(&DataKey::EventTickets(event_id.clone()), &ev_tickets);
+        env.storage()
+            .persistent()
+            .set(&DataKey::EventTickets(event_id.clone()), &ev_tickets);
 
-        // Index: owner → tickets.
+        // Index: owner → tickets
         let mut owner_tickets: Vec<String> = env
             .storage()
             .persistent()
             .get(&DataKey::OwnerTickets(buyer.clone()))
             .unwrap_or(Vec::new(&env));
         owner_tickets.push_back(ticket_id.clone());
-        env.storage().persistent().set(&DataKey::OwnerTickets(buyer.clone()), &owner_tickets);
+        env.storage()
+            .persistent()
+            .set(&DataKey::OwnerTickets(buyer.clone()), &owner_tickets);
 
         env.events().publish(
             (symbol_short!("purchase"), ticket_id),
@@ -295,7 +320,7 @@ impl EventTicketingContract {
         Ok(())
     }
 
-    // ── CT-11: Transfer ticket ────────────────────────────────────────────────
+    // ── Transfer ticket ───────────────────────────────────────────────────────
 
     pub fn transfer_ticket(
         env: Env,
@@ -311,10 +336,9 @@ impl EventTicketingContract {
             .get(&DataKey::Ticket(ticket_id.clone()))
             .ok_or(Error::TicketNotFound)?;
 
-        if ticket.status != TicketStatus::Valid {
-            return Err(Error::TicketNotValid);
+        if ticket.status != TicketStatus::Active {
+            return Err(Error::TicketNotTransferable);
         }
-        if ticket.owner != caller {
         if ticket.owner != from {
             return Err(Error::Unauthorized);
         }
@@ -326,28 +350,11 @@ impl EventTicketingContract {
             .ok_or(Error::EventNotFound)?;
 
         if env.ledger().timestamp() >= event.start_time {
-            return Err(Error::TransferAfterStart);
-        }
-
-        ticket.owner = new_owner.clone();
-        env.storage()
-            .persistent()
-            .set(&DataKey::Ticket(ticket_id.clone()), &ticket);
-        env.events()
-            .publish((symbol_short!("transfer"), ticket_id), (caller, new_owner));
-        Ok(())
-    }
-
-    pub fn cancel_ticket(
-        env: Env,
-        caller: Address,
-        ticket_id: String,
-    ) -> Result<(), Error> {
             return Err(Error::TicketNotTransferable);
         }
 
-        // Re-index: remove from old owner, add to new owner.
-        let mut from_tickets: Vec<String> = env
+        // Re-index: remove from old owner, add to new owner
+        let from_tickets: Vec<String> = env
             .storage()
             .persistent()
             .get(&DataKey::OwnerTickets(from.clone()))
@@ -359,7 +366,9 @@ impl EventTicketingContract {
                 new_from.push_back(t);
             }
         }
-        env.storage().persistent().set(&DataKey::OwnerTickets(from.clone()), &new_from);
+        env.storage()
+            .persistent()
+            .set(&DataKey::OwnerTickets(from.clone()), &new_from);
 
         let mut to_tickets: Vec<String> = env
             .storage()
@@ -367,10 +376,14 @@ impl EventTicketingContract {
             .get(&DataKey::OwnerTickets(to.clone()))
             .unwrap_or(Vec::new(&env));
         to_tickets.push_back(ticket_id.clone());
-        env.storage().persistent().set(&DataKey::OwnerTickets(to.clone()), &to_tickets);
+        env.storage()
+            .persistent()
+            .set(&DataKey::OwnerTickets(to.clone()), &to_tickets);
 
         ticket.owner = to.clone();
-        env.storage().persistent().set(&DataKey::Ticket(ticket_id.clone()), &ticket);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Ticket(ticket_id.clone()), &ticket);
 
         env.events().publish(
             (symbol_short!("transfer"), ticket_id),
@@ -379,7 +392,7 @@ impl EventTicketingContract {
         Ok(())
     }
 
-    // ── CT-12: Cancel ticket ──────────────────────────────────────────────────
+    // ── Cancel ticket ─────────────────────────────────────────────────────────
 
     pub fn cancel_ticket(env: Env, caller: Address, ticket_id: String) -> Result<(), Error> {
         caller.require_auth();
@@ -390,10 +403,11 @@ impl EventTicketingContract {
             .get(&DataKey::Ticket(ticket_id.clone()))
             .ok_or(Error::TicketNotFound)?;
 
-        if ticket.status != TicketStatus::Valid {
-            return Err(Error::TicketNotValid);
+        if ticket.status != TicketStatus::Active {
+            return Err(Error::TicketNotCancellable);
         }
-        if ticket.owner != caller {
+
+        // Only ticket owner or admin can cancel
         let admin = Self::get_admin(&env)?;
         if caller != ticket.owner && caller != admin {
             return Err(Error::Unauthorized);
@@ -405,36 +419,11 @@ impl EventTicketingContract {
             .get(&DataKey::Event(ticket.event_id.clone()))
             .ok_or(Error::EventNotFound)?;
 
-        let payment_token: Address = env
-            .storage()
-            .instance()
-            .get(&DataKey::PaymentToken)
-            .ok_or(Error::PaymentTokenNotSet)?;
-
-        token::Client::new(&env, &payment_token).transfer(
-            &env.current_contract_address(),
-            &caller,
-            &(event.ticket_price as i128),
-        );
-
-        ticket.status = TicketStatus::Cancelled;
-        event.tickets_sold -= 1;
-        env.storage()
-            .persistent()
-            .set(&DataKey::Ticket(ticket_id.clone()), &ticket);
-        env.storage()
-            .persistent()
-            .set(&DataKey::Event(ticket.event_id.clone()), &event);
-        env.events()
-            .publish((symbol_short!("tk_cancel"), ticket_id), (caller,));
-        Ok(())
-    }
-
         if env.ledger().timestamp() >= event.start_time {
             return Err(Error::TicketNotCancellable);
         }
 
-        // Refund ticket_price from contract to ticket owner.
+        // Refund ticket_price from contract to ticket owner
         let payment_token = Self::get_payment_token(&env)?;
         token::Client::new(&env, &payment_token).transfer(
             &env.current_contract_address(),
@@ -442,12 +431,16 @@ impl EventTicketingContract {
             &(ticket.price_paid as i128),
         );
 
-        // Restore capacity.
+        // Restore capacity
         event.remaining_capacity += 1;
-        env.storage().persistent().set(&DataKey::Event(ticket.event_id.clone()), &event);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Event(ticket.event_id.clone()), &event);
 
         ticket.status = TicketStatus::Cancelled;
-        env.storage().persistent().set(&DataKey::Ticket(ticket_id.clone()), &ticket);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Ticket(ticket_id.clone()), &ticket);
 
         env.events().publish(
             (symbol_short!("cancel"), ticket_id),
@@ -456,7 +449,7 @@ impl EventTicketingContract {
         Ok(())
     }
 
-    // ── CT-13: Query functions ────────────────────────────────────────────────
+    // ── Query functions ───────────────────────────────────────────────────────
 
     pub fn get_event(env: Env, event_id: String) -> Result<Event, Error> {
         env.storage()
