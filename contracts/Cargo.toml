@@ -7,7 +7,7 @@ members = [
     "common_types",
     "workspace_booking",
     "payment_escrow",
-    "sandbox/governance"
+    "resource_credits"
 ]
 
 [workspace.dependencies]
