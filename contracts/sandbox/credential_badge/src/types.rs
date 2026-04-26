@@ -11,6 +11,10 @@ pub struct BadgeType {
 }
 
 /// A badge credential issued to a specific member.
+    pub issuer: Address,
+}
+
+/// A credential issued to a holder for a specific badge type.
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
 pub struct Credential {
@@ -19,4 +23,5 @@ pub struct Credential {
     pub issued_at: u64,
     pub issuer: Address,
     pub is_revoked: bool,
+    pub revoked: bool,
 }

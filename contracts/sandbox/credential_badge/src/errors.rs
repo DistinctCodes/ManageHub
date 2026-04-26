@@ -12,4 +12,8 @@ pub enum Error {
     AlreadyIssued = 6,
     CredentialRevoked = 7,
     BadgeTypeAlreadyExists = 8,
+    BadgeTypeAlreadyExists = 5,
+    CredentialNotFound = 6,
+    CredentialAlreadyIssued = 7,
+    CredentialRevoked = 8,
 }
