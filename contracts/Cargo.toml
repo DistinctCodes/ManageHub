@@ -8,9 +8,9 @@ members = [
     "workspace_booking",
     "payment_escrow",
     "sandbox/event_ticketing",
-    "sandbox/governance"
+    "sandbox/governance",
     "sandbox/credential_badge",
-    "resource_credits"
+    "resource_credits",
 ]
 
 [workspace.dependencies]
