@@ -5,8 +5,10 @@ members = [
     "manage_hub",
     "membership_token",
     "common_types",
-     "workspace_booking",
-    "payment_escrow"
+    "workspace_booking",
+    "payment_escrow",
+    "sandbox/resource_credits",
+    "sandbox/event_ticketing",
 ]
 
 [workspace.dependencies]
