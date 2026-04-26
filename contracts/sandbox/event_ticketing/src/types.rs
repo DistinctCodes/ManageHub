@@ -1,6 +1,6 @@
 use soroban_sdk::{contracttype, Address, String};
 
-/// Lifecycle state of an event.
+/// Lifecycle status of an event.
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
 pub enum EventStatus {
@@ -12,19 +12,7 @@ pub enum EventStatus {
     Completed,
 }
 
-/// Lifecycle state of a ticket.
-#[contracttype]
-#[derive(Clone, Debug, PartialEq)]
-pub enum TicketStatus {
-    /// Ticket is valid and owned.
-    Valid,
-    /// Ticket has been used for entry.
-    Used,
-    /// Ticket has been refunded.
-    Refunded,
-}
-
-/// An event that can have tickets purchased for it.
+/// An event that members can purchase tickets for.
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
 pub struct Event {
@@ -32,16 +20,28 @@ pub struct Event {
     pub id: String,
     /// Human-readable event name.
     pub name: String,
-    /// Maximum number of tickets available.
-    pub capacity: u32,
-    /// Price per ticket in smallest payment token unit.
-    pub ticket_price: u128,
-    /// Event start time (unix seconds).
+    /// Unix timestamp when the event starts.
     pub start_time: u64,
-    /// Event end time (unix seconds).
-    pub end_time: u64,
-    /// Current lifecycle status.
+    /// Price per ticket in smallest payment-token units.
+    pub ticket_price: u128,
+    /// Total ticket capacity.
+    pub capacity: u32,
+    /// Remaining tickets available.
+    pub remaining_capacity: u32,
+    /// Current event status.
     pub status: EventStatus,
+    /// Ledger timestamp when event was created.
+    pub created_at: u64,
+}
+
+/// Lifecycle status of a ticket.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub enum TicketStatus {
+    /// Ticket is valid and owned.
+    Active,
+    /// Ticket has been cancelled and refunded.
+    Cancelled,
 }
 
 /// A ticket purchased for an event.
@@ -52,10 +52,12 @@ pub struct Ticket {
     pub id: String,
     /// ID of the event this ticket belongs to.
     pub event_id: String,
-    /// Address of the ticket owner.
+    /// Current owner of the ticket.
     pub owner: Address,
-    /// Ledger timestamp when ticket was purchased.
-    pub purchased_at: u64,
+    /// Price paid for this ticket.
+    pub price_paid: u128,
     /// Current ticket status.
     pub status: TicketStatus,
+    /// Ledger timestamp when ticket was purchased.
+    pub purchased_at: u64,
 }

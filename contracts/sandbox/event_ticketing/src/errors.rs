@@ -6,22 +6,30 @@ use soroban_sdk::contracterror;
 pub enum Error {
     /// No admin has been set yet.
     AdminNotSet = 1,
-    /// Contract already initialized.
-    AlreadyInitialized = 2,
     /// Caller is not authorized.
-    Unauthorized = 3,
-    /// Requested event does not exist.
-    EventNotFound = 4,
-    /// Requested ticket does not exist.
-    TicketNotFound = 5,
-    /// Event has no remaining ticket capacity.
-    EventSoldOut = 6,
+    Unauthorized = 2,
+    /// Contract already initialized.
+    AlreadyInitialized = 3,
+    /// Payment token not configured.
+    PaymentTokenNotSet = 4,
+
+    // Event errors (100–199)
+    /// Event ID not found.
+    EventNotFound = 100,
+    /// Event already exists.
+    EventAlreadyExists = 101,
     /// Event is not in Active status.
-    EventNotActive = 7,
-    /// start_time must be before end_time.
-    InvalidTimeRange = 8,
-    /// Ticket price must be greater than zero.
-    InvalidPrice = 9,
-    /// This ticket cannot be transferred.
-    TicketNotTransferable = 10,
+    EventNotActive = 102,
+    /// Event has no remaining capacity.
+    EventSoldOut = 103,
+
+    // Ticket errors (200–299)
+    /// Ticket ID not found.
+    TicketNotFound = 200,
+    /// Ticket already exists.
+    TicketAlreadyExists = 201,
+    /// Ticket cannot be transferred after event start.
+    TicketNotTransferable = 202,
+    /// Ticket cannot be cancelled after event start.
+    TicketNotCancellable = 203,
 }
