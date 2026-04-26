@@ -6,6 +6,11 @@ use soroban_sdk::{contracttype, Address, String};
 pub struct BadgeType {
     pub id: String,
     pub name: String,
+    pub description: String,
+    pub created_at: u64,
+}
+
+/// A badge credential issued to a specific member.
     pub issuer: Address,
 }
 
@@ -16,5 +21,7 @@ pub struct Credential {
     pub badge_type_id: String,
     pub holder: Address,
     pub issued_at: u64,
+    pub issuer: Address,
+    pub is_revoked: bool,
     pub revoked: bool,
 }

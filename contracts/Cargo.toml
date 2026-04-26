@@ -7,6 +7,7 @@ members = [
     "common_types",
     "workspace_booking",
     "payment_escrow",
+    "sandbox/credential_badge",
     "resource_credits"
 ]
 

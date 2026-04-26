@@ -1,8 +1,15 @@
+// contracts/sandbox/credential_badge/src/lib.rs
 #![no_std]
 
 mod errors;
 mod types;
 
+pub use errors::Error;
+pub use types::{BadgeType, Credential};
+
+use soroban_sdk::{contract, contractimpl, contracttype, symbol_short, Address, Env, String, Vec};
+
+// ── Storage keys ──────────────────────────────────────────────────────────────
 #[cfg(test)]
 mod test;
 
@@ -20,11 +27,14 @@ pub enum DataKey {
     HolderCredentials(Address),
 }
 
+// ── Contract ──────────────────────────────────────────────────────────────────
+
 #[contract]
 pub struct CredentialBadgeContract;
 
 #[contractimpl]
 impl CredentialBadgeContract {
+    // ── Helpers ───────────────────────────────────────────────────────────────
     // ── Internal helpers ──────────────────────────────────────────────────────
 
     fn get_admin(env: &Env) -> Result<Address, Error> {
@@ -43,6 +53,7 @@ impl CredentialBadgeContract {
         Ok(())
     }
 
+    // ── CT-22: initialize stub ────────────────────────────────────────────────
     // ── Initialisation ────────────────────────────────────────────────────────
 
     pub fn initialize(env: Env, admin: Address) -> Result<(), Error> {
@@ -54,6 +65,8 @@ impl CredentialBadgeContract {
         Ok(())
     }
 
+    // ── CT-23: register_badge_type ────────────────────────────────────────────
+
     // ── Badge type management ─────────────────────────────────────────────────
 
     /// Register a new badge type (admin only).
@@ -62,6 +75,7 @@ impl CredentialBadgeContract {
         caller: Address,
         id: String,
         name: String,
+        description: String,
     ) -> Result<(), Error> {
         Self::require_admin(&env, &caller)?;
 
@@ -76,6 +90,8 @@ impl CredentialBadgeContract {
         let badge = BadgeType {
             id: id.clone(),
             name,
+            description,
+            created_at: env.ledger().timestamp(),
             issuer: caller,
         };
         env.storage()
@@ -87,10 +103,18 @@ impl CredentialBadgeContract {
             .persistent()
             .get(&DataKey::BadgeTypeList)
             .unwrap_or(Vec::new(&env));
+        list.push_back(id.clone());
         list.push_back(id);
         env.storage()
             .persistent()
             .set(&DataKey::BadgeTypeList, &list);
+
+        env.events()
+            .publish((symbol_short!("badge_reg"),), badge);
+        Ok(())
+    }
+
+    // ── CT-24: issue_credential ───────────────────────────────────────────────
 
         Ok(())
     }
@@ -112,6 +136,24 @@ impl CredentialBadgeContract {
             return Err(Error::BadgeTypeNotFound);
         }
 
+        if env
+            .storage()
+            .persistent()
+            .has(&DataKey::Credential(badge_type_id.clone(), holder.clone()))
+        {
+            return Err(Error::AlreadyIssued);
+        }
+
+        let credential = Credential {
+            badge_type_id: badge_type_id.clone(),
+            holder: holder.clone(),
+            issued_at: env.ledger().timestamp(),
+            issuer: caller,
+            is_revoked: false,
+        };
+        env.storage()
+            .persistent()
+            .set(&DataKey::Credential(badge_type_id.clone(), holder.clone()), &credential);
         let key = DataKey::Credential(badge_type_id.clone(), holder.clone());
         if env.storage().persistent().has(&key) {
             return Err(Error::CredentialAlreadyIssued);
@@ -135,6 +177,13 @@ impl CredentialBadgeContract {
             .persistent()
             .set(&DataKey::HolderCredentials(holder), &holder_creds);
 
+        env.events()
+            .publish((symbol_short!("issued"),), credential);
+        Ok(())
+    }
+
+    // ── CT-25: revoke_credential ──────────────────────────────────────────────
+
         Ok(())
     }
 
@@ -148,12 +197,23 @@ impl CredentialBadgeContract {
         Self::require_admin(&env, &caller)?;
 
         let key = DataKey::Credential(badge_type_id.clone(), holder.clone());
+        let mut credential: Credential = env
         let mut cred: Credential = env
             .storage()
             .persistent()
             .get(&key)
             .ok_or(Error::CredentialNotFound)?;
 
+        if credential.is_revoked {
+            return Err(Error::CredentialRevoked);
+        }
+
+        credential.is_revoked = true;
+        env.storage().persistent().set(&key, &credential);
+
+        env.events()
+            .publish((symbol_short!("revoked"),), credential);
+        Ok(())
         cred.revoked = true;
         env.storage().persistent().set(&key, &cred);
         Ok(())
