@@ -4,6 +4,7 @@ import { Users, CalendarCheck, DollarSign, Clock } from "lucide-react";
 import StatCard from "./components/StatCard";
 import ActivityFeed, { Activity } from "./components/ActivityFeed";
 import WorkspaceImageManager from "./components/WorkspaceImageManager";
+import { LazyImage } from "./components/LazyImage";
 
 const MOCK_ACTIVITIES: Activity[] = [
   { id: "1", type: "booking_created", description: "Booked The Hive for 3 hours", timestamp: new Date(Date.now() - 7200_000) },
@@ -15,6 +16,14 @@ const MOCK_ACTIVITIES: Activity[] = [
   { id: "7", type: "checkin", description: "Checked in to The Hive", timestamp: new Date(Date.now() - 345600_000) },
 ];
 
+const images = [
+  { src: "https://picsum.photos/seed/a/600/400", alt: "Office space A" },
+  { src: "https://picsum.photos/seed/b/600/400", alt: "Office space B" },
+  { src: "https://picsum.photos/seed/c/600/400", alt: "Office space C" },
+  { src: "https://picsum.photos/seed/d/600/400", alt: "Office space D" },
+  { src: "https://picsum.photos/seed/e/600/400", alt: "Office space E" },
+  { src: "https://picsum.photos/seed/f/600/400", alt: "Office space F" },
+];
 const MOCK_IMAGES = [
   "https://images.unsplash.com/photo-1497366216548-37526070297c?w=400&q=80",
   "https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=400&q=80",
@@ -45,6 +54,15 @@ export default function SandboxPage() {
           <StatCard label="Avg. Hours/Day" value={6} icon={<Clock className="w-5 h-5" />} iconBg="bg-orange-100 text-orange-600" />
         </div>
       </section>
+
+  <section className="p-8">
+      <h1 className="text-2xl font-semibold mb-6">LazyImage Demo</h1>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {images.map((img) => (
+          <LazyImage key={img.src} src={img.src} alt={img.alt} width={600} height={400} />
+        ))}
+      </div>
+    </section>
 
       <section>
         <h2 className="text-lg font-semibold text-gray-800 mb-4">Recent Activity</h2>
