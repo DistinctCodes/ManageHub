@@ -10,6 +10,7 @@ import {
   MapPin,
 } from "lucide-react";
 import { AvailabilityCalendar } from "./AvailabilityCalendar";
+import SeatMap, { type Seat, type SeatStatus } from "./SeatMap";
 
 // ---- Types ----
 
@@ -369,8 +370,15 @@ function SeatStep({
   onSelect: (n: number) => void;
 }) {
   const available = seats.filter((s) => s.isAvailable).length;
+
+  // Convert SeatInfo[] to Seat[] for SeatMap
+  const mapSeats: Seat[] = seats.map((s) => ({
+    number: s.number,
+    status: s.number === selectedSeat ? "selected" : s.isAvailable ? "available" : "occupied",
+  }));
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div>
         <h2 className="text-base font-semibold text-gray-900">Select a Seat</h2>
         <p className="text-sm text-gray-500 mt-0.5">
@@ -378,40 +386,13 @@ function SeatStep({
         </p>
       </div>
 
-      <div className="grid grid-cols-6 sm:grid-cols-8 gap-2">
-        {seats.map((seat) => (
-          <button
-            key={seat.number}
-            disabled={!seat.isAvailable}
-            onClick={() => seat.isAvailable && onSelect(seat.number)}
-            title={`Seat ${seat.number}${seat.isAvailable ? "" : " (unavailable)"}`}
-            className={[
-              "aspect-square flex items-center justify-center rounded-lg text-xs font-semibold border-2 transition-all",
-              seat.isAvailable
-                ? selectedSeat === seat.number
-                  ? "bg-blue-600 border-blue-600 text-white shadow-md scale-105"
-                  : "bg-green-50 border-green-200 text-green-800 hover:bg-green-100 hover:border-green-400 cursor-pointer"
-                : "bg-gray-100 border-gray-100 text-gray-300 cursor-not-allowed",
-            ].join(" ")}
-          >
-            {seat.number}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex items-center gap-4 text-xs text-gray-500">
-        <span className="flex items-center gap-1.5">
-          <span className="w-3.5 h-3.5 rounded bg-green-50 border border-green-300" />
-          Available
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3.5 h-3.5 rounded bg-blue-600" />
-          Selected
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-3.5 h-3.5 rounded bg-gray-100" />
-          Unavailable
-        </span>
+      <div className="p-6 rounded-xl border border-gray-100 bg-gray-50/50">
+        <SeatMap
+          seats={mapSeats}
+          columns={8}
+          onSeatSelect={onSelect}
+          onSeatDeselect={() => {}} // In the wizard, we just select another or go back
+        />
       </div>
     </div>
   );
