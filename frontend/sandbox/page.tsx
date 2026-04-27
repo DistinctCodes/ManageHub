@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Users, CalendarCheck, DollarSign, Clock } from "lucide-react";
+import { Users, CalendarCheck, DollarSign, Clock, Search } from "lucide-react";
 import StatCard from "./components/StatCard";
 import ActivityFeed, { Activity } from "./components/ActivityFeed";
 import WorkspaceImageManager from "./components/WorkspaceImageManager";
@@ -23,7 +23,7 @@ const MOCK_ACTIVITIES: Activity[] = [
   { id: "7", type: "checkin", description: "Checked in to The Hive", timestamp: new Date(Date.now() - 345600_000) },
 ];
 
-const images = [
+const LAZY_IMAGES = [
   { src: "https://picsum.photos/seed/a/600/400", alt: "Office space A" },
   { src: "https://picsum.photos/seed/b/600/400", alt: "Office space B" },
   { src: "https://picsum.photos/seed/c/600/400", alt: "Office space C" },
@@ -37,7 +37,14 @@ const MOCK_IMAGES = [
   "https://images.unsplash.com/photo-1524758631624-e2822e304c36?w=400&q=80",
 ];
 
+// 24-seat mock: 6 occupied, rest available
+const INITIAL_SEATS: Seat[] = Array.from({ length: 24 }, (_, i) => ({
+  number: i + 1,
+  status: [3, 7, 11, 14, 18, 22].includes(i + 1) ? "occupied" : "available",
+}));
+
 export default function SandboxPage() {
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const [images, setImages] = useState<string[]>(MOCK_IMAGES);
   const { toast } = useToast();
 
@@ -72,7 +79,7 @@ export default function SandboxPage() {
   <section className="p-8">
       <h1 className="text-2xl font-semibold mb-6">LazyImage Demo</h1>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {images.map((img) => (
+        {LAZY_IMAGES.map((img) => (
           <LazyImage key={img.src} src={img.src} alt={img.alt} width={600} height={400} />
         ))}
       </div>

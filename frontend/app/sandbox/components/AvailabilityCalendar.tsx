@@ -10,6 +10,7 @@ interface AvailabilityEntry {
 interface Props {
   availabilityData: AvailabilityEntry[];
   onDateSelect?: (date: string) => void;
+  selectedDate?: string;
 }
 
 function pad(n: number) {
@@ -20,7 +21,7 @@ function toDateStr(year: number, month: number, day: number) {
   return `${year}-${pad(month + 1)}-${pad(day)}`;
 }
 
-export function AvailabilityCalendar({ availabilityData, onDateSelect }: Props) {
+export function AvailabilityCalendar({ availabilityData, onDateSelect, selectedDate }: Props) {
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
@@ -65,6 +66,7 @@ export function AvailabilityCalendar({ availabilityData, onDateSelect }: Props) 
           const seats = availMap.get(dateStr);
           const isAvailable = seats !== undefined && seats > 0;
           const isBooked = seats === 0;
+          const isSelected = dateStr === selectedDate;
 
           return (
             <button
@@ -73,10 +75,11 @@ export function AvailabilityCalendar({ availabilityData, onDateSelect }: Props) 
               onClick={() => isAvailable && onDateSelect?.(dateStr)}
               className={[
                 "mx-auto flex h-8 w-8 items-center justify-center rounded-full text-xs transition-colors",
-                isToday ? "font-bold ring-2 ring-blue-400" : "",
-                isAvailable ? "bg-green-100 text-green-800 hover:bg-green-200 cursor-pointer" : "",
-                isBooked ? "bg-red-100 text-red-600 cursor-not-allowed" : "",
-                !isAvailable && !isBooked ? "text-gray-300 cursor-default" : "",
+                isSelected ? "bg-blue-600 text-white font-bold ring-2 ring-blue-600" : "",
+                !isSelected && isToday ? "font-bold ring-2 ring-blue-400" : "",
+                !isSelected && isAvailable ? "bg-green-100 text-green-800 hover:bg-green-200 cursor-pointer" : "",
+                !isSelected && isBooked ? "bg-red-100 text-red-600 cursor-not-allowed" : "",
+                !isSelected && !isAvailable && !isBooked ? "text-gray-300 cursor-default" : "",
               ].join(" ")}
             >
               {day}
