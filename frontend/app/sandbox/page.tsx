@@ -71,11 +71,11 @@ const MOCK_AVAILABILITY = [
 // ---- Tabs ----
 
 const TABS = [
-  { id: "fe-36",      label: "FE-36",    title: "Booking Wizard" },
-  { id: "components", label: "FE-01–35", title: "General" },
-  { id: "fe-37",      label: "FE-37",    title: "Data Table" },
-  { id: "fe-38",      label: "FE-38",    title: "Command Palette" },
-  { id: "fe-39",      label: "FE-39",    title: "Seat Map" },
+  { id: "fe-36",      title: "Booking Wizard" },
+  { id: "components", title: "General" },
+  { id: "fe-37",      title: "Data Table" },
+  { id: "fe-38",      title: "Command Palette" },
+  { id: "fe-39",      title: "Seat Map" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -104,12 +104,6 @@ export default function SandboxPage() {
                   : "text-gray-500 hover:text-gray-800 hover:bg-gray-50",
               ].join(" ")}
             >
-              <span className={[
-                "text-xs font-mono px-1.5 py-0.5 rounded",
-                activeTab === tab.id ? "bg-white/20 text-white" : "bg-gray-100 text-gray-400",
-              ].join(" ")}>
-                {tab.label}
-              </span>
               {tab.title}
             </button>
           ))}
@@ -122,7 +116,7 @@ export default function SandboxPage() {
         {activeTab === "components" && (
           <div className="space-y-10">
             <section>
-              <h2 className="mb-3 text-sm font-semibold text-gray-500 uppercase tracking-wide">FE-03 · Notification Badge</h2>
+              <h2 className="mb-3 text-sm font-semibold text-gray-500 uppercase tracking-wide">Notification Badge</h2>
               <div className="flex items-center gap-4 rounded-lg border bg-white px-4 py-3 shadow-sm">
                 <span className="text-sm text-gray-500">Mock Navbar</span>
                 <div className="ml-auto">
@@ -132,7 +126,7 @@ export default function SandboxPage() {
             </section>
 
             <section>
-              <h2 className="mb-3 text-sm font-semibold text-gray-500 uppercase tracking-wide">FE-01 · Filter Sidebar</h2>
+              <h2 className="mb-3 text-sm font-semibold text-gray-500 uppercase tracking-wide">Filter Sidebar</h2>
               <div className="flex gap-6">
                 <Suspense>
                   <WorkspaceFilterSidebar />
@@ -144,7 +138,7 @@ export default function SandboxPage() {
             </section>
 
             <section>
-              <h2 className="mb-3 text-sm font-semibold text-gray-500 uppercase tracking-wide">FE-02 · Availability Calendar</h2>
+              <h2 className="mb-3 text-sm font-semibold text-gray-500 uppercase tracking-wide">Availability Calendar</h2>
               <AvailabilityCalendar
                 availabilityData={MOCK_AVAILABILITY}
                 onDateSelect={(date) => console.log("Selected:", date)}
