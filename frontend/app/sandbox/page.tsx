@@ -1,3 +1,5 @@
+"use client";
+
 import { Suspense } from "react";
 import { WorkspaceFilterSidebar } from "./components/WorkspaceFilterSidebar";
 import { AvailabilityCalendar } from "./components/AvailabilityCalendar";
