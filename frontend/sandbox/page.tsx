@@ -12,6 +12,7 @@ import StatCardSkeleton from "./components/skeletons/StatCardSkeleton";
 import ActivityFeedSkeleton from "./components/skeletons/ActivityFeedSkeleton";
 import TableRowSkeleton from "./components/skeletons/TableRowSkeleton";
 import FileUpload from "./components/FileUpload";
+import FloatingActionButton from "./components/FloatingActionButton";
 import Link from "next/link";
 import { ConfirmDialogProvider, useConfirmDialog } from "./hooks/useConfirmDialog";
 
@@ -40,12 +41,10 @@ const MOCK_IMAGES = [
 ];
 
 // 24-seat mock: 6 occupied, rest available
-const INITIAL_SEATS: Seat[] = Array.from({ length: 24 }, (_, i) => ({
+const INITIAL_SEATS: any[] = Array.from({ length: 24 }, (_, i) => ({
   number: i + 1,
   status: [3, 7, 11, 14, 18, 22].includes(i + 1) ? "occupied" : "available",
 }));
-
-import { ConfirmDialogProvider, useConfirmDialog } from "./hooks/useConfirmDialog";
 
 function ConfirmDialogDemo() {
   const { confirm } = useConfirmDialog();
@@ -143,6 +142,25 @@ export default function SandboxPage() {
          <section>
            <h1 className="text-3xl font-bold text-gray-900 mb-2">Sandbox Demo</h1>
            <p className="text-gray-600">Interactive component showcase for ManageHub</p>
+         </section>
+
+         {/* FAB Demo Section */}
+         <section>
+           <h2 className="text-lg font-semibold text-gray-800 mb-4">Floating Action Button (Mobile Only)</h2>
+           <div className="bg-gray-100 rounded-xl border-2 border-dashed border-gray-300 p-6">
+             <p className="text-gray-600 mb-4 text-center">
+               The Floating Action Button is only visible on mobile devices (screens smaller than md breakpoint).
+               Resize your browser window or use mobile dev tools to see it in action.
+             </p>
+             <div className="bg-white rounded-lg border border-gray-200 p-4 max-w-sm mx-auto">
+               <div className="text-center text-sm text-gray-500 mb-4">
+                Mobile viewport preview area
+               </div>
+               <div className="h-32 bg-gradient-to-b from-blue-50 to-blue-100 rounded flex items-center justify-center">
+                 <span className="text-blue-600 text-sm">Mock mobile content</span>
+               </div>
+             </div>
+           </div>
          </section>
 
          {/* FE-21: Generic File Upload Component */}
@@ -294,6 +312,9 @@ export default function SandboxPage() {
          </div>
         </section>
       </div>
+      
+      {/* Floating Action Button - Mobile Only */}
+      <FloatingActionButton />
     </ConfirmDialogProvider>
   );
 }
