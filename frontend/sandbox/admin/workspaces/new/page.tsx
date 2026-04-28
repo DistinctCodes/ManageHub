@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import RichTextEditor from "../../../components/RichTextEditor";
 
 const TYPES = ["Hot Desk", "Private Office", "Meeting Room", "Event Space"];
 const AMENITIES = ["WiFi", "Projector", "Whiteboard", "Coffee", "Parking", "AC", "Locker"];
@@ -83,7 +84,12 @@ export default function NewWorkspacePage({ initial }: { initial?: Partial<FormDa
 
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1.5">Description</label>
-          <textarea className={`${field} resize-none`} rows={3} value={form.description} onChange={(e) => set("description", e.target.value)} />
+          <RichTextEditor
+            value={form.description}
+            onChange={(html) => set("description", html)}
+            maxCharacters={500}
+            placeholder="Describe this workspace..."
+          />
         </div>
 
         <div>
