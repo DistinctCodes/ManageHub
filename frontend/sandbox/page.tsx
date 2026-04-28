@@ -11,6 +11,7 @@ import AmenitiesList from "./components/AmenitiesList";
 import StatCardSkeleton from "./components/skeletons/StatCardSkeleton";
 import ActivityFeedSkeleton from "./components/skeletons/ActivityFeedSkeleton";
 import TableRowSkeleton from "./components/skeletons/TableRowSkeleton";
+import FileUpload from "./components/FileUpload";
 import Link from "next/link";
 
 const MOCK_ACTIVITIES: Activity[] = [
@@ -66,6 +67,19 @@ export default function SandboxPage() {
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Sandbox Demo</h1>
         <p className="text-gray-600">Interactive component showcase for ManageHub</p>
       </section>
+
+      {/* FE-21: Generic File Upload Component */}
+      <section>
+        <h2 className="text-lg font-semibold text-gray-800 mb-4">Generic File Upload</h2>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+          <FileUpload 
+            accept="image/*,application/pdf" 
+            maxSize={10 * 1024 * 1024} 
+            onUploadComplete={(urls) => console.log("Uploads complete:", urls)}
+          />
+        </div>
+      </section>
+
       <section>
         <h2 className="text-lg font-semibold text-gray-800 mb-4">Dashboard Stats</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
