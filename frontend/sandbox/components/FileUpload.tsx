@@ -72,7 +72,7 @@ export default function FileUpload({ accept, maxSize, onUploadComplete }: FileUp
   };
 
   const uploadFile = async (id: string, file: File) => {
-    setFiles((prev) => prev.map((f) => (f.id === id ? { ...f, status: "uploading" } : f)));
+    setFiles((prev) => prev.map((f) => (f.id === id ? { ...f, status: "uploading" as const } : f)));
 
     // Simulate upload progress
     for (let p = 10; p <= 100; p += 10) {
@@ -82,7 +82,9 @@ export default function FileUpload({ accept, maxSize, onUploadComplete }: FileUp
 
     const dummyUrl = URL.createObjectURL(file);
     setFiles((prev) => {
-      const updated = prev.map((f) => (f.id === id ? { ...f, status: "complete", url: dummyUrl } : f));
+      const updated: FileState[] = prev.map((f) =>
+        f.id === id ? { ...f, status: "complete" as const, url: dummyUrl } : f,
+      );
       
       // Trigger callback if all non-error files are finished
       const allFinished = updated.every((f) => f.status === "complete" || f.status === "error");

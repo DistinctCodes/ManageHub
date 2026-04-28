@@ -78,7 +78,7 @@ export default function AdminAnalyticsPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip formatter={(v: number) => [`$${v.toLocaleString()}`, "Revenue"]} />
+                <Tooltip formatter={(v: number | undefined) => [`$${(v ?? 0).toLocaleString()}`, "Revenue"]} />
                 <Line
                   type="monotone"
                   dataKey="revenue"

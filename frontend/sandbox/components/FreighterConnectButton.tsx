@@ -1,6 +1,15 @@
 "use client";
 import { useEffect, useState } from "react";
 
+declare global {
+  interface Window {
+    freighterApi?: {
+      getPublicKey: () => Promise<string>;
+    };
+    freighter?: unknown;
+  }
+}
+
 const FREIGHTER_URL = "https://www.freighter.app/";
 const LS_KEY = "freighter_pubkey";
 
@@ -15,13 +24,16 @@ export default function FreighterConnectButton() {
   useEffect(() => {
     const stored = localStorage.getItem(LS_KEY);
     if (stored) setPubkey(stored);
-    setInstalled(typeof window !== "undefined" && !!(window as any).freighter);
+    setInstalled(typeof window !== "undefined" && !!(window.freighterApi || window.freighter));
   }, []);
 
   async function connect() {
     try {
-      const { getPublicKey } = await import("@stellar/freighter-api");
-      const key = await getPublicKey();
+      if (!window.freighterApi?.getPublicKey) {
+        throw new Error("Freighter API not available");
+      }
+
+      const key = await window.freighterApi.getPublicKey();
       localStorage.setItem(LS_KEY, key);
       setPubkey(key);
     } catch (e) {
