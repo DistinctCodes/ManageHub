@@ -48,14 +48,24 @@ function getCompletionText(label: string) {
 function TimeBox({ value, unit }: { value: string; unit: string }) {
   return (
     <div className="min-w-16 rounded-xl border border-gray-200 bg-white px-3 py-2 text-center shadow-sm">
-      <div className="text-lg font-semibold tabular-nums text-gray-900">{value}</div>
-      <div className="text-xs uppercase tracking-wide text-gray-500">{unit}</div>
+      <div className="text-lg font-semibold tabular-nums text-gray-900">
+        {value}
+      </div>
+      <div className="text-xs uppercase tracking-wide text-gray-500">
+        {unit}
+      </div>
     </div>
   );
 }
 
-export default function CountdownTimer({ targetDate, label, compact = false }: CountdownTimerProps) {
-  const [timeLeft, setTimeLeft] = useState<TimeLeft>(() => getTimeLeft(targetDate));
+export default function CountdownTimer({
+  targetDate,
+  label,
+  compact = false,
+}: CountdownTimerProps) {
+  const [timeLeft, setTimeLeft] = useState<TimeLeft>(() =>
+    getTimeLeft(targetDate),
+  );
 
   useEffect(() => {
     setTimeLeft(getTimeLeft(targetDate));
