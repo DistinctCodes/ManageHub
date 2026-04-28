@@ -3,28 +3,30 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useToast } from "../components/useToast";
+import { useToast } from "../../components/useToast";
 
-const bookingSchema = z.object({
-  workspace: z.string().min(1, "Workspace is required"),
-  planType: z.string().min(1, "Plan type is required"),
-  startDate: z.string().min(1, "Start date is required"),
-  endDate: z.string().min(1, "End date is required"),
-  seatCount: z.coerce.number().min(1, "Seat count must be at least 1"),
-  notes: z.string().optional(),
-}).refine((data) => {
-  if (data.startDate && data.endDate) {
-    const start = new Date(data.startDate);
-    const end = new Date(data.endDate);
-    if (end <= start) {
-      return {
-        message: "End date must be after start date",
-        path: ["endDate"],
-      };
+const bookingSchema = z
+  .object({
+    workspace: z.string().min(1, "Workspace is required"),
+    planType: z.string().min(1, "Plan type is required"),
+    startDate: z.string().min(1, "Start date is required"),
+    endDate: z.string().min(1, "End date is required"),
+    seatCount: z.number().min(1, "Seat count must be at least 1"),
+    notes: z.string().optional(),
+  })
+  .refine((data) => {
+    if (data.startDate && data.endDate) {
+      const start = new Date(data.startDate);
+      const end = new Date(data.endDate);
+      if (end <= start) {
+        return {
+          message: "End date must be after start date",
+          path: ["endDate"],
+        };
+      }
     }
-  }
-  return true;
-});
+    return true;
+  });
 
 type BookingFormData = z.infer<typeof bookingSchema>;
 
@@ -45,7 +47,7 @@ const PLAN_TYPES = [
 
 export default function BookingForm() {
   const { toast } = useToast();
-  
+
   const {
     register,
     handleSubmit,
@@ -91,7 +93,9 @@ export default function BookingForm() {
           ))}
         </select>
         {errors.workspace && (
-          <p className="mt-1 text-sm text-red-600">{errors.workspace.message}</p>
+          <p className="mt-1 text-sm text-red-600">
+            {errors.workspace.message}
+          </p>
         )}
       </div>
 
@@ -126,7 +130,9 @@ export default function BookingForm() {
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
           {errors.startDate && (
-            <p className="mt-1 text-sm text-red-600">{errors.startDate.message}</p>
+            <p className="mt-1 text-sm text-red-600">
+              {errors.startDate.message}
+            </p>
           )}
         </div>
 
@@ -140,7 +146,9 @@ export default function BookingForm() {
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
           {errors.endDate && (
-            <p className="mt-1 text-sm text-red-600">{errors.endDate.message}</p>
+            <p className="mt-1 text-sm text-red-600">
+              {errors.endDate.message}
+            </p>
           )}
         </div>
       </div>
@@ -151,12 +159,14 @@ export default function BookingForm() {
         </label>
         <input
           type="number"
-          {...register("seatCount")}
+          {...register("seatCount", { valueAsNumber: true })}
           min="1"
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
         {errors.seatCount && (
-          <p className="mt-1 text-sm text-red-600">{errors.seatCount.message}</p>
+          <p className="mt-1 text-sm text-red-600">
+            {errors.seatCount.message}
+          </p>
         )}
       </div>
 

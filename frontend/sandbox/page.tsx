@@ -1,4 +1,13 @@
 "use client";
+
+import Link from "next/link";
+import CountdownTimer from "./components/CountdownTimer";
+
+export default function SandboxPage() {
+  const bookingStart = new Date(Date.now() + 1000 * 60 * 60 * 26).toISOString();
+  const membershipExpiry = new Date(
+    Date.now() + 1000 * 60 * 60 * 5 + 1000 * 60 * 12,
+  ).toISOString();
 import { useState } from "react";
 import { Users, CalendarCheck, DollarSign, Clock, Search } from "lucide-react";
 import StatCard from "./components/StatCard";
@@ -185,105 +194,56 @@ export default function SandboxPage() {
         </div>
       </section>
 
-  <section className="p-8">
-      <h1 className="text-2xl font-semibold mb-6">LazyImage Demo</h1>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {LAZY_IMAGES.map((img) => (
-          <LazyImage key={img.src} src={img.src} alt={img.alt} width={600} height={400} />
-        ))}
-      </div>
-    </section>
-
+  return (
+    <main className="mx-auto max-w-4xl space-y-8 p-6">
       <section>
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">Recent Activity</h2>
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-          <ActivityFeed activities={MOCK_ACTIVITIES} />
-        </div>
+        <h1 className="text-3xl font-bold text-gray-900">
+          Sandbox UI Features
+        </h1>
+        <p className="mt-2 text-gray-600">
+          Feature demos for FE-44, FE-45, FE-46, and FE-47.
+        </p>
       </section>
 
-      <section>
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">Workspace Images</h2>
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-          <WorkspaceImageManager images={images} onUpload={handleUpload} onDelete={handleDelete} />
-        </div>
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold text-gray-900">Countdown Timer</h2>
+        <CountdownTimer
+          targetDate={bookingStart}
+          label="Upcoming booking starts in"
+        />
+        <CountdownTimer
+          targetDate={membershipExpiry}
+          label="Membership expires in"
+          compact
+        />
       </section>
 
-      {/* FE-17: Skeleton Loading Components */}
-      <section>
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">Skeleton Loading States</h2>
-        <div className="space-y-6">
-          <div>
-            <h3 className="text-sm font-medium text-gray-600 mb-3">Stat Card Skeletons</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <StatCardSkeleton />
-              <StatCardSkeleton />
-              <StatCardSkeleton />
-              <StatCardSkeleton />
-            </div>
-          </div>
-
-          <div>
-            <h3 className="text-sm font-medium text-gray-600 mb-3">Activity Feed Skeleton</h3>
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-              <ActivityFeedSkeleton />
-            </div>
-          </div>
-
-          <div>
-            <h3 className="text-sm font-medium text-gray-600 mb-3">Table Row Skeleton (5 columns, 5 rows)</h3>
-            <TableRowSkeleton columns={5} rows={5} />
-          </div>
+      <section className="rounded-xl border border-gray-200 bg-white p-5">
+        <h2 className="text-base font-semibold text-gray-900">
+          New Sandbox Pages
+        </h2>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Link
+            href="/sandbox/badges"
+            className="rounded-lg bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-700"
+          >
+            Member Badge Gallery
+          </Link>
+          <Link
+            href="/sandbox/search"
+            className="rounded-lg bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-700"
+          >
+            Global Search
+          </Link>
+          <Link
+            href="/sandbox/workspaces/compare"
+            className="rounded-lg bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-700"
+          >
+            Workspace Compare
+          </Link>
         </div>
       </section>
-
-      {/* FE-18: Toast Notification Demo */}
-      <section>
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">Toast Notifications</h2>
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-          <div className="flex flex-wrap gap-3">
-            <button
-              onClick={() => toast.success("Operation completed successfully!")}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-            >
-              Show Success Toast
-            </button>
-            <button
-              onClick={() => toast.error("Something went wrong. Please try again.")}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-            >
-              Show Error Toast
-            </button>
-            <button
-              onClick={() => toast.info("Here's some useful information for you.")}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Show Info Toast
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* FE-19: Amenities List Demo */}
-      <section>
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">Workspace Amenities</h2>
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-          <AmenitiesList
-            amenities={[
-              "WiFi",
-              "Parking",
-              "Coffee",
-              "Printer",
-              "Standing Desk",
-              "AC",
-              "Locker",
-              "Meeting Room",
-              "Whiteboard",
-              "24/7 Access",
-              "Phone Booth",
-            ]}
-          />
-        </div>
-      </section>
+    </main>
 
        {/* FE-20: Booking Form Link */}
        <section>
