@@ -13,7 +13,6 @@ import { UserRole } from '../../users/enums/userRoles.enum';
 import { User } from '../../users/entities/user.entity';
 import { EmailService } from '../../email/email.service';
 import { WorkspacesService } from '../../workspaces/workspaces.service';
-import { WaitlistProvider } from '../../sandbox/waitlist/providers/waitlist.provider';
 
 @Injectable()
 export class CancelBookingProvider {
@@ -24,7 +23,6 @@ export class CancelBookingProvider {
     private readonly usersRepository: Repository<User>,
     private readonly emailService: EmailService,
     private readonly workspacesService: WorkspacesService,
-    @Optional() private readonly waitlistProvider?: WaitlistProvider,
   ) {}
 
   async cancel(
@@ -80,13 +78,6 @@ export class CancelBookingProvider {
           .catch(() => void 0);
       })
       .catch(() => void 0);
-
-    // Notify first waitlist entry for this workspace/date
-    if (this.waitlistProvider) {
-      this.waitlistProvider
-        .notifyFirstInQueue(saved.workspaceId, saved.startDate)
-        .catch(() => void 0);
-    }
 
     return saved;
   }

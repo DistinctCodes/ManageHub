@@ -20,11 +20,6 @@ import { PaymentsModule } from './payments/payments.module';
 import { InvoicesModule } from './invoices/invoices.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { WorkspaceTrackingModule } from './workspace-tracking/workspace-tracking.module';
-import { SandboxAnalyticsModule } from './sandbox/analytics/analytics.module';
-import { SandboxBookingsModule } from './sandbox/bookings/bookings.module';
-import { SandboxReportsModule } from './sandbox/reports/reports.module';
-import { WaitlistModule } from './sandbox/waitlist/waitlist.module';
-import { SandboxModule } from './sandbox/sandbox.module';
 
 @Module({
   imports: [
@@ -104,11 +99,6 @@ import { SandboxModule } from './sandbox/sandbox.module';
     InvoicesModule,
     NotificationsModule,
     WorkspaceTrackingModule,
-    SandboxAnalyticsModule,
-    SandboxBookingsModule,
-    SandboxReportsModule,
-    WaitlistModule,
-    SandboxModule,
   ],
   controllers: [AppController],
   providers: [
