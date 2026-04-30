@@ -1,4 +1,7 @@
 #![no_std]
+// The env.events().publish() API is deprecated in favour of #[contractevent],
+// but kept here for consistency with the rest of the ManageHub contracts.
+#![allow(deprecated)]
 
 mod errors;
 mod types;
@@ -30,9 +33,7 @@ impl ResourceCreditsContract {
         env.storage()
             .instance()
             .set(&DataKey::PaymentToken, &payment_token);
-        env.storage()
-            .instance()
-            .set(&DataKey::TotalSupply, &0u128);
+        env.storage().instance().set(&DataKey::TotalSupply, &0u128);
         Ok(())
     }
 
@@ -76,10 +77,8 @@ impl ResourceCreditsContract {
             .instance()
             .set(&DataKey::TotalSupply, &(supply + amount));
 
-        env.events().publish(
-            (symbol_short!("mint"), recipient),
-            amount,
-        );
+        env.events()
+            .publish((symbol_short!("mint"), recipient), amount);
         Ok(())
     }
 
@@ -119,10 +118,8 @@ impl ResourceCreditsContract {
             .persistent()
             .set(&DataKey::Balance(to.clone()), &(to_bal + amount));
 
-        env.events().publish(
-            (symbol_short!("transfer"), from, to),
-            amount,
-        );
+        env.events()
+            .publish((symbol_short!("transfer"), from, to), amount);
         Ok(())
     }
 
@@ -157,10 +154,8 @@ impl ResourceCreditsContract {
             .instance()
             .set(&DataKey::TotalSupply, &(supply - amount));
 
-        env.events().publish(
-            (symbol_short!("spend"), member),
-            amount,
-        );
+        env.events()
+            .publish((symbol_short!("spend"), member), amount);
         Ok(())
     }
 
