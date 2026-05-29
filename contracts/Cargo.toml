@@ -8,6 +8,7 @@ members = [
     "workspace_booking",
     "payment_escrow",
     "resource_credits",
+    "cntr",
 ]
 
 [workspace.dependencies]
