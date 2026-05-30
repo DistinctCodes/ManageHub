@@ -9,3 +9,4 @@ path = "src/lib.rs"
 
 [dependencies]
 regex = "1"
+doctest = false
