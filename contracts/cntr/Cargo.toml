@@ -5,4 +5,8 @@ edition = "2021"
 publish = false
 
 [lib]
+path = "src/lib.rs"
+
+[dependencies]
+regex = "1"
 doctest = false
