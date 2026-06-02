@@ -1,0 +1,55 @@
+<mjml>
+  <mj-head>
+    <mj-title>Two-Factor Authentication Enabled — ManageHub</mj-title>
+    <mj-attributes>
+      <mj-all font-family="Arial, sans-serif" />
+      <mj-text font-size="15px" line-height="1.6" color="#1f2937" />
+    </mj-attributes>
+  </mj-head>
+  <mj-body background-color="#f9fafb">
+    <mj-section background-color="#0ea5e9" padding="24px 0">
+      <mj-column>
+        <mj-text align="center" color="#ffffff" font-size="22px" font-weight="bold">
+          ManageHub
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-section background-color="#ffffff" padding="32px 24px">
+      <mj-column>
+        <mj-text font-size="20px" font-weight="bold" color="#111827">
+          Two-Factor Authentication Enabled
+        </mj-text>
+        <mj-text>Hi {{memberName}},</mj-text>
+        <mj-text>
+          Two-factor authentication (2FA) was successfully enabled on your ManageHub account on
+          <strong>{{enabledAt}}</strong>.
+        </mj-text>
+        <mj-text color="#b91c1c" font-weight="bold">
+          If this wasn't you, secure your account immediately by disabling 2FA using the button below.
+        </mj-text>
+        <mj-button
+          background-color="#dc2626"
+          color="#ffffff"
+          href="{{disableUrl}}"
+          border-radius="6px"
+          font-size="15px"
+          padding="12px 24px"
+        >
+          Disable 2FA
+        </mj-button>
+        <mj-text font-size="13px" color="#6b7280">
+          If you authorized this change, no further action is required. This is a security notification only.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-section background-color="#f3f4f6" padding="16px">
+      <mj-column>
+        <mj-text align="center" font-size="12px" color="#9ca3af">
+          © 2026 ManageHub. All rights reserved.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>
