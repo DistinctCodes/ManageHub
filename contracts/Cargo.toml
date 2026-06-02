@@ -2,14 +2,12 @@
 resolver = "2"
 members = [
     "access_control",
-    "cntr",
     "manage_hub",
     "membership_token",
     "common_types",
     "workspace_booking",
     "payment_escrow",
     "resource_credits",
-    "cntr",
 ]
 
 [workspace.dependencies]
