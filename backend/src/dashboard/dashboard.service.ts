@@ -32,7 +32,7 @@ export class DashboardService {
     return {
       totalMembers,
       verifiedMembers,
-      activeWorkspaces: 1, // placeholder until workspaces entity exists
+      activeWorkspaces: await this.adminAnalyticsProvider.getActiveWorkspacesCount(),
       deskOccupancy: Math.min(
         Math.round((verifiedMembers / Math.max(totalMembers, 1)) * 100),
         100,
