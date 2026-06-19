@@ -85,7 +85,7 @@ function BookingRow({ booking, onCancelled }: { booking: Booking; onCancelled: (
   return (
     <div className="bg-white rounded-xl border border-gray-100 p-5">
       <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div className="min-w-0">
+        <Link href={`/bookings/${booking.id}`} className="min-w-0 flex-1 hover:opacity-80 transition-opacity block">
           <div className="flex items-center gap-2 flex-wrap">
             <span
               className={`px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -98,7 +98,7 @@ function BookingRow({ booking, onCancelled }: { booking: Booking; onCancelled: (
               #{booking.id.slice(0, 8)}
             </span>
           </div>
-          <p className="text-sm font-semibold text-gray-900 mt-1.5">
+          <p className="text-sm font-semibold text-gray-900 mt-1.5 hover:underline">
             {booking.workspace?.name ?? booking.workspaceId}
           </p>
           <p className="text-xs text-gray-500 mt-0.5">
@@ -108,7 +108,7 @@ function BookingRow({ booking, onCancelled }: { booking: Booking; onCancelled: (
           <p className="text-xs text-gray-400 mt-0.5">
             {booking.startDate} → {booking.endDate}
           </p>
-        </div>
+        </Link>
 
         <div className="text-right shrink-0">
           <p className="text-base font-bold text-gray-900">{amountNaira}</p>

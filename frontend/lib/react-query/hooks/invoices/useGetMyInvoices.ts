@@ -16,12 +16,15 @@ interface InvoicesResponse {
   };
 }
 
-export const useGetMyInvoices = (page = 1, limit = 10) => {
+export const useGetMyInvoices = (page = 1, limit = 10, bookingId?: string) => {
   return useQuery({
-    queryKey: queryKeys.invoices.mine({ page, limit }),
-    queryFn: () =>
-      apiClient.get<InvoicesResponse>(
-        `/invoices?page=${page}&limit=${limit}`
-      ),
+    queryKey: queryKeys.invoices.mine({ page, limit, bookingId }),
+    queryFn: () => {
+      let url = `/invoices?page=${page}&limit=${limit}`;
+      if (bookingId) {
+        url += `&bookingId=${bookingId}`;
+      }
+      return apiClient.get<InvoicesResponse>(url);
+    },
   });
 };
