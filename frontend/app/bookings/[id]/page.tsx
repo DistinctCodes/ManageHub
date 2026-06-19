@@ -2,7 +2,6 @@
 
 import { useState, use } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { useGetBooking } from "@/lib/react-query/hooks/bookings/useGetBooking";
 import { useCancelBooking } from "@/lib/react-query/hooks/bookings/useCancelBooking";
@@ -30,7 +29,6 @@ const STATUS_STYLES: Record<BookingStatus, string> = {
 };
 
 export default function BookingDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const router = useRouter();
   const resolvedParams = use(params);
   const id = resolvedParams.id;
 
@@ -124,7 +122,7 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
   const isPaid = invoice?.status === "PAID";
   const paymentBadgeClasses = isPaid
     ? "bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400"
-    : invoice?.status === "FAILED"
+    : invoice?.status === "CANCELLED"
     ? "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400"
     : "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400";
 
