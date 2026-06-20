@@ -39,6 +39,7 @@ const adminItems = [
   { label: "Workspaces", href: "/admin/workspaces", icon: Building2 },
   { label: "All Bookings", href: "/admin/bookings", icon: BookOpen },
   { label: "Members", href: "/admin/members", icon: Users },
+  { label: "Invoices", href: "/admin/invoices", icon: FileText },
   { label: "Newsletter", href: "/dashboard?tab=newsletter", icon: Mail },
 ];
 
