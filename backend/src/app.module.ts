@@ -21,6 +21,7 @@ import { InvoicesModule } from './invoices/invoices.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { WorkspaceTrackingModule } from './workspace-tracking/workspace-tracking.module';
 import { HubSettingsModule } from './hub-settings/hub-settings.module';
+import { VisitorsModule } from './visitors/visitors.module';
 
 @Module({
   imports: [
@@ -101,6 +102,7 @@ import { HubSettingsModule } from './hub-settings/hub-settings.module';
     NotificationsModule,
     WorkspaceTrackingModule,
     HubSettingsModule,
+    VisitorsModule,
   ],
   controllers: [AppController],
   providers: [
