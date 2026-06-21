@@ -60,5 +60,9 @@ export const queryKeys = {
       all: ["admin", "invoices"] as const,
       list: (params?: unknown) => ["admin", "invoices", "list", params] as const,
     },
+    payments: {
+      all: ["admin", "payments"] as const,
+      list: (params?: unknown) => ["admin", "payments", "list", params] as const,
+    },
   },
 } as const;
