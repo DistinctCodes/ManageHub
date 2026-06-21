@@ -166,20 +166,4 @@ impl AccessControl {
     pub fn deactivate_emergency_mode(env: Env, caller: Address) {
         AccessControlModule::deactivate_emergency_mode(&env, caller).unwrap()
     }
-
-    #[allow(clippy::too_many_arguments)]
-    pub fn update_multisig_config_full(
-        _env: Env,
-        _admins: Vec<Address>,
-        _required_signatures: u32,
-        _critical_threshold: u32,
-        _emergency_threshold: u32,
-        _time_lock_duration: u64,
-        _max_pending_proposals: u32,
-        _proposal_expiry_duration: u64,
-    ) -> u64 {
-        // This is a helper function - actual usage should call create_proposal directly
-        // Return 0 as placeholder - this function should not be used in production
-        0
-    }
 }
