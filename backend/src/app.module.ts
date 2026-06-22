@@ -103,6 +103,7 @@ import { VisitorsModule } from './visitors/visitors.module';
     WorkspaceTrackingModule,
     HubSettingsModule,
     VisitorsModule,
+    EventsModule,
   ],
   controllers: [AppController],
   providers: [
