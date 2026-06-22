@@ -3,7 +3,6 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
-  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -13,6 +12,7 @@ import { UserRole } from '../../users/enums/userRoles.enum';
 import { User } from '../../users/entities/user.entity';
 import { EmailService } from '../../email/email.service';
 import { WorkspacesService } from '../../workspaces/workspaces.service';
+import { WaitlistService } from '../../waitlist/waitlist.service';
 
 @Injectable()
 export class CancelBookingProvider {
@@ -23,6 +23,7 @@ export class CancelBookingProvider {
     private readonly usersRepository: Repository<User>,
     private readonly emailService: EmailService,
     private readonly workspacesService: WorkspacesService,
+    private readonly waitlistService: WaitlistService,
   ) {}
 
   async cancel(
@@ -58,7 +59,6 @@ export class CancelBookingProvider {
     booking.status = BookingStatus.CANCELLED;
     const saved = await this.bookingsRepository.save(booking);
 
-    // Fire-and-forget cancellation email
     Promise.all([
       this.usersRepository.findOne({ where: { id: saved.userId } }),
       this.workspacesService.findById(saved.workspaceId),
@@ -77,6 +77,10 @@ export class CancelBookingProvider {
           })
           .catch(() => void 0);
       })
+      .catch(() => void 0);
+
+    this.waitlistService
+      .notifyNextInQueue(saved.workspaceId)
       .catch(() => void 0);
 
     return saved;
