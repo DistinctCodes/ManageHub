@@ -13,6 +13,7 @@ export interface User {
   isActive: boolean;
   isSuspended: boolean;
   isDeleted: boolean;
+  hasCompletedOnboarding: boolean;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;
