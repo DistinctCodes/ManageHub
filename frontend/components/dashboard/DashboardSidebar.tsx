@@ -18,6 +18,7 @@ import {
   LogIn,
   Bell,
   BarChart3,
+  CreditCard,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuthState, useAuthActions } from "@/lib/store/authStore";
@@ -38,6 +39,7 @@ const adminItems = [
   { label: "Analytics", href: "/admin/analytics", icon: BarChart3 },
   { label: "Workspaces", href: "/admin/workspaces", icon: Building2 },
   { label: "All Bookings", href: "/admin/bookings", icon: BookOpen },
+  { label: "Payments", href: "/admin/payments", icon: CreditCard },
   { label: "Members", href: "/admin/members", icon: Users },
   { label: "Invoices", href: "/admin/invoices", icon: FileText },
   { label: "Newsletter", href: "/dashboard?tab=newsletter", icon: Mail },
