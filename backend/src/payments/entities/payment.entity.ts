@@ -28,10 +28,10 @@ export class Payment {
   @JoinColumn({ name: 'bookingId' })
   booking: Booking;
 
-  @Column('uuid')
-  userId: string;
+  @Column({ type: 'uuid', nullable: true })
+  userId: string | null;
 
-  @ManyToOne(() => User, { onDelete: 'RESTRICT' })
+  @ManyToOne(() => User, { nullable: true, onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'userId' })
   user: User;
 
