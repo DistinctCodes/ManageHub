@@ -104,6 +104,7 @@ import { MembershipPlansModule } from './membership-plans/membership-plans.modul
     WorkspaceTrackingModule,
     HubSettingsModule,
     VisitorsModule,
+    EventsModule,
     MembershipPlansModule,
   ],
   controllers: [AppController],
