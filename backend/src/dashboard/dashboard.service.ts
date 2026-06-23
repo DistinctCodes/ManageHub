@@ -32,7 +32,8 @@ export class DashboardService {
     return {
       totalMembers,
       verifiedMembers,
-      activeWorkspaces: await this.adminAnalyticsProvider.getActiveWorkspacesCount(),
+      activeWorkspaces:
+        await this.adminAnalyticsProvider.getActiveWorkspacesCount(),
       deskOccupancy: Math.min(
         Math.round((verifiedMembers / Math.max(totalMembers, 1)) * 100),
         100,

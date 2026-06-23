@@ -88,14 +88,11 @@ export class SorobanEscrowProvider {
                 type: xdr.SorobanCredentialsType.sorobanCredentialsSourceAccount(),
                 address: new xdr.SorobanAddress({
                   type: xdr.SorobanAddressType.sorobanAddressTypeAccount(),
-                  accountId: Keypair.fromPublicKey(
-                    depositorAddress,
-                  ).xdrPublicKey(),
+                  accountId:
+                    Keypair.fromPublicKey(depositorAddress).xdrPublicKey(),
                 }),
                 nonce: xdr.Int64.fromString(
-                  (
-                    await this.server.getLatestLedger()
-                  ).sequence.toString(),
+                  (await this.server.getLatestLedger()).sequence.toString(),
                 ),
                 signatureExpirationLedger:
                   (await this.server.getLatestLedger()).sequence + TTL,
@@ -143,8 +140,9 @@ export class SorobanEscrowProvider {
       const sentTransaction =
         await this.server.sendTransaction(preparedTransaction);
 
-      let getTransactionResponse =
-        await this.server.getTransaction(sentTransaction.hash);
+      let getTransactionResponse = await this.server.getTransaction(
+        sentTransaction.hash,
+      );
 
       const thirtySeconds = 30 * 1000;
       const startTime = Date.now();
@@ -162,14 +160,13 @@ export class SorobanEscrowProvider {
       }
 
       if (
-        getTransactionResponse.status !== SorobanRpc.GetTransactionStatus.SUCCESS
+        getTransactionResponse.status !==
+        SorobanRpc.GetTransactionStatus.SUCCESS
       ) {
         this.logger.error(
           `[Soroban] createEscrow failed for booking ${bookingId}: Transaction execution failed`,
         );
-        throw new BadGatewayException(
-          'Failed to execute Soroban transaction.',
-        );
+        throw new BadGatewayException('Failed to execute Soroban transaction.');
       }
 
       return sentTransaction.hash;
@@ -211,8 +208,9 @@ export class SorobanEscrowProvider {
       const sentTransaction =
         await this.server.sendTransaction(preparedTransaction);
 
-      let getTransactionResponse =
-        await this.server.getTransaction(sentTransaction.hash);
+      let getTransactionResponse = await this.server.getTransaction(
+        sentTransaction.hash,
+      );
 
       const thirtySeconds = 30 * 1000;
       const startTime = Date.now();
@@ -230,14 +228,13 @@ export class SorobanEscrowProvider {
       }
 
       if (
-        getTransactionResponse.status !== SorobanRpc.GetTransactionStatus.SUCCESS
+        getTransactionResponse.status !==
+        SorobanRpc.GetTransactionStatus.SUCCESS
       ) {
         this.logger.error(
           `[Soroban] releaseEscrow failed for escrow ${escrowId}: Transaction execution failed`,
         );
-        throw new BadGatewayException(
-          'Failed to execute Soroban transaction.',
-        );
+        throw new BadGatewayException('Failed to execute Soroban transaction.');
       }
 
       return sentTransaction.hash;
@@ -279,8 +276,9 @@ export class SorobanEscrowProvider {
       const sentTransaction =
         await this.server.sendTransaction(preparedTransaction);
 
-      let getTransactionResponse =
-        await this.server.getTransaction(sentTransaction.hash);
+      let getTransactionResponse = await this.server.getTransaction(
+        sentTransaction.hash,
+      );
 
       const thirtySeconds = 30 * 1000;
       const startTime = Date.now();
@@ -298,14 +296,13 @@ export class SorobanEscrowProvider {
       }
 
       if (
-        getTransactionResponse.status !== SorobanRpc.GetTransactionStatus.SUCCESS
+        getTransactionResponse.status !==
+        SorobanRpc.GetTransactionStatus.SUCCESS
       ) {
         this.logger.error(
           `[Soroban] refundEscrow failed for escrow ${escrowId}: Transaction execution failed`,
         );
-        throw new BadGatewayException(
-          'Failed to execute Soroban transaction.',
-        );
+        throw new BadGatewayException('Failed to execute Soroban transaction.');
       }
 
       return sentTransaction.hash;
@@ -345,10 +342,7 @@ export class SorobanEscrowProvider {
       const simulatedTransaction =
         await this.server.simulateTransaction(preparedTransaction);
 
-      if (
-        !simulatedTransaction.result ||
-        !simulatedTransaction.result.retval
-      ) {
+      if (!simulatedTransaction.result || !simulatedTransaction.result.retval) {
         this.logger.error(
           `[Soroban] getEscrowStatus failed for escrow ${escrowId}: Invalid simulation response`,
         );

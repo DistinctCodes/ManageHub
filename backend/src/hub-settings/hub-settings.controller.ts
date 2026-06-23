@@ -20,7 +20,10 @@ export class HubSettingsController {
   @Get()
   @Public()
   @ApiOperation({ summary: 'Get current hub configuration (public)' })
-  @ApiResponse({ status: 200, description: 'Hub settings retrieved successfully.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Hub settings retrieved successfully.',
+  })
   getSettings() {
     return this.hubSettingsService.getSettings();
   }
@@ -29,8 +32,13 @@ export class HubSettingsController {
   @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
   @UseGuards(RolesGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update hub configuration (Admin / Super-admin only)' })
-  @ApiResponse({ status: 200, description: 'Hub settings updated successfully.' })
+  @ApiOperation({
+    summary: 'Update hub configuration (Admin / Super-admin only)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Hub settings updated successfully.',
+  })
   updateSettings(@Body() updateHubSettingsDto: UpdateHubSettingsDto) {
     return this.hubSettingsService.updateSettings(updateHubSettingsDto);
   }

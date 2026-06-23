@@ -17,7 +17,10 @@ export class VisitorsService {
     private readonly emailService: EmailService,
   ) {}
 
-  async create(createVisitorDto: CreateVisitorDto, hostMember: User): Promise<Visitor> {
+  async create(
+    createVisitorDto: CreateVisitorDto,
+    hostMember: User,
+  ): Promise<Visitor> {
     const visitor = this.visitorRepository.create({
       ...createVisitorDto,
       hostMemberId: hostMember.id,
@@ -44,9 +47,19 @@ export class VisitorsService {
     }
 
     const offset = (page - 1) * limit;
-    query.leftJoinAndSelect('visitor.hostMember', 'hostMember')
-         .select(['visitor', 'hostMember.id', 'hostMember.firstname', 'hostMember.lastname', 'hostMember.email']);
-    const [visitors, total] = await query.skip(offset).take(limit).getManyAndCount();
+    query
+      .leftJoinAndSelect('visitor.hostMember', 'hostMember')
+      .select([
+        'visitor',
+        'hostMember.id',
+        'hostMember.firstname',
+        'hostMember.lastname',
+        'hostMember.email',
+      ]);
+    const [visitors, total] = await query
+      .skip(offset)
+      .take(limit)
+      .getManyAndCount();
 
     return {
       data: visitors,
@@ -71,7 +84,10 @@ export class VisitorsService {
     }
 
     const offset = (page - 1) * limit;
-    const [visitors, total] = await query.skip(offset).take(limit).getManyAndCount();
+    const [visitors, total] = await query
+      .skip(offset)
+      .take(limit)
+      .getManyAndCount();
 
     return {
       data: visitors,
@@ -82,7 +98,10 @@ export class VisitorsService {
   }
 
   async findOne(id: string): Promise<Visitor> {
-    const visitor = await this.visitorRepository.findOne({ where: { id }, relations: ['hostMember'] });
+    const visitor = await this.visitorRepository.findOne({
+      where: { id },
+      relations: ['hostMember'],
+    });
     if (!visitor) {
       throw new NotFoundException(`Visitor with ID "${id}" not found`);
     }
@@ -100,7 +119,10 @@ export class VisitorsService {
     const updatedVisitor = await this.visitorRepository.save(visitor);
 
     // Send email to host member
-    await this.emailService.sendVisitorCheckInEmail(visitor.hostMember, updatedVisitor);
+    await this.emailService.sendVisitorCheckInEmail(
+      visitor.hostMember,
+      updatedVisitor,
+    );
 
     return updatedVisitor;
   }

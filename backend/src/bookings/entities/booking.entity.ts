@@ -63,6 +63,12 @@ export class Booking {
   @Column({ nullable: true })
   sorobanEscrowId: string;
 
+  @Column({ nullable: true, type: 'uuid' })
+  appliedPromoCodeId: string | null;
+
+  @Column({ type: 'int', nullable: true })
+  promoDiscountApplied: number | null;
+
   @Column({ default: false })
   reminderSent: boolean;
 

@@ -22,6 +22,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { WorkspaceTrackingModule } from './workspace-tracking/workspace-tracking.module';
 import { HubSettingsModule } from './hub-settings/hub-settings.module';
 import { VisitorsModule } from './visitors/visitors.module';
+import { PromoCodesModule } from './promo-codes/promo-codes.module';
 
 @Module({
   imports: [
@@ -103,6 +104,7 @@ import { VisitorsModule } from './visitors/visitors.module';
     WorkspaceTrackingModule,
     HubSettingsModule,
     VisitorsModule,
+    PromoCodesModule,
   ],
   controllers: [AppController],
   providers: [

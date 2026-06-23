@@ -19,6 +19,7 @@ import { NotificationsService } from '../../notifications/notifications.service'
 import { NotificationType } from '../../notifications/enums/notification-type.enum';
 import { User } from '../../users/entities/user.entity';
 import { EmailService } from '../../email/email.service';
+import { PromoCodesService } from '../../promo-codes/promo-codes.service';
 
 const LONG_TERM_PLANS = new Set([
   PlanType.MONTHLY,
@@ -44,6 +45,7 @@ export class HandleWebhookProvider {
     private readonly notificationsService: NotificationsService,
     private readonly emailService: EmailService,
     private readonly configService: ConfigService,
+    private readonly promoCodesService: PromoCodesService,
   ) {}
 
   async handle(rawBody: Buffer, signature: string): Promise<void> {
@@ -115,6 +117,22 @@ export class HandleWebhookProvider {
     // For long-term bookings, record on-chain escrow
     if (LONG_TERM_PLANS.has(booking.planType)) {
       await this.recordSorobanEscrow(payment, booking);
+    }
+
+    // Record promo code usage atomically if one was applied
+    if (booking.appliedPromoCodeId) {
+      this.promoCodesService
+        .recordUsage(
+          booking.appliedPromoCodeId,
+          payment.userId,
+          booking.id,
+          booking.promoDiscountApplied ?? 0,
+        )
+        .catch((err: Error) => {
+          this.logger.error(
+            `Failed to record promo usage for booking ${booking.id}: ${err.message}`,
+          );
+        });
     }
 
     // Generate invoice asynchronously — do not block payment confirmation
