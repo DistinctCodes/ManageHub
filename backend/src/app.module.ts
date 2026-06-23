@@ -22,6 +22,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { WorkspaceTrackingModule } from './workspace-tracking/workspace-tracking.module';
 import { HubSettingsModule } from './hub-settings/hub-settings.module';
 import { VisitorsModule } from './visitors/visitors.module';
+import { MembershipPlansModule } from './membership-plans/membership-plans.module';
 
 @Module({
   imports: [
@@ -104,6 +105,7 @@ import { VisitorsModule } from './visitors/visitors.module';
     HubSettingsModule,
     VisitorsModule,
     EventsModule,
+    MembershipPlansModule,
   ],
   controllers: [AppController],
   providers: [
