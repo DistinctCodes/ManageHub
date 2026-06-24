@@ -28,7 +28,7 @@ export class VisitorsService {
   }
 
   async findAll(queryDto: VisitorQueryDto) {
-    const { limit, page, date, status, hostMemberId } = queryDto;
+    const { perPage, page, date, status, hostMemberId } = queryDto;
     const query = this.visitorRepository.createQueryBuilder('visitor');
 
     if (date) {
@@ -43,21 +43,21 @@ export class VisitorsService {
       query.andWhere('visitor.hostMemberId = :hostMemberId', { hostMemberId });
     }
 
-    const offset = (page - 1) * limit;
+    const offset = (page - 1) * perPage;
     query.leftJoinAndSelect('visitor.hostMember', 'hostMember')
          .select(['visitor', 'hostMember.id', 'hostMember.firstname', 'hostMember.lastname', 'hostMember.email']);
-    const [visitors, total] = await query.skip(offset).take(limit).getManyAndCount();
+    const [visitors, total] = await query.skip(offset).take(perPage).getManyAndCount();
 
     return {
       data: visitors,
       total,
       page,
-      limit,
+      perPage,
     };
   }
 
   async findMy(hostMemberId: string, queryDto: VisitorQueryDto) {
-    const { limit, page, date, status } = queryDto;
+    const { perPage, page, date, status } = queryDto;
     const query = this.visitorRepository.createQueryBuilder('visitor');
 
     query.andWhere('visitor.hostMemberId = :hostMemberId', { hostMemberId });
@@ -70,14 +70,14 @@ export class VisitorsService {
       query.andWhere('visitor.status = :status', { status });
     }
 
-    const offset = (page - 1) * limit;
-    const [visitors, total] = await query.skip(offset).take(limit).getManyAndCount();
+    const offset = (page - 1) * perPage;
+    const [visitors, total] = await query.skip(offset).take(perPage).getManyAndCount();
 
     return {
       data: visitors,
       total,
       page,
-      limit,
+      perPage,
     };
   }
 
