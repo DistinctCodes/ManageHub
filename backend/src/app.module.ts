@@ -22,6 +22,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { WorkspaceTrackingModule } from './workspace-tracking/workspace-tracking.module';
 import { HubSettingsModule } from './hub-settings/hub-settings.module';
 import { VisitorsModule } from './visitors/visitors.module';
+import { AnnouncementsModule } from './announcements/announcements.module';
 import { AccessControlModule } from './access-control/access-control.module';
 import { WaitlistModule } from './waitlist/waitlist.module';
 import { EventsModule } from './events/events.module';
@@ -29,9 +30,7 @@ import { MembershipPlansModule } from './membership-plans/membership-plans.modul
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-    }),
+    ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([
       {
@@ -79,7 +78,6 @@ import { MembershipPlansModule } from './membership-plans/membership-plans.modul
           configService.get<string>('PGSSLMODE') === 'require' ||
           configService.get<string>('DATABASE_SSL') === 'true' ||
           (host ? host.includes('neon.tech') : false);
-
         return {
           type: 'postgres',
           database: configService.get('DATABASE_NAME'),
@@ -107,6 +105,7 @@ import { MembershipPlansModule } from './membership-plans/membership-plans.modul
     WorkspaceTrackingModule,
     HubSettingsModule,
     VisitorsModule,
+    AnnouncementsModule,
     AccessControlModule,
     WaitlistModule,
     EventsModule,
@@ -115,14 +114,8 @@ import { MembershipPlansModule } from './membership-plans/membership-plans.modul
   controllers: [AppController],
   providers: [
     AppService,
-    {
-      provide: APP_GUARD,
-      useClass: JwtAuthGuard,
-    },
-    {
-      provide: APP_GUARD,
-      useClass: ThrottlerGuard,
-    },
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
 export class AppModule {}
