@@ -2,12 +2,18 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Payment } from '../entities/payment.entity';
+import { PaymentStatus } from '../enums/payment-status.enum';
+import { PaymentProvider } from '../enums/payment-provider.enum';
 import { UserRole } from '../../users/enums/userRoles.enum';
 
 export class PaymentQuery {
   page?: number;
   limit?: number;
   bookingId?: string;
+  status?: PaymentStatus;
+  provider?: PaymentProvider;
+  from?: string;
+  to?: string;
 }
 
 @Injectable()
@@ -31,7 +37,10 @@ export class FindPaymentsProvider {
       requestingUserRole === UserRole.SUPER_ADMIN ||
       requestingUserRole === UserRole.STAFF;
 
-    const qb = this.paymentsRepository.createQueryBuilder('payment');
+    const qb = this.paymentsRepository
+      .createQueryBuilder('payment')
+      .leftJoinAndSelect('payment.user', 'user')
+      .leftJoinAndSelect('payment.booking', 'booking');
 
     if (!isAdmin) {
       qb.where('payment.userId = :userId', { userId: requestingUserId });
@@ -41,6 +50,22 @@ export class FindPaymentsProvider {
       qb.andWhere('payment.bookingId = :bookingId', {
         bookingId: query.bookingId,
       });
+    }
+
+    if (query.status) {
+      qb.andWhere('payment.status = :status', { status: query.status });
+    }
+
+    if (query.provider) {
+      qb.andWhere('payment.provider = :provider', { provider: query.provider });
+    }
+
+    if (query.from) {
+      qb.andWhere('payment.createdAt >= :from', { from: query.from });
+    }
+
+    if (query.to) {
+      qb.andWhere('payment.createdAt <= :to', { to: query.to });
     }
 
     qb.orderBy('payment.createdAt', 'DESC').skip(skip).take(limit);

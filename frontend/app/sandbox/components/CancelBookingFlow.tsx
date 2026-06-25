@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 interface Booking {
   id: string;
@@ -92,9 +93,9 @@ export function CancelBookingFlow({ booking, onSuccess, onClose }: Props) {
             <p className="text-sm text-gray-500">
               Your refund of {booking.amount} will be processed within 5–7 business days.
             </p>
-            <a href="/bookings" className="inline-block mt-2 text-sm font-medium text-blue-600 hover:underline">
+            <Link href="/bookings" className="inline-block mt-2 text-sm font-medium text-blue-600 hover:underline">
               ← Back to bookings
-            </a>
+            </Link>
           </div>
         )}
 

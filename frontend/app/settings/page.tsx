@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,6 +10,7 @@ import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import TwoFactorModal from "@/components/settings/TwoFactorModal";
 import { use2faStatus } from "@/lib/react-query/hooks/two-factor/use2faStatus";
 import { Eye, EyeOff, Shield, Bell, Palette } from "lucide-react";
+import { useTheme } from "next-themes";
 
 /* ── Password change schema ── */
 const passwordSchema = z
@@ -40,8 +41,8 @@ function ToggleRow({
   return (
     <div className="flex items-center justify-between py-3">
       <div>
-        <p className="text-sm font-medium text-gray-900">{label}</p>
-        <p className="text-xs text-gray-400">{description}</p>
+        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{label}</p>
+        <p className="text-xs text-gray-400 dark:text-gray-500">{description}</p>
       </div>
       <button
         type="button"
@@ -49,11 +50,11 @@ function ToggleRow({
         aria-checked={checked}
         onClick={() => onChange(!checked)}
         className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors ${
-          checked ? "bg-gray-900" : "bg-gray-200"
+          checked ? "bg-gray-900 dark:bg-gray-100" : "bg-gray-200 dark:bg-gray-700"
         }`}
       >
         <span
-          className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform transition-transform mt-0.5 ${
+          className={`pointer-events-none inline-block h-5 w-5 rounded-full bg-white dark:bg-gray-900 shadow transform transition-transform mt-0.5 ${
             checked ? "translate-x-[22px]" : "translate-x-0.5"
           }`}
         />
@@ -65,6 +66,14 @@ function ToggleRow({
 export default function SettingsPage() {
   const { user } = useAuthState();
   const { logout } = useAuthActions();
+
+  /* ── Theme state ── */
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   /* ── Password state ── */
   const [pwSaving, setPwSaving] = useState(false);
@@ -145,18 +154,18 @@ export default function SettingsPage() {
   return (
     <DashboardLayout>
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-        <p className="text-gray-500 mt-1 text-sm">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-50">Settings</h1>
+        <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">
           Manage your account preferences.
         </p>
       </div>
 
       <div className="max-w-2xl space-y-6">
         {/* ── Security ── */}
-        <div className="bg-white rounded-xl border border-gray-100 p-6">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-6">
           <div className="flex items-center gap-2 mb-5">
-            <Shield className="w-4 h-4 text-gray-500" />
-            <h2 className="text-sm font-semibold text-gray-900">Security</h2>
+            <Shield className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Security</h2>
           </div>
 
           <form
@@ -165,19 +174,19 @@ export default function SettingsPage() {
           >
             {/* Current password */}
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1.5">
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
                 Current password
               </label>
               <div className="relative">
                 <input
                   type={showCurrent ? "text" : "password"}
                   {...register("currentPassword")}
-                  className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-200 pr-10"
+                  className="w-full px-3.5 py-2.5 text-sm border border-gray-200 dark:border-gray-700 bg-transparent rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-200 dark:focus:ring-gray-700 pr-10 text-gray-900 dark:text-gray-100"
                 />
                 <button
                   type="button"
                   onClick={() => setShowCurrent((s) => !s)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 >
                   {showCurrent ? (
                     <EyeOff className="w-4 h-4" />
@@ -195,19 +204,19 @@ export default function SettingsPage() {
 
             {/* New password */}
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1.5">
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
                 New password
               </label>
               <div className="relative">
                 <input
                   type={showNew ? "text" : "password"}
                   {...register("newPassword")}
-                  className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-200 pr-10"
+                  className="w-full px-3.5 py-2.5 text-sm border border-gray-200 dark:border-gray-700 bg-transparent rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-200 dark:focus:ring-gray-700 pr-10 text-gray-900 dark:text-gray-100"
                 />
                 <button
                   type="button"
                   onClick={() => setShowNew((s) => !s)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 >
                   {showNew ? (
                     <EyeOff className="w-4 h-4" />
@@ -225,13 +234,13 @@ export default function SettingsPage() {
 
             {/* Confirm password */}
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1.5">
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
                 Confirm new password
               </label>
               <input
                 type="password"
                 {...register("confirmPassword")}
-                className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-200"
+                className="w-full px-3.5 py-2.5 text-sm border border-gray-200 dark:border-gray-700 bg-transparent rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-200 dark:focus:ring-gray-700 text-gray-900 dark:text-gray-100"
               />
               {errors.confirmPassword && (
                 <p className="text-red-500 text-xs mt-1">
@@ -244,8 +253,8 @@ export default function SettingsPage() {
               <p
                 className={`text-sm ${
                   pwMsg.type === "success"
-                    ? "text-emerald-600"
-                    : "text-red-500"
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-red-500 dark:text-red-400"
                 }`}
               >
                 {pwMsg.text}
@@ -255,14 +264,14 @@ export default function SettingsPage() {
             <button
               type="submit"
               disabled={pwSaving}
-              className="px-5 py-2.5 text-sm font-medium rounded-lg bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-50 transition-colors"
+              className="px-5 py-2.5 text-sm font-medium rounded-lg bg-gray-900 text-white hover:bg-gray-800 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200 disabled:opacity-50 transition-colors"
             >
               {pwSaving ? "Updating..." : "Update password"}
             </button>
           </form>
 
           {/* 2FA toggle */}
-          <div className="mt-6 pt-5 border-t border-gray-100">
+          <div className="mt-6 pt-5 border-t border-gray-100 dark:border-gray-800">
             <ToggleRow
               label="Two-factor authentication"
               description={
@@ -279,14 +288,14 @@ export default function SettingsPage() {
         </div>
 
         {/* ── Notifications ── */}
-        <div className="bg-white rounded-xl border border-gray-100 p-6">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-6">
           <div className="flex items-center gap-2 mb-4">
-            <Bell className="w-4 h-4 text-gray-500" />
-            <h2 className="text-sm font-semibold text-gray-900">
+            <Bell className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
               Notifications
             </h2>
           </div>
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y divide-gray-50 dark:divide-gray-800">
             <ToggleRow
               label="Email notifications"
               description="Receive updates and alerts via email"
@@ -303,46 +312,50 @@ export default function SettingsPage() {
         </div>
 
         {/* ── Appearance ── */}
-        <div className="bg-white rounded-xl border border-gray-100 p-6">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-6">
           <div className="flex items-center gap-2 mb-4">
-            <Palette className="w-4 h-4 text-gray-500" />
-            <h2 className="text-sm font-semibold text-gray-900">Appearance</h2>
+            <Palette className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Appearance</h2>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-2">
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
               Theme
             </label>
             <div className="flex gap-3">
-              {(["Light", "Dark", "System"] as const).map((theme) => (
-                <button
-                  key={theme}
-                  type="button"
-                  className="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:border-gray-400 transition-colors data-[active=true]:bg-gray-900 data-[active=true]:text-white data-[active=true]:border-gray-900"
-                  data-active={theme === "Light"}
-                >
-                  {theme}
-                </button>
-              ))}
+              {(["Light", "Dark", "System"] as const).map((t) => {
+                const isActive = mounted && theme === t.toLowerCase();
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setTheme(t.toLowerCase())}
+                    className={`px-4 py-2 text-sm border rounded-lg transition-colors 
+                      ${isActive 
+                        ? "bg-gray-900 text-white border-gray-900 dark:bg-gray-100 dark:text-gray-900 dark:border-gray-100" 
+                        : "border-gray-200 text-gray-700 hover:border-gray-400 dark:border-gray-700 dark:text-gray-300 dark:hover:border-gray-500"
+                      }`}
+                  >
+                    {t}
+                  </button>
+                );
+              })}
             </div>
-            <p className="text-xs text-gray-400 mt-2">
-              Theme switching coming soon.
-            </p>
           </div>
         </div>
 
         {/* ── Danger zone ── */}
-        <div className="bg-white rounded-xl border border-red-100 p-6">
-          <h2 className="text-sm font-semibold text-red-600 mb-1">
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-red-100 dark:border-red-900 p-6">
+          <h2 className="text-sm font-semibold text-red-600 dark:text-red-500 mb-1">
             Danger zone
           </h2>
-          <p className="text-xs text-gray-400 mb-4">
+          <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">
             Permanently delete your account and all associated data.
           </p>
           {!confirmDelete ? (
             <button
               type="button"
               onClick={() => setConfirmDelete(true)}
-              className="px-5 py-2.5 text-sm font-medium rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+              className="px-5 py-2.5 text-sm font-medium rounded-lg border border-red-200 dark:border-red-900 text-red-600 dark:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
             >
               Delete my account
             </button>
@@ -352,14 +365,14 @@ export default function SettingsPage() {
                 type="button"
                 onClick={handleDeleteAccount}
                 disabled={deleting}
-                className="px-5 py-2.5 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 transition-colors"
+                className="px-5 py-2.5 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800 disabled:opacity-50 transition-colors"
               >
                 {deleting ? "Deleting..." : "Yes, delete my account"}
               </button>
               <button
                 type="button"
                 onClick={() => setConfirmDelete(false)}
-                className="px-5 py-2.5 text-sm font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+                className="px-5 py-2.5 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
               >
                 Cancel
               </button>

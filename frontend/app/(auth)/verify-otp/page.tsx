@@ -85,7 +85,7 @@ export default function VerifyOtpPage() {
       storage.setUser(response.user);
 
       toast.success("Email verified successfully!");
-      router.push("/dashboard");
+      router.push(response.user?.hasCompletedOnboarding === false ? "/onboarding" : "/dashboard");
     } catch (error: any) {
       toast.error(error.message || "Invalid or expired OTP");
     } finally {

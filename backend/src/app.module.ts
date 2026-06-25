@@ -23,15 +23,31 @@ import { WorkspaceTrackingModule } from './workspace-tracking/workspace-tracking
 import { HubSettingsModule } from './hub-settings/hub-settings.module';
 import { VisitorsModule } from './visitors/visitors.module';
 import { AnnouncementsModule } from './announcements/announcements.module';
+import { AccessControlModule } from './access-control/access-control.module';
+import { WaitlistModule } from './waitlist/waitlist.module';
+import { EventsModule } from './events/events.module';
+import { MembershipPlansModule } from './membership-plans/membership-plans.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([
-      { name: 'short', ttl: 1000, limit: 3 },
-      { name: 'medium', ttl: 10000, limit: 20 },
-      { name: 'long', ttl: 60000, limit: 100 },
+      {
+        name: 'short',
+        ttl: 1000,
+        limit: 3,
+      },
+      {
+        name: 'medium',
+        ttl: 10000,
+        limit: 20,
+      },
+      {
+        name: 'long',
+        ttl: 60000,
+        limit: 100,
+      },
       { name: 'newsletter', ttl: 60_000, limit: 10 },
       { name: 'contact', ttl: 60_000, limit: 5 },
       { name: 'feedback', ttl: 60_000, limit: 10 },
@@ -90,6 +106,10 @@ import { AnnouncementsModule } from './announcements/announcements.module';
     HubSettingsModule,
     VisitorsModule,
     AnnouncementsModule,
+    AccessControlModule,
+    WaitlistModule,
+    EventsModule,
+    MembershipPlansModule,
   ],
   controllers: [AppController],
   providers: [
