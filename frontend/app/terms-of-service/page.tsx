@@ -233,7 +233,6 @@ const TermsOfServicePage = () => {
                       User and member management with role-based access control
                     </li>
                     <li>Workspace and facility booking systems</li>
-                    <li>Biometric authentication and access control</li>
                     <li>Subscription and billing management</li>
                     <li>Analytics and reporting tools</li>
                     <li>Event and community management features</li>
@@ -288,9 +287,8 @@ const TermsOfServicePage = () => {
                   </p>
                   <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-4">
                     <p className="text-sm text-amber-900 font-medium">
-                      Security Notice: Never share your password or biometric
-                      data with anyone. ManageHub staff will never ask for your
-                      password.
+                      Security Notice: Never share your password with anyone.
+                      ManageHub staff will never ask for your password.
                     </p>
                   </div>
                 </div>
@@ -406,14 +404,6 @@ const TermsOfServicePage = () => {
                     protection of your personal information is governed by our
                     Privacy Policy, which is incorporated into these Terms by
                     reference.
-                  </p>
-                  <p>
-                    <strong>Biometric Data:</strong> If you use our biometric
-                    authentication features, you consent to our collection and
-                    processing of your biometric data (fingerprints, facial
-                    recognition) solely for authentication and security
-                    purposes. This data is encrypted and stored securely in
-                    accordance with applicable data protection laws.
                   </p>
                   <p>
                     <strong>Data Retention:</strong> We retain your data for as

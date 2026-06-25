@@ -1045,7 +1045,7 @@ impl SubscriptionContract {
 
         // Verify caller is the user or admin
         if caller != change_request.user {
-            // TODO: Add admin check here
+            Self::require_admin(&env, &caller)?;
         }
 
         // Get subscription and update it

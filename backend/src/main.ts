@@ -6,7 +6,7 @@ import { Reflector } from '@nestjs/core';
 import { HttpLogger } from './common/middlewares/httpLogger.middleware';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { rawBody: true });
 
   app.use(new HttpLogger().use);
 

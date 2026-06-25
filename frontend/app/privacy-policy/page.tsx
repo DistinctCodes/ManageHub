@@ -33,11 +33,6 @@ const PrivacyPolicyPage = () => {
         "Absolutely. You can delete your account anytime from your settings. We'll remove your personal data within 30 days, except for what we legally need to keep (like transaction records).",
     },
     {
-      question: "Is my biometric data safe?",
-      answer:
-        "Yes. Your fingerprints and facial data are encrypted and stored separately from your other information. We can't use it for anything except letting you into your workspace.",
-    },
-    {
       question: "Who can see my workspace activity?",
       answer:
         "Only your hub administrators can see when you check in/out and which spaces you book. We don't share this with anyone else unless you give permission.",
@@ -118,8 +113,6 @@ const PrivacyPolicyPage = () => {
                 <p className="text-gray-700 leading-relaxed mb-4">
                   We collect information to run ManageHub and make it useful for
                   you. This includes your name, email, and workspace activity.
-                  If you use biometric login, we store that too (encrypted and
-                  super secure).
                 </p>
                 <p className="text-gray-700 leading-relaxed">
                   We don't sell your data. We don't spam you. We use it to
@@ -182,23 +175,6 @@ const PrivacyPolicyPage = () => {
                   </div>
                 </div>
 
-                <div className="bg-amber-50 border-l-4 border-amber-500 p-5 rounded-r-lg">
-                  <div className="flex items-start gap-3">
-                    <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <h4 className="font-semibold text-amber-900 mb-2">
-                        About Biometric Data
-                      </h4>
-                      <p className="text-sm text-amber-800">
-                        If you choose to use fingerprint or facial recognition,
-                        we store that data in an encrypted format. It's
-                        separated from your other information and only used for
-                        authentication. We never share it with anyone, and you
-                        can turn it off anytime.
-                      </p>
-                    </div>
-                  </div>
-                </div>
               </div>
             </section>
 

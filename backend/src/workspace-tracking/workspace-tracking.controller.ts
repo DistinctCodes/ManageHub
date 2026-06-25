@@ -37,10 +37,7 @@ export class WorkspaceTrackingController {
   @Post('check-in')
   @Roles(UserRole.USER, UserRole.STAFF, UserRole.ADMIN, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Check into a workspace' })
-  async checkIn(
-    @Body() dto: CheckInDto,
-    @GetCurrentUser('id') userId: string,
-  ) {
+  async checkIn(@Body() dto: CheckInDto, @GetCurrentUser('id') userId: string) {
     const data = await this.workspaceTrackingService.checkIn(dto, userId);
     return { message: 'Checked in successfully', data };
   }
@@ -86,8 +83,7 @@ export class WorkspaceTrackingController {
   @Roles(UserRole.STAFF, UserRole.ADMIN, UserRole.SUPER_ADMIN)
   @ApiOperation({ summary: 'Get utilization statistics' })
   async getUtilizationStats(@Query() query: OccupancyQueryDto) {
-    const data =
-      await this.workspaceTrackingService.getUtilizationStats(query);
+    const data = await this.workspaceTrackingService.getUtilizationStats(query);
     return { message: 'Utilization stats retrieved', data };
   }
 

@@ -5,7 +5,11 @@ import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { useGetWorkspaces } from "@/lib/react-query/hooks/workspaces/useGetWorkspaces";
 import { WorkspaceType } from "@/lib/types/workspace";
 import WorkspaceCard from "@/components/workspaces/WorkspaceCard";
-import { Search, SlidersHorizontal, Building2 } from "lucide-react";
+import {
+  Search,
+  SlidersHorizontal,
+  Building2,
+} from "lucide-react";
 
 const WORKSPACE_TYPES: { label: string; value: WorkspaceType | "" }[] = [
   { label: "All Types", value: "" },
@@ -49,10 +53,7 @@ export default function WorkspacesPage() {
             type="text"
             placeholder="Search workspaces..."
             value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-200"
           />
         </div>
@@ -60,10 +61,7 @@ export default function WorkspacesPage() {
           <SlidersHorizontal className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <select
             value={type}
-            onChange={(e) => {
-              setType(e.target.value as WorkspaceType | "");
-              setPage(1);
-            }}
+            onChange={(e) => { setType(e.target.value as WorkspaceType | ""); setPage(1); }}
             className="pl-9 pr-8 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-200 bg-white appearance-none cursor-pointer"
           >
             {WORKSPACE_TYPES.map((t) => (
@@ -109,8 +107,8 @@ export default function WorkspacesPage() {
           {meta && meta.totalPages > 1 && (
             <div className="flex items-center justify-between mt-8">
               <p className="text-sm text-gray-500">
-                Showing {(page - 1) * 9 + 1}–{Math.min(page * 9, meta.total)} of{" "}
-                {meta.total}
+                Showing {(page - 1) * 9 + 1}–
+                {Math.min(page * 9, meta.total)} of {meta.total}
               </p>
               <div className="flex gap-2">
                 <button
@@ -121,9 +119,7 @@ export default function WorkspacesPage() {
                   Previous
                 </button>
                 <button
-                  onClick={() =>
-                    setPage((p) => Math.min(meta.totalPages, p + 1))
-                  }
+                  onClick={() => setPage((p) => Math.min(meta.totalPages, p + 1))}
                   disabled={page === meta.totalPages}
                   className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
                 >

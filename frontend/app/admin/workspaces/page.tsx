@@ -73,7 +73,10 @@ export default function AdminWorkspacesPage() {
       </div>
 
       {/* Search bar */}
-      <form onSubmit={handleSearch} className="flex gap-2 mb-6 max-w-sm">
+      <form
+        onSubmit={handleSearch}
+        className="flex gap-2 mb-6 max-w-sm"
+      >
         <div className="relative flex-1">
           <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
@@ -104,9 +107,7 @@ export default function AdminWorkspacesPage() {
       ) : workspaces.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <Building2 className="w-10 h-10 text-gray-200 mb-4" />
-          <p className="text-sm font-medium text-gray-500">
-            No workspaces found
-          </p>
+          <p className="text-sm font-medium text-gray-500">No workspaces found</p>
           <button
             type="button"
             onClick={() => setModalWorkspace("new")}
@@ -182,7 +183,9 @@ export default function AdminWorkspacesPage() {
                                 isActive: !w.isActive,
                               })
                             }
-                            title={w.isActive ? "Deactivate" : "Activate"}
+                            title={
+                              w.isActive ? "Deactivate" : "Activate"
+                            }
                             className="p-1.5 rounded-md border border-gray-200 hover:bg-gray-50 transition-colors"
                           >
                             {w.isActive ? (

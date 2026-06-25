@@ -10,6 +10,7 @@ import QuickActions from "@/components/dashboard/QuickActions";
 import AnalyticsChart from "@/components/dashboard/AnalyticsChart";
 import AdminOverview from "@/components/dashboard/AdminOverview";
 import AdminUserTable from "@/components/dashboard/AdminUserTable";
+import MemberStatsCards from "@/components/dashboard/MemberStatsCards";
 
 interface Stats {
   totalMembers: number;
@@ -132,7 +133,11 @@ export default function DashboardContent() {
       ) : (
         <div className="space-y-6">
           {/* Stats cards */}
-          <StatsCards stats={stats} />
+          {isAdmin ? (
+            <StatsCards stats={stats} />
+          ) : (
+            <MemberStatsCards />
+          )}
 
           {/* Middle row — activity + quick actions */}
           <div className="grid lg:grid-cols-2 gap-6">

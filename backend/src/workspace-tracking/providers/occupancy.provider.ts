@@ -72,14 +72,8 @@ export class OccupancyProvider {
       .select('log.workspaceId', 'workspaceId')
       .addSelect('COUNT(log.id)', 'totalVisits')
       .addSelect('COUNT(DISTINCT log.userId)', 'uniqueUsers')
-      .addSelect(
-        'COALESCE(AVG(log.durationMinutes), 0)',
-        'avgDurationMinutes',
-      )
-      .addSelect(
-        'COALESCE(SUM(log.durationMinutes), 0) / 60.0',
-        'totalHours',
-      )
+      .addSelect('COALESCE(AVG(log.durationMinutes), 0)', 'avgDurationMinutes')
+      .addSelect('COALESCE(SUM(log.durationMinutes), 0) / 60.0', 'totalHours')
       .where('log.checkedOutAt IS NOT NULL')
       .groupBy('log.workspaceId');
 
