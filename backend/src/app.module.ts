@@ -23,6 +23,8 @@ import { WorkspaceTrackingModule } from './workspace-tracking/workspace-tracking
 import { HubSettingsModule } from './hub-settings/hub-settings.module';
 import { VisitorsModule } from './visitors/visitors.module';
 import { WaitlistModule } from './waitlist/waitlist.module';
+import { EventsModule } from './events/events.module';
+import { MembershipPlansModule } from './membership-plans/membership-plans.module';
 
 @Module({
   imports: [
@@ -105,6 +107,8 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     HubSettingsModule,
     VisitorsModule,
     WaitlistModule,
+    EventsModule,
+    MembershipPlansModule,
   ],
   controllers: [AppController],
   providers: [

@@ -1,5 +1,5 @@
 import { IsOptional, IsDateString, IsEnum, IsUUID } from 'class-validator';
-import { PaginationQueryDto } from '../../../config/pagination/dto/pagination-query.dto';
+import { PaginationQueryDto } from '../../config/pagination/dto/pagination-query.dto';
 import { VisitorStatus } from '../enums/visitor-status.enum';
 
 export class VisitorQueryDto extends PaginationQueryDto {
