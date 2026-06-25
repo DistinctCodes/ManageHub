@@ -22,6 +22,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { WorkspaceTrackingModule } from './workspace-tracking/workspace-tracking.module';
 import { HubSettingsModule } from './hub-settings/hub-settings.module';
 import { VisitorsModule } from './visitors/visitors.module';
+import { WaitlistModule } from './waitlist/waitlist.module';
 import { EventsModule } from './events/events.module';
 import { MembershipPlansModule } from './membership-plans/membership-plans.module';
 
@@ -34,18 +35,18 @@ import { MembershipPlansModule } from './membership-plans/membership-plans.modul
     ThrottlerModule.forRoot([
       {
         name: 'short',
-        ttl: 1000, // 1 second
-        limit: 3, // 3 requests per second
+        ttl: 1000,
+        limit: 3,
       },
       {
         name: 'medium',
-        ttl: 10000, // 10 seconds
-        limit: 20, // 20 requests per 10 seconds
+        ttl: 10000,
+        limit: 20,
       },
       {
         name: 'long',
-        ttl: 60000, // 1 minute
-        limit: 100, // 100 requests per minute
+        ttl: 60000,
+        limit: 100,
       },
       { name: 'newsletter', ttl: 60_000, limit: 10 },
       { name: 'contact', ttl: 60_000, limit: 5 },
@@ -105,6 +106,7 @@ import { MembershipPlansModule } from './membership-plans/membership-plans.modul
     WorkspaceTrackingModule,
     HubSettingsModule,
     VisitorsModule,
+    WaitlistModule,
     EventsModule,
     MembershipPlansModule,
   ],
