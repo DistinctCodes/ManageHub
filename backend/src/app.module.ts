@@ -14,6 +14,7 @@ import { NewsletterModule } from './newsletter/newsletter.module';
 import { EmailModule } from './email/email.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { ContactModule } from './contact/contact.module';
+import { SupportModule } from './support/support.module';
 import { WorkspacesModule } from './workspaces/workspaces.module';
 import { BookingsModule } from './bookings/bookings.module';
 import { PaymentsModule } from './payments/payments.module';
@@ -23,28 +24,31 @@ import { WorkspaceTrackingModule } from './workspace-tracking/workspace-tracking
 import { HubSettingsModule } from './hub-settings/hub-settings.module';
 import { VisitorsModule } from './visitors/visitors.module';
 import { PromoCodesModule } from './promo-codes/promo-codes.module';
+import { AnnouncementsModule } from './announcements/announcements.module';
+import { AccessControlModule } from './access-control/access-control.module';
+import { WaitlistModule } from './waitlist/waitlist.module';
+import { EventsModule } from './events/events.module';
+import { MembershipPlansModule } from './membership-plans/membership-plans.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-    }),
+    ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([
       {
         name: 'short',
-        ttl: 1000, // 1 second
-        limit: 3, // 3 requests per second
+        ttl: 1000,
+        limit: 3,
       },
       {
         name: 'medium',
-        ttl: 10000, // 10 seconds
-        limit: 20, // 20 requests per 10 seconds
+        ttl: 10000,
+        limit: 20,
       },
       {
         name: 'long',
-        ttl: 60000, // 1 minute
-        limit: 100, // 100 requests per minute
+        ttl: 60000,
+        limit: 100,
       },
       { name: 'newsletter', ttl: 60_000, limit: 10 },
       { name: 'contact', ttl: 60_000, limit: 5 },
@@ -76,7 +80,6 @@ import { PromoCodesModule } from './promo-codes/promo-codes.module';
           configService.get<string>('PGSSLMODE') === 'require' ||
           configService.get<string>('DATABASE_SSL') === 'true' ||
           (host ? host.includes('neon.tech') : false);
-
         return {
           type: 'postgres',
           database: configService.get('DATABASE_NAME'),
@@ -96,6 +99,7 @@ import { PromoCodesModule } from './promo-codes/promo-codes.module';
     NewsletterModule,
     ContactModule,
     DashboardModule,
+    SupportModule,
     WorkspacesModule,
     BookingsModule,
     PaymentsModule,
@@ -105,18 +109,17 @@ import { PromoCodesModule } from './promo-codes/promo-codes.module';
     HubSettingsModule,
     VisitorsModule,
     PromoCodesModule,
+    AnnouncementsModule,
+    AccessControlModule,
+    WaitlistModule,
+    EventsModule,
+    MembershipPlansModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
-    {
-      provide: APP_GUARD,
-      useClass: JwtAuthGuard,
-    },
-    {
-      provide: APP_GUARD,
-      useClass: ThrottlerGuard,
-    },
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
 export class AppModule {}
