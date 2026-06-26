@@ -14,6 +14,7 @@ import { NewsletterModule } from './newsletter/newsletter.module';
 import { EmailModule } from './email/email.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { ContactModule } from './contact/contact.module';
+import { SupportModule } from './support/support.module';
 import { WorkspacesModule } from './workspaces/workspaces.module';
 import { BookingsModule } from './bookings/bookings.module';
 import { PaymentsModule } from './payments/payments.module';
@@ -97,6 +98,7 @@ import { MembershipPlansModule } from './membership-plans/membership-plans.modul
     NewsletterModule,
     ContactModule,
     DashboardModule,
+    SupportModule,
     WorkspacesModule,
     BookingsModule,
     PaymentsModule,
