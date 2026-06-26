@@ -106,7 +106,10 @@ export class UpdateHubSettingsDto {
   @Length(1, 100)
   timezone?: string;
 
-  @ApiPropertyOptional({ example: 7.5, description: 'Tax rate as a percentage (0–100)' })
+  @ApiPropertyOptional({
+    example: 7.5,
+    description: 'Tax rate as a percentage (0–100)',
+  })
   @IsNumber()
   @IsOptional()
   @Min(0)

@@ -23,6 +23,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { WorkspaceTrackingModule } from './workspace-tracking/workspace-tracking.module';
 import { HubSettingsModule } from './hub-settings/hub-settings.module';
 import { VisitorsModule } from './visitors/visitors.module';
+import { PromoCodesModule } from './promo-codes/promo-codes.module';
 import { AnnouncementsModule } from './announcements/announcements.module';
 import { AccessControlModule } from './access-control/access-control.module';
 import { WaitlistModule } from './waitlist/waitlist.module';
@@ -107,6 +108,7 @@ import { MembershipPlansModule } from './membership-plans/membership-plans.modul
     WorkspaceTrackingModule,
     HubSettingsModule,
     VisitorsModule,
+    PromoCodesModule,
     AnnouncementsModule,
     AccessControlModule,
     WaitlistModule,

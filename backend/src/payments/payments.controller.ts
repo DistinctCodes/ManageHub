@@ -81,8 +81,16 @@ export class PaymentsController {
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'bookingId', required: false, type: String })
-  @ApiQuery({ name: 'status', required: false, enum: ['pending', 'success', 'failed', 'refunded'] })
-  @ApiQuery({ name: 'provider', required: false, enum: ['paystack', 'soroban'] })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['pending', 'success', 'failed', 'refunded'],
+  })
+  @ApiQuery({
+    name: 'provider',
+    required: false,
+    enum: ['paystack', 'soroban'],
+  })
   @ApiQuery({ name: 'from', required: false, type: String })
   @ApiQuery({ name: 'to', required: false, type: String })
   async findAll(

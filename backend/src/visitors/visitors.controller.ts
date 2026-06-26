@@ -26,7 +26,10 @@ export class VisitorsController {
   constructor(private readonly visitorsService: VisitorsService) {}
 
   @Post()
-  create(@Body() createVisitorDto: CreateVisitorDto, @CurrentUser() user: User) {
+  create(
+    @Body() createVisitorDto: CreateVisitorDto,
+    @CurrentUser() user: User,
+  ) {
     return this.visitorsService.create(createVisitorDto, user);
   }
 

@@ -238,7 +238,10 @@ export class EmailService {
     ]);
   }
 
-  async sendVisitorCheckInEmail(host: User, visitor: Visitor): Promise<boolean> {
+  async sendVisitorCheckInEmail(
+    host: User,
+    visitor: Visitor,
+  ): Promise<boolean> {
     const html = this.compileTemplate('visitor-check-in', {
       hostName: host.fullName,
       visitorName: visitor.fullName,
