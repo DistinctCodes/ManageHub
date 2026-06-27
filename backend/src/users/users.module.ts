@@ -20,7 +20,10 @@ import { FindAdminByIdProvider } from './providers/findAdminById.provider';
 import { GetMembersProvider } from './providers/get-members.provider';
 import { UpdateMemberStatusProvider } from './providers/update-member-status.provider';
 import { GetMemberStatsProvider } from './providers/get-member-stats.provider';
+import { GetCommunityMembersProvider } from './providers/get-community-members.provider';
+import { GetPublicProfileProvider } from './providers/get-public-profile.provider';
 import { MembersController } from './members.controller';
+import { CommunityController } from './community.controller';
 
 @Module({
   imports: [
@@ -28,7 +31,7 @@ import { MembersController } from './members.controller';
     forwardRef(() => AuthModule),
     CloudinaryModule,
   ],
-  controllers: [UsersController, MembersController],
+  controllers: [UsersController, MembersController, CommunityController],
   providers: [
     UsersService,
     CreateUserProvider,
@@ -46,6 +49,8 @@ import { MembersController } from './members.controller';
     GetMembersProvider,
     UpdateMemberStatusProvider,
     GetMemberStatsProvider,
+    GetCommunityMembersProvider,
+    GetPublicProfileProvider,
   ],
   exports: [UsersService],
 })
