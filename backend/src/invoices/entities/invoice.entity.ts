@@ -46,7 +46,19 @@ export class Invoice {
   @JoinColumn({ name: 'paymentId' })
   payment: Payment;
 
-  /** Amount in kobo */
+  /** Subtotal before tax, in kobo */
+  @Column({ type: 'bigint', default: 0 })
+  subtotalKobo: number;
+
+  /** VAT rate percent (default 7.5) */
+  @Column({ type: 'decimal', precision: 5, scale: 2, default: 7.5 })
+  taxRatePercent: number;
+
+  /** Tax amount in kobo */
+  @Column({ type: 'bigint', default: 0 })
+  taxAmountKobo: number;
+
+  /** Total amount (subtotal + tax), in kobo */
   @Column({ type: 'bigint' })
   amountKobo: number;
 
