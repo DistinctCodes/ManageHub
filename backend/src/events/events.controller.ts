@@ -1,74 +1,124 @@
-import { Controller, Post, Body, UseGuards, Get, Param, Patch, Delete, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Delete,
+  Body,
+  Param,
+  Query,
+  ParseUUIDPipe,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { EventsService } from './events.service';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
-import { JwtAuthGuard } from '../auth/guard/jwt.auth.guard';
 import { RolesGuard } from '../auth/guard/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorators';
-import { UserRole } from '../auth/common/enum/user-role-enum';
-import { CurrentUser } from '../auth/decorators/current.user.decorators';
-import { Public } from '../auth/decorators/public.decorator';
+import { UserRole } from '../users/enums/userRoles.enum';
+import { GetCurrentUser } from '../auth/decorators/getCurrentUser.decorator';
 
+@ApiTags('events')
+@ApiBearerAuth()
 @Controller('events')
 export class EventsController {
   constructor(private readonly eventsService: EventsService) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
-  create(@Body() createEventDto: CreateEventDto, @CurrentUser() user) {
-    return this.eventsService.create(createEventDto, user.id);
-  }
-
-  @Get('my')
-  @UseGuards(JwtAuthGuard)
-  getMyRegistrations(@CurrentUser() user) {
-    return this.eventsService.getMyRegistrations(user.id);
-  }
-
-  @Get()
-  @Public()
-  findAll(@CurrentUser() user) {
-    const isPublic = !user || user.role !== UserRole.ADMIN;
-    return this.eventsService.findAll(isPublic);
-  }
-
-  @Get(':id')
-  @Public()
-  findOne(@Param('id') id: string) {
-    return this.eventsService.findOne(id);
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Create an event (Admin only)' })
+  async create(@Body() dto: CreateEventDto) {
+    const event = await this.eventsService.create(dto);
+    return { message: 'Event created successfully', data: event };
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
-  update(@Param('id') id: string, @Body() updateEventDto: UpdateEventDto) {
-    return this.eventsService.update(id, updateEventDto);
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Update an event (Admin only)' })
+  async update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateEventDto,
+  ) {
+    const event = await this.eventsService.update(id, dto);
+    return { message: 'Event updated successfully', data: event };
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
-  remove(@Param('id') id: string) {
-    return this.eventsService.remove(id);
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Cancel an event (Admin only, soft delete)' })
+  async cancel(@Param('id', ParseUUIDPipe) id: string) {
+    const event = await this.eventsService.cancel(id);
+    return { message: 'Event cancelled successfully', data: event };
   }
 
-  @Post(':id/register')
-  @UseGuards(JwtAuthGuard)
-  register(@Param('id') id: string, @CurrentUser() user) {
-    return this.eventsService.register(id, user.id);
+  @Get()
+  @ApiOperation({ summary: 'List upcoming non-cancelled events' })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
+  async findAll(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const result = await this.eventsService.findAll(
+      page ? Number(page) : undefined,
+      limit ? Number(limit) : undefined,
+    );
+    return { message: 'Events retrieved successfully', ...result };
   }
 
-  @Delete(':id/register')
-  @UseGuards(JwtAuthGuard)
-  cancelRegistration(@Param('id') id: string, @CurrentUser() user) {
-    return this.eventsService.cancelRegistration(id, user.id);
+  @Get(':id')
+  @ApiOperation({ summary: 'Get event details with RSVP count' })
+  async findOne(@Param('id', ParseUUIDPipe) id: string) {
+    const event = await this.eventsService.findById(id);
+    return { message: 'Event retrieved successfully', data: event };
   }
 
-  @Get(':id/registrations')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
-  getRegistrations(@Param('id') id: string) {
-    return this.eventsService.getRegistrations(id);
+  @Post(':id/rsvp')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'RSVP to an event' })
+  async rsvp(
+    @Param('id', ParseUUIDPipe) id: string,
+    @GetCurrentUser('id') userId: string,
+  ) {
+    const rsvp = await this.eventsService.rsvp(id, userId);
+    return { message: 'RSVP confirmed', data: rsvp };
+  }
+
+  @Delete(':id/rsvp')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Cancel your RSVP' })
+  async cancelRsvp(
+    @Param('id', ParseUUIDPipe) id: string,
+    @GetCurrentUser('id') userId: string,
+  ) {
+    await this.eventsService.cancelRsvp(id, userId);
+    return { message: 'RSVP cancelled' };
+  }
+
+  @Get(':id/attendees')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'List event attendees (Admin only)' })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
+  async findAttendees(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const result = await this.eventsService.findAttendees(
+      id,
+      page ? Number(page) : undefined,
+      limit ? Number(limit) : undefined,
+    );
+    return { message: 'Attendees retrieved successfully', ...result };
   }
 }
