@@ -1,13 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { CreateBookingDto } from './dto/create-booking.dto';
+import { CreateRecurringBookingDto } from './dto/create-recurring-booking.dto';
 import { CreatePublicBookingDto } from './dto/create-public-booking.dto';
 import { BookingQueryDto } from './dto/booking-query.dto';
 import { CreateBookingProvider } from './providers/create-booking.provider';
 import { CreatePublicDayPassProvider } from './providers/create-public-day-pass.provider';
 import { ConfirmBookingProvider } from './providers/confirm-booking.provider';
 import { CancelBookingProvider } from './providers/cancel-booking.provider';
+import { CancelRecurringBookingProvider } from './providers/cancel-recurring-booking.provider';
 import { CompleteBookingProvider } from './providers/complete-booking.provider';
 import { FindBookingsProvider } from './providers/find-bookings.provider';
+import { CreateRecurringBookingProvider } from './providers/create-recurring-booking.provider';
 import { UserRole } from '../users/enums/userRoles.enum';
 import { Booking } from './entities/booking.entity';
 import { PricingService } from './pricing/pricing.service';
@@ -20,8 +23,10 @@ export class BookingsService {
     private readonly createPublicDayPassProvider: CreatePublicDayPassProvider,
     private readonly confirmBookingProvider: ConfirmBookingProvider,
     private readonly cancelBookingProvider: CancelBookingProvider,
+    private readonly cancelRecurringBookingProvider: CancelRecurringBookingProvider,
     private readonly completeBookingProvider: CompleteBookingProvider,
     private readonly findBookingsProvider: FindBookingsProvider,
+    private readonly createRecurringBookingProvider: CreateRecurringBookingProvider,
     private readonly pricingService: PricingService,
   ) {}
 
@@ -29,6 +34,8 @@ export class BookingsService {
     return this.createBookingProvider.create(dto, userId);
   }
 
+  createRecurring(dto: CreateRecurringBookingDto, userId: string) {
+    return this.createRecurringBookingProvider.create(dto, userId);
   publicDayPass(dto: CreatePublicBookingDto) {
     return this.createPublicDayPassProvider.create(dto);
   }
@@ -39,6 +46,10 @@ export class BookingsService {
 
   cancel(bookingId: string, userId: string, userRole: UserRole) {
     return this.cancelBookingProvider.cancel(bookingId, userId, userRole);
+  }
+
+  cancelRecurringGroup(groupId: string, userId: string) {
+    return this.cancelRecurringBookingProvider.cancelGroup(groupId, userId);
   }
 
   complete(bookingId: string) {
@@ -60,13 +71,7 @@ export class BookingsService {
     startDate: string,
     endDate: string,
   ) {
-    return this.pricingService.calculateAmount(
-      hourlyRateKobo,
-      planType,
-      seatCount,
-      startDate,
-      endDate,
-    );
+    return this.pricingService.calculateAmount(hourlyRateKobo, planType, seatCount, startDate, endDate);
   }
 
   getPlanSummary(planType: PlanType) {

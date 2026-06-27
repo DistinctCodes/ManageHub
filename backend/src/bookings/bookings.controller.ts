@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -11,14 +12,10 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiBearerAuth,
-  ApiOperation,
-  ApiQuery,
-} from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { BookingsService } from './bookings.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
+import { CreateRecurringBookingDto } from './dto/create-recurring-booking.dto';
 import { CreatePublicBookingDto } from './dto/create-public-booking.dto';
 import { BookingQueryDto } from './dto/booking-query.dto';
 import { RolesGuard } from '../auth/guard/roles.guard';
@@ -45,18 +42,34 @@ export class BookingsController {
 
   @Post()
   @ApiOperation({ summary: 'Create a booking' })
-  async create(
-    @Body() dto: CreateBookingDto,
-    @GetCurrentUser('id') userId: string,
-  ) {
+  async create(@Body() dto: CreateBookingDto, @GetCurrentUser('id') userId: string) {
     const booking = await this.bookingsService.create(dto, userId);
     return { message: 'Booking created successfully', data: booking };
   }
 
+  @Post('recurring')
+  @ApiOperation({ summary: 'Create a recurring booking series' })
+  async createRecurring(
+    @Body() dto: CreateRecurringBookingDto,
+    @GetCurrentUser('id') userId: string,
+  ) {
+    const result = await this.bookingsService.createRecurring(dto, userId);
+    return { message: 'Recurring bookings created successfully', data: result };
+  }
+
+  @Delete('recurring/:groupId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Cancel all future bookings in a recurring series' })
+  async cancelRecurring(
+    @Param('groupId', ParseUUIDPipe) groupId: string,
+    @GetCurrentUser('id') userId: string,
+  ) {
+    const result = await this.bookingsService.cancelRecurringGroup(groupId, userId);
+    return { message: 'Recurring bookings cancelled successfully', data: result };
+  }
+
   @Get()
-  @ApiOperation({
-    summary: 'List bookings (own for users, all for admin/staff)',
-  })
+  @ApiOperation({ summary: 'List bookings (own for users, all for admin/staff)' })
   async findAll(
     @Query() query: BookingQueryDto,
     @GetCurrentUser('id') userId: string,
