@@ -5,6 +5,7 @@ import { RecurringRule } from './entities/recurring-rule.entity';
 import { BookingsService } from './bookings.service';
 import { BookingsController } from './bookings.controller';
 import { CreateBookingProvider } from './providers/create-booking.provider';
+import { CreatePublicDayPassProvider } from './providers/create-public-day-pass.provider';
 import { ConfirmBookingProvider } from './providers/confirm-booking.provider';
 import { CancelBookingProvider } from './providers/cancel-booking.provider';
 import { CancelRecurringBookingProvider } from './providers/cancel-recurring-booking.provider';
@@ -14,25 +15,30 @@ import { CreateRecurringBookingProvider } from './providers/create-recurring-boo
 import { PricingService } from './pricing/pricing.service';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { User } from '../users/entities/user.entity';
-import { WaitlistModule } from '../sandbox/waitlist/waitlist.module';
+import { WaitlistModule } from '../waitlist/waitlist.module';
+import { Payment } from '../payments/entities/payment.entity';
+import { PaystackProvider } from '../payments/providers/paystack.provider';
+
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Booking, RecurringRule, User]),
+    TypeOrmModule.forFeature([Booking, User, Payment]),
     WorkspacesModule,
-    WaitlistModule,
+      WaitlistModule,
   ],
   controllers: [BookingsController],
   providers: [
     BookingsService,
     PricingService,
     CreateBookingProvider,
+    CreatePublicDayPassProvider,
     ConfirmBookingProvider,
     CancelBookingProvider,
     CancelRecurringBookingProvider,
     CompleteBookingProvider,
     FindBookingsProvider,
     CreateRecurringBookingProvider,
+    PaystackProvider,
   ],
   exports: [BookingsService],
 })

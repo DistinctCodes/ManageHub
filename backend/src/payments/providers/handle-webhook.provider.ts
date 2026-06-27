@@ -19,6 +19,7 @@ import { NotificationsService } from '../../notifications/notifications.service'
 import { NotificationType } from '../../notifications/enums/notification-type.enum';
 import { User } from '../../users/entities/user.entity';
 import { EmailService } from '../../email/email.service';
+import { PromoCodesService } from '../../promo-codes/promo-codes.service';
 
 const LONG_TERM_PLANS = new Set([
   PlanType.MONTHLY,
@@ -44,6 +45,7 @@ export class HandleWebhookProvider {
     private readonly notificationsService: NotificationsService,
     private readonly emailService: EmailService,
     private readonly configService: ConfigService,
+    private readonly promoCodesService: PromoCodesService,
   ) {}
 
   async handle(rawBody: Buffer, signature: string): Promise<void> {
@@ -117,6 +119,22 @@ export class HandleWebhookProvider {
       await this.recordSorobanEscrow(payment, booking);
     }
 
+    // Record promo code usage atomically if one was applied
+    if (booking.appliedPromoCodeId) {
+      this.promoCodesService
+        .recordUsage(
+          booking.appliedPromoCodeId,
+          payment.userId,
+          booking.id,
+          booking.promoDiscountApplied ?? 0,
+        )
+        .catch((err: Error) => {
+          this.logger.error(
+            `Failed to record promo usage for booking ${booking.id}: ${err.message}`,
+          );
+        });
+    }
+
     // Generate invoice asynchronously — do not block payment confirmation
     this.invoicesService.generateForPayment(payment.id).catch((err: Error) => {
       this.logger.error(
@@ -128,12 +146,17 @@ export class HandleWebhookProvider {
     this.usersRepository
       .findOne({ where: { id: payment.userId } })
       .then((user) => {
-        if (!user) return;
         this.bookingsRepository
           .findOne({ where: { id: payment.bookingId } })
           .then((bk) => {
+            const emailRecipient =
+              user?.email ?? (bk?.isGuestBooking ? bk?.guestInfo?.email : null);
+            const displayName =
+              user?.fullName ??
+              (bk?.isGuestBooking ? bk?.guestInfo?.name : null);
+            if (!emailRecipient || !displayName) return;
             this.emailService
-              .sendPaymentSuccessEmail(user.email, user.fullName, {
+              .sendPaymentSuccessEmail(emailRecipient, displayName, {
                 bookingId: payment.bookingId,
                 workspaceName: bk?.workspaceId ?? '',
                 amountNaira: (payment.amount / 100).toFixed(2),
@@ -148,16 +171,18 @@ export class HandleWebhookProvider {
       })
       .catch(() => void 0);
 
-    // Notify user
-    this.notificationsService
-      .create({
-        userId: payment.userId,
-        type: NotificationType.PAYMENT_SUCCESS,
-        title: 'Payment Successful',
-        message: `Your payment of ₦${(payment.amount / 100).toFixed(2)} has been confirmed and your booking is now active.`,
-        metadata: { paymentId: payment.id, bookingId: payment.bookingId },
-      })
-      .catch(() => void 0);
+    // Notify user (skip for guest bookings which have no userId)
+    if (payment.userId) {
+      this.notificationsService
+        .create({
+          userId: payment.userId,
+          type: NotificationType.PAYMENT_SUCCESS,
+          title: 'Payment Successful',
+          message: `Your payment of ₦${(payment.amount / 100).toFixed(2)} has been confirmed and your booking is now active.`,
+          metadata: { paymentId: payment.id, bookingId: payment.bookingId },
+        })
+        .catch(() => void 0);
+    }
 
     this.logger.log(
       `charge.success: payment ${payment.id} succeeded, booking ${booking.id} confirmed`,
@@ -184,28 +209,46 @@ export class HandleWebhookProvider {
     await this.paymentsRepository.save(payment);
 
     // Send payment failed email
-    this.usersRepository
-      .findOne({ where: { id: payment.userId } })
-      .then((user) => {
-        if (!user) return;
-        this.emailService
-          .sendPaymentFailedEmail(user.email, user.fullName, {
-            paymentReference: payment.providerReference ?? payment.id,
-            amountNaira: (payment.amount / 100).toFixed(2),
-          })
-          .catch(() => void 0);
-      })
-      .catch(() => void 0);
+    if (payment.userId) {
+      this.usersRepository
+        .findOne({ where: { id: payment.userId } })
+        .then((user) => {
+          if (!user) return;
+          this.emailService
+            .sendPaymentFailedEmail(user.email, user.fullName, {
+              paymentReference: payment.providerReference ?? payment.id,
+              amountNaira: (payment.amount / 100).toFixed(2),
+            })
+            .catch(() => void 0);
+        })
+        .catch(() => void 0);
+    } else {
+      // Guest booking — look up email from booking guestInfo
+      this.bookingsRepository
+        .findOne({ where: { id: payment.bookingId } })
+        .then((bk) => {
+          if (!bk?.guestInfo?.email) return;
+          this.emailService
+            .sendPaymentFailedEmail(bk.guestInfo.email, bk.guestInfo.name, {
+              paymentReference: payment.providerReference ?? payment.id,
+              amountNaira: (payment.amount / 100).toFixed(2),
+            })
+            .catch(() => void 0);
+        })
+        .catch(() => void 0);
+    }
 
-    this.notificationsService
-      .create({
-        userId: payment.userId,
-        type: NotificationType.PAYMENT_FAILED,
-        title: 'Payment Failed',
-        message: 'Your payment could not be processed. Please try again.',
-        metadata: { paymentId: payment.id, bookingId: payment.bookingId },
-      })
-      .catch(() => void 0);
+    if (payment.userId) {
+      this.notificationsService
+        .create({
+          userId: payment.userId,
+          type: NotificationType.PAYMENT_FAILED,
+          title: 'Payment Failed',
+          message: 'Your payment could not be processed. Please try again.',
+          metadata: { paymentId: payment.id, bookingId: payment.bookingId },
+        })
+        .catch(() => void 0);
+    }
 
     this.logger.log(`charge.failed: payment ${payment.id} marked FAILED`);
   }

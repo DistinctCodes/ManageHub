@@ -22,10 +22,10 @@ export class Booking {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column('uuid')
-  userId: string;
+  @Column({ type: 'uuid', nullable: true })
+  userId: string | null;
 
-  @ManyToOne(() => User, { onDelete: 'RESTRICT' })
+  @ManyToOne(() => User, { nullable: true, onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'userId' })
   user: User;
 
@@ -60,14 +60,20 @@ export class Booking {
   @Column({ nullable: true })
   sorobanEscrowId: string;
 
+  @Column({ nullable: true, type: 'uuid' })
+  appliedPromoCodeId: string | null;
+
+  @Column({ type: 'int', nullable: true })
+  promoDiscountApplied: number | null;
+
   @Column({ default: false })
   reminderSent: boolean;
 
   @Column({ default: false })
-  isRecurring: boolean;
+  isGuestBooking: boolean;
 
-  @Column({ type: 'uuid', nullable: true })
-  recurringGroupId: string;
+  @Column({ type: 'jsonb', nullable: true })
+  guestInfo: { name: string; email: string; phone: string } | null;
 
   @CreateDateColumn()
   createdAt: Date;

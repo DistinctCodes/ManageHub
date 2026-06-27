@@ -16,18 +16,29 @@ import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger'
 import { BookingsService } from './bookings.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { CreateRecurringBookingDto } from './dto/create-recurring-booking.dto';
+import { CreatePublicBookingDto } from './dto/create-public-booking.dto';
 import { BookingQueryDto } from './dto/booking-query.dto';
 import { RolesGuard } from '../auth/guard/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorators';
 import { UserRole } from '../users/enums/userRoles.enum';
 import { GetCurrentUser } from '../auth/decorators/getCurrentUser.decorator';
 import { PlanType } from './enums/plan-type.enum';
+import { Public } from '../auth/decorators/public.decorator';
 
 @ApiTags('bookings')
 @ApiBearerAuth()
 @Controller('bookings')
 export class BookingsController {
   constructor(private readonly bookingsService: BookingsService) {}
+
+  @Post('public/day-pass')
+  @Public()
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({ summary: 'Book a day pass as a guest (no auth required)' })
+  async publicDayPass(@Body() dto: CreatePublicBookingDto) {
+    const result = await this.bookingsService.publicDayPass(dto);
+    return { message: 'Day-pass booking initiated', data: result };
+  }
 
   @Post()
   @ApiOperation({ summary: 'Create a booking' })

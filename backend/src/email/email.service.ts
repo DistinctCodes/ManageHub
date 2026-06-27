@@ -4,6 +4,8 @@ import * as nodemailer from 'nodemailer';
 import * as handlebars from 'handlebars';
 import * as fs from 'fs';
 import * as path from 'path';
+import { User } from '../users/entities/user.entity';
+import { Visitor } from '../visitors/entities/visitor.entity';
 
 @Injectable()
 export class EmailService {
@@ -234,5 +236,17 @@ export class EmailService {
         contentType: 'application/pdf',
       },
     ]);
+  }
+
+  async sendVisitorCheckInEmail(
+    host: User,
+    visitor: Visitor,
+  ): Promise<boolean> {
+    const html = this.compileTemplate('visitor-check-in', {
+      hostName: host.fullName,
+      visitorName: visitor.fullName,
+      checkInTime: visitor.checkInTime.toLocaleString(),
+    });
+    return this.send(host.email, 'Your visitor has arrived', html);
   }
 }

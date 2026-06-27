@@ -218,6 +218,10 @@ export class AdminAnalyticsProvider {
     };
   }
 
+  async getActiveWorkspacesCount(): Promise<number> {
+    return this.workspacesRepository.count({ where: { isActive: true } });
+  }
+
   async getFullAdminDashboard(from?: string, to?: string) {
     const [revenue, bookings, topWorkspaces, topMembers, invoices, occupancy] =
       await Promise.all([

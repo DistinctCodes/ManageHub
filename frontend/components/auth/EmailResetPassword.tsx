@@ -1,6 +1,6 @@
 'use client';
 
-import { Button } from '@/components/ui/Button';
+import { Button } from '@/components/ui/button';
 import { forgotPasswordSchema } from '@/lib/schemas/auth';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ArrowLeft, Info, Mail, Send } from 'lucide-react';
