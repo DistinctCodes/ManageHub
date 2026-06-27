@@ -29,6 +29,8 @@ import { AccessControlModule } from './access-control/access-control.module';
 import { WaitlistModule } from './waitlist/waitlist.module';
 import { EventsModule } from './events/events.module';
 import { MembershipPlansModule } from './membership-plans/membership-plans.module';
+import { MaintenanceModule } from './maintenance/maintenance.module';
+import { LeadsModule } from './leads/leads.module';
 
 @Module({
   imports: [
@@ -114,6 +116,8 @@ import { MembershipPlansModule } from './membership-plans/membership-plans.modul
     WaitlistModule,
     EventsModule,
     MembershipPlansModule,
+    MaintenanceModule,
+    LeadsModule,
   ],
   controllers: [AppController],
   providers: [
