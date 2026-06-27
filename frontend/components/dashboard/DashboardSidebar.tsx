@@ -19,6 +19,7 @@ import {
   Bell,
   BarChart3,
   CreditCard,
+  Boxes,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuthState, useAuthActions } from "@/lib/store/authStore";
@@ -27,6 +28,7 @@ import NotificationBell from "@/components/notifications/NotificationBell";
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Workspaces", href: "/workspaces", icon: BriefcaseBusiness },
+  { label: "Resources", href: "/resources", icon: Boxes },
   { label: "My Bookings", href: "/bookings", icon: BookOpen },
   { label: "Check In / Out", href: "/check-in", icon: LogIn },
   { label: "Notifications", href: "/notifications", icon: Bell },

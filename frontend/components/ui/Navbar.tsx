@@ -8,6 +8,7 @@ type NavItem = { label: string; href: string };
 const NAV_ITEMS: NavItem[] = [
   { label: "Features", href: "#features" },
   { label: "How it works", href: "#how-it-works" },
+  { label: "Resources", href: "/resources" },
 ];
 
 export function Navbar({ items = NAV_ITEMS }: { items?: NavItem[] }) {
