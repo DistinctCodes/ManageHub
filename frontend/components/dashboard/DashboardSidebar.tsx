@@ -43,6 +43,7 @@ const adminItems = [
   { label: "Members", href: "/admin/members", icon: Users },
   { label: "Invoices", href: "/admin/invoices", icon: FileText },
   { label: "Newsletter", href: "/dashboard?tab=newsletter", icon: Mail },
+  { label: "Reports", href: "/admin/reports", icon: BarChart3 },
 ];
 
 export default function DashboardSidebar() {
