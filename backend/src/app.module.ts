@@ -29,6 +29,7 @@ import { AccessControlModule } from './access-control/access-control.module';
 import { WaitlistModule } from './waitlist/waitlist.module';
 import { EventsModule } from './events/events.module';
 import { MembershipPlansModule } from './membership-plans/membership-plans.module';
+import { TeamsModule } from './teams/teams.module';
 
 @Module({
   imports: [
@@ -114,6 +115,7 @@ import { MembershipPlansModule } from './membership-plans/membership-plans.modul
     WaitlistModule,
     EventsModule,
     MembershipPlansModule,
+    TeamsModule,
   ],
   controllers: [AppController],
   providers: [
