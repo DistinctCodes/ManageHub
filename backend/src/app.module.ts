@@ -29,6 +29,8 @@ import { AccessControlModule } from './access-control/access-control.module';
 import { WaitlistModule } from './waitlist/waitlist.module';
 import { EventsModule } from './events/events.module';
 import { MembershipPlansModule } from './membership-plans/membership-plans.module';
+import { InventoryModule } from './inventory/inventory.module';
+import { AuditLogModule } from './audit-log/audit-log.module';
 import { LockersModule } from './lockers/lockers.module';
 import { PackagesModule } from './packages/packages.module';
 import { ReferralsModule } from './referrals/referrals.module';
@@ -121,6 +123,8 @@ import { TeamsModule } from './teams/teams.module';
     WaitlistModule,
     EventsModule,
     MembershipPlansModule,
+    InventoryModule,
+    AuditLogModule,
     LockersModule,
     PackagesModule,
     ReferralsModule,

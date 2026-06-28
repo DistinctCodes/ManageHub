@@ -58,6 +58,11 @@ export default function BookingForm() {
   const [seatCount, setSeatCount] = useState(1);
   const [notes, setNotes] = useState("");
   const [bookingId, setBookingId] = useState<string | null>(null);
+  const [promoCodeInput, setPromoCodeInput] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState<{ code: string; discountAmountKobo: number; finalAmountKobo: number } | null>(null);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [applyingPromo, setApplyingPromo] = useState(false);
+  const [showPromoField, setShowPromoField] = useState(false);
 
   const { data: workspaceData } = useGetWorkspaceById(workspaceId);
   const workspace = workspaceData?.data;
@@ -100,6 +105,33 @@ export default function BookingForm() {
 
   const canProceedStep0 =
     workspaceId && planType && startDate && endDate && seatCount > 0;
+
+  const displayTotal = appliedPromo
+    ? (appliedPromo.finalAmountKobo / 100).toLocaleString("en-NG", { style: "currency", currency: "NGN" })
+    : totalNaira;
+
+  async function handleApplyPromo() {
+    if (!promoCodeInput.trim() || !totalAmount) return;
+    setApplyingPromo(true);
+    setPromoError(null);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:6001/api"}/promo-codes/validate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: promoCodeInput.trim(), subtotalKobo: totalAmount }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.valid) {
+        setPromoError(json.message || "Invalid promo code");
+      } else {
+        setAppliedPromo({ code: promoCodeInput.trim(), discountAmountKobo: json.discountAmountKobo, finalAmountKobo: json.finalAmountKobo });
+      }
+    } catch {
+      setPromoError("Could not validate promo code");
+    } finally {
+      setApplyingPromo(false);
+    }
+  }
 
   async function handleConfirmBooking() {
     if (!canProceedStep0) return;
@@ -344,17 +376,60 @@ export default function BookingForm() {
 
           {/* Price estimate */}
           {estimateParams && (
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <span className="text-sm text-gray-600">Estimated total</span>
-              <span className="text-sm font-bold text-gray-900">
-                {estimatingPrice ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : totalAmount > 0 ? (
-                  totalNaira
-                ) : (
-                  "—"
-                )}
-              </span>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <span className="text-sm text-gray-600">Estimated total</span>
+                <span className="text-sm font-bold text-gray-900">
+                  {estimatingPrice ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : totalAmount > 0 ? (
+                    totalNaira
+                  ) : (
+                    "—"
+                  )}
+                </span>
+              </div>
+              {appliedPromo && (
+                <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg text-sm">
+                  <span className="text-green-700">Discount ({appliedPromo.code})</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-green-700 font-medium">
+                      -{(appliedPromo.discountAmountKobo / 100).toLocaleString("en-NG", { style: "currency", currency: "NGN" })}
+                    </span>
+                    <button onClick={() => { setAppliedPromo(null); setPromoCodeInput(""); }} className="text-xs text-gray-400 underline">Remove</button>
+                  </div>
+                </div>
+              )}
+              {!appliedPromo && (
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setShowPromoField((v) => !v)}
+                    className="text-xs text-gray-500 underline"
+                  >
+                    {showPromoField ? "Hide promo code" : "Have a promo code?"}
+                  </button>
+                  {showPromoField && (
+                    <div className="mt-2 flex gap-2">
+                      <input
+                        value={promoCodeInput}
+                        onChange={(e) => setPromoCodeInput(e.target.value)}
+                        placeholder="Enter promo code"
+                        className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleApplyPromo}
+                        disabled={applyingPromo || !promoCodeInput.trim()}
+                        className="px-3 py-2 text-sm bg-gray-900 text-white rounded-lg disabled:opacity-50"
+                      >
+                        {applyingPromo ? "..." : "Apply"}
+                      </button>
+                    </div>
+                  )}
+                  {promoError && <p className="text-xs text-red-500 mt-1">{promoError}</p>}
+                </div>
+              )}
             </div>
           )}
 
