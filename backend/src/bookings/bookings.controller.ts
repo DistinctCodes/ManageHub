@@ -11,6 +11,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Header,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
 import { BookingsService } from './bookings.service';
@@ -107,6 +108,14 @@ export class BookingsController {
     };
   }
 
+  @Get('calendar.ics')
+  @Header('Content-Type', 'text/calendar; charset=utf-8')
+  @Header('Content-Disposition', 'attachment; filename=booking.ics')
+  @ApiOperation({ summary: 'Export all upcoming confirmed bookings as iCal' })
+  async exportAllCalendar(@GetCurrentUser('id') userId: string): Promise<string> {
+    return this.bookingsService.exportAllUpcoming(userId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get booking by ID' })
   async findOne(
@@ -116,6 +125,17 @@ export class BookingsController {
   ) {
     const booking = await this.bookingsService.findById(id, userId, userRole);
     return { message: 'Booking retrieved successfully', data: booking };
+  }
+
+  @Get(':id/calendar.ics')
+  @Header('Content-Type', 'text/calendar; charset=utf-8')
+  @Header('Content-Disposition', 'attachment; filename=booking.ics')
+  @ApiOperation({ summary: 'Export a single booking as iCal' })
+  async exportSingleCalendar(
+    @Param('id', ParseUUIDPipe) id: string,
+    @GetCurrentUser('id') userId: string,
+  ): Promise<string> {
+    return this.bookingsService.exportSingleBooking(id, userId);
   }
 
   @Patch(':id/confirm')
