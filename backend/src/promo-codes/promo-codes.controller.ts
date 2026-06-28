@@ -13,6 +13,7 @@ import { PromoCodesService } from './promo-codes.service';
 import { CreatePromoCodeDto } from './dto/create-promo-code.dto';
 import { UpdatePromoCodeDto } from './dto/update-promo-code.dto';
 import { ValidatePromoCodeDto } from './dto/validate-promo-code.dto';
+import { ApplyPromoCodeDto } from './dto/apply-promo-code.dto';
 import { Roles } from '../auth/decorators/roles.decorators';
 import { CurrentUser } from '../auth/decorators/current.user.decorators';
 import { UserRole } from '../users/enums/userRoles.enum';
@@ -50,5 +51,10 @@ export class PromoCodesController {
   @Post('validate')
   validate(@Body() dto: ValidatePromoCodeDto, @CurrentUser() user: User) {
     return this.promoCodesService.validate(dto, user.id);
+  }
+
+  @Post('apply')
+  apply(@Body() dto: ApplyPromoCodeDto, @CurrentUser() user: User) {
+    return this.promoCodesService.applyToBooking(dto, user.id);
   }
 }

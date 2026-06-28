@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -10,8 +11,10 @@ import { PromoCodeUsage } from './entities/promo-code-usage.entity';
 import { CreatePromoCodeDto } from './dto/create-promo-code.dto';
 import { UpdatePromoCodeDto } from './dto/update-promo-code.dto';
 import { ValidatePromoCodeDto } from './dto/validate-promo-code.dto';
+import { ApplyPromoCodeDto } from './dto/apply-promo-code.dto';
 import { DiscountType } from './enums/discount-type.enum';
 import { Workspace } from '../workspaces/entities/workspace.entity';
+import { Booking } from '../bookings/entities/booking.entity';
 
 export interface ValidatePromoCodeResponse {
   valid: boolean;
@@ -30,8 +33,32 @@ export class PromoCodesService {
     private readonly usagesRepository: Repository<PromoCodeUsage>,
     @InjectRepository(Workspace)
     private readonly workspacesRepository: Repository<Workspace>,
+    @InjectRepository(Booking)
+    private readonly bookingRepository: Repository<Booking>,
     private readonly dataSource: DataSource,
   ) {}
+
+  async applyToBooking(dto: ApplyPromoCodeDto, userId: string): Promise<{ discountKobo: number; finalAmount: number }> {
+    const validateResult = await this.validate(
+      { code: dto.code, bookingAmount: dto.bookingAmount },
+      userId,
+    );
+    if (!validateResult.valid) throw new BadRequestException(validateResult.message);
+
+    const promoCode = await this.findByCode(dto.code);
+    if (!promoCode) throw new NotFoundException('Promo code not found');
+
+    const discountKobo = dto.bookingAmount - (validateResult.finalAmount ?? dto.bookingAmount);
+    await this.bookingRepository.update(dto.bookingId, {
+      appliedPromoCodeId: promoCode.id,
+      promoDiscountApplied: discountKobo,
+      totalAmount: validateResult.finalAmount ?? dto.bookingAmount,
+    });
+
+    await this.recordUsage(promoCode.id, userId, dto.bookingId, discountKobo);
+
+    return { discountKobo, finalAmount: validateResult.finalAmount ?? dto.bookingAmount };
+  }
 
   async create(dto: CreatePromoCodeDto): Promise<PromoCode> {
     const code = dto.code.toUpperCase();

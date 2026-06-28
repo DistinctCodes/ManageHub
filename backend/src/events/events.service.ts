@@ -1,115 +1,59 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Event, EventStatus } from './entities/event.entity';
+import { Injectable } from '@nestjs/common';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
-import { EventRegistration, EventRegistrationStatus } from './entities/event-registration.entity';
+import { CreateEventProvider } from './providers/create-event.provider';
+import { UpdateEventProvider } from './providers/update-event.provider';
+import { CancelEventProvider } from './providers/cancel-event.provider';
+import { FindEventsProvider, PaginatedEvents } from './providers/find-events.provider';
+import { FindEventByIdProvider } from './providers/find-event-by-id.provider';
+import { RsvpToEventProvider } from './providers/rsvp-to-event.provider';
+import { CancelRsvpProvider } from './providers/cancel-rsvp.provider';
+import { FindAttendeesProvider, PaginatedAttendees } from './providers/find-attendees.provider';
+import { Event } from './entities/event.entity';
+import { EventRsvp } from './entities/event-rsvp.entity';
 
 @Injectable()
 export class EventsService {
   constructor(
-    @InjectRepository(Event)
-    private readonly eventRepository: Repository<Event>,
-    @InjectRepository(EventRegistration)
-    private readonly registrationRepository: Repository<EventRegistration>,
+    private readonly createEventProvider: CreateEventProvider,
+    private readonly updateEventProvider: UpdateEventProvider,
+    private readonly cancelEventProvider: CancelEventProvider,
+    private readonly findEventsProvider: FindEventsProvider,
+    private readonly findEventByIdProvider: FindEventByIdProvider,
+    private readonly rsvpToEventProvider: RsvpToEventProvider,
+    private readonly cancelRsvpProvider: CancelRsvpProvider,
+    private readonly findAttendeesProvider: FindAttendeesProvider,
   ) {}
 
-  async create(createEventDto: CreateEventDto, userId: string): Promise<Event> {
-    const event = this.eventRepository.create({
-      ...createEventDto,
-      createdBy: userId,
-    });
-    return this.eventRepository.save(event);
+  create(dto: CreateEventDto): Promise<Event> {
+    return this.createEventProvider.create(dto);
   }
 
-  async findAll(isPublic = false): Promise<Event[]> {
-    if (isPublic) {
-      return this.eventRepository.find({ where: { status: EventStatus.PUBLISHED } });
-    }
-    return this.eventRepository.find();
+  update(id: string, dto: UpdateEventDto): Promise<Event> {
+    return this.updateEventProvider.update(id, dto);
   }
 
-  async findOne(id: string): Promise<Event> {
-    const event = await this.eventRepository.findOne({ where: { id } });
-    if (!event) {
-      throw new NotFoundException(`Event with ID "${id}" not found`);
-    }
-    return event;
+  cancel(id: string): Promise<Event> {
+    return this.cancelEventProvider.cancel(id);
   }
 
-  async update(id: string, updateEventDto: UpdateEventDto): Promise<Event> {
-    const event = await this.findOne(id);
-    Object.assign(event, updateEventDto);
-    return this.eventRepository.save(event);
+  findAll(page?: number, limit?: number): Promise<PaginatedEvents> {
+    return this.findEventsProvider.findAll(page, limit);
   }
 
-  async remove(id: string): Promise<void> {
-    const event = await this.findOne(id);
-    await this.eventRepository.remove(event);
+  findById(id: string): Promise<Event & { rsvpCount: number }> {
+    return this.findEventByIdProvider.findById(id);
   }
 
-  async register(eventId: string, userId: string): Promise<EventRegistration> {
-    const event = await this.findOne(eventId);
-
-    if (event.status !== EventStatus.PUBLISHED) {
-      throw new BadRequestException('Event is not published');
-    }
-
-    const existingRegistration = await this.registrationRepository.findOne({
-      where: { eventId, userId },
-    });
-
-    if (existingRegistration) {
-      throw new ConflictException('You are already registered for this event');
-    }
-
-    const registrationCount = await this.registrationRepository.count({
-      where: { eventId, status: EventRegistrationStatus.REGISTERED },
-    });
-
-    const status =
-      registrationCount < event.capacity
-        ? EventRegistrationStatus.REGISTERED
-        : EventRegistrationStatus.WAITLISTED;
-
-    const registration = this.registrationRepository.create({
-      eventId,
-      userId,
-      status,
-    });
-
-    return this.registrationRepository.save(registration);
+  rsvp(eventId: string, userId: string): Promise<EventRsvp> {
+    return this.rsvpToEventProvider.rsvp(eventId, userId);
   }
 
-  async cancelRegistration(eventId: string, userId: string): Promise<void> {
-    const registration = await this.registrationRepository.findOne({
-      where: { eventId, userId },
-    });
-
-    if (!registration) {
-      throw new NotFoundException('You are not registered for this event');
-    }
-
-    await this.registrationRepository.remove(registration);
-
-    const waitlistedUser = await this.registrationRepository.findOne({
-      where: { eventId, status: EventRegistrationStatus.WAITLISTED },
-      order: { registeredAt: 'ASC' },
-    });
-
-    if (waitlistedUser) {
-      waitlistedUser.status = EventRegistrationStatus.REGISTERED;
-      await this.registrationRepository.save(waitlistedUser);
-    }
+  cancelRsvp(eventId: string, userId: string): Promise<void> {
+    return this.cancelRsvpProvider.cancelRsvp(eventId, userId);
   }
 
-  async getRegistrations(eventId: string): Promise<EventRegistration[]> {
-    await this.findOne(eventId);
-    return this.registrationRepository.find({ where: { eventId } });
-  }
-
-  async getMyRegistrations(userId: string): Promise<EventRegistration[]> {
-    return this.registrationRepository.find({ where: { userId } });
+  findAttendees(eventId: string, page?: number, limit?: number): Promise<PaginatedAttendees> {
+    return this.findAttendeesProvider.findAttendees(eventId, page, limit);
   }
 }
