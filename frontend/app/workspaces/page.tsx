@@ -9,7 +9,9 @@ import {
   Search,
   SlidersHorizontal,
   Building2,
+  Map,
 } from "lucide-react";
+import Link from "next/link";
 
 const WORKSPACE_TYPES: { label: string; value: WorkspaceType | "" }[] = [
   { label: "All Types", value: "" },
@@ -38,11 +40,19 @@ export default function WorkspacesPage() {
   return (
     <DashboardLayout>
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Workspaces</h1>
-        <p className="text-gray-500 mt-1 text-sm">
-          Browse and book available workspaces.
-        </p>
+      <div className="mb-8 flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Workspaces</h1>
+          <p className="text-gray-500 mt-1 text-sm">
+            Browse and book available workspaces.
+          </p>
+        </div>
+        <Link
+          href="/spaces/map"
+          className="flex items-center gap-2 border border-gray-200 text-gray-700 px-3 py-2 rounded-lg text-sm hover:bg-gray-50"
+        >
+          <Map className="w-4 h-4" /> Map View
+        </Link>
       </div>
 
       {/* Filters */}
