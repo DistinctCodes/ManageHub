@@ -4,6 +4,7 @@ import { UsersController } from './users.controller';
 import { UsersService } from './providers/users.service';
 import { AuthModule } from '../auth/auth.module';
 import { User } from './entities/user.entity';
+import { Referral } from '../referrals/entities/referral.entity';
 import { FindOneUserByEmailProvider } from './providers/findOneUserByEmail.provider';
 import { FindOneUserByIdProvider } from './providers/findOneUserById.provider';
 import { CreateUserProvider } from './providers/createUser.provider';
@@ -27,7 +28,7 @@ import { CommunityController } from './community.controller';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User]),
+    TypeOrmModule.forFeature([User, Referral]),
     forwardRef(() => AuthModule),
     CloudinaryModule,
   ],

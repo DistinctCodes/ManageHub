@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p /home/feyishola/Desktop/mydev/opensource/ManageHub/backend/src/referrals/entities /home/feyishola/Desktop/mydev/opensource/ManageHub/backend/src/referrals/enums)",
+      "Bash(npx tsc *)"
+    ],
+    "additionalDirectories": [
+      "/home/feyishola/Desktop/mydev/opensource/ManageHub/backend/src/referrals"
+    ]
+  }
+}

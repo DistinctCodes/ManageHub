@@ -23,6 +23,7 @@ import { PromoCodesService } from '../../promo-codes/promo-codes.service';
 import { UserCredit } from '../../credits/entities/user-credit.entity';
 import { UserCreditTransaction } from '../../credits/entities/credit-transaction.entity';
 import { CreditTransactionType } from '../../credits/enums/credit-transaction-type.enum';
+import { ReferralsService } from '../../referrals/referrals.service';
 
 const LONG_TERM_PLANS = new Set([
   PlanType.MONTHLY,
@@ -53,6 +54,7 @@ export class HandleWebhookProvider {
     private readonly emailService: EmailService,
     private readonly configService: ConfigService,
     private readonly promoCodesService: PromoCodesService,
+    private readonly referralsService: ReferralsService,
   ) {}
 
   async handle(rawBody: Buffer, signature: string): Promise<void> {
@@ -144,6 +146,17 @@ export class HandleWebhookProvider {
         .catch((err: Error) => {
           this.logger.error(
             `Failed to record promo usage for booking ${booking.id}: ${err.message}`,
+          );
+        });
+    }
+
+    // Complete pending referral reward on the referred user's first successful payment
+    if (payment.userId) {
+      this.referralsService
+        .completeReferral(payment.userId)
+        .catch((err: Error) => {
+          this.logger.error(
+            `Failed to complete referral for user ${payment.userId}: ${err.message}`,
           );
         });
     }

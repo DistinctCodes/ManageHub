@@ -12,12 +12,18 @@ import { GenerateTokensProvider } from '../../auth/providers/generateTokens.prov
 import { RefreshTokenRepositoryOperations } from '../../auth/providers/refreshToken.repository';
 import { UserRole } from '../enums/userRoles.enum';
 import { EmailService } from '../../email/email.service';
+import { Referral } from '../../referrals/entities/referral.entity';
+import { ReferralStatus } from '../../referrals/enums/referral-status.enum';
 import * as crypto from 'crypto';
+
 @Injectable()
 export class CreateUserProvider {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+
+    @InjectRepository(Referral)
+    private readonly referralRepository: Repository<Referral>,
 
     private readonly hashingProvider: HashingProvider,
 
@@ -57,16 +63,39 @@ export class CreateUserProvider {
       // Generate verification token
       const verificationToken = crypto.randomBytes(32).toString('hex');
       const verificationTokenExpiry = new Date();
-      verificationTokenExpiry.setHours(verificationTokenExpiry.getHours() + 24); // 24 hours expiry
+      verificationTokenExpiry.setHours(verificationTokenExpiry.getHours() + 24);
 
-      // Create and save the user (or admin)
+      // Extract referredByCode before spreading to avoid polluting entity
+      const { referredByCode, ...userFields } = createUserDto;
+
+      // Generate unique referral code for the new user
+      const referralCode = await this.generateUniqueReferralCode();
+
+      // Create and save the user
       let user = this.userRepository.create({
-        ...createUserDto,
+        ...userFields,
+        referralCode,
         isVerified: false,
         verificationToken,
         verificationTokenExpiry,
       });
       user = await this.userRepository.save(user);
+
+      // If a referral code was supplied, create a pending Referral record
+      if (referredByCode) {
+        const referrer = await this.userRepository.findOne({
+          where: { referralCode: referredByCode },
+        });
+        if (referrer && referrer.id !== user.id) {
+          const referral = this.referralRepository.create({
+            referrerId: referrer.id,
+            referredUserId: user.id,
+            code: referredByCode,
+            status: ReferralStatus.PENDING,
+          });
+          await this.referralRepository.save(referral).catch(() => void 0);
+        }
+      }
 
       // Generate tokens
       const { accessToken, refreshToken } =
@@ -114,5 +143,17 @@ export class CreateUserProvider {
     } catch (error) {
       ErrorCatch(error, 'Failed to create user');
     }
+  }
+
+  private async generateUniqueReferralCode(): Promise<string> {
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const code = `MH-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+      const existing = await this.userRepository.findOne({
+        where: { referralCode: code },
+      });
+      if (!existing) return code;
+    }
+    // Fallback: use more entropy to virtually guarantee uniqueness
+    return `MH-${crypto.randomBytes(5).toString('hex').toUpperCase().slice(0, 8)}`;
   }
 }

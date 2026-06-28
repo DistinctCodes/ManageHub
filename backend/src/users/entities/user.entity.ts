@@ -138,6 +138,9 @@ export class User {
   @Column({ type: 'int', default: 0 })
   profileCompleteness: number;
 
+  @Column({ nullable: true, unique: true, type: 'varchar', length: 20 })
+  referralCode?: string;
+
   @DeleteDateColumn()
   deletedAt: Date;
   get fullName(): string {

@@ -7,6 +7,7 @@ import {
   Matches,
   IsNotEmpty,
   IsEnum,
+  Length,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { UserRole } from '../enums/userRoles.enum'; // import your enum
@@ -61,4 +62,10 @@ export class CreateUserDto {
   @IsOptional()
   @IsEnum(UserRole)
   role?: UserRole;
+
+  @ApiPropertyOptional({ example: 'MH-A1B2C3', description: 'Referral code of the person who referred you' })
+  @IsOptional()
+  @IsString()
+  @Length(8, 20)
+  referredByCode?: string;
 }
