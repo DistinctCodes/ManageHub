@@ -1329,6 +1329,11 @@ impl Contract {
     pub fn get_upgrade_config(env: Env) -> Result<UpgradeConfig, Error> {
         UpgradeModule::get_upgrade_config(env)
     }
+
+    /// Returns true if the upgrade system has been configured and enabled.
+    pub fn is_upgrade_enabled(env: Env) -> bool {
+        UpgradeModule::is_upgrade_enabled(env)
+    }
 }
 
 mod test;
