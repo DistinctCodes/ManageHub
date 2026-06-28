@@ -49,6 +49,8 @@ const adminItems = [
   { label: "Members", href: "/admin/members", icon: Users },
   { label: "Invoices", href: "/admin/invoices", icon: FileText },
   { label: "Newsletter", href: "/dashboard?tab=newsletter", icon: Mail },
+  { label: "Leads", href: "/admin/leads", icon: Users },
+  { label: "Contracts", href: "/admin/contracts", icon: FileText },
   { label: "Reports", href: "/admin/reports", icon: BarChart3 },
   { label: "Staff Schedule", href: "/admin/staff", icon: Calendar },
   { label: "Facilities", href: "/admin/facilities", icon: MapPin },
