@@ -351,6 +351,15 @@ impl UpgradeModule {
         Self::get_config(&env)
     }
 
+    /// Returns true if the upgrade system has been configured and enabled.
+    pub fn is_upgrade_enabled(env: Env) -> bool {
+        env.storage()
+            .instance()
+            .get::<DataKey, UpgradeConfig>(&DataKey::UpgradeConfig)
+            .map(|c| c.upgrades_enabled)
+            .unwrap_or(false)
+    }
+
     // -----------------------------------------------------------------------
     // Internal helpers
     // -----------------------------------------------------------------------
