@@ -36,4 +36,9 @@ export class CreateBookingDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiPropertyOptional({ enum: ['paystack', 'credits'] })
+  @IsOptional()
+  @IsString()
+  paymentMethod?: string;
 }
