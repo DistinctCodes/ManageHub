@@ -194,6 +194,65 @@ export class DashboardService {
     return this.memberDashboardProvider.getMemberCheckIns(userId, limit);
   }
 
+  async getChurnRisk(page: number, limit: number) {
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+
+    const activeUsers = await this.userRepository
+      .createQueryBuilder('u')
+      .where('u.isDeleted = :d', { d: false })
+      .andWhere('u.isVerified = :v', { v: true })
+      .getMany();
+
+    const results: any[] = [];
+    for (const user of activeUsers) {
+      const recentBooking = await this.bookingRepository
+        .createQueryBuilder('b')
+        .where('b.userId = :uid', { uid: user.id })
+        .andWhere('b.createdAt >= :thirtyDaysAgo', { thirtyDaysAgo })
+        .getCount();
+
+      const olderBooking = await this.bookingRepository
+        .createQueryBuilder('b')
+        .where('b.userId = :uid', { uid: user.id })
+        .andWhere('b.createdAt >= :ninetyDaysAgo', { ninetyDaysAgo })
+        .andWhere('b.createdAt < :thirtyDaysAgo', { thirtyDaysAgo })
+        .getCount();
+
+      const isAtRisk = (recentBooking === 0 && olderBooking > 0) ||
+        (user as any).membershipStatus === 'inactive';
+
+      if (isAtRisk) {
+        const lastBooking = await this.bookingRepository
+          .createQueryBuilder('b')
+          .where('b.userId = :uid', { uid: user.id })
+          .orderBy('b.createdAt', 'DESC')
+          .getOne();
+
+        const totalBookings = await this.bookingRepository.count({ where: { userId: user.id } as any });
+        const daysSince = lastBooking
+          ? Math.floor((now.getTime() - lastBooking.createdAt.getTime()) / (24 * 60 * 60 * 1000))
+          : 90;
+        const riskScore = Math.min(100, Math.round(100 - (daysSince / 90) * 100));
+
+        results.push({
+          userId: user.id,
+          fullName: `${user.firstname} ${user.lastname}`,
+          email: user.email,
+          lastBookingDate: lastBooking?.createdAt ?? null,
+          totalBookingsAllTime: totalBookings,
+          riskScore,
+        });
+      }
+    }
+
+    results.sort((a, b) => b.riskScore - a.riskScore);
+    const total = results.length;
+    const items = results.slice((page - 1) * limit, page * limit);
+    return { items, total, page, limit, totalPages: Math.ceil(total / limit) };
+  }
+
   private async getMonthlyRegistrations(months: number) {
     const result: { month: string; count: number }[] = [];
     const now = new Date();
