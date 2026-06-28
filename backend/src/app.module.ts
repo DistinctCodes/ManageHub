@@ -29,6 +29,23 @@ import { AccessControlModule } from './access-control/access-control.module';
 import { WaitlistModule } from './waitlist/waitlist.module';
 import { EventsModule } from './events/events.module';
 import { MembershipPlansModule } from './membership-plans/membership-plans.module';
+import { ContractsModule } from './contracts/contracts.module';
+import { ShiftsModule } from './shifts/shifts.module';
+import { BillingModule } from './billing/billing.module';
+import { DunningModule } from './dunning/dunning.module';
+import { ShiftsModule } from './shifts/shifts.module';
+import { FloorPlanModule } from './floor-plan/floor-plan.module';
+import { ReportsModule } from './reports/reports.module';
+import { EmailCampaignsModule } from './email-campaigns/email-campaigns.module';
+import { InventoryModule } from './inventory/inventory.module';
+import { AuditLogModule } from './audit-log/audit-log.module';
+import { LockersModule } from './lockers/lockers.module';
+import { PackagesModule } from './packages/packages.module';
+import { ReferralsModule } from './referrals/referrals.module';
+import { MaintenanceModule } from './maintenance/maintenance.module';
+import { LeadsModule } from './leads/leads.module';
+import { CreditsModule } from './credits/credits.module';
+import { TeamsModule } from './teams/teams.module';
 
 @Module({
   imports: [
@@ -114,6 +131,23 @@ import { MembershipPlansModule } from './membership-plans/membership-plans.modul
     WaitlistModule,
     EventsModule,
     MembershipPlansModule,
+    ContractsModule,
+    ShiftsModule,
+    BillingModule,
+    DunningModule,
+    ShiftsModule,
+    FloorPlanModule,
+    ReportsModule,
+    EmailCampaignsModule,
+    InventoryModule,
+    AuditLogModule,
+    LockersModule,
+    PackagesModule,
+    ReferralsModule,
+    MaintenanceModule,
+    LeadsModule,
+    CreditsModule,
+    TeamsModule,
   ],
   controllers: [AppController],
   providers: [

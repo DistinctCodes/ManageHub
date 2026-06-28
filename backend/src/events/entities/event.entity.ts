@@ -6,13 +6,6 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-export enum EventStatus {
-  DRAFT = 'draft',
-  PUBLISHED = 'published',
-  CANCELLED = 'cancelled',
-  COMPLETED = 'completed',
-}
-
 @Entity('events')
 export class Event {
   @PrimaryGeneratedColumn('uuid')
@@ -24,8 +17,8 @@ export class Event {
   @Column({ type: 'text' })
   description: string;
 
-  @Column({ nullable: true })
-  coverImageUrl?: string;
+  @Column()
+  hostName: string;
 
   @Column({ type: 'timestamptz' })
   startDate: Date;
@@ -34,19 +27,19 @@ export class Event {
   endDate: Date;
 
   @Column()
-  venue: string;
+  location: string;
 
   @Column({ type: 'int' })
   capacity: number;
 
-  @Column({ type: 'int', default: 0 })
-  price: number;
+  @Column({ nullable: true })
+  imageUrl: string;
 
-  @Column({ type: 'enum', enum: EventStatus, default: EventStatus.DRAFT })
-  status: EventStatus;
+  @Column({ default: true })
+  isPublic: boolean;
 
-  @Column({ type: 'uuid', nullable: true })
-  createdBy: string;
+  @Column({ default: false })
+  isCancelled: boolean;
 
   @CreateDateColumn()
   createdAt: Date;

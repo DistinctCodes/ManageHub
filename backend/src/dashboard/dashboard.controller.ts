@@ -143,4 +143,19 @@ export class DashboardController {
     );
     return { success: true, data };
   }
+
+  @Get('admin/churn-risk')
+  @HttpCode(HttpStatus.OK)
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  async getChurnRisk(
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '20',
+  ) {
+    const data = await this.dashboardService.getChurnRisk(
+      Math.max(1, parseInt(page, 10) || 1),
+      Math.min(50, Math.max(1, parseInt(limit, 10) || 20)),
+    );
+    return { success: true, ...data };
+  }
 }

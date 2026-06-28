@@ -20,6 +20,9 @@ import {
   BarChart3,
   CreditCard,
   Boxes,
+  Calendar,
+  MapPin,
+  Wrench,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuthState, useAuthActions } from "@/lib/store/authStore";
@@ -33,7 +36,10 @@ const navItems = [
   { label: "Check In / Out", href: "/check-in", icon: LogIn },
   { label: "Notifications", href: "/notifications", icon: Bell },
   { label: "Invoices", href: "/invoices", icon: FileText },
+  { label: "My Locker", href: "/lockers", icon: Lock },
+  { label: "Maintenance", href: "/maintenance", icon: Wrench },
   { label: "Profile", href: "/profile", icon: User },
+  { label: "My Shifts", href: "/my-shifts", icon: Calendar },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
 
@@ -45,6 +51,11 @@ const adminItems = [
   { label: "Members", href: "/admin/members", icon: Users },
   { label: "Invoices", href: "/admin/invoices", icon: FileText },
   { label: "Newsletter", href: "/dashboard?tab=newsletter", icon: Mail },
+  { label: "Leads", href: "/admin/leads", icon: Users },
+  { label: "Contracts", href: "/admin/contracts", icon: FileText },
+  { label: "Reports", href: "/admin/reports", icon: BarChart3 },
+  { label: "Staff Schedule", href: "/admin/staff", icon: Calendar },
+  { label: "Facilities", href: "/admin/facilities", icon: MapPin },
 ];
 
 export default function DashboardSidebar() {

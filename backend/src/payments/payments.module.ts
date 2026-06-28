@@ -3,6 +3,9 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Payment } from './entities/payment.entity';
 import { Booking } from '../bookings/entities/booking.entity';
 import { User } from '../users/entities/user.entity';
+import { UserCredit } from '../credits/entities/user-credit.entity';
+import { UserCreditTransaction } from '../credits/entities/credit-transaction.entity';
+import { CreditPack } from '../credits/entities/credit-pack.entity';
 import { PaymentsService } from './payments.service';
 import { PaymentsController } from './payments.controller';
 import { PaystackProvider } from './providers/paystack.provider';
@@ -18,7 +21,7 @@ import { PromoCodesModule } from '../promo-codes/promo-codes.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Payment, Booking, User]),
+    TypeOrmModule.forFeature([Payment, Booking, User, UserCredit, UserCreditTransaction, CreditPack]),
     BookingsModule,
     InvoicesModule,
     NotificationsModule,

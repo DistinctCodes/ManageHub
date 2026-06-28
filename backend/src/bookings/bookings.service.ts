@@ -11,6 +11,7 @@ import { CancelRecurringBookingProvider } from './providers/cancel-recurring-boo
 import { CompleteBookingProvider } from './providers/complete-booking.provider';
 import { FindBookingsProvider } from './providers/find-bookings.provider';
 import { CreateRecurringBookingProvider } from './providers/create-recurring-booking.provider';
+import { CalendarExportProvider } from './providers/calendar-export.provider';
 import { UserRole } from '../users/enums/userRoles.enum';
 import { Booking } from './entities/booking.entity';
 import { PricingService } from './pricing/pricing.service';
@@ -28,6 +29,7 @@ export class BookingsService {
     private readonly findBookingsProvider: FindBookingsProvider,
     private readonly createRecurringBookingProvider: CreateRecurringBookingProvider,
     private readonly pricingService: PricingService,
+    private readonly calendarExportProvider: CalendarExportProvider,
   ) {}
 
   create(dto: CreateBookingDto, userId: string) {
@@ -62,6 +64,14 @@ export class BookingsService {
 
   findById(bookingId: string, userId: string, userRole: UserRole) {
     return this.findBookingsProvider.findById(bookingId, userId, userRole);
+  }
+
+  exportSingleBooking(bookingId: string, userId: string): Promise<string> {
+    return this.calendarExportProvider.exportSingleBooking(bookingId, userId);
+  }
+
+  exportAllUpcoming(userId: string): Promise<string> {
+    return this.calendarExportProvider.exportAllUpcoming(userId);
   }
 
   calculatePrice(
