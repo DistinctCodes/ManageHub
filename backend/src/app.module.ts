@@ -30,6 +30,7 @@ import { WaitlistModule } from './waitlist/waitlist.module';
 import { EventsModule } from './events/events.module';
 import { MembershipPlansModule } from './membership-plans/membership-plans.module';
 import { CreditsModule } from './credits/credits.module';
+import { TeamsModule } from './teams/teams.module';
 
 @Module({
   imports: [
@@ -116,6 +117,7 @@ import { CreditsModule } from './credits/credits.module';
     EventsModule,
     MembershipPlansModule,
     CreditsModule,
+    TeamsModule,
   ],
   controllers: [AppController],
   providers: [

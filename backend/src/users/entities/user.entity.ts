@@ -119,6 +119,12 @@ export class User {
   @Column({ type: 'jsonb', nullable: true })
   totpBackupCodes?: string[];
 
+  @Column({ nullable: true, type: 'varchar' })
+  credentialId?: string;
+
+  @Column({ nullable: true, type: 'text' })
+  credentialPublicKey?: string;
+
   @Column({
     type: 'enum',
     enum: MembershipStatus,

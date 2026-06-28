@@ -610,6 +610,13 @@ impl AccessControlModule {
         Ok(())
     }
 
+    pub fn get_access_attempts_count(env: &Env, user: Address) -> u32 {
+        env.storage()
+            .persistent()
+            .get(&DataKey::AccessAttempts(user))
+            .unwrap_or(0)
+    }
+
     fn log_access_attempt(env: &Env, user: &Address, required_role: &UserRole, success: bool) {
         let current_attempts: u32 = env
             .storage()
