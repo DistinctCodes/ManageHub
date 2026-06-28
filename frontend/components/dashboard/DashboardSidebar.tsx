@@ -19,7 +19,7 @@ import {
   Bell,
   BarChart3,
   CreditCard,
-  Lock,
+  Wrench,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuthState, useAuthActions } from "@/lib/store/authStore";
@@ -33,6 +33,7 @@ const navItems = [
   { label: "Notifications", href: "/notifications", icon: Bell },
   { label: "Invoices", href: "/invoices", icon: FileText },
   { label: "My Locker", href: "/lockers", icon: Lock },
+  { label: "Maintenance", href: "/maintenance", icon: Wrench },
   { label: "Profile", href: "/profile", icon: User },
   { label: "Settings", href: "/settings", icon: Settings },
 ];

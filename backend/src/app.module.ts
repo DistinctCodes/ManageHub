@@ -32,6 +32,10 @@ import { MembershipPlansModule } from './membership-plans/membership-plans.modul
 import { LockersModule } from './lockers/lockers.module';
 import { PackagesModule } from './packages/packages.module';
 import { ReferralsModule } from './referrals/referrals.module';
+import { MaintenanceModule } from './maintenance/maintenance.module';
+import { LeadsModule } from './leads/leads.module';
+import { CreditsModule } from './credits/credits.module';
+import { TeamsModule } from './teams/teams.module';
 
 @Module({
   imports: [
@@ -120,6 +124,10 @@ import { ReferralsModule } from './referrals/referrals.module';
     LockersModule,
     PackagesModule,
     ReferralsModule,
+    MaintenanceModule,
+    LeadsModule,
+    CreditsModule,
+    TeamsModule,
   ],
   controllers: [AppController],
   providers: [
