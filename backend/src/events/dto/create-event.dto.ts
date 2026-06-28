@@ -1,49 +1,44 @@
 import {
   IsString,
-  IsNotEmpty,
-  IsOptional,
-  IsUrl,
   IsDateString,
   IsInt,
+  IsOptional,
   Min,
-  IsEnum,
 } from 'class-validator';
-import { EventStatus } from '../entities/event.entity';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateEventDto {
+  @ApiProperty()
   @IsString()
-  @IsNotEmpty()
   title: string;
 
+  @ApiProperty()
   @IsString()
-  @IsNotEmpty()
   description: string;
 
-  @IsOptional()
-  @IsUrl()
-  coverImageUrl?: string;
+  @ApiProperty()
+  @IsString()
+  hostName: string;
 
+  @ApiProperty({ example: '2026-07-01T10:00:00Z' })
   @IsDateString()
-  @IsNotEmpty()
   startDate: string;
 
+  @ApiProperty({ example: '2026-07-01T12:00:00Z' })
   @IsDateString()
-  @IsNotEmpty()
   endDate: string;
 
+  @ApiProperty()
   @IsString()
-  @IsNotEmpty()
-  venue: string;
+  location: string;
 
+  @ApiProperty()
   @IsInt()
   @Min(1)
   capacity: number;
 
-  @IsInt()
-  @Min(0)
-  price: number;
-
+  @ApiPropertyOptional()
   @IsOptional()
-  @IsEnum(EventStatus)
-  status?: EventStatus;
+  @IsString()
+  imageUrl?: string;
 }
