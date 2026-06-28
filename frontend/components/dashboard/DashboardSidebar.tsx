@@ -19,6 +19,8 @@ import {
   Bell,
   BarChart3,
   CreditCard,
+  Calendar,
+  MapPin,
   Wrench,
 } from "lucide-react";
 import { useState } from "react";
@@ -35,6 +37,7 @@ const navItems = [
   { label: "My Locker", href: "/lockers", icon: Lock },
   { label: "Maintenance", href: "/maintenance", icon: Wrench },
   { label: "Profile", href: "/profile", icon: User },
+  { label: "My Shifts", href: "/my-shifts", icon: Calendar },
   { label: "Settings", href: "/settings", icon: Settings },
 ];
 
@@ -46,6 +49,8 @@ const adminItems = [
   { label: "Members", href: "/admin/members", icon: Users },
   { label: "Invoices", href: "/admin/invoices", icon: FileText },
   { label: "Newsletter", href: "/dashboard?tab=newsletter", icon: Mail },
+  { label: "Staff Schedule", href: "/admin/staff", icon: Calendar },
+  { label: "Facilities", href: "/admin/facilities", icon: MapPin },
 ];
 
 export default function DashboardSidebar() {
