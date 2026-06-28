@@ -31,6 +31,8 @@ import { EventsModule } from './events/events.module';
 import { MembershipPlansModule } from './membership-plans/membership-plans.module';
 import { MaintenanceModule } from './maintenance/maintenance.module';
 import { LeadsModule } from './leads/leads.module';
+import { CreditsModule } from './credits/credits.module';
+import { TeamsModule } from './teams/teams.module';
 
 @Module({
   imports: [
@@ -118,6 +120,8 @@ import { LeadsModule } from './leads/leads.module';
     MembershipPlansModule,
     MaintenanceModule,
     LeadsModule,
+    CreditsModule,
+    TeamsModule,
   ],
   controllers: [AppController],
   providers: [

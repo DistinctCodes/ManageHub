@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigModule } from '@nestjs/config';
 import { Booking } from './entities/booking.entity';
 import { RecurringRule } from './entities/recurring-rule.entity';
 import { BookingsService } from './bookings.service';
@@ -12,9 +13,12 @@ import { CancelRecurringBookingProvider } from './providers/cancel-recurring-boo
 import { CompleteBookingProvider } from './providers/complete-booking.provider';
 import { FindBookingsProvider } from './providers/find-bookings.provider';
 import { CreateRecurringBookingProvider } from './providers/create-recurring-booking.provider';
+import { CalendarExportProvider } from './providers/calendar-export.provider';
 import { PricingService } from './pricing/pricing.service';
 import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { User } from '../users/entities/user.entity';
+import { UserCredit } from '../credits/entities/user-credit.entity';
+import { UserCreditTransaction } from '../credits/entities/credit-transaction.entity';
 import { WaitlistModule } from '../waitlist/waitlist.module';
 import { Payment } from '../payments/entities/payment.entity';
 import { PaystackProvider } from '../payments/providers/paystack.provider';
@@ -22,9 +26,10 @@ import { PaystackProvider } from '../payments/providers/paystack.provider';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Booking, User, Payment]),
+    TypeOrmModule.forFeature([Booking, User, Payment, UserCredit, UserCreditTransaction]),
     WorkspacesModule,
-      WaitlistModule,
+    WaitlistModule,
+    ConfigModule,
   ],
   controllers: [BookingsController],
   providers: [
@@ -38,6 +43,7 @@ import { PaystackProvider } from '../payments/providers/paystack.provider';
     CompleteBookingProvider,
     FindBookingsProvider,
     CreateRecurringBookingProvider,
+    CalendarExportProvider,
     PaystackProvider,
   ],
   exports: [BookingsService],
