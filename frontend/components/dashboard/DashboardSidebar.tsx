@@ -32,6 +32,7 @@ const navItems = [
   { label: "Check In / Out", href: "/check-in", icon: LogIn },
   { label: "Notifications", href: "/notifications", icon: Bell },
   { label: "Invoices", href: "/invoices", icon: FileText },
+  { label: "My Locker", href: "/lockers", icon: Lock },
   { label: "Maintenance", href: "/maintenance", icon: Wrench },
   { label: "Profile", href: "/profile", icon: User },
   { label: "Settings", href: "/settings", icon: Settings },
