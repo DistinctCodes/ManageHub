@@ -29,6 +29,8 @@ import { AccessControlModule } from './access-control/access-control.module';
 import { WaitlistModule } from './waitlist/waitlist.module';
 import { EventsModule } from './events/events.module';
 import { MembershipPlansModule } from './membership-plans/membership-plans.module';
+import { BillingModule } from './billing/billing.module';
+import { DunningModule } from './dunning/dunning.module';
 import { ShiftsModule } from './shifts/shifts.module';
 import { FloorPlanModule } from './floor-plan/floor-plan.module';
 import { ReportsModule } from './reports/reports.module';
@@ -127,6 +129,8 @@ import { TeamsModule } from './teams/teams.module';
     WaitlistModule,
     EventsModule,
     MembershipPlansModule,
+    BillingModule,
+    DunningModule,
     ShiftsModule,
     FloorPlanModule,
     ReportsModule,
