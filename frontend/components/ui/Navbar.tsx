@@ -1,10 +1,12 @@
 "use client";
 
 import { Building2, Menu, X } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { useAuthStore } from "@/lib/store/authStore";
 import { LocationSwitcher } from "./LocationSwitcher";
+import { useBranding } from "@/lib/branding/BrandingContext";
 
 type NavItem = {
   label: string;
@@ -25,18 +27,28 @@ export function Navbar({
   const [open, setOpen] = useState(false);
 
   const { user, logout } = useAuthStore();
+  const { hubName, logoUrl } = useBranding();
 
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-gray-200/40 bg-[#faf9f7]/90 backdrop-blur-md">
       <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2">
-          <span className="rounded-lg bg-gray-900 p-2">
-            <Building2 className="h-5 w-5 text-white" />
-          </span>
-
+          {logoUrl ? (
+            <Image
+              src={logoUrl}
+              alt={hubName}
+              width={36}
+              height={36}
+              className="rounded-lg object-contain"
+            />
+          ) : (
+            <span className="rounded-lg bg-gray-900 p-2">
+              <Building2 className="h-5 w-5 text-white" />
+            </span>
+          )}
           <span className="text-lg font-semibold tracking-tight text-gray-900">
-            ManageHub
+            {hubName}
           </span>
         </Link>
 
