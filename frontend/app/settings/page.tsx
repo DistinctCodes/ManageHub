@@ -9,8 +9,9 @@ import { apiClient } from "@/lib/apiClient";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import TwoFactorModal from "@/components/settings/TwoFactorModal";
 import { use2faStatus } from "@/lib/react-query/hooks/two-factor/use2faStatus";
-import { Eye, EyeOff, Shield, Bell, Palette } from "lucide-react";
+import { Eye, EyeOff, Shield, Bell, Palette, Calendar } from "lucide-react";
 import { useTheme } from "next-themes";
+import { toast } from "sonner";
 
 /* ── Password change schema ── */
 const passwordSchema = z
@@ -123,6 +124,38 @@ export default function SettingsPage() {
   const [twoFaModal, setTwoFaModal] = useState<"setup" | "disable" | null>(
     null
   );
+
+  /* ── Calendar Sync ── */
+  const [calendarStatus, setCalendarStatus] = useState<"connected" | "not_connected" | "loading">("loading");
+
+  useEffect(() => {
+    if (user) {
+      apiClient.get<{ data: { connected: boolean } }>("/calendar-sync/status")
+        .then(res => setCalendarStatus(res.data?.connected ? "connected" : "not_connected"))
+        .catch(() => setCalendarStatus("not_connected"));
+    }
+  }, [user]);
+
+  const handleConnectCalendar = async () => {
+    try {
+      const res = await apiClient.get<{ data: { url: string } }>("/calendar-sync/auth/google");
+      if (res.data?.url) {
+        window.location.href = res.data.url;
+      }
+    } catch (error) {
+      toast.error("Failed to initiate calendar sync");
+    }
+  };
+
+  const handleDisconnectCalendar = async () => {
+    try {
+      await apiClient.delete("/calendar-sync/disconnect");
+      setCalendarStatus("not_connected");
+      toast.success("Calendar disconnected");
+    } catch (error) {
+      toast.error("Failed to disconnect calendar");
+    }
+  };
 
   /* ── Danger zone ── */
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -340,6 +373,44 @@ export default function SettingsPage() {
                 );
               })}
             </div>
+          </div>
+        </div>
+
+        {/* ── Calendar Sync ── */}
+        <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Calendar className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Calendar Sync</h2>
+          </div>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">
+            Connect your Google Calendar to automatically sync your bookings.
+          </p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${calendarStatus === "connected" ? "bg-green-500" : "bg-gray-400"}`} />
+              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                {calendarStatus === "loading" ? "Checking status..." : calendarStatus === "connected" ? "Connected ✓" : "Not connected"}
+              </span>
+            </div>
+            {calendarStatus !== "loading" && (
+              calendarStatus === "connected" ? (
+                <button
+                  type="button"
+                  onClick={handleDisconnectCalendar}
+                  className="px-4 py-2 text-sm font-medium rounded-lg border border-red-200 dark:border-red-900 text-red-600 dark:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                >
+                  Disconnect
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleConnectCalendar}
+                  className="px-4 py-2 text-sm font-medium rounded-lg bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900 hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors"
+                >
+                  Connect Google Calendar
+                </button>
+              )
+            )}
           </div>
         </div>
 
