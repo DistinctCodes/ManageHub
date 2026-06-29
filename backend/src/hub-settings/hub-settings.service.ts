@@ -3,12 +3,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { HubSettings } from './entities/hub-settings.entity';
 import { UpdateHubSettingsDto } from './dto/update-hub-settings.dto';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 @Injectable()
 export class HubSettingsService {
   constructor(
     @InjectRepository(HubSettings)
     private readonly hubSettingsRepository: Repository<HubSettings>,
+    private readonly cloudinaryService: CloudinaryService,
   ) {}
 
   /**
@@ -48,5 +50,34 @@ export class HubSettingsService {
     Object.assign(settings, updateHubSettingsDto);
 
     return this.hubSettingsRepository.save(settings);
+  }
+
+  /**
+   * Returns only the fields required for frontend white-labeling.
+   */
+  async getBranding(): Promise<{
+    hubName: string;
+    logoUrl: string | null;
+    primaryColorHex: string | null;
+    faviconUrl: string | null;
+  }> {
+    const settings = await this.getSettings();
+    return {
+      hubName: settings.hubName,
+      logoUrl: settings.logoUrl ?? null,
+      primaryColorHex: settings.primaryColorHex ?? null,
+      faviconUrl: settings.faviconUrl ?? null,
+    };
+  }
+
+  /**
+   * Uploads a brand asset (logo or favicon) to Cloudinary and returns the URL.
+   */
+  async uploadBrandAsset(
+    file: Express.Multer.File,
+    folder: string,
+  ): Promise<string> {
+    const result = await this.cloudinaryService.uploadImage(file, folder);
+    return (result as any).secure_url as string;
   }
 }

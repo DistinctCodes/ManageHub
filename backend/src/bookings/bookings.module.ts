@@ -22,6 +22,8 @@ import { UserCreditTransaction } from '../credits/entities/credit-transaction.en
 import { WaitlistModule } from '../waitlist/waitlist.module';
 import { Payment } from '../payments/entities/payment.entity';
 import { PaystackProvider } from '../payments/providers/paystack.provider';
+import { NpsModule } from '../nps/nps.module';
+import { DoorAccessModule } from '../integrations/access-control/door-access.module';
 
 
 @Module({
@@ -30,6 +32,8 @@ import { PaystackProvider } from '../payments/providers/paystack.provider';
     WorkspacesModule,
     WaitlistModule,
     ConfigModule,
+    NpsModule,
+    DoorAccessModule,
   ],
   controllers: [BookingsController],
   providers: [

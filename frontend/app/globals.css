@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* White-label primary colour — overridden at runtime by BrandingProvider */
+:root {
+  --color-primary: #111827;
+}
+
 /* Scrollbar — WebKit */
 ::-webkit-scrollbar {
   width: 8px;

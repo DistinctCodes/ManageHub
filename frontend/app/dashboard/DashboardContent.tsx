@@ -11,6 +11,7 @@ import AnalyticsChart from "@/components/dashboard/AnalyticsChart";
 import AdminOverview from "@/components/dashboard/AdminOverview";
 import AdminUserTable from "@/components/dashboard/AdminUserTable";
 import MemberStatsCards from "@/components/dashboard/MemberStatsCards";
+import NpsBanner from "@/components/nps/NpsBanner";
 
 interface Stats {
   totalMembers: number;
@@ -132,6 +133,9 @@ export default function DashboardContent() {
         </div>
       ) : (
         <div className="space-y-6">
+          {/* NPS survey prompt — shown to members only when a pending survey exists */}
+          {!isAdmin && <NpsBanner />}
+
           {/* Stats cards */}
           {isAdmin ? (
             <StatsCards stats={stats} />

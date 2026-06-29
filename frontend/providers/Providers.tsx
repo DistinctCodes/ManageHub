@@ -1,12 +1,15 @@
 "use client";
 
 import ReactQueryProvider from "./ReactQueryProvider";
-import { AuthInitializerProvider } from "./authInitializer"; // import the new provider
+import { AuthInitializerProvider } from "./authInitializer";
+import { BrandingProvider } from "@/lib/branding/BrandingContext";
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ReactQueryProvider>
-      <AuthInitializerProvider>{children}</AuthInitializerProvider>
+      <BrandingProvider>
+        <AuthInitializerProvider>{children}</AuthInitializerProvider>
+      </BrandingProvider>
     </ReactQueryProvider>
   );
 }
