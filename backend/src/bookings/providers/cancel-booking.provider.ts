@@ -13,6 +13,7 @@ import { User } from '../../users/entities/user.entity';
 import { EmailService } from '../../email/email.service';
 import { WorkspacesService } from '../../workspaces/workspaces.service';
 import { WaitlistService } from '../../waitlist/waitlist.service';
+import { DoorAccessService } from '../../integrations/access-control/door-access.service';
 
 @Injectable()
 export class CancelBookingProvider {
@@ -24,6 +25,7 @@ export class CancelBookingProvider {
     private readonly emailService: EmailService,
     private readonly workspacesService: WorkspacesService,
     private readonly waitlistService: WaitlistService,
+    private readonly doorAccessService: DoorAccessService,
   ) {}
 
   async cancel(
@@ -82,6 +84,10 @@ export class CancelBookingProvider {
     this.waitlistService
       .notifyNextInQueue(saved.workspaceId)
       .catch(() => void 0);
+
+    if (saved.userId) {
+      this.doorAccessService.revokeAccess(saved.id).catch(() => void 0);
+    }
 
     return saved;
   }

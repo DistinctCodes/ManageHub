@@ -238,6 +238,19 @@ export class EmailService {
     ]);
   }
 
+  async sendNpsSurveyEmail(
+    email: string,
+    fullName: string,
+    data: {
+      workspaceName: string;
+      bookingDate: string;
+      surveyUrl: string;
+    },
+  ): Promise<boolean> {
+    const html = this.compileTemplate('nps-survey', { fullName, ...data });
+    return this.send(email, 'How was your experience? — ManageHub', html);
+  }
+
   async sendVisitorCheckInEmail(
     host: User,
     visitor: Visitor,
