@@ -3,6 +3,7 @@ import {
   ConflictException,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -28,9 +29,12 @@ import { Setup2faDto } from './dto/setup-2fa.dto';
 import { VerifyTotpDto } from './dto/verify-totp.dto';
 import { UseBackupCodeDto } from './dto/use-backup-code.dto';
 import { Disable2faDto } from './dto/disable-2fa.dto';
+import { ReferralsService } from '../referrals/referrals.service';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
@@ -40,6 +44,7 @@ export class AuthService {
     private readonly setupTotpProvider: SetupTotpProvider,
     private readonly verifyTotpProvider: VerifyTotpProvider,
     private readonly manageTotpProvider: ManageTotpProvider,
+    private readonly referralsService: ReferralsService,
   ) {}
 
   async createUser(createUserDto: CreateUserDto) {
@@ -73,6 +78,18 @@ export class AuthService {
       isVerified: false,
     });
     await this.userRepository.save(newUser);
+
+    // Track referral relationship if a referral code was provided at signup.
+    // Failures here must not break registration — log and continue.
+    if (createUserDto.referralCode) {
+      this.referralsService
+        .createReferral(createUserDto.referralCode, newUser.id)
+        .catch((err: Error) => {
+          this.logger.warn(
+            `Failed to record referral ${createUserDto.referralCode}: ${err.message}`,
+          );
+        });
+    }
 
     await this.emailService.sendVerificationEmail(
       newUser.email,
