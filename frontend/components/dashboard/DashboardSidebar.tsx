@@ -41,6 +41,7 @@ const adminItems = [
   { label: "Reports",        href: "/admin/reports",             icon: BarChart3 },
   { label: "Staff Schedule", href: "/admin/staff",               icon: Calendar },
   { label: "Facilities",     href: "/admin/facilities",          icon: MapPin },
+  { label: "Settings",       href: "/admin/settings",            icon: Settings },
 ];
 
 export default function DashboardSidebar() {
