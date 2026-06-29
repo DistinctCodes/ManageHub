@@ -46,6 +46,7 @@ import { MaintenanceModule } from './maintenance/maintenance.module';
 import { LeadsModule } from './leads/leads.module';
 import { CreditsModule } from './credits/credits.module';
 import { TeamsModule } from './teams/teams.module';
+import { CalendarSyncModule } from './calendar-sync/calendar-sync.module';
 
 @Module({
   imports: [
@@ -148,6 +149,7 @@ import { TeamsModule } from './teams/teams.module';
     LeadsModule,
     CreditsModule,
     TeamsModule,
+    CalendarSyncModule,
   ],
   controllers: [AppController],
   providers: [

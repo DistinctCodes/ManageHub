@@ -87,7 +87,8 @@
     "sharp": "^0.34.5",
     "socket.io": "^4.8.3",
     "swagger-ui-express": "^5.0.1",
-    "typeorm": "^0.3.27"
+    "typeorm": "^0.3.27",
+    "googleapis": "^144.0.0"
   },
   "devDependencies": {
     "@nestjs/schematics": "^10.0.0",
