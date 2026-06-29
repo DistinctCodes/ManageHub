@@ -18,6 +18,7 @@ import { BookingsModule } from '../bookings/bookings.module';
 import { InvoicesModule } from '../invoices/invoices.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { PromoCodesModule } from '../promo-codes/promo-codes.module';
+import { ReferralsModule } from '../referrals/referrals.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { PromoCodesModule } from '../promo-codes/promo-codes.module';
     InvoicesModule,
     NotificationsModule,
     PromoCodesModule,
+    ReferralsModule,
   ],
   controllers: [PaymentsController],
   providers: [

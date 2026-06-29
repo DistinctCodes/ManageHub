@@ -3,6 +3,7 @@
 import { useState } from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { useGetAdminAnalytics } from "@/lib/react-query/hooks/admin/analytics/useGetAdminAnalytics";
+import { useGetNpsAnalytics } from "@/lib/react-query/hooks/nps/useGetNpsAnalytics";
 import {
   TrendingUp,
   BookOpen,
@@ -11,7 +12,9 @@ import {
   MonitorCheck,
   RefreshCw,
   Trophy,
+  Star,
 } from "lucide-react";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 
 function formatNaira(kobo: number): string {
   return new Intl.NumberFormat("en-NG", {
@@ -60,7 +63,10 @@ export default function AdminAnalyticsPage() {
     appliedTo
   );
 
+  const { data: npsData, isLoading: npsLoading } = useGetNpsAnalytics();
+
   const analytics = data?.data;
+  const nps = npsData?.data;
 
   const applyFilter = () => {
     setAppliedFrom(from || undefined);
@@ -297,6 +303,128 @@ export default function AdminAnalyticsPage() {
               </div>
             </section>
           )}
+
+          {/* NPS */}
+          <section>
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">
+              Net Promoter Score
+            </h2>
+            {npsLoading ? (
+              <div className="bg-white rounded-xl border border-gray-100 h-48 animate-pulse" />
+            ) : !nps || nps.totalResponses === 0 ? (
+              <div className="bg-white rounded-xl border border-gray-100 p-5">
+                <p className="text-sm text-gray-400">No NPS responses yet.</p>
+              </div>
+            ) : (
+              <div className="grid lg:grid-cols-2 gap-4">
+                {/* Score + donut */}
+                <div className="bg-white rounded-xl border border-gray-100 p-5 flex items-center gap-6">
+                  <div className="text-center shrink-0">
+                    <div className="flex items-center justify-center gap-1 mb-1">
+                      <Star className="w-4 h-4 text-amber-400" />
+                      <span className="text-xs text-gray-400 font-medium">NPS</span>
+                    </div>
+                    <p
+                      className={`text-5xl font-bold ${
+                        nps.score >= 50
+                          ? "text-emerald-600"
+                          : nps.score >= 0
+                          ? "text-amber-500"
+                          : "text-red-500"
+                      }`}
+                    >
+                      {nps.score > 0 ? `+${nps.score}` : nps.score}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      {nps.totalResponses} response{nps.totalResponses !== 1 ? "s" : ""}
+                    </p>
+                  </div>
+
+                  <div className="flex-1 h-36">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={[
+                            { name: "Promoters", value: nps.promoterPct },
+                            { name: "Passives", value: nps.passivePct },
+                            { name: "Detractors", value: nps.detractorPct },
+                          ]}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius="55%"
+                          outerRadius="80%"
+                          dataKey="value"
+                          strokeWidth={2}
+                        >
+                          <Cell fill="#10b981" />
+                          <Cell fill="#f59e0b" />
+                          <Cell fill="#ef4444" />
+                        </Pie>
+                        <Tooltip
+                          formatter={(v: number) => `${v}%`}
+                          contentStyle={{
+                            borderRadius: 8,
+                            border: "1px solid #e5e7eb",
+                            fontSize: 12,
+                          }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  <div className="space-y-2 shrink-0 text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
+                      <span className="text-gray-600">
+                        Promoters <span className="font-semibold">{nps.promoterPct}%</span>
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shrink-0" />
+                      <span className="text-gray-600">
+                        Passives <span className="font-semibold">{nps.passivePct}%</span>
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" />
+                      <span className="text-gray-600">
+                        Detractors <span className="font-semibold">{nps.detractorPct}%</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Recent comments */}
+                {nps.recentComments.length > 0 && (
+                  <div className="bg-white rounded-xl border border-gray-100 p-5">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3">
+                      Recent comments
+                    </h3>
+                    <div className="space-y-3">
+                      {nps.recentComments.slice(0, 5).map((c, i) => (
+                        <div key={i} className="flex items-start gap-3">
+                          <span
+                            className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white ${
+                              c.score >= 9
+                                ? "bg-emerald-500"
+                                : c.score >= 7
+                                ? "bg-amber-400"
+                                : "bg-red-500"
+                            }`}
+                          >
+                            {c.score}
+                          </span>
+                          <p className="text-xs text-gray-600 leading-relaxed line-clamp-2">
+                            {c.comment}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
 
           {/* Top workspaces + members */}
           <div className="grid lg:grid-cols-2 gap-6">

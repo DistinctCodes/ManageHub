@@ -46,6 +46,10 @@ import { MaintenanceModule } from './maintenance/maintenance.module';
 import { LeadsModule } from './leads/leads.module';
 import { CreditsModule } from './credits/credits.module';
 import { TeamsModule } from './teams/teams.module';
+import { CalendarSyncModule } from './calendar-sync/calendar-sync.module';
+import { ResourcesModule } from './resources/resources.module';
+import { NpsModule } from './nps/nps.module';
+import { DoorAccessModule } from './integrations/access-control/door-access.module';
 
 @Module({
   imports: [
@@ -148,6 +152,10 @@ import { TeamsModule } from './teams/teams.module';
     LeadsModule,
     CreditsModule,
     TeamsModule,
+    CalendarSyncModule,
+    ResourcesModule,
+    NpsModule,
+    DoorAccessModule,
   ],
   controllers: [AppController],
   providers: [

@@ -20,6 +20,7 @@ import { NotificationType } from '../../notifications/enums/notification-type.en
 import { User } from '../../users/entities/user.entity';
 import { EmailService } from '../../email/email.service';
 import { PromoCodesService } from '../../promo-codes/promo-codes.service';
+import { ReferralsService } from '../../referrals/referrals.service';
 import { UserCredit } from '../../credits/entities/user-credit.entity';
 import { UserCreditTransaction } from '../../credits/entities/credit-transaction.entity';
 import { CreditTransactionType } from '../../credits/enums/credit-transaction-type.enum';
@@ -53,6 +54,7 @@ export class HandleWebhookProvider {
     private readonly emailService: EmailService,
     private readonly configService: ConfigService,
     private readonly promoCodesService: PromoCodesService,
+    private readonly referralsService: ReferralsService,
   ) {}
 
   async handle(rawBody: Buffer, signature: string): Promise<void> {
@@ -144,6 +146,18 @@ export class HandleWebhookProvider {
         .catch((err: Error) => {
           this.logger.error(
             `Failed to record promo usage for booking ${booking.id}: ${err.message}`,
+          );
+        });
+    }
+
+    // Referral "conversion" — completing a paid booking by a referred user
+    // marks that referral as COMPLETED and awards the default reward.
+    if (payment.userId) {
+      this.referralsService
+        .completeReferral(payment.userId)
+        .catch((err: Error) => {
+          this.logger.error(
+            `Failed to complete referral for user ${payment.userId}: ${err.message}`,
           );
         });
     }

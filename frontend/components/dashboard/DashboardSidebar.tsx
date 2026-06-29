@@ -1,16 +1,18 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Building2, LayoutDashboard, User, Settings, LogOut, Users, Mail,
   Menu, X, BookOpen, FileText, BriefcaseBusiness, LogIn, Bell,
   BarChart3, CreditCard, Boxes, Calendar, MapPin, Wrench, Lock,
-  MessageSquare,
+  MessageSquare, Palette,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuthState, useAuthActions } from "@/lib/store/authStore";
 import NotificationBell from "@/components/notifications/NotificationBell";
+import { useBranding } from "@/lib/branding/BrandingContext";
 
 const navItems = [
   { label: "Dashboard",      href: "/dashboard",     icon: LayoutDashboard },
@@ -29,19 +31,19 @@ const navItems = [
 ];
 
 const adminItems = [
-  { label: "Analytics",      href: "/admin/analytics",           icon: BarChart3 },
-  { label: "Workspaces",     href: "/admin/workspaces",          icon: Building2 },
-  { label: "All Bookings",   href: "/admin/bookings",            icon: BookOpen },
-  { label: "Payments",       href: "/admin/payments",            icon: CreditCard },
-  { label: "Members",        href: "/admin/members",             icon: Users },
-  { label: "Invoices",       href: "/admin/invoices",            icon: FileText },
-  { label: "Newsletter",     href: "/dashboard?tab=newsletter",  icon: Mail },
-  { label: "Leads",          href: "/admin/leads",               icon: Users },
-  { label: "Contracts",      href: "/admin/contracts",           icon: FileText },
-  { label: "Reports",        href: "/admin/reports",             icon: BarChart3 },
-  { label: "Staff Schedule", href: "/admin/staff",               icon: Calendar },
-  { label: "Facilities",     href: "/admin/facilities",          icon: MapPin },
-  { label: "Settings",       href: "/admin/settings",            icon: Settings },
+  { label: "Analytics",      href: "/admin/analytics",              icon: BarChart3 },
+  { label: "Workspaces",     href: "/admin/workspaces",             icon: Building2 },
+  { label: "All Bookings",   href: "/admin/bookings",               icon: BookOpen },
+  { label: "Payments",       href: "/admin/payments",               icon: CreditCard },
+  { label: "Members",        href: "/admin/members",                icon: Users },
+  { label: "Invoices",       href: "/admin/invoices",               icon: FileText },
+  { label: "Newsletter",     href: "/dashboard?tab=newsletter",     icon: Mail },
+  { label: "Leads",          href: "/admin/leads",                  icon: Users },
+  { label: "Contracts",      href: "/admin/contracts",              icon: FileText },
+  { label: "Reports",        href: "/admin/reports",                icon: BarChart3 },
+  { label: "Staff Schedule", href: "/admin/staff",                  icon: Calendar },
+  { label: "Facilities",     href: "/admin/facilities",             icon: MapPin },
+  { label: "Branding",       href: "/admin/settings/branding",      icon: Palette },
 ];
 
 export default function DashboardSidebar() {
@@ -50,6 +52,7 @@ export default function DashboardSidebar() {
   const { logout } = useAuthActions();
   const [mobileOpen, setMobileOpen] = useState(false);
   const isAdmin = user?.role === "admin";
+  const { hubName, logoUrl } = useBranding();
 
   const handleLogout = () => {
     logout();
@@ -61,10 +64,20 @@ export default function DashboardSidebar() {
       {/* Brand */}
       <div className="px-5 py-5 border-b border-gray-100">
         <Link href="/" className="flex items-center gap-2">
-          <span className="bg-gray-900 rounded-lg p-2">
-            <Building2 className="w-4 h-4 text-white" />
-          </span>
-          <span className="font-semibold text-gray-900 tracking-tight">ManageHub</span>
+          {logoUrl ? (
+            <Image
+              src={logoUrl}
+              alt={hubName}
+              width={32}
+              height={32}
+              className="rounded-lg object-contain"
+            />
+          ) : (
+            <span className="bg-gray-900 rounded-lg p-2">
+              <Building2 className="w-4 h-4 text-white" />
+            </span>
+          )}
+          <span className="font-semibold text-gray-900 tracking-tight">{hubName}</span>
         </Link>
       </div>
 

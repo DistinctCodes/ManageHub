@@ -51,6 +51,12 @@ export class HubSettings {
   @Column({ type: 'varchar', length: 500, nullable: true })
   logoUrl: string;
 
+  @Column({ type: 'varchar', length: 7, nullable: true })
+  primaryColorHex: string;
+
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  faviconUrl: string;
+
   @CreateDateColumn()
   createdAt: Date;
 
