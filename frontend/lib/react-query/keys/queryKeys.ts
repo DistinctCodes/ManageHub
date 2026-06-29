@@ -41,6 +41,13 @@ export const queryKeys = {
   twoFactor: {
     status: ["2fa", "status"] as const,
   },
+  nps: {
+    pending: ["nps", "pending"] as const,
+    analytics: ["nps", "analytics"] as const,
+  },
+  branding: {
+    config: ["branding", "config"] as const,
+  },
   admin: {
     workspaces: {
       all: ["admin", "workspaces"] as const,
