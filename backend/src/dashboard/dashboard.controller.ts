@@ -4,8 +4,11 @@ import {
   HttpCode,
   HttpStatus,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import { Response } from 'express';
+import { ExportProvider } from './providers/export.provider';
 import { DashboardService } from './dashboard.service';
 import { JwtAuthGuard } from '../auth/guard/jwt.auth.guard';
 import { RolesGuard } from '../auth/guard/roles.guard';
@@ -20,7 +23,7 @@ import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 @ApiBearerAuth()
 @Controller('dashboard')
 export class DashboardController {
-  constructor(private readonly dashboardService: DashboardService) {}
+  constructor(private readonly dashboardService: DashboardService, private readonly exportProvider: ExportProvider) {}
 
   @Get('stats')
   @HttpCode(HttpStatus.OK)
@@ -157,5 +160,33 @@ export class DashboardController {
       Math.min(50, Math.max(1, parseInt(limit, 10) || 20)),
     );
     return { success: true, ...data };
+  }
+
+  @Get('export/bookings')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  exportBookings(@Res() res: Response, @Query('from') from?: string, @Query('to') to?: string) {
+    return this.exportProvider.exportBookings(res, from, to);
+  }
+
+  @Get('export/members')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  exportMembers(@Res() res: Response, @Query('from') from?: string, @Query('to') to?: string) {
+    return this.exportProvider.exportMembers(res, from, to);
+  }
+
+  @Get('export/revenue')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  exportRevenue(@Res() res: Response, @Query('from') from?: string, @Query('to') to?: string) {
+    return this.exportProvider.exportRevenue(res, from, to);
+  }
+
+  @Get('export/invoices')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  exportInvoices(@Res() res: Response, @Query('from') from?: string, @Query('to') to?: string) {
+    return this.exportProvider.exportInvoices(res, from, to);
   }
 }
