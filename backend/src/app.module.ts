@@ -47,6 +47,8 @@ import { LeadsModule } from './leads/leads.module';
 import { CreditsModule } from './credits/credits.module';
 import { TeamsModule } from './teams/teams.module';
 import { ResourcesModule } from './resources/resources.module';
+import { NpsModule } from './nps/nps.module';
+import { DoorAccessModule } from './integrations/access-control/door-access.module';
 
 @Module({
   imports: [
@@ -150,6 +152,8 @@ import { ResourcesModule } from './resources/resources.module';
     CreditsModule,
     TeamsModule,
     ResourcesModule,
+    NpsModule,
+    DoorAccessModule,
   ],
   controllers: [AppController],
   providers: [

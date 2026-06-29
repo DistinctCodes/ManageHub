@@ -126,4 +126,18 @@ export class UpdateHubSettingsDto {
   @IsUrl()
   @IsOptional()
   logoUrl?: string;
+
+  @ApiPropertyOptional({
+    example: '#3b82f6',
+    description: 'Primary brand colour as a CSS hex string (e.g. #3b82f6)',
+  })
+  @IsString()
+  @IsOptional()
+  @Length(4, 7)
+  primaryColorHex?: string;
+
+  @ApiPropertyOptional({ example: 'https://cdn.example.com/favicon.ico' })
+  @IsUrl()
+  @IsOptional()
+  faviconUrl?: string;
 }
