@@ -51,9 +51,15 @@ import { ResourcesModule } from './resources/resources.module';
 import { NpsModule } from './nps/nps.module';
 import { DoorAccessModule } from './integrations/access-control/door-access.module';
 
+import { validationSchema } from './config/env.validation';
+
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      validationSchema,
+      validationOptions: { abortEarly: false },
+    }),
     ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([
       {
