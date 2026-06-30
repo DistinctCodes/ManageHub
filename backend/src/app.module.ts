@@ -50,6 +50,7 @@ import { CalendarSyncModule } from './calendar-sync/calendar-sync.module';
 import { ResourcesModule } from './resources/resources.module';
 import { NpsModule } from './nps/nps.module';
 import { DoorAccessModule } from './integrations/access-control/door-access.module';
+import { CommunityModule } from './community/community.module';
 
 @Module({
   imports: [
@@ -156,6 +157,7 @@ import { DoorAccessModule } from './integrations/access-control/door-access.modu
     ResourcesModule,
     NpsModule,
     DoorAccessModule,
+    CommunityModule,
   ],
   controllers: [AppController],
   providers: [
