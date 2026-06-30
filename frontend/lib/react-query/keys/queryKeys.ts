@@ -41,6 +41,9 @@ export const queryKeys = {
   twoFactor: {
     status: ["2fa", "status"] as const,
   },
+  community: {
+    feed: (params?: unknown) => ["community", "feed", params] as const,
+  },
   nps: {
     pending: ["nps", "pending"] as const,
     analytics: ["nps", "analytics"] as const,

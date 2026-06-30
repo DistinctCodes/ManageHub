@@ -7,7 +7,7 @@ import {
   Building2, LayoutDashboard, User, Settings, LogOut, Users, Mail,
   Menu, X, BookOpen, FileText, BriefcaseBusiness, LogIn, Bell,
   BarChart3, CreditCard, Boxes, Calendar, MapPin, Wrench, Lock,
-  MessageSquare, Palette,
+  MessageSquare, Palette, Rss,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuthState, useAuthActions } from "@/lib/store/authStore";
@@ -21,6 +21,7 @@ const navItems = [
   { label: "My Bookings",    href: "/bookings",      icon: BookOpen },
   { label: "Check In / Out", href: "/check-in",      icon: LogIn },
   { label: "Messages",       href: "/messages",      icon: MessageSquare },
+  { label: "Community",      href: "/community",     icon: Rss },
   { label: "Notifications",  href: "/notifications", icon: Bell },
   { label: "Invoices",       href: "/invoices",      icon: FileText },
   { label: "My Locker",      href: "/lockers",       icon: Lock },
