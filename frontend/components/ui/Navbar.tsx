@@ -1,12 +1,22 @@
-"use client";
+'use client';
 
-import { Building2, Menu, X } from "lucide-react";
-import Image from "next/image";
-import Link from "next/link";
-import { useState } from "react";
-import { useAuthStore } from "@/lib/store/authStore";
-import { LocationSwitcher } from "./LocationSwitcher";
-import { useBranding } from "@/lib/branding/BrandingContext";
+import { Building2, Menu, X } from 'lucide-react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { useState } from 'react';
+import { useAuthStore } from '@/lib/store/authStore';
+import { LocationSwitcher } from './LocationSwitcher';
+import { useBranding } from '@/lib/branding/BrandingContext';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ThemeToggle } from './ThemeToggle';
 
 type NavItem = {
   label: string;
@@ -14,9 +24,9 @@ type NavItem = {
 };
 
 const NAV_ITEMS: NavItem[] = [
-  { label: "Features", href: "#features" },
-  { label: "How it works", href: "#how-it-works" },
-  { label: "Resources", href: "/resources" },
+  { label: 'Features', href: '#features' },
+  { label: 'How it works', href: '#how-it-works' },
+  { label: 'Resources', href: '/resources' },
 ];
 
 export function Navbar({
@@ -71,18 +81,33 @@ export function Navbar({
 
           <div className="flex items-center gap-3 border-l border-gray-200/60 pl-6">
             {user ? (
-              <>
-                <span className="text-sm text-gray-600">
-                  {user.name}
-                </span>
-
-                <button
-                  onClick={logout}
-                  className="text-sm text-gray-500 transition-colors hover:text-gray-900"
-                >
-                  Sign out
-                </button>
-              </>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-2">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={user.avatar_url} />
+                      <AvatarFallback>
+                        {user.name.charAt(0)}
+                      </AvatarFallback>
+                    </Avatar>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>{user.name}</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/profile">Profile</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={logout}>
+                    Sign out
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <div className="flex items-center justify-between px-2 py-1.5">
+                    <span className="text-sm">Theme</span>
+                    <ThemeToggle />
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : (
               <>
                 <Link

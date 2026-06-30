@@ -16,7 +16,7 @@ interface ToggleBarProps {
 export function ToggleBar({ options, value, onChange, className }: ToggleBarProps) {
   return (
     <div
-      className={cn('flex rounded-lg bg-gray-100 p-1', className)}
+      className={cn('flex rounded-lg bg-muted p-1', className)}
       role="tablist"
       aria-label="Login method selection"
     >
@@ -30,8 +30,8 @@ export function ToggleBar({ options, value, onChange, className }: ToggleBarProp
           className={cn(
             'flex flex-1 items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2',
             value === option.id
-              ? 'bg-[#2563EB] text-white shadow-sm focus:ring-[#3b82f6]'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 focus:ring-gray-400'
+              ? 'bg-primary text-primary-foreground shadow-sm focus:ring-primary'
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted/50 focus:ring-ring'
           )}
         >
           {option.icon}

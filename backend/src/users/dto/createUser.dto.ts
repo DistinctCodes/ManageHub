@@ -10,7 +10,10 @@ import {
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { UserRole } from '../enums/userRoles.enum'; // import your enum
-
+ // VisitorsModule,
+    // PromoCodesModule,
+    // AnnouncementsModule,
+    // AccessControlModule,
 export class CreateUserDto {
   @ApiProperty({ minLength: 1, maxLength: 30 })
   @IsNotEmpty()
