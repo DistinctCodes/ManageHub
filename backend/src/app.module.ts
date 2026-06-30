@@ -49,12 +49,33 @@ import { TeamsModule } from './teams/teams.module';
 import { CalendarSyncModule } from './calendar-sync/calendar-sync.module';
 import { ResourcesModule } from './resources/resources.module';
 import { NpsModule } from './nps/nps.module';
+import { SearchModule } from './search/search.module';
 import { DoorAccessModule } from './integrations/access-control/door-access.module';
 import { CommunityModule } from './community/community.module';
 
+import { validationSchema } from './config/env.validation';
+
+import { LoggerModule } from 'nestjs-pino';
+
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    LoggerModule.forRoot({
+      pinoHttp: {
+        transport: {
+          target: 'pino-pretty',
+          options: {
+            singleLine: true,
+          },
+        },
+        redact: ['req.headers.authorization', '*.password', '*.totpSecret', '*.smsOtpCode'],
+        genReqId: (req) => req.headers['x-request-id'],
+      },
+    }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      validationSchema,
+      validationOptions: { abortEarly: false },
+    }),
     ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([
       {
@@ -163,6 +184,7 @@ import { CommunityModule } from './community/community.module';
     NpsModule,
     DoorAccessModule,
     CommunityModule,
+    SearchModule,
   ],
   controllers: [AppController],
   providers: [

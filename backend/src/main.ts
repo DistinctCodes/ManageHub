@@ -3,12 +3,12 @@ import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ValidationPipe, ClassSerializerInterceptor } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { HttpLogger } from './common/middlewares/httpLogger.middleware';
+import { Logger } from 'nestjs-pino';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { rawBody: true });
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
 
-  app.use(new HttpLogger().use);
+  app.useLogger(app.get(Logger));
 
   // GLOBAL VALIDATION
   app.useGlobalPipes(
