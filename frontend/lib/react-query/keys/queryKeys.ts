@@ -32,6 +32,7 @@ export const queryKeys = {
     active: ["workspace-tracking", "active"] as const,
     history: (params?: unknown) =>
       ["workspace-tracking", "history", params] as const,
+    summary: ["workspace-tracking", "summary"] as const,
   },
   dashboard: {
     member: ["dashboard", "member"] as const,

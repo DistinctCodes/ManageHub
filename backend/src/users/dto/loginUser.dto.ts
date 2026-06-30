@@ -12,3 +12,7 @@ export class LoginUserDto {
   @IsString()
   password: string;
 }
+ // VisitorsModule,
+    // PromoCodesModule,
+    // AnnouncementsModule,
+    // AccessControlModule,
