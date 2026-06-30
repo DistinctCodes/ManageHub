@@ -51,6 +51,7 @@ import { ResourcesModule } from './resources/resources.module';
 import { NpsModule } from './nps/nps.module';
 import { SearchModule } from './search/search.module';
 import { DoorAccessModule } from './integrations/access-control/door-access.module';
+import { CommunityModule } from './community/community.module';
 
 import { validationSchema } from './config/env.validation';
 
@@ -94,7 +95,8 @@ import { LoggerModule } from 'nestjs-pino';
       },
       { name: 'newsletter', ttl: 60_000, limit: 10 },
       { name: 'contact', ttl: 60_000, limit: 5 },
-      { name: 'feedback', ttl: 60_000, limit: 10 },
+      // otp: strict limit for OTP/2FA verification endpoints (5 per 10 minutes)
+      { name: 'otp', ttl: 600_000, limit: 5 },
     ]),
     BullModule.forRootAsync({
       imports: [ConfigModule],
@@ -130,7 +132,7 @@ import { LoggerModule } from 'nestjs-pino';
           port: +configService.get('DATABASE_PORT'),
           host,
           autoLoadEntities: true,
-          synchronize: true,
+          synchronize: false, // Never use synchronize in production — run migrations instead
           ssl: sslRequired ? { rejectUnauthorized: false } : false,
         };
       },
@@ -181,6 +183,7 @@ import { LoggerModule } from 'nestjs-pino';
     ResourcesModule,
     NpsModule,
     DoorAccessModule,
+    CommunityModule,
     SearchModule,
   ],
   controllers: [AppController],

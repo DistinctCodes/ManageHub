@@ -14,6 +14,7 @@ import {
   Header,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { Throttle, seconds } from '@nestjs/throttler';
 import { BookingsService } from './bookings.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { CreateRecurringBookingDto } from './dto/create-recurring-booking.dto';
@@ -43,6 +44,7 @@ export class BookingsController {
 
   @Post()
   @ApiOperation({ summary: 'Create a booking' })
+  @Throttle({ long: { ttl: seconds(60), limit: 30 } })
   async create(@Body() dto: CreateBookingDto, @GetCurrentUser('id') userId: string) {
     const booking = await this.bookingsService.create(dto, userId);
     return { message: 'Booking created successfully', data: booking };
