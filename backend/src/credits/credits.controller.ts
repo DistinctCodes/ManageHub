@@ -12,6 +12,7 @@ import {
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
+import { Throttle, seconds } from '@nestjs/throttler';
 import { CreditsService } from './credits.service';
 import { PurchaseCreditsDto } from './dto/purchase-credits.dto';
 import { GetCurrentUser } from '../auth/decorators/getCurrentUser.decorator';
@@ -31,6 +32,7 @@ export class CreditsController {
 
   @Post('purchase')
   @ApiOperation({ summary: 'Purchase a credit pack' })
+  @Throttle({ medium: { ttl: seconds(60), limit: 10 } })
   async purchase(
     @Body() dto: PurchaseCreditsDto,
     @GetCurrentUser('id') userId: string,

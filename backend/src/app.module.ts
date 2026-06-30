@@ -74,7 +74,8 @@ import { CommunityModule } from './community/community.module';
       },
       { name: 'newsletter', ttl: 60_000, limit: 10 },
       { name: 'contact', ttl: 60_000, limit: 5 },
-      { name: 'feedback', ttl: 60_000, limit: 10 },
+      // otp: strict limit for OTP/2FA verification endpoints (5 per 10 minutes)
+      { name: 'otp', ttl: 600_000, limit: 5 },
     ]),
     BullModule.forRootAsync({
       imports: [ConfigModule],

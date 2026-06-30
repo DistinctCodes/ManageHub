@@ -17,6 +17,7 @@ import {
   ApiQuery,
   ApiTags,
 } from '@nestjs/swagger';
+import { Throttle, seconds } from '@nestjs/throttler';
 import { RawBodyRequest } from '@nestjs/common';
 import { Request } from 'express';
 import { PaymentsService } from './payments.service';
@@ -36,6 +37,7 @@ export class PaymentsController {
 
   @Post('initialize')
   @ApiOperation({ summary: 'Initialize a Paystack payment for a booking' })
+  @Throttle({ medium: { ttl: seconds(60), limit: 10 } })
   async initialize(
     @Body() dto: InitializePaymentDto,
     @GetCurrentUser('id') userId: string,
