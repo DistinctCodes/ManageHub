@@ -111,7 +111,7 @@ import { CommunityModule } from './community/community.module';
           port: +configService.get('DATABASE_PORT'),
           host,
           autoLoadEntities: true,
-          synchronize: true,
+          synchronize: false, // Never use synchronize in production — run migrations instead
           ssl: sslRequired ? { rejectUnauthorized: false } : false,
         };
       },
