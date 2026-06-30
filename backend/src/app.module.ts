@@ -53,8 +53,22 @@ import { DoorAccessModule } from './integrations/access-control/door-access.modu
 
 import { validationSchema } from './config/env.validation';
 
+import { LoggerModule } from 'nestjs-pino';
+
 @Module({
   imports: [
+    LoggerModule.forRoot({
+      pinoHttp: {
+        transport: {
+          target: 'pino-pretty',
+          options: {
+            singleLine: true,
+          },
+        },
+        redact: ['req.headers.authorization', '*.password', '*.totpSecret', '*.smsOtpCode'],
+        genReqId: (req) => req.headers['x-request-id'],
+      },
+    }),
     ConfigModule.forRoot({
       isGlobal: true,
       validationSchema,
