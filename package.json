@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "date-fns": "^4.4.0",
+    "file-saver": "^2.0.5",
+    "react-day-picker": "^10.0.1"
+  },
+  "devDependencies": {
+    "@types/file-saver": "^2.0.7"
+  }
+}
