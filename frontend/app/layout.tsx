@@ -4,6 +4,7 @@ import Providers from "@/providers/Providers";
 import "./globals.css";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/theme-provider";
+import GlobalSearch from "@/components/search/GlobalSearch";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -117,7 +118,10 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-50`}
       >
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <Providers>{children}</Providers>
+          <Providers>
+            {children}
+            <GlobalSearch />
+          </Providers>
           <Toaster richColors position="top-right" />
         </ThemeProvider>
       </body>

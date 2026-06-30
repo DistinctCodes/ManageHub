@@ -49,6 +49,7 @@ import { TeamsModule } from './teams/teams.module';
 import { CalendarSyncModule } from './calendar-sync/calendar-sync.module';
 import { ResourcesModule } from './resources/resources.module';
 import { NpsModule } from './nps/nps.module';
+import { SearchModule } from './search/search.module';
 import { DoorAccessModule } from './integrations/access-control/door-access.module';
 
 import { validationSchema } from './config/env.validation';
@@ -176,6 +177,7 @@ import { LoggerModule } from 'nestjs-pino';
     ResourcesModule,
     NpsModule,
     DoorAccessModule,
+    SearchModule,
   ],
   controllers: [AppController],
   providers: [
