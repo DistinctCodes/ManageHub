@@ -15,7 +15,10 @@ export class UpdateUserDto {
   @MinLength(1)
   @MaxLength(30)
   firstname?: string;
-
+ // VisitorsModule,
+    // PromoCodesModule,
+    // AnnouncementsModule,
+    // AccessControlModule,
   @IsOptional()
   @IsString()
   @MinLength(1)
