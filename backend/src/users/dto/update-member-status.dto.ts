@@ -7,7 +7,3 @@ export class UpdateMemberStatusDto {
   @IsEnum(MembershipStatus)
   status: MembershipStatus;
 }
- // VisitorsModule,
-    // PromoCodesModule,
-    // AnnouncementsModule,
-    // AccessControlModule,

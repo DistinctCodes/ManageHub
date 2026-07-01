@@ -166,8 +166,4 @@ impl AccessControl {
     pub fn deactivate_emergency_mode(env: Env, caller: Address) {
         AccessControlModule::deactivate_emergency_mode(&env, caller).unwrap()
     }
-
-    pub fn get_access_attempts_count(env: Env, user: Address) -> u32 {
-        AccessControlModule::get_access_attempts_count(&env, user)
-    }
 }

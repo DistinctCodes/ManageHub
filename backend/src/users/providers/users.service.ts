@@ -23,8 +23,6 @@ import { FindAdminByIdProvider } from './findAdminById.provider';
 import { GetMembersProvider } from './get-members.provider';
 import { UpdateMemberStatusProvider } from './update-member-status.provider';
 import { GetMemberStatsProvider } from './get-member-stats.provider';
-import { GetCommunityMembersProvider } from './get-community-members.provider';
-import { GetPublicProfileProvider } from './get-public-profile.provider';
 import { MemberQueryDto } from '../dto/member-query.dto';
 import { MembershipStatus } from '../enums/membership-status.enum';
 import { computeProfileCompleteness } from '../utils/profile-completeness.util';
@@ -62,8 +60,6 @@ export class UsersService {
     private readonly getMembersProvider: GetMembersProvider,
     private readonly updateMemberStatusProvider: UpdateMemberStatusProvider,
     private readonly getMemberStatsProvider: GetMemberStatsProvider,
-    private readonly getCommunityMembersProvider: GetCommunityMembersProvider,
-    private readonly getPublicProfileProvider: GetPublicProfileProvider,
   ) {}
 
   // CREATE USER
@@ -203,17 +199,5 @@ export class UsersService {
       user.profileCompleteness = completeness;
     }
     return user;
-  }
-
-  async getCommunityMembers(query: {
-    page?: number;
-    limit?: number;
-    search?: string;
-  }) {
-    return this.getCommunityMembersProvider.getMembers(query);
-  }
-
-  async getPublicProfile(username: string) {
-    return this.getPublicProfileProvider.getPublicProfile(username);
   }
 }

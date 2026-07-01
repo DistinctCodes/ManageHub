@@ -32,7 +32,6 @@ export const queryKeys = {
     active: ["workspace-tracking", "active"] as const,
     history: (params?: unknown) =>
       ["workspace-tracking", "history", params] as const,
-    summary: ["workspace-tracking", "summary"] as const,
   },
   dashboard: {
     member: ["dashboard", "member"] as const,
@@ -41,16 +40,6 @@ export const queryKeys = {
   },
   twoFactor: {
     status: ["2fa", "status"] as const,
-  },
-  community: {
-    feed: (params?: unknown) => ["community", "feed", params] as const,
-  },
-  nps: {
-    pending: ["nps", "pending"] as const,
-    analytics: ["nps", "analytics"] as const,
-  },
-  branding: {
-    config: ["branding", "config"] as const,
   },
   admin: {
     workspaces: {

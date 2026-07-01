@@ -21,12 +21,12 @@ export class Payment {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'uuid', nullable: true })
-  bookingId: string | null;
+  @Column('uuid')
+  bookingId: string;
 
-  @ManyToOne(() => Booking, { nullable: true, onDelete: 'RESTRICT' })
+  @ManyToOne(() => Booking, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'bookingId' })
-  booking: Booking | null;
+  booking: Booking;
 
   @Column({ type: 'uuid', nullable: true })
   userId: string | null;

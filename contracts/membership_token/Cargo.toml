@@ -19,7 +19,3 @@ testutils = ["soroban-sdk/testutils"]
 [[bin]]
 name = "membership-token"
 path = "src/bin/membership-token.rs"
-
-[profile.release]
-opt-level = "z"
-overflow-checks = true

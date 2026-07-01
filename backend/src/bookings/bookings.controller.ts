@@ -3,7 +3,6 @@ import {
   Get,
   Post,
   Patch,
-  Delete,
   Body,
   Param,
   Query,
@@ -11,13 +10,15 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
-  Header,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
-import { Throttle, seconds } from '@nestjs/throttler';
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiQuery,
+} from '@nestjs/swagger';
 import { BookingsService } from './bookings.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
-import { CreateRecurringBookingDto } from './dto/create-recurring-booking.dto';
 import { CreatePublicBookingDto } from './dto/create-public-booking.dto';
 import { BookingQueryDto } from './dto/booking-query.dto';
 import { RolesGuard } from '../auth/guard/roles.guard';
@@ -44,35 +45,18 @@ export class BookingsController {
 
   @Post()
   @ApiOperation({ summary: 'Create a booking' })
-  @Throttle({ long: { ttl: seconds(60), limit: 30 } })
-  async create(@Body() dto: CreateBookingDto, @GetCurrentUser('id') userId: string) {
+  async create(
+    @Body() dto: CreateBookingDto,
+    @GetCurrentUser('id') userId: string,
+  ) {
     const booking = await this.bookingsService.create(dto, userId);
     return { message: 'Booking created successfully', data: booking };
   }
 
-  @Post('recurring')
-  @ApiOperation({ summary: 'Create a recurring booking series' })
-  async createRecurring(
-    @Body() dto: CreateRecurringBookingDto,
-    @GetCurrentUser('id') userId: string,
-  ) {
-    const result = await this.bookingsService.createRecurring(dto, userId);
-    return { message: 'Recurring bookings created successfully', data: result };
-  }
-
-  @Delete('recurring/:groupId')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Cancel all future bookings in a recurring series' })
-  async cancelRecurring(
-    @Param('groupId', ParseUUIDPipe) groupId: string,
-    @GetCurrentUser('id') userId: string,
-  ) {
-    const result = await this.bookingsService.cancelRecurringGroup(groupId, userId);
-    return { message: 'Recurring bookings cancelled successfully', data: result };
-  }
-
   @Get()
-  @ApiOperation({ summary: 'List bookings (own for users, all for admin/staff)' })
+  @ApiOperation({
+    summary: 'List bookings (own for users, all for admin/staff)',
+  })
   async findAll(
     @Query() query: BookingQueryDto,
     @GetCurrentUser('id') userId: string,
@@ -110,14 +94,6 @@ export class BookingsController {
     };
   }
 
-  @Get('calendar.ics')
-  @Header('Content-Type', 'text/calendar; charset=utf-8')
-  @Header('Content-Disposition', 'attachment; filename=booking.ics')
-  @ApiOperation({ summary: 'Export all upcoming confirmed bookings as iCal' })
-  async exportAllCalendar(@GetCurrentUser('id') userId: string): Promise<string> {
-    return this.bookingsService.exportAllUpcoming(userId);
-  }
-
   @Get(':id')
   @ApiOperation({ summary: 'Get booking by ID' })
   async findOne(
@@ -127,17 +103,6 @@ export class BookingsController {
   ) {
     const booking = await this.bookingsService.findById(id, userId, userRole);
     return { message: 'Booking retrieved successfully', data: booking };
-  }
-
-  @Get(':id/calendar.ics')
-  @Header('Content-Type', 'text/calendar; charset=utf-8')
-  @Header('Content-Disposition', 'attachment; filename=booking.ics')
-  @ApiOperation({ summary: 'Export a single booking as iCal' })
-  async exportSingleCalendar(
-    @Param('id', ParseUUIDPipe) id: string,
-    @GetCurrentUser('id') userId: string,
-  ): Promise<string> {
-    return this.bookingsService.exportSingleBooking(id, userId);
   }
 
   @Patch(':id/confirm')

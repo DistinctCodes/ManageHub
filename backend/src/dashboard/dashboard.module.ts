@@ -4,7 +4,6 @@ import { DashboardController } from './dashboard.controller';
 import { DashboardService } from './dashboard.service';
 import { AdminAnalyticsProvider } from './providers/admin-analytics.provider';
 import { MemberDashboardProvider } from './providers/member-dashboard.provider';
-import { ExportProvider } from './providers/export.provider';
 import { User } from '../users/entities/user.entity';
 import { NewsletterSubscriber } from '../newsletter/entities/newsletter.entity';
 import { Booking } from '../bookings/entities/booking.entity';
@@ -30,7 +29,6 @@ import { Workspace } from '../workspaces/entities/workspace.entity';
     DashboardService,
     AdminAnalyticsProvider,
     MemberDashboardProvider,
-    ExportProvider,
   ],
 })
 export class DashboardModule {}

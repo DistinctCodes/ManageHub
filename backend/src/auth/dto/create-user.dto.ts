@@ -3,7 +3,6 @@ import {
   MinLength,
   IsNotEmpty,
   IsEmail,
-  IsOptional,
   MaxLength,
 } from 'class-validator';
 
@@ -24,14 +23,4 @@ export class CreateUserDto {
   @IsNotEmpty({ message: 'password can not be empty' })
   @MinLength(6, { message: 'password must be at least 6 character long' })
   password: string;
-
-  /**
-   * Optional referral code captured from the shareable URL
-   * (e.g. /register?ref=MH-AAAA...) so the new user can be linked
-   * to the referrer for downstream rewards tracking.
-   */
-  @IsOptional()
-  @IsString()
-  @MaxLength(64)
-  referralCode?: string;
 }

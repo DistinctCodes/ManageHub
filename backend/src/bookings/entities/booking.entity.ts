@@ -3,6 +3,8 @@ import {
   PrimaryGeneratedColumn,
   Column,
   ManyToOne,
+  OneToMany,
+  OneToOne,
   CreateDateColumn,
   UpdateDateColumn,
   Index,
@@ -17,7 +19,6 @@ import { BookingStatus } from '../enums/booking-status.enum';
 @Index(['userId'])
 @Index(['workspaceId'])
 @Index(['status'])
-@Index(['recurringGroupId'])
 export class Booking {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -45,6 +46,7 @@ export class Booking {
   @Column({ type: 'date' })
   endDate: string;
 
+  // Total amount in kobo
   @Column({ type: 'bigint' })
   totalAmount: number;
 
@@ -57,14 +59,9 @@ export class Booking {
   @Column({ type: 'text', nullable: true })
   notes: string;
 
+  // Populated for MONTHLY/QUARTERLY/YEARLY after Soroban escrow is created
   @Column({ nullable: true })
   sorobanEscrowId: string;
-
-  @Column({ nullable: true, type: 'uuid' })
-  appliedPromoCodeId: string | null;
-
-  @Column({ type: 'int', nullable: true })
-  promoDiscountApplied: number | null;
 
   @Column({ default: false })
   reminderSent: boolean;

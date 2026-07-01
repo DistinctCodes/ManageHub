@@ -81,20 +81,8 @@ export class SorobanEscrowProvider {
           ),
           auth: [
             new xdr.SorobanAuthorizationEntry({
-              credentials: new xdr.SorobanCredentials({
-                type: xdr.SorobanCredentialsType.sorobanCredentialsSourceAccount(),
-                address: new xdr.SorobanAddress({
-                  type: xdr.SorobanAddressType.sorobanAddressTypeAccount(),
-                  accountId:
-                    Keypair.fromPublicKey(depositorAddress).xdrPublicKey(),
-                }),
-                nonce: xdr.Int64.fromString(
-                  (await this.server.getLatestLedger()).sequence.toString(),
-                ),
-                signatureExpirationLedger:
-                  (await this.server.getLatestLedger()).sequence + TTL,
-                signature: randomBytes(64),
-              }),
+              credentials:
+                xdr.SorobanCredentials.sorobanCredentialsSourceAccount(),
               rootInvocation: new xdr.SorobanAuthorizedInvocation({
                 function:
                   xdr.SorobanAuthorizedFunction.sorobanAuthorizedFunctionTypeContractFn(
@@ -137,9 +125,8 @@ export class SorobanEscrowProvider {
       const sentTransaction =
         await this.server.sendTransaction(preparedTransaction);
 
-      let getTransactionResponse = await this.server.getTransaction(
-        sentTransaction.hash,
-      );
+      let getTransactionResponse =
+        await this.server.getTransaction(sentTransaction.hash);
 
       const thirtySeconds = 30 * 1000;
       const startTime = Date.now();
@@ -158,12 +145,14 @@ export class SorobanEscrowProvider {
 
       if (
         getTransactionResponse.status !==
-        SorobanRpc.GetTransactionStatus.SUCCESS
+        SorobanRpc.Api.GetTransactionStatus.SUCCESS
       ) {
         this.logger.error(
           `[Soroban] createEscrow failed for booking ${bookingId}: Transaction execution failed`,
         );
-        throw new BadGatewayException('Failed to execute Soroban transaction.');
+        throw new BadGatewayException(
+          'Failed to execute Soroban transaction.',
+        );
       }
 
       return sentTransaction.hash;
@@ -210,9 +199,8 @@ export class SorobanEscrowProvider {
       const sentTransaction =
         await this.server.sendTransaction(preparedTransaction);
 
-      let getTransactionResponse = await this.server.getTransaction(
-        sentTransaction.hash,
-      );
+      let getTransactionResponse =
+        await this.server.getTransaction(sentTransaction.hash);
 
       const thirtySeconds = 30 * 1000;
       const startTime = Date.now();
@@ -231,12 +219,14 @@ export class SorobanEscrowProvider {
 
       if (
         getTransactionResponse.status !==
-        SorobanRpc.GetTransactionStatus.SUCCESS
+        SorobanRpc.Api.GetTransactionStatus.SUCCESS
       ) {
         this.logger.error(
           `[Soroban] releaseEscrow failed for escrow ${escrowId}: Transaction execution failed`,
         );
-        throw new BadGatewayException('Failed to execute Soroban transaction.');
+        throw new BadGatewayException(
+          'Failed to execute Soroban transaction.',
+        );
       }
 
       return sentTransaction.hash;
@@ -283,9 +273,8 @@ export class SorobanEscrowProvider {
       const sentTransaction =
         await this.server.sendTransaction(preparedTransaction);
 
-      let getTransactionResponse = await this.server.getTransaction(
-        sentTransaction.hash,
-      );
+      let getTransactionResponse =
+        await this.server.getTransaction(sentTransaction.hash);
 
       const thirtySeconds = 30 * 1000;
       const startTime = Date.now();
@@ -304,12 +293,14 @@ export class SorobanEscrowProvider {
 
       if (
         getTransactionResponse.status !==
-        SorobanRpc.GetTransactionStatus.SUCCESS
+        SorobanRpc.Api.GetTransactionStatus.SUCCESS
       ) {
         this.logger.error(
           `[Soroban] refundEscrow failed for escrow ${escrowId}: Transaction execution failed`,
         );
-        throw new BadGatewayException('Failed to execute Soroban transaction.');
+        throw new BadGatewayException(
+          'Failed to execute Soroban transaction.',
+        );
       }
 
       return sentTransaction.hash;

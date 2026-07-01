@@ -18,11 +18,8 @@ import {
   Loader2, 
   XCircle, 
   Download,
-  AlertCircle,
-  CalendarPlus 
+  AlertCircle 
 } from "lucide-react";
-import * as ics from "ics";
-import { apiClient } from "@/lib/apiClient";
 
 const STATUS_STYLES: Record<BookingStatus, string> = {
   PENDING: "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400",
@@ -82,76 +79,6 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
       setDownloading(false);
     }
   }
-
-  const handleDownloadICS = () => {
-    if (!booking) return;
-
-    const startDate = new Date(booking.startDate);
-    const endDate = new Date(booking.endDate);
-    
-    const end = [
-      endDate.getFullYear(),
-      endDate.getMonth() + 1,
-      endDate.getDate(),
-      endDate.getHours() || 18,
-      endDate.getMinutes(),
-    ];
-
-    if (isNaN(endDate.getTime())) {
-      end[0] = startDate.getFullYear();
-      end[1] = startDate.getMonth() + 1;
-      end[2] = startDate.getDate();
-      end[3] = startDate.getHours() + 1 || 18;
-      end[4] = startDate.getMinutes();
-    }
-
-    const event: any = {
-      title: `ManageHub Booking: ${booking.workspace?.name || booking.workspaceId}`,
-      description: `Plan: ${booking.planType} - ${booking.seatCount} seats`,
-      start: [
-        startDate.getFullYear(),
-        startDate.getMonth() + 1,
-        startDate.getDate(),
-        startDate.getHours() || 9,
-        startDate.getMinutes(),
-      ],
-      end: end,
-    };
-
-    ics.createEvent(event, (error, value) => {
-      if (error) {
-        toast.error("Failed to generate calendar file");
-        return;
-      }
-      
-      const blob = new Blob([value], { type: "text/calendar" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `booking-${booking.id}.ics`;
-      a.click();
-      URL.revokeObjectURL(url);
-    });
-  };
-
-  const handleGoogleCalendar = async () => {
-    if (!booking) return;
-    try {
-      const statusRes = await apiClient.get<{ data: { connected: boolean } }>("/calendar-sync/status");
-      if (statusRes.data?.connected) {
-          // Assuming backend has an endpoint to create event
-          await apiClient.post("/calendar-sync/events", { bookingId: booking.id }).catch(() => null);
-          toast.success("Event added to Google Calendar");
-      } else {
-          const authRes = await apiClient.get<{ data: { url: string } }>("/calendar-sync/auth/google");
-          if (authRes.data?.url) {
-              window.location.href = authRes.data.url;
-          }
-      }
-    } catch (err) {
-      toast.error("Failed to add to Google Calendar");
-    }
-  };
 
   if (loadingBooking || loadingInvoices) {
     return (
@@ -332,25 +259,6 @@ export default function BookingDetailPage({ params }: { params: Promise<{ id: st
               )}
               Download Invoice
             </button>
-          )}
-
-          {(booking.status === "CONFIRMED") && (
-            <div className="flex gap-3 ml-auto">
-              <button
-                onClick={handleGoogleCalendar}
-                className="flex items-center gap-1.5 px-4 py-2 bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 text-sm font-medium rounded-lg hover:bg-blue-100 dark:hover:bg-blue-500/20 transition-colors"
-              >
-                <CalendarPlus className="w-4 h-4" />
-                Add to Google Calendar
-              </button>
-              <button
-                onClick={handleDownloadICS}
-                className="flex items-center gap-1.5 px-4 py-2 bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400 text-sm font-medium rounded-lg hover:bg-blue-100 dark:hover:bg-blue-500/20 transition-colors"
-              >
-                <Download className="w-4 h-4" />
-                Add to Outlook
-              </button>
-            </div>
           )}
         </div>
       </div>

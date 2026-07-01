@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { useGetMyBookings } from "@/lib/react-query/hooks/bookings/useGetMyBookings";
@@ -15,7 +15,6 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
-import BookingCalendar from "@/components/bookings/BookingCalendar";
 
 const STATUS_STYLES: Record<BookingStatus, string> = {
   PENDING: "bg-amber-50 text-amber-700",
@@ -169,19 +168,6 @@ function BookingRow({ booking, onCancelled }: { booking: Booking; onCancelled: (
 export default function MyBookingsPage() {
   const [page, setPage] = useState(1);
   const { data, isLoading, isError, refetch } = useGetMyBookings(page, 10);
-  const [view, setView] = useState('list');
-
-  useEffect(() => {
-    const savedView = localStorage.getItem('booking_view');
-    if (savedView) {
-      setView(savedView);
-    }
-  }, []);
-
-  const handleViewChange = (newView: string) => {
-    setView(newView);
-    localStorage.setItem('booking_view', newView);
-  };
 
   const bookings = data?.data ?? [];
   const meta = data?.meta;
@@ -204,32 +190,7 @@ export default function MyBookingsPage() {
         </Link>
       </div>
 
-      <div className="flex gap-2 mb-4">
-        <button
-          onClick={() => handleViewChange('list')}
-          className={`px-3 py-1.5 text-sm font-medium rounded-lg ${
-            view === 'list'
-              ? 'bg-gray-900 text-white'
-              : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
-          }`}
-        >
-          List
-        </button>
-        <button
-          onClick={() => handleViewChange('calendar')}
-          className={`px-3 py-1.5 text-sm font-medium rounded-lg ${
-            view === 'calendar'
-              ? 'bg-gray-900 text-white'
-              : 'border border-gray-200 text-gray-600 hover:bg-gray-50'
-          }`}
-        >
-          Calendar
-        </button>
-      </div>
-
-      {view === 'calendar' ? (
-        <BookingCalendar />
-      ) : isLoading ? (
+      {isLoading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
             <div

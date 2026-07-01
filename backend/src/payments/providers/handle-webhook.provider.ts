@@ -19,11 +19,6 @@ import { NotificationsService } from '../../notifications/notifications.service'
 import { NotificationType } from '../../notifications/enums/notification-type.enum';
 import { User } from '../../users/entities/user.entity';
 import { EmailService } from '../../email/email.service';
-import { PromoCodesService } from '../../promo-codes/promo-codes.service';
-import { ReferralsService } from '../../referrals/referrals.service';
-import { UserCredit } from '../../credits/entities/user-credit.entity';
-import { UserCreditTransaction } from '../../credits/entities/credit-transaction.entity';
-import { CreditTransactionType } from '../../credits/enums/credit-transaction-type.enum';
 
 const LONG_TERM_PLANS = new Set([
   PlanType.MONTHLY,
@@ -42,10 +37,6 @@ export class HandleWebhookProvider {
     private readonly bookingsRepository: Repository<Booking>,
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
-    @InjectRepository(UserCredit)
-    private readonly userCreditsRepository: Repository<UserCredit>,
-    @InjectRepository(UserCreditTransaction)
-    private readonly creditTransactionsRepository: Repository<UserCreditTransaction>,
     private readonly paystackProvider: PaystackProvider,
     private readonly sorobanEscrowProvider: SorobanEscrowProvider,
     private readonly bookingsService: BookingsService,
@@ -53,8 +44,6 @@ export class HandleWebhookProvider {
     private readonly notificationsService: NotificationsService,
     private readonly emailService: EmailService,
     private readonly configService: ConfigService,
-    private readonly promoCodesService: PromoCodesService,
-    private readonly referralsService: ReferralsService,
   ) {}
 
   async handle(rawBody: Buffer, signature: string): Promise<void> {
@@ -120,46 +109,12 @@ export class HandleWebhookProvider {
     payment.metadata = data;
     await this.paymentsRepository.save(payment);
 
-    // Handle credit purchases
-    if (payment.metadata && (payment.metadata as Record<string, unknown>).type === 'credit_purchase') {
-      await this.handleCreditPurchase(payment);
-      return;
-    }
-
     // Confirm the booking
-    const booking = await this.bookingsService.confirm(payment.bookingId!);
+    const booking = await this.bookingsService.confirm(payment.bookingId);
 
     // For long-term bookings, record on-chain escrow
     if (LONG_TERM_PLANS.has(booking.planType)) {
       await this.recordSorobanEscrow(payment, booking);
-    }
-
-    // Record promo code usage atomically if one was applied
-    if (booking.appliedPromoCodeId) {
-      this.promoCodesService
-        .recordUsage(
-          booking.appliedPromoCodeId,
-          payment.userId,
-          booking.id,
-          booking.promoDiscountApplied ?? 0,
-        )
-        .catch((err: Error) => {
-          this.logger.error(
-            `Failed to record promo usage for booking ${booking.id}: ${err.message}`,
-          );
-        });
-    }
-
-    // Referral "conversion" — completing a paid booking by a referred user
-    // marks that referral as COMPLETED and awards the default reward.
-    if (payment.userId) {
-      this.referralsService
-        .completeReferral(payment.userId)
-        .catch((err: Error) => {
-          this.logger.error(
-            `Failed to complete referral for user ${payment.userId}: ${err.message}`,
-          );
-        });
     }
 
     // Generate invoice asynchronously — do not block payment confirmation
@@ -235,12 +190,6 @@ export class HandleWebhookProvider {
     payment.status = PaymentStatus.FAILED;
     await this.paymentsRepository.save(payment);
 
-    // Credit purchase payments don't have a booking — skip email/notification
-    if (payment.metadata && (payment.metadata as Record<string, unknown>).type === 'credit_purchase') {
-      this.logger.log(`charge.failed: credit purchase payment ${payment.id} marked FAILED`);
-      return;
-    }
-
     // Send payment failed email
     if (payment.userId) {
       this.usersRepository
@@ -284,55 +233,6 @@ export class HandleWebhookProvider {
     }
 
     this.logger.log(`charge.failed: payment ${payment.id} marked FAILED`);
-  }
-
-  private async handleCreditPurchase(payment: Payment): Promise<void> {
-    const meta = payment.metadata as Record<string, unknown> | null;
-    const creditPackId = meta?.creditPackId as string | undefined;
-    const creditHours = Number(meta?.creditHours ?? 0);
-
-    if (!payment.userId || !creditPackId || creditHours <= 0) {
-      this.logger.warn(
-        `credit_purchase: invalid metadata for payment ${payment.id}`,
-      );
-      return;
-    }
-
-    let userCredit = await this.userCreditsRepository.findOne({
-      where: { userId: payment.userId },
-    });
-
-    if (!userCredit) {
-      userCredit = this.userCreditsRepository.create({
-        userId: payment.userId,
-        remainingHours: 0,
-      });
-    }
-
-    userCredit.remainingHours = Number(userCredit.remainingHours) + creditHours;
-    await this.userCreditsRepository.save(userCredit);
-
-    const transaction = this.creditTransactionsRepository.create({
-      userCreditId: userCredit.id,
-      type: CreditTransactionType.PURCHASE,
-      hours: creditHours,
-      description: `Credit pack purchase (${meta?.creditPackName ?? creditPackId})`,
-    });
-    await this.creditTransactionsRepository.save(transaction);
-
-    this.notificationsService
-      .create({
-        userId: payment.userId,
-        type: NotificationType.PAYMENT_SUCCESS,
-        title: 'Credit Purchase Successful',
-        message: `${creditHours} credit hours have been added to your account.`,
-        metadata: { paymentId: payment.id, creditPackId },
-      })
-      .catch(() => void 0);
-
-    this.logger.log(
-      `credit_purchase: payment ${payment.id}, ${creditHours} hours added to user ${payment.userId}`,
-    );
   }
 
   private async recordSorobanEscrow(

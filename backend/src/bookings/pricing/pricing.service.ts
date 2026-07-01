@@ -55,24 +55,4 @@ export class PricingService {
       discountPct: PLAN_DISCOUNT[planType] * 100,
     };
   }
-
-  calculateHours(
-    planType: PlanType,
-    seatCount: number,
-    startDate: string,
-    endDate: string,
-  ): number {
-    let days: number;
-
-    if (planType === PlanType.DAILY) {
-      const start = new Date(startDate);
-      const end = new Date(endDate);
-      const diffMs = end.getTime() - start.getTime();
-      days = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
-    } else {
-      days = PLAN_DAYS[planType];
-    }
-
-    return PLAN_WORKING_HOURS * days * seatCount;
-  }
 }

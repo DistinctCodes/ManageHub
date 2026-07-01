@@ -7,7 +7,6 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { Throttle, seconds } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
@@ -35,7 +34,6 @@ export class AuthController {
   @Public()
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
-  @Throttle({ short: { ttl: seconds(1), limit: 3 } })
   create(@Body() createUserDto: CreateUserDto) {
     return this.authService.createUser(createUserDto);
   }
@@ -43,15 +41,12 @@ export class AuthController {
   @Public()
   @Post('verify-otp')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ otp: { ttl: seconds(600), limit: 5 } })
   verifyOtp(@Body() verifyOtpDto: VerifyOtpDto) {
     return this.authService.verifyOtp(verifyOtpDto);
   }
-
   @Public()
   @Post('resend-verification-otp')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ otp: { ttl: seconds(600), limit: 5 } })
   resendVerificationOtp(@Body() resendOtpDto: ResendOtpDto) {
     return this.authService.resendVerificationOtp(resendOtpDto.email);
   }
@@ -66,7 +61,6 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ short: { ttl: seconds(1), limit: 3 } })
   login(@Body() loginUserDto: LoginUserDto) {
     return this.authService.login(loginUserDto);
   }
@@ -87,7 +81,6 @@ export class AuthController {
   @Public()
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ short: { ttl: seconds(1), limit: 3 } })
   forgotPassword(@Body() sendPasswordResetOtpDto: SendPasswordResetOtpDto) {
     return this.authService.requestResetPasswordOtp(sendPasswordResetOtpDto);
   }
@@ -95,17 +88,14 @@ export class AuthController {
   @Public()
   @Post('send-reset-password-otp')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ short: { ttl: seconds(1), limit: 3 } })
   requestResetPasswordOtp(
     @Body() sendPasswordResetOtpDto: SendPasswordResetOtpDto,
   ) {
     return this.authService.requestResetPasswordOtp(sendPasswordResetOtpDto);
   }
-
   @Public()
   @Post('resend-reset-password-otp')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ otp: { ttl: seconds(600), limit: 5 } })
   resendResetPasswordVerificationOtp(@Body() resendOtpDto: ResendOtpDto) {
     return this.authService.resendResetPasswordVerificationOtp(resendOtpDto);
   }
@@ -113,7 +103,6 @@ export class AuthController {
   @Public()
   @Post('verify-reset-password-otp')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ otp: { ttl: seconds(600), limit: 5 } })
   verifyResetPasswordOtp(@Body() verifyOtpDto: VerifyOtpDto) {
     return this.authService.verifyResetPasswordOtp(verifyOtpDto);
   }
@@ -142,7 +131,6 @@ export class AuthController {
   @Public()
   @Post('2fa/verify')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ otp: { ttl: seconds(600), limit: 5 } })
   verifyTotpLogin(@Body() dto: VerifyTotpDto) {
     return this.authService.verifyTotpLogin(dto);
   }
@@ -150,7 +138,6 @@ export class AuthController {
   @Public()
   @Post('2fa/backup-code')
   @HttpCode(HttpStatus.OK)
-  @Throttle({ otp: { ttl: seconds(600), limit: 5 } })
   verifyBackupCode(@Body() dto: UseBackupCodeDto) {
     return this.authService.verifyBackupCode(dto);
   }

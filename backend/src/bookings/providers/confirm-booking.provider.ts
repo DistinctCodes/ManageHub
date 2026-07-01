@@ -9,7 +9,6 @@ import { Booking } from '../entities/booking.entity';
 import { BookingStatus } from '../enums/booking-status.enum';
 import { User } from '../../users/entities/user.entity';
 import { MembershipStatus } from '../../users/enums/membership-status.enum';
-import { DoorAccessService } from '../../integrations/access-control/door-access.service';
 
 @Injectable()
 export class ConfirmBookingProvider {
@@ -18,7 +17,6 @@ export class ConfirmBookingProvider {
     private readonly bookingsRepository: Repository<Booking>,
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
-    private readonly doorAccessService: DoorAccessService,
   ) {}
 
   async confirm(bookingId: string): Promise<Booking> {
@@ -43,12 +41,6 @@ export class ConfirmBookingProvider {
       user.memberSince = new Date();
       user.membershipStatus = MembershipStatus.ACTIVE;
       await this.usersRepository.save(user);
-    }
-
-    if (user) {
-      this.doorAccessService
-        .grantAccess(booking.id, booking.userId, user.email)
-        .catch(() => void 0);
     }
 
     return booking;

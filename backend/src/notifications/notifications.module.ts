@@ -27,6 +27,6 @@ import { FindNotificationsProvider } from './providers/find-notifications.provid
     CreateNotificationProvider,
     FindNotificationsProvider,
   ],
-  exports: [NotificationsService, NotificationsGateway],
+  exports: [NotificationsService],
 })
 export class NotificationsModule {}

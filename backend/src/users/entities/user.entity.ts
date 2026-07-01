@@ -119,12 +119,6 @@ export class User {
   @Column({ type: 'jsonb', nullable: true })
   totpBackupCodes?: string[];
 
-  @Column({ nullable: true, type: 'varchar' })
-  credentialId?: string;
-
-  @Column({ nullable: true, type: 'text' })
-  credentialPublicKey?: string;
-
   @Column({
     type: 'enum',
     enum: MembershipStatus,
@@ -137,9 +131,6 @@ export class User {
 
   @Column({ type: 'int', default: 0 })
   profileCompleteness: number;
-
-  @Column({ type: 'varchar', nullable: true, unique: true })
-  referralCode?: string;
 
   @DeleteDateColumn()
   deletedAt: Date;

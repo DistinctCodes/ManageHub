@@ -14,89 +14,38 @@ import { NewsletterModule } from './newsletter/newsletter.module';
 import { EmailModule } from './email/email.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { ContactModule } from './contact/contact.module';
-import { SupportModule } from './support/support.module';
 import { WorkspacesModule } from './workspaces/workspaces.module';
 import { BookingsModule } from './bookings/bookings.module';
 import { PaymentsModule } from './payments/payments.module';
 import { InvoicesModule } from './invoices/invoices.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { WorkspaceTrackingModule } from './workspace-tracking/workspace-tracking.module';
-import { HubSettingsModule } from './hub-settings/hub-settings.module';
-import { VisitorsModule } from './visitors/visitors.module';
-import { PromoCodesModule } from './promo-codes/promo-codes.module';
-import { AnnouncementsModule } from './announcements/announcements.module';
-import { AccessControlModule } from './access-control/access-control.module';
-import { WaitlistModule } from './waitlist/waitlist.module';
-import { EventsModule } from './events/events.module';
-import { MembershipPlansModule } from './membership-plans/membership-plans.module';
-import { ContractsModule } from './contracts/contracts.module';
-import { ShiftsModule } from './shifts/shifts.module';
-import { BillingModule } from './billing/billing.module';
-import { DunningModule } from './dunning/dunning.module';
-import { ShiftsModule } from './shifts/shifts.module';
-import { FloorPlanModule } from './floor-plan/floor-plan.module';
-import { ReportsModule } from './reports/reports.module';
-import { EmailCampaignsModule } from './email-campaigns/email-campaigns.module';
-import { InventoryModule } from './inventory/inventory.module';
-import { AuditLogModule } from './audit-log/audit-log.module';
-import { LockersModule } from './lockers/lockers.module';
-import { PackagesModule } from './packages/packages.module';
-import { ReferralsModule } from './referrals/referrals.module';
-import { MaintenanceModule } from './maintenance/maintenance.module';
-import { LeadsModule } from './leads/leads.module';
-import { CreditsModule } from './credits/credits.module';
-import { TeamsModule } from './teams/teams.module';
-import { CalendarSyncModule } from './calendar-sync/calendar-sync.module';
-import { ResourcesModule } from './resources/resources.module';
-import { NpsModule } from './nps/nps.module';
-import { SearchModule } from './search/search.module';
-import { DoorAccessModule } from './integrations/access-control/door-access.module';
-import { CommunityModule } from './community/community.module';
-
-import { validationSchema } from './config/env.validation';
-
-import { LoggerModule } from 'nestjs-pino';
 
 @Module({
   imports: [
-    LoggerModule.forRoot({
-      pinoHttp: {
-        transport: {
-          target: 'pino-pretty',
-          options: {
-            singleLine: true,
-          },
-        },
-        redact: ['req.headers.authorization', '*.password', '*.totpSecret', '*.smsOtpCode'],
-        genReqId: (req) => req.headers['x-request-id'],
-      },
-    }),
     ConfigModule.forRoot({
       isGlobal: true,
-      validationSchema,
-      validationOptions: { abortEarly: false },
     }),
     ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([
       {
         name: 'short',
-        ttl: 1000,
-        limit: 3,
+        ttl: 1000, // 1 second
+        limit: 3, // 3 requests per second
       },
       {
         name: 'medium',
-        ttl: 10000,
-        limit: 20,
+        ttl: 10000, // 10 seconds
+        limit: 20, // 20 requests per 10 seconds
       },
       {
         name: 'long',
-        ttl: 60000,
-        limit: 100,
+        ttl: 60000, // 1 minute
+        limit: 100, // 100 requests per minute
       },
       { name: 'newsletter', ttl: 60_000, limit: 10 },
       { name: 'contact', ttl: 60_000, limit: 5 },
-      // otp: strict limit for OTP/2FA verification endpoints (5 per 10 minutes)
-      { name: 'otp', ttl: 600_000, limit: 5 },
+      { name: 'feedback', ttl: 60_000, limit: 10 },
     ]),
     BullModule.forRootAsync({
       imports: [ConfigModule],
@@ -124,6 +73,7 @@ import { LoggerModule } from 'nestjs-pino';
           configService.get<string>('PGSSLMODE') === 'require' ||
           configService.get<string>('DATABASE_SSL') === 'true' ||
           (host ? host.includes('neon.tech') : false);
+
         return {
           type: 'postgres',
           database: configService.get('DATABASE_NAME'),
@@ -132,7 +82,7 @@ import { LoggerModule } from 'nestjs-pino';
           port: +configService.get('DATABASE_PORT'),
           host,
           autoLoadEntities: true,
-          synchronize: false, // Never use synchronize in production — run migrations instead
+          synchronize: true,
           ssl: sslRequired ? { rejectUnauthorized: false } : false,
         };
       },
@@ -143,54 +93,24 @@ import { LoggerModule } from 'nestjs-pino';
     NewsletterModule,
     ContactModule,
     DashboardModule,
-    SupportModule,
     WorkspacesModule,
     BookingsModule,
     PaymentsModule,
     InvoicesModule,
     NotificationsModule,
     WorkspaceTrackingModule,
-    HubSettingsModule,
-    VisitorsModule,
-    PromoCodesModule,
-    AnnouncementsModule,
-    AccessControlModule,
-     // VisitorsModule,
-    // PromoCodesModule,
-    // AnnouncementsModule,
-    // AccessControlModule,
-    WaitlistModule,
-    EventsModule,
-    MembershipPlansModule,
-    ContractsModule,
-    ShiftsModule,
-    BillingModule,
-    DunningModule,
-    ShiftsModule,
-    FloorPlanModule,
-    ReportsModule,
-    EmailCampaignsModule,
-    InventoryModule,
-    AuditLogModule,
-    LockersModule,
-    PackagesModule,
-    ReferralsModule,
-    MaintenanceModule,
-    LeadsModule,
-    CreditsModule,
-    TeamsModule,
-    CalendarSyncModule,
-    ResourcesModule,
-    NpsModule,
-    DoorAccessModule,
-    CommunityModule,
-    SearchModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
-    { provide: APP_GUARD, useClass: JwtAuthGuard },
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
 })
 export class AppModule {}

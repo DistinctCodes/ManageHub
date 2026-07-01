@@ -12,10 +12,6 @@ import { BookingStatus } from '../enums/booking-status.enum';
 import { PricingService } from '../pricing/pricing.service';
 import { Workspace } from '../../workspaces/entities/workspace.entity';
 import { User } from '../../users/entities/user.entity';
-import { UserCredit } from '../../credits/entities/user-credit.entity';
-import { UserCreditTransaction } from '../../credits/entities/credit-transaction.entity';
-import { CreditTransactionType } from '../../credits/enums/credit-transaction-type.enum';
-import { MembershipStatus } from '../../users/enums/membership-status.enum';
 import { EmailService } from '../../email/email.service';
 
 @Injectable()
@@ -25,10 +21,6 @@ export class CreateBookingProvider {
     private readonly bookingsRepository: Repository<Booking>,
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
-    @InjectRepository(UserCredit)
-    private readonly userCreditsRepository: Repository<UserCredit>,
-    @InjectRepository(UserCreditTransaction)
-    private readonly creditTransactionsRepository: Repository<UserCreditTransaction>,
     private readonly pricingService: PricingService,
     private readonly dataSource: DataSource,
     private readonly emailService: EmailService,
@@ -91,47 +83,6 @@ export class CreateBookingProvider {
       });
 
       const saved = await manager.save(booking);
-
-      // Handle credit payment
-      if (dto.paymentMethod === 'credits') {
-        const requiredHours = this.pricingService.calculateHours(
-          dto.planType,
-          dto.seatCount,
-          dto.startDate,
-          dto.endDate,
-        );
-
-        const userCredit = await manager
-          .createQueryBuilder(UserCredit, 'uc')
-          .setLock('pessimistic_write')
-          .where('uc.userId = :userId', { userId })
-          .getOne();
-
-        if (!userCredit || Number(userCredit.remainingHours) < requiredHours) {
-          throw new BadRequestException('Insufficient credit hours');
-        }
-
-        userCredit.remainingHours = Number(userCredit.remainingHours) - requiredHours;
-        await manager.save(userCredit);
-
-        const transaction = manager.create(UserCreditTransaction, {
-          userCreditId: userCredit.id,
-          type: CreditTransactionType.SPEND,
-          hours: requiredHours,
-          description: `Booking ${saved.id}`,
-        });
-        await manager.save(transaction);
-
-        saved.status = BookingStatus.CONFIRMED;
-        await manager.save(saved);
-
-        const user = await manager.findOne(User, { where: { id: userId } });
-        if (user && !user.memberSince) {
-          user.memberSince = new Date();
-          user.membershipStatus = MembershipStatus.ACTIVE;
-          await manager.save(user);
-        }
-      }
 
       // Fire-and-forget booking created email
       this.usersRepository
