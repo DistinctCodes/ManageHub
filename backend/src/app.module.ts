@@ -1,4 +1,4 @@
-import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -20,32 +20,19 @@ import { PaymentsModule } from './payments/payments.module';
 import { InvoicesModule } from './invoices/invoices.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { WorkspaceTrackingModule } from './workspace-tracking/workspace-tracking.module';
+import { MembershipPlansModule } from './membership-plans/membership-plans.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-    }),
+    ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([
-      {
-        name: 'short',
-        ttl: 1000, // 1 second
-        limit: 3, // 3 requests per second
-      },
-      {
-        name: 'medium',
-        ttl: 10000, // 10 seconds
-        limit: 20, // 20 requests per 10 seconds
-      },
-      {
-        name: 'long',
-        ttl: 60000, // 1 minute
-        limit: 100, // 100 requests per minute
-      },
-      { name: 'newsletter', ttl: 60_000, limit: 10 },
-      { name: 'contact', ttl: 60_000, limit: 5 },
-      { name: 'feedback', ttl: 60_000, limit: 10 },
+      { name: 'short',      ttl: 1000,   limit: 3   },
+      { name: 'medium',     ttl: 10000,  limit: 20  },
+      { name: 'long',       ttl: 60000,  limit: 100 },
+      { name: 'newsletter', ttl: 60_000, limit: 10  },
+      { name: 'contact',    ttl: 60_000, limit: 5   },
+      { name: 'feedback',   ttl: 60_000, limit: 10  },
     ]),
     BullModule.forRootAsync({
       imports: [ConfigModule],
@@ -73,7 +60,6 @@ import { WorkspaceTrackingModule } from './workspace-tracking/workspace-tracking
           configService.get<string>('PGSSLMODE') === 'require' ||
           configService.get<string>('DATABASE_SSL') === 'true' ||
           (host ? host.includes('neon.tech') : false);
-
         return {
           type: 'postgres',
           database: configService.get('DATABASE_NAME'),
@@ -99,18 +85,13 @@ import { WorkspaceTrackingModule } from './workspace-tracking/workspace-tracking
     InvoicesModule,
     NotificationsModule,
     WorkspaceTrackingModule,
+    MembershipPlansModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
-    {
-      provide: APP_GUARD,
-      useClass: JwtAuthGuard,
-    },
-    {
-      provide: APP_GUARD,
-      useClass: ThrottlerGuard,
-    },
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
 export class AppModule {}
