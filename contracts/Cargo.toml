@@ -15,11 +15,6 @@ soroban-sdk = "23.4.1"
 common_types = { path = "common_types" }
 membership_token = { path = "membership_token" }
 
-# ethnum 1.5.2 has a transmute bug (E0512) on current stable rustc.
-# Patch to 1.5.3 via git which contains the fix.
-[patch.crates-io]
-ethnum = { git = "https://github.com/nlordell/ethnum-rs", tag = "v1.5.3" }
-
 [profile.release]
 opt-level = "z"
 overflow-checks = true
