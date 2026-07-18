@@ -21,6 +21,7 @@ import { InvoicesModule } from './invoices/invoices.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { WorkspaceTrackingModule } from './workspace-tracking/workspace-tracking.module';
 import { ParkingModule } from './parking/parking.module';
+import { VisitorsModule } from './visitors/visitors.module';
 
 @Module({
   imports: [
@@ -86,6 +87,7 @@ import { ParkingModule } from './parking/parking.module';
     NotificationsModule,
     WorkspaceTrackingModule,
     ParkingModule,
+    VisitorsModule,
   ],
   controllers: [AppController],
   providers: [

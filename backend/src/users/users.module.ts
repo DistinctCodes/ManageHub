@@ -21,10 +21,13 @@ import { GetMembersProvider } from './providers/get-members.provider';
 import { UpdateMemberStatusProvider } from './providers/update-member-status.provider';
 import { GetMemberStatsProvider } from './providers/get-member-stats.provider';
 import { MembersController } from './members.controller';
+import { OnboardingStatusProvider } from './providers/onboarding-status.provider';
+import { Booking } from '../bookings/entities/booking.entity';
+import { Notification } from '../notifications/entities/notification.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User]),
+    TypeOrmModule.forFeature([User, Booking, Notification]),
     forwardRef(() => AuthModule),
     CloudinaryModule,
   ],
@@ -46,6 +49,7 @@ import { MembersController } from './members.controller';
     GetMembersProvider,
     UpdateMemberStatusProvider,
     GetMemberStatsProvider,
+    OnboardingStatusProvider,
   ],
   exports: [UsersService],
 })
