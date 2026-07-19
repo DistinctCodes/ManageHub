@@ -1,4 +1,4 @@
-import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -20,6 +20,7 @@ import { PaymentsModule } from './payments/payments.module';
 import { InvoicesModule } from './invoices/invoices.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { WorkspaceTrackingModule } from './workspace-tracking/workspace-tracking.module';
+import { MembershipPlansModule } from './membership-plans/membership-plans.module';
 import { ParkingModule } from './parking/parking.module';
 import { VisitorsModule } from './visitors/visitors.module';
 
@@ -86,6 +87,7 @@ import { VisitorsModule } from './visitors/visitors.module';
     InvoicesModule,
     NotificationsModule,
     WorkspaceTrackingModule,
+    MembershipPlansModule,
     ParkingModule,
     VisitorsModule,
   ],
