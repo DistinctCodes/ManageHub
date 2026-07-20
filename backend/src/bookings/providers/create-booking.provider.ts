@@ -13,6 +13,7 @@ import { PricingService } from '../pricing/pricing.service';
 import { Workspace } from '../../workspaces/entities/workspace.entity';
 import { User } from '../../users/entities/user.entity';
 import { EmailService } from '../../email/email.service';
+import { WorkspaceBookedSeatsProvider } from '../../workspaces/providers/workspace-booked-seats.provider';
 
 @Injectable()
 export class CreateBookingProvider {
@@ -24,6 +25,7 @@ export class CreateBookingProvider {
     private readonly pricingService: PricingService,
     private readonly dataSource: DataSource,
     private readonly emailService: EmailService,
+    private readonly workspaceBookedSeatsProvider: WorkspaceBookedSeatsProvider,
   ) {}
 
   async create(dto: CreateBookingDto, userId: string): Promise<Booking> {
@@ -47,20 +49,14 @@ export class CreateBookingProvider {
       }
 
       // Conflict check: sum existing confirmed/pending seat counts for overlapping dates
-      const overlap = await manager
-        .createQueryBuilder(Booking, 'b')
-        .select('COALESCE(SUM(b.seatCount), 0)', 'booked')
-        .where('b.workspaceId = :workspaceId', {
-          workspaceId: dto.workspaceId,
-        })
-        .andWhere('b.status IN (:...statuses)', {
-          statuses: [BookingStatus.PENDING, BookingStatus.CONFIRMED],
-        })
-        .andWhere('b.startDate <= :endDate', { endDate: dto.endDate })
-        .andWhere('b.endDate >= :startDate', { startDate: dto.startDate })
-        .getRawOne<{ booked: string }>();
+      const alreadyBooked =
+        await this.workspaceBookedSeatsProvider.getBookedSeats(
+          dto.workspaceId,
+          dto.startDate,
+          dto.endDate,
+          manager,
+        );
 
-      const alreadyBooked = Number(overlap?.booked ?? 0);
       if (alreadyBooked + dto.seatCount > workspace.totalSeats) {
         throw new ConflictException(
           `Only ${workspace.totalSeats - alreadyBooked} seat(s) available for the requested dates`,
@@ -83,6 +79,13 @@ export class CreateBookingProvider {
       });
 
       const saved = await manager.save(booking);
+
+      // Keep the approximate availableSeats counter in sync (see Workspace entity).
+      workspace.availableSeats = Math.max(
+        workspace.availableSeats - dto.seatCount,
+        0,
+      );
+      await manager.save(Workspace, workspace);
 
       // Fire-and-forget booking created email
       this.usersRepository
