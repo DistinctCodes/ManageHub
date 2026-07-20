@@ -24,8 +24,8 @@ import {
   ApiBody,
   ApiBearerAuth,
 } from '@nestjs/swagger';
-
 import { UpdateUserDto } from './dto/updateUser.dto';
+import { OnboardingStatusProvider } from './providers/onboarding-status.provider';
 
 @ApiTags('users')
 @ApiBearerAuth()
@@ -33,7 +33,10 @@ import { UpdateUserDto } from './dto/updateUser.dto';
 export class UsersController {
   private readonly logger = new Logger(UsersController.name);
 
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly onboardingStatusProvider: OnboardingStatusProvider,
+  ) {}
 
   @Post(':id/profile-picture')
   @ApiOperation({ summary: 'Upload user profile picture' })
@@ -77,6 +80,22 @@ export class UsersController {
     return this.usersService.resetPassword(body.token, body.newPassword);
   }
 
+  /**
+   * GET /users/onboarding/status
+   *
+   * Returns the onboarding checklist for the currently authenticated user.
+   * Computed on-the-fly from existing data — no new DB table required.
+   */
+  @Get('onboarding/status')
+  @ApiOperation({ summary: 'Get onboarding checklist status for current user' })
+  async getOnboardingStatus(@GetCurrentUser('id') userId: string) {
+    const status = await this.onboardingStatusProvider.getStatus(userId);
+    return {
+      message: 'Onboarding status retrieved successfully',
+      data: status,
+    };
+  }
+
   @Get(':id')
   async findOne(@Param('id', ParseUUIDPipe) id: string) {
     const user = await this.usersService.findOnePublicById(id);
@@ -85,6 +104,7 @@ export class UsersController {
       data: user,
     };
   }
+
   // GET /users
   @Get()
   async findAll() {
