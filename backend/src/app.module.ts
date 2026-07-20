@@ -20,6 +20,7 @@ import { PaymentsModule } from './payments/payments.module';
 import { InvoicesModule } from './invoices/invoices.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { WorkspaceTrackingModule } from './workspace-tracking/workspace-tracking.module';
+import { HubSettingsModule } from './hub-settings/hub-settings.module';
 import { MembershipPlansModule } from './membership-plans/membership-plans.module';
 import { ParkingModule } from './parking/parking.module';
 import { VisitorsModule } from './visitors/visitors.module';
@@ -87,6 +88,7 @@ import { VisitorsModule } from './visitors/visitors.module';
     InvoicesModule,
     NotificationsModule,
     WorkspaceTrackingModule,
+    HubSettingsModule,
     MembershipPlansModule,
     ParkingModule,
     VisitorsModule,
