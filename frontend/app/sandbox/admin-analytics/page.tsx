@@ -90,8 +90,8 @@ export default function AdminAnalyticsPage() {
                 <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip
-                  formatter={(v: number | undefined) => [
-                    `$${(v ?? 0).toLocaleString()}`,
+                  formatter={(value) => [
+                    `$${(Number(value) || 0).toLocaleString()}`,
                     "Revenue",
                   ]}
                 />
