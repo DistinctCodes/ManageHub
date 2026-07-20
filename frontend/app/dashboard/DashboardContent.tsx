@@ -10,6 +10,7 @@ import QuickActions from "@/components/dashboard/QuickActions";
 import AnalyticsChart from "@/components/dashboard/AnalyticsChart";
 import AdminOverview from "@/components/dashboard/AdminOverview";
 import AdminUserTable from "@/components/dashboard/AdminUserTable";
+import OnboardingWizard from "@/components/onboarding/OnboardingWizard";
 import MemberStatsCards from "@/components/dashboard/MemberStatsCards";
 
 interface Stats {
@@ -112,6 +113,7 @@ export default function DashboardContent() {
 
   return (
     <DashboardLayout>
+      <OnboardingWizard />
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">
           {user ? `Welcome back, ${user.firstname}` : "Dashboard"}

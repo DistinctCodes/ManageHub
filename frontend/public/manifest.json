@@ -1,0 +1,21 @@
+{
+  "name": "ManageHub",
+  "short_name": "ManageHub",
+  "description": "Your all-in-one solution for managing workspaces and connecting with members.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "/window.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/og-image.png",
+      "sizes": "1200x630",
+      "type": "image/png"
+    }
+  ]
+}

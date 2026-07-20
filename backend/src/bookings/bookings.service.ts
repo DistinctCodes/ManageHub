@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { CreateBookingDto } from './dto/create-booking.dto';
+import { CreatePublicBookingDto } from './dto/create-public-booking.dto';
 import { BookingQueryDto } from './dto/booking-query.dto';
 import { CreateBookingProvider } from './providers/create-booking.provider';
+import { CreatePublicDayPassProvider } from './providers/create-public-day-pass.provider';
 import { ConfirmBookingProvider } from './providers/confirm-booking.provider';
 import { CancelBookingProvider } from './providers/cancel-booking.provider';
 import { CompleteBookingProvider } from './providers/complete-booking.provider';
@@ -15,6 +17,7 @@ import { PlanType } from './enums/plan-type.enum';
 export class BookingsService {
   constructor(
     private readonly createBookingProvider: CreateBookingProvider,
+    private readonly createPublicDayPassProvider: CreatePublicDayPassProvider,
     private readonly confirmBookingProvider: ConfirmBookingProvider,
     private readonly cancelBookingProvider: CancelBookingProvider,
     private readonly completeBookingProvider: CompleteBookingProvider,
@@ -24,6 +27,10 @@ export class BookingsService {
 
   create(dto: CreateBookingDto, userId: string) {
     return this.createBookingProvider.create(dto, userId);
+  }
+
+  publicDayPass(dto: CreatePublicBookingDto) {
+    return this.createPublicDayPassProvider.create(dto);
   }
 
   confirm(bookingId: string): Promise<Booking> {

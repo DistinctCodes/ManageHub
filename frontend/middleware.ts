@@ -4,6 +4,7 @@ const publicRoutes = ["/", "/login", "/register", "/forgot-password"];
 
 const protectedRoutes = {
   "/dashboard": ["users", "admin"],
+  "/onboarding": ["users", "admin"],
   "/profile": ["users", "admin"],
   "/settings": ["users", "admin"],
   "/workspaces": ["users", "admin"],
