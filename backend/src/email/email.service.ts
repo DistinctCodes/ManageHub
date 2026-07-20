@@ -208,6 +208,7 @@ export class EmailService {
       startDate: string;
       endDate: string;
       cancelledBy: string;
+      refundNote?: string;
     },
   ): Promise<boolean> {
     const html = this.compileTemplate('booking-cancelled', {
@@ -215,6 +216,21 @@ export class EmailService {
       ...data,
     });
     return this.send(email, 'Booking Cancelled — ManageHub', html);
+  }
+
+  async sendPaymentRefundedEmail(
+    email: string,
+    fullName: string,
+    data: {
+      paymentReference: string;
+      amountNaira: string;
+    },
+  ): Promise<boolean> {
+    const html = this.compileTemplate('payment-refunded', {
+      fullName,
+      ...data,
+    });
+    return this.send(email, 'Payment Refunded — ManageHub', html);
   }
 
   async sendInvoiceReadyEmail(

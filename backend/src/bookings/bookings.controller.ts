@@ -117,14 +117,24 @@ export class BookingsController {
 
   @Patch(':id/cancel')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Cancel a booking' })
+  @ApiOperation({
+    summary: 'Cancel a booking',
+    description:
+      'Cancels the booking. If it has a successful Paystack payment and is cancelled at least ' +
+      'CANCELLATION_REFUND_WINDOW_HOURS (default 24h) before its startDate, the payment is refunded ' +
+      'automatically. Otherwise the booking is cancelled without a refund — the response and email explain why.',
+  })
   async cancel(
     @Param('id', ParseUUIDPipe) id: string,
     @GetCurrentUser('id') userId: string,
     @GetCurrentUser('role') userRole: UserRole,
   ) {
-    const booking = await this.bookingsService.cancel(id, userId, userRole);
-    return { message: 'Booking cancelled successfully', data: booking };
+    const { booking, refund } = await this.bookingsService.cancel(
+      id,
+      userId,
+      userRole,
+    );
+    return { message: 'Booking cancelled successfully', data: booking, refund };
   }
 
   @Patch(':id/complete')

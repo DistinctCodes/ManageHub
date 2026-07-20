@@ -63,8 +63,14 @@ export class PaymentsController {
 
   @Post(':id/refund')
   @UseGuards(RolesGuard)
-  @Roles(UserRole.USER, UserRole.STAFF, UserRole.ADMIN, UserRole.SUPER_ADMIN)
-  @ApiOperation({ summary: 'Request a refund for a payment' })
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({
+    summary: 'Refund a payment (Admin/Super Admin only)',
+    description:
+      'Admin-only. Refunds the payment via Paystack and cancels its linked booking. ' +
+      'Customers can no longer self-refund — they should cancel their booking instead, which ' +
+      'automatically refunds if cancelled outside the CANCELLATION_REFUND_WINDOW_HOURS policy window.',
+  })
   async refund(
     @Param('id', ParseUUIDPipe) id: string,
     @GetCurrentUser('id') userId: string,
@@ -81,8 +87,16 @@ export class PaymentsController {
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'bookingId', required: false, type: String })
-  @ApiQuery({ name: 'status', required: false, enum: ['pending', 'success', 'failed', 'refunded'] })
-  @ApiQuery({ name: 'provider', required: false, enum: ['paystack', 'soroban'] })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: ['pending', 'success', 'failed', 'refunded'],
+  })
+  @ApiQuery({
+    name: 'provider',
+    required: false,
+    enum: ['paystack', 'soroban'],
+  })
   @ApiQuery({ name: 'from', required: false, type: String })
   @ApiQuery({ name: 'to', required: false, type: String })
   async findAll(
