@@ -5,7 +5,7 @@ import { useAuthState, useAuthActions } from "@/lib/store/authStore";
 import { apiClient } from "@/lib/apiClient";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/textarea";
 import { CloudinaryUploadWidget } from "@/components/CloudinaryUploadWidget";
 
