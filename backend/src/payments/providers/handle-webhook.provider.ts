@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ConfigService } from '@nestjs/config';
 import { Payment } from '../entities/payment.entity';
 import { PaymentStatus } from '../enums/payment-status.enum';
 import { PaystackProvider } from './paystack.provider';
@@ -43,7 +42,6 @@ export class HandleWebhookProvider {
     private readonly invoicesService: InvoicesService,
     private readonly notificationsService: NotificationsService,
     private readonly emailService: EmailService,
-    private readonly configService: ConfigService,
   ) {}
 
   async handle(rawBody: Buffer, signature: string): Promise<void> {
@@ -244,11 +242,15 @@ export class HandleWebhookProvider {
     payment: Payment,
     booking: Booking,
   ): Promise<void> {
-    try {
-      const beneficiary = this.configService.get<string>(
-        'STELLAR_BENEFICIARY_ADDRESS',
-        'GBENEFIT_PLACEHOLDER',
+    if (!this.sorobanEscrowProvider.isEnabled) {
+      this.logger.log(
+        `Soroban escrow disabled — skipping on-chain escrow for booking ${booking.id}`,
       );
+      return;
+    }
+
+    try {
+      const beneficiary = this.sorobanEscrowProvider.beneficiary;
       const releaseAfterUnix =
         Math.floor(new Date(booking.endDate).getTime() / 1000) + 86400;
 

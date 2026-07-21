@@ -25,4 +25,18 @@ export class UpdateWorkspaceProvider {
     Object.assign(workspace, dto);
     return this.workspacesRepository.save(workspace);
   }
+
+  /**
+   * Adjusts the approximate availableSeats counter by `delta` (positive to
+   * free seats, negative to consume them), clamped to [0, totalSeats].
+   */
+  async adjustAvailableSeats(id: string, delta: number): Promise<void> {
+    const workspace = await this.findWorkspaceByIdProvider.findById(id);
+    const next = workspace.availableSeats + delta;
+    workspace.availableSeats = Math.min(
+      Math.max(next, 0),
+      workspace.totalSeats,
+    );
+    await this.workspacesRepository.save(workspace);
+  }
 }

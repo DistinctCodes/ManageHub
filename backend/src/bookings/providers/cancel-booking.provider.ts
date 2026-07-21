@@ -86,6 +86,11 @@ export class CancelBookingProvider {
     const saved = await this.bookingsRepository.save(booking);
 
     const refund = await this.applyRefundPolicy(saved);
+    // Free up the approximate availableSeats counter (see Workspace entity).
+    await this.workspacesService.adjustAvailableSeats(
+      saved.workspaceId,
+      saved.seatCount,
+    );
 
     // Fire-and-forget cancellation email
     Promise.all([
