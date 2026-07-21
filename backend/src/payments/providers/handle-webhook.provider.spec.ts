@@ -21,7 +21,6 @@ describe('HandleWebhookProvider — charge.success idempotency', () => {
   const emailService = {
     sendPaymentSuccessEmail: jest.fn().mockResolvedValue(true),
   };
-  const configService = { get: jest.fn() };
 
   const buildEvent = (reference: string) =>
     Buffer.from(
@@ -45,7 +44,6 @@ describe('HandleWebhookProvider — charge.success idempotency', () => {
       invoicesService as any,
       notificationsService as any,
       emailService as any,
-      configService as any,
     );
   });
 
