@@ -1,4 +1,4 @@
-import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -21,12 +21,14 @@ import { InvoicesModule } from './invoices/invoices.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { WorkspaceTrackingModule } from './workspace-tracking/workspace-tracking.module';
 import { ResourcesModule } from './resources/resources.module';
+import { HubSettingsModule } from './hub-settings/hub-settings.module';
+import { MembershipPlansModule } from './membership-plans/membership-plans.module';
+import { ParkingModule } from './parking/parking.module';
+import { VisitorsModule } from './visitors/visitors.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      isGlobal: true,
-    }),
+    ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([
       { name: 'short',      ttl: 1000,   limit: 3   },
@@ -62,7 +64,6 @@ import { ResourcesModule } from './resources/resources.module';
           configService.get<string>('PGSSLMODE') === 'require' ||
           configService.get<string>('DATABASE_SSL') === 'true' ||
           (host ? host.includes('neon.tech') : false);
-
         return {
           type: 'postgres',
           database: configService.get('DATABASE_NAME'),
@@ -89,6 +90,10 @@ import { ResourcesModule } from './resources/resources.module';
     NotificationsModule,
     WorkspaceTrackingModule,
     ResourcesModule,
+    HubSettingsModule,
+    MembershipPlansModule,
+    ParkingModule,
+    VisitorsModule,
   ],
   controllers: [AppController],
   providers: [

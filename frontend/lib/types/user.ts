@@ -14,6 +14,11 @@ export interface User {
   isSuspended: boolean;
   isDeleted: boolean;
   hasCompletedOnboarding: boolean;
+  profilePicture?: string;
+  bio?: string;
+  interests?: string[];
+  phone?: string;
+  onboardingCompleted?: boolean;
   createdAt: Date;
   updatedAt: Date;
   deletedAt: Date | null;

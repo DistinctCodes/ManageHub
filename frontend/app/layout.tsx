@@ -4,6 +4,7 @@ import Providers from "@/providers/Providers";
 import "./globals.css";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/theme-provider";
+import Script from "next/script";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,6 +17,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  manifest: "/manifest.json",
+  viewport: "width=device-width, initial-scale=1",
   title: {
     default: "ManageHub - Smart Hub & Workspace Management",
     template: "%s | ManageHub",
@@ -120,6 +123,19 @@ export default function RootLayout({
           <Providers>{children}</Providers>
           <Toaster richColors position="top-right" />
         </ThemeProvider>
+        <Script id="service-worker-registration">
+          {`
+            if ('serviceWorker' in navigator) {
+              window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').then(registration => {
+                  console.log('Service Worker registered with scope:', registration.scope);
+                }).catch(error => {
+                  console.error('Service Worker registration failed:', error);
+                });
+              });
+            }
+          `}
+        </Script>
       </body>
     </html>
   );
