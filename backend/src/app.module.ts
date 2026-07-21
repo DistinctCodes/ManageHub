@@ -25,6 +25,7 @@ import { HubSettingsModule } from './hub-settings/hub-settings.module';
 import { MembershipPlansModule } from './membership-plans/membership-plans.module';
 import { ParkingModule } from './parking/parking.module';
 import { VisitorsModule } from './visitors/visitors.module';
+import { JobsModule } from './jobs/jobs.module';
 
 @Module({
   imports: [
@@ -94,6 +95,7 @@ import { VisitorsModule } from './visitors/visitors.module';
     MembershipPlansModule,
     ParkingModule,
     VisitorsModule,
+    JobsModule,
   ],
   controllers: [AppController],
   providers: [
