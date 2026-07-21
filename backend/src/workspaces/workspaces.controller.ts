@@ -12,16 +12,12 @@ import {
   HttpStatus,
   UseGuards,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiBearerAuth,
-  ApiOperation,
-  ApiQuery,
-} from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { WorkspacesService } from './workspaces.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 import { UpdateWorkspaceDto } from './dto/update-workspace.dto';
 import { WorkspaceQueryDto } from './dto/workspace-query.dto';
+import { CheckAvailabilityQueryDto } from './dto/check-availability-query.dto';
 import { RolesGuard } from '../auth/guard/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorators';
 import { UserRole } from '../users/enums/userRoles.enum';
@@ -70,15 +66,19 @@ export class WorkspacesController {
 
   @Get(':id/availability')
   @Public()
-  @ApiOperation({ summary: 'Check workspace seat availability' })
-  @ApiQuery({ name: 'seats', required: false, type: Number })
+  @ApiOperation({
+    summary:
+      'Check live workspace seat availability for a date range (defaults to today)',
+  })
   async checkAvailability(
     @Param('id', ParseUUIDPipe) id: string,
-    @Query('seats') seats?: number,
+    @Query() query: CheckAvailabilityQueryDto,
   ) {
     const result = await this.workspacesService.checkAvailability(
       id,
-      seats ? Number(seats) : 1,
+      query.seats ?? 1,
+      query.startDate,
+      query.endDate,
     );
     return { message: 'Availability checked', data: result };
   }

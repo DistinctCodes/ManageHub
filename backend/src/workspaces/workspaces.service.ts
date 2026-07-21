@@ -41,10 +41,21 @@ export class WorkspacesService {
     return this.deleteWorkspaceProvider.softDelete(id);
   }
 
-  checkAvailability(workspaceId: string, requestedSeats?: number) {
+  adjustAvailableSeats(id: string, delta: number) {
+    return this.updateWorkspaceProvider.adjustAvailableSeats(id, delta);
+  }
+
+  checkAvailability(
+    workspaceId: string,
+    requestedSeats?: number,
+    startDate?: string,
+    endDate?: string,
+  ) {
     return this.checkWorkspaceAvailabilityProvider.check(
       workspaceId,
       requestedSeats,
+      startDate,
+      endDate,
     );
   }
 }

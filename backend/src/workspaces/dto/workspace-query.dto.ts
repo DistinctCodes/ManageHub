@@ -23,7 +23,10 @@ export class WorkspaceQueryDto {
   @IsEnum(WorkspaceType)
   type?: WorkspaceType;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description:
+      'Minimum total seat capacity (not live availability — use GET /workspaces/:id/availability for a date-scoped, live check)',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()

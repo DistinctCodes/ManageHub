@@ -3,8 +3,6 @@ import {
   PrimaryGeneratedColumn,
   Column,
   ManyToOne,
-  OneToMany,
-  OneToOne,
   CreateDateColumn,
   UpdateDateColumn,
   Index,
@@ -46,7 +44,7 @@ export class Booking {
   @Column({ type: 'date' })
   endDate: string;
 
-  // Total amount in kobo
+  /** Total booking amount in kobo (workspace cost + resource add-ons) */
   @Column({ type: 'bigint' })
   totalAmount: number;
 
@@ -59,7 +57,7 @@ export class Booking {
   @Column({ type: 'text', nullable: true })
   notes: string;
 
-  // Populated for MONTHLY/QUARTERLY/YEARLY after Soroban escrow is created
+  /** Soroban escrow ID for MONTHLY/QUARTERLY/YEARLY bookings */
   @Column({ nullable: true })
   sorobanEscrowId: string;
 
@@ -71,6 +69,17 @@ export class Booking {
 
   @Column({ type: 'jsonb', nullable: true })
   guestInfo: { name: string; email: string; phone: string } | null;
+
+  /**
+   * Resource add-on IDs selected at booking time.
+   * Each UUID references a Resource entity.
+   */
+  @Column({ type: 'jsonb', nullable: true, default: [] })
+  resourceIds: string[];
+
+  /** Total cost of selected resource add-ons in kobo */
+  @Column({ type: 'int', default: 0 })
+  resourcesTotalKobo: number;
 
   @CreateDateColumn()
   createdAt: Date;
