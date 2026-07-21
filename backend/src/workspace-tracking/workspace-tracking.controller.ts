@@ -111,7 +111,7 @@ export class WorkspaceTrackingController {
   @ApiOperation({
     summary: 'Get my attendance history (paginated)',
     description:
-      'Returns the authenticated member's check-in/out history with optional workspace and date filters.',
+      "Returns the authenticated member's check-in/out history with optional workspace and date filters.",
   })
   async getMyAttendanceHistory(
     @GetCurrentUser('id') userId: string,
