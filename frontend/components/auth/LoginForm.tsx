@@ -11,8 +11,6 @@ import {
   EyeOff,
   Mail,
   Lock,
-  Fingerprint,
-  Scan,
   Building2,
 } from "lucide-react";
 
@@ -30,24 +28,15 @@ interface LoginFormProps {
     password: string;
     rememberMe?: boolean;
   }) => void;
-  onBiometricScan: () => void;
   isLoading: boolean;
 }
 
 export default function LoginForm({
   onEmailLogin,
-  onBiometricScan,
   isLoading,
 }: LoginFormProps) {
   const { login, loading } = useLogin();
   const [showPassword, setShowPassword] = useState(false);
-  const [loginMethod, setLoginMethod] = useState<"email" | "biometric">(
-    "email",
-  );
-  const handleBiometricLogin = () => {
-    // Handle biometric authentication
-    console.log("Biometric login initiated");
-  };
 
   const defaultValues = useMemo<LoginFormValues>(
     () => ({
@@ -79,176 +68,110 @@ export default function LoginForm({
           <p className="mt-2 text-gray-600">Sign in to your workspace</p>
         </div>
 
-        {/* Login Method Toggle */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-1 flex">
-          <button
-            type="button"
-            onClick={() => setLoginMethod("email")}
-            className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
-              loginMethod === "email"
-                ? "bg-gray-900 text-white shadow-sm"
-                : "text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            <Mail className="h-4 w-4 inline mr-2" />
-            Email Login
-          </button>
-          <button
-            type="button"
-            onClick={() => setLoginMethod("biometric")}
-            className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
-              loginMethod === "biometric"
-                ? "bg-gray-900 text-white shadow-sm"
-                : "text-gray-600 hover:text-gray-900"
-            }`}
-          >
-            <Fingerprint className="h-4 w-4 inline mr-2" />
-            Biometric
-          </button>
-        </div>
-
         {/* Login Form */}
         <form
           onSubmit={handleSubmit(onSubmit)}
           className="bg-white rounded-xl shadow-sm border border-gray-200 p-8"
         >
-          {loginMethod === "email" ? (
-            <div className="space-y-6">
-              {/* Email Input */}
-              <div>
-                <label
-                  htmlFor="email"
-                  className="block text-sm font-medium text-gray-700 mb-2"
-                >
-                  Email Address
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Mail className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    type="email"
-                    {...register("email")}
-                    required
-                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-transparent transition-all"
-                    placeholder="Enter your email"
-                  />
-                  {errors.email?.message && (
-                    <p className="text-xs text-red-600 mt-1">
-                      {errors.email.message}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Password Input */}
-              <div>
-                <label
-                  htmlFor="password"
-                  className="block text-sm font-medium text-gray-700 mb-2"
-                >
-                  Password
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    {...register("password")}
-                    required
-                    className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-transparent transition-all"
-                    placeholder="Enter your password"
-                  />
-
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                    ) : (
-                      <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                    )}
-                  </button>
-                  {errors.password?.message && (
-                    <p className="text-xs text-red-600 mt-1">
-                      {errors.password.message}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              {/* Remember Me & Forgot Password */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    {...register("rememberMe")}
-                    className="h-4 w-4 text-gray-900 focus:ring-gray-300 border-gray-300 rounded"
-                  />
-                  <label
-                    htmlFor="remember-me"
-                    className="ml-2 block text-sm text-gray-700"
-                  >
-                    Remember me
-                  </label>
-                </div>
-                <Link
-                  href="/forgot-password"
-                  className="text-sm text-gray-900 hover:text-gray-700 font-medium"
-                >
-                  Forgot password?
-                </Link>
-              </div>
-
-              {/* Sign In Button */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-gray-900 text-white py-3 px-4 rounded-lg font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 transition-colors"
+          <div className="space-y-6">
+            {/* Email Input */}
+            <div>
+              <label
+                htmlFor="email"
+                className="block text-sm font-medium text-gray-700 mb-2"
               >
-                {loading ? "Logging in..." : "Login"}
-              </button>
-            </div>
-          ) : (
-            /* Biometric Login Interface */
-            <div className="text-center space-y-6">
-              <div className="bg-[#faf9f7] rounded-xl p-8">
-                <div className="flex justify-center mb-4">
-                  <div className="bg-teal-100 p-4 rounded-full">
-                    <Scan className="h-12 w-12 text-teal-600" />
-                  </div>
+                Email Address
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Mail className="h-5 w-5 text-gray-400" />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Biometric Authentication
-                </h3>
-                <p className="text-gray-600 mb-6">
-                  Place your finger on the scanner or look at the camera to sign
-                  in
-                </p>
-                <button
-                  onClick={handleBiometricLogin}
-                  className="bg-teal-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 transition-colors"
-                >
-                  Start Scan
-                </button>
-              </div>
-
-              <div className="text-sm text-gray-600">
-                <p>
-                  Having trouble?
-                  <button
-                    onClick={() => setLoginMethod("email")}
-                    className="text-gray-900 hover:text-gray-700 font-medium ml-1"
-                  >
-                    Use email login
-                  </button>
-                </p>
+                <input
+                  type="email"
+                  {...register("email")}
+                  required
+                  className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-transparent transition-all"
+                  placeholder="Enter your email"
+                />
+                {errors.email?.message && (
+                  <p className="text-xs text-red-600 mt-1">
+                    {errors.email.message}
+                  </p>
+                )}
               </div>
             </div>
-          )}
+
+            {/* Password Input */}
+            <div>
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-700 mb-2"
+              >
+                Password
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Lock className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  type={showPassword ? "text" : "password"}
+                  {...register("password")}
+                  required
+                  className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-transparent transition-all"
+                  placeholder="Enter your password"
+                />
+
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                  ) : (
+                    <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                  )}
+                </button>
+                {errors.password?.message && (
+                  <p className="text-xs text-red-600 mt-1">
+                    {errors.password.message}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Remember Me & Forgot Password */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  {...register("rememberMe")}
+                  className="h-4 w-4 text-gray-900 focus:ring-gray-300 border-gray-300 rounded"
+                />
+                <label
+                  htmlFor="remember-me"
+                  className="ml-2 block text-sm text-gray-700"
+                >
+                  Remember me
+                </label>
+              </div>
+              <Link
+                href="/forgot-password"
+                className="text-sm text-gray-900 hover:text-gray-700 font-medium"
+              >
+                Forgot password?
+              </Link>
+            </div>
+
+            {/* Sign In Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-gray-900 text-white py-3 px-4 rounded-lg font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 transition-colors"
+            >
+              {loading ? "Logging in..." : "Login"}
+            </button>
+          </div>
         </form>
 
         {/* Sign Up Link */}

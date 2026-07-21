@@ -16,11 +16,16 @@ import { Roles } from './decorators/roles.decorators';
 import { UserRole } from '../users/enums/userRoles.enum';
 import { User } from '../users/entities/user.entity';
 import { CurrentUser } from './decorators/current.user.decorators';
+import { GetCurrentUser } from './decorators/getCurrentUser.decorator';
 import { Public } from './decorators/public.decorator';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ResendOtpDto } from './dto/resend-otp.dto';
 import { SendPasswordResetOtpDto } from './dto/send-password-reset-otp.dto';
+import { Setup2faDto } from './dto/setup-2fa.dto';
+import { VerifyTotpDto } from './dto/verify-totp.dto';
+import { UseBackupCodeDto } from './dto/use-backup-code.dto';
+import { Disable2faDto } from './dto/disable-2fa.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -76,9 +81,7 @@ export class AuthController {
   @Public()
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
-  forgotPassword(
-    @Body() sendPasswordResetOtpDto: SendPasswordResetOtpDto,
-  ) {
+  forgotPassword(@Body() sendPasswordResetOtpDto: SendPasswordResetOtpDto) {
     return this.authService.requestResetPasswordOtp(sendPasswordResetOtpDto);
   }
 
@@ -109,5 +112,47 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
     return this.authService.resetPassword(resetPasswordDto);
+  }
+
+  @Post('2fa/setup')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  setup2fa(@GetCurrentUser('id') userId: string) {
+    return this.authService.setup2fa(userId);
+  }
+
+  @Post('2fa/confirm')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  confirm2fa(@GetCurrentUser('id') userId: string, @Body() dto: Setup2faDto) {
+    return this.authService.confirm2fa(userId, dto);
+  }
+
+  @Public()
+  @Post('2fa/verify')
+  @HttpCode(HttpStatus.OK)
+  verifyTotpLogin(@Body() dto: VerifyTotpDto) {
+    return this.authService.verifyTotpLogin(dto);
+  }
+
+  @Public()
+  @Post('2fa/backup-code')
+  @HttpCode(HttpStatus.OK)
+  verifyBackupCode(@Body() dto: UseBackupCodeDto) {
+    return this.authService.verifyBackupCode(dto);
+  }
+
+  @Post('2fa/disable')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  disable2fa(@GetCurrentUser('id') userId: string, @Body() dto: Disable2faDto) {
+    return this.authService.disable2fa(userId, dto);
+  }
+
+  @Get('2fa/status')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  get2faStatus(@GetCurrentUser('id') userId: string) {
+    return this.authService.get2faStatus(userId);
   }
 }

@@ -10,6 +10,7 @@ import {
 import { Exclude } from 'class-transformer';
 import { RefreshToken } from '../../auth/entities/refreshToken.entity';
 import { UserRole } from '../enums/userRoles.enum';
+import { MembershipStatus } from '../enums/membership-status.enum';
 
 @Entity('users')
 export class User {
@@ -109,6 +110,27 @@ export class User {
 
   @Column({ default: false })
   twoFactorEnabled: boolean;
+
+  @Exclude()
+  @Column({ nullable: true, type: 'varchar', length: 255 })
+  totpSecret?: string;
+
+  @Exclude()
+  @Column({ type: 'jsonb', nullable: true })
+  totpBackupCodes?: string[];
+
+  @Column({
+    type: 'enum',
+    enum: MembershipStatus,
+    default: MembershipStatus.INACTIVE,
+  })
+  membershipStatus: MembershipStatus;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  memberSince: Date;
+
+  @Column({ type: 'int', default: 0 })
+  profileCompleteness: number;
 
   @DeleteDateColumn()
   deletedAt: Date;

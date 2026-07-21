@@ -3317,3 +3317,69 @@ fn test_transfer_with_royalty_events() {
     let token = client.get_token(&token_id);
     assert_eq!(token.user, new_user);
 }
+
+#[test]
+#[should_panic(expected = "Error(Contract, #4)")]
+fn test_process_tier_change_rejects_non_admin_caller() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(Contract, ());
+    let client = ContractClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let user = Address::generate(&env);
+    let non_admin = Address::generate(&env);
+    let payment_token = Address::generate(&env);
+
+    client.set_admin(&admin);
+    client.set_usdc_contract(&admin, &payment_token);
+
+    // Create two tiers so a tier change request can be made
+    let tier_basic_id = String::from_str(&env, "tier_basic");
+    client.create_tier(
+        &admin,
+        &CreateTierParams {
+            id: tier_basic_id.clone(),
+            name: String::from_str(&env, "Basic"),
+            level: common_types::TierLevel::Basic,
+            price: 50_000i128,
+            annual_price: 500_000i128,
+            features: soroban_sdk::vec![&env, common_types::TierFeature::BasicAccess],
+            max_users: 10,
+            max_storage: 1_000_000,
+        },
+    );
+
+    let tier_pro_id = String::from_str(&env, "tier_pro");
+    client.create_tier(
+        &admin,
+        &CreateTierParams {
+            id: tier_pro_id.clone(),
+            name: String::from_str(&env, "Pro"),
+            level: common_types::TierLevel::Pro,
+            price: 100_000i128,
+            annual_price: 1_000_000i128,
+            features: soroban_sdk::vec![&env, common_types::TierFeature::AdvancedAnalytics],
+            max_users: 50,
+            max_storage: 10_000_000,
+        },
+    );
+
+    // Create subscription for user on basic tier
+    let sub_id = String::from_str(&env, "sub_tier_test");
+    client.create_subscription_with_tier(
+        &sub_id,
+        &user,
+        &payment_token,
+        &tier_basic_id,
+        &BillingCycle::Monthly,
+        &None,
+    );
+
+    // User requests upgrade to pro tier
+    let change_id = client.request_tier_change(&user, &sub_id, &tier_pro_id);
+
+    // Non-admin caller attempts to process — must panic with Unauthorized (#4)
+    client.process_tier_change(&non_admin, &change_id, &sub_id, &payment_token);
+}

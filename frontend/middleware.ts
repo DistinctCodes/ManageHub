@@ -5,10 +5,16 @@ const publicRoutes = ["/", "/login", "/register", "/forgot-password"];
 
 const protectedRoutes: Record<string, string[]> = {
   "/dashboard": ["user", "admin"],
+  "/onboarding": ["user", "admin"],
   "/profile": ["user", "admin"],
   "/settings": ["user", "admin"],
-  "/users": ["admin"],
+  "/workspaces": ["user", "admin"],
+  "/bookings": ["user", "admin"],
+  "/invoices": ["user", "admin"],
+  "/check-in": ["user", "admin"],
+  "/notifications": ["user", "admin"],
   "/admin": ["admin"],
+  "/users": ["admin"],
 };
 
 const JWT_SECRET = new TextEncoder().encode(
