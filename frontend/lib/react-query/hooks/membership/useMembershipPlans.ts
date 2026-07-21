@@ -1,85 +1,93 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/apiClient';
 
-export interface MembershipPlan {
+export interface Visitor {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  company?: string;
+  hostName?: string;
+  checkInTime?: string;
+  checkOutTime?: string;
+  status: 'EXPECTED' | 'CHECKED_IN' | 'CHECKED_OUT';
+}
+
+export interface Member {
   id: string;
   name: string;
-  description: string;
-  priceKobo: number;
-  billingCycle: 'MONTHLY' | 'QUARTERLY' | 'YEARLY';
-  features: string[];
-  bookingHoursIncluded: number;
-  guestPassesPerMonth: number;
-  displayOrder: number;
-  isActive: boolean;
-  activeSubscribersCount: number;
+  email?: string;
 }
 
-export interface PlanFormPayload {
-  name: string;
-  description: string;
-  priceNgn: number;
-  billingCycle: 'MONTHLY' | 'QUARTERLY' | 'YEARLY';
-  features: string[];
-  bookingHoursIncluded: number;
-  guestPassesPerMonth: number;
-  displayOrder: number;
-  isActive: boolean;
+export interface CheckInPayload {
+  fullName: string;
+  email: string;
+  phone: string;
+  company?: string;
+  hostName?: string;
 }
 
-// Fetch All Membership Plans
-export function useGetMembershipPlans(includeInactive = false) {
-  return useQuery<MembershipPlan[]>({
-    queryKey: ['membership-plans', { includeInactive }],
-    queryFn: () =>
-      apiClient.get<MembershipPlan[]>(
-        `/membership-plans${includeInactive ? '?includeInactive=true' : ''}`
-      ),
+export interface WalkInPayload {
+  fullName: string;
+  email: string;
+  phone: string;
+  company?: string;
+  hostName?: string;
+  purpose?: string;
+}
+
+// 1. Fetch Today's Visitors
+export function useGetTodayVisitors() {
+  return useQuery({
+    queryKey: ['visitors', 'today'],
+    queryFn: () => apiClient.get<Visitor[]>('/visitors/today'),
   });
 }
 
-// Create Plan Mutation (Converts NGN to Kobo)
-export function useCreatePlan() {
+// 2. Member Typeahead Search
+export function useSearchMembers(query: string) {
+  return useQuery({
+    queryKey: ['members-search', query],
+    queryFn: () => apiClient.get<Member[]>(`/members/search?q=${encodeURIComponent(query)}`),
+    enabled: query.length >= 2,
+  });
+}
+
+// 3. Expected Visitor Check-In
+export function useVisitorCheckIn() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (payload: PlanFormPayload) => {
-      const { priceNgn, ...rest } = payload;
-      const body = {
-        ...rest,
-        priceKobo: Math.round(priceNgn * 100),
-      };
-      return apiClient.post<MembershipPlan, typeof body>('/membership-plans', body);
-    },
+    mutationFn: (visitorId: string) =>
+      apiClient.post<Visitor>(`/visitors/${visitorId}/check-in`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['membership-plans'] });
+      queryClient.invalidateQueries({ queryKey: ['visitors'] });
     },
   });
 }
 
-// Update Plan Mutation
-export function useUpdatePlan() {
+// 4. Create & Check-In Walk-In Visitor
+export function useCreateAndCheckInWalkIn() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: Partial<PlanFormPayload> }) => {
-      const { priceNgn, ...rest } = payload;
-      const body = {
-        ...rest,
-        ...(priceNgn !== undefined && { priceKobo: Math.round(priceNgn * 100) }),
-      };
-      return apiClient.patch<MembershipPlan, typeof body>(`/membership-plans/${id}`, body);
-    },
+    mutationFn: (payload: WalkInPayload) =>
+      apiClient.post<Visitor, WalkInPayload>('/visitors/walk-in', payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['membership-plans'] });
+      queryClient.invalidateQueries({ queryKey: ['visitors'] });
     },
   });
 }
 
-// Public Subscribe Mutation
-export function useSubscribeToPlan() {
+// 5. Visitor Check-Out
+export function useVisitorCheckOut() {
+  const queryClient = useQueryClient();
+
   return useMutation({
-    mutationFn: (planId: string) =>
-      apiClient.post<{ checkoutUrl?: string }>(`/membership-plans/${planId}/subscribe`),
+    mutationFn: (visitorId: string) =>
+      apiClient.post<Visitor>(`/visitors/${visitorId}/check-out`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['visitors'] });
+    },
   });
 }
