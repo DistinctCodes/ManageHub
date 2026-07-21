@@ -14,6 +14,9 @@ import { HashingProvider } from './providers/hashing.provider';
 import { GenerateTokensProvider } from './providers/generateTokens.provider';
 import { RefreshTokenRepositoryOperations } from './providers/refreshToken.repository';
 import { RefreshToken } from './entities/refreshToken.entity';
+import { SetupTotpProvider } from './providers/setup-totp.provider';
+import { VerifyTotpProvider } from './providers/verify-totp.provider';
+import { ManageTotpProvider } from './providers/manage-totp.provider';
 
 @Module({
   imports: [
@@ -24,7 +27,8 @@ import { RefreshToken } from './entities/refreshToken.entity';
       useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET'),
         signOptions: {
-          expiresIn: (configService.get<string>('JWT_EXPIRATION') ?? '7d') as any,
+          expiresIn: (configService.get<string>('JWT_EXPIRATION') ??
+            '7d') as any,
         },
       }),
     }),
@@ -40,6 +44,9 @@ import { RefreshToken } from './entities/refreshToken.entity';
     HashingProvider,
     GenerateTokensProvider,
     RefreshTokenRepositoryOperations,
+    SetupTotpProvider,
+    VerifyTotpProvider,
+    ManageTotpProvider,
   ],
   exports: [
     AuthService,

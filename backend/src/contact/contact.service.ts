@@ -36,7 +36,12 @@ export class ContactService {
 
     // Notify admin (non-blocking)
     this.emailService
-      .sendContactNotification(dto.fullName, dto.email, dto.subject, dto.message)
+      .sendContactNotification(
+        dto.fullName,
+        dto.email,
+        dto.subject,
+        dto.message,
+      )
       .catch((err) =>
         this.logger.warn(`Failed to send admin notification: ${err.message}`),
       );
