@@ -58,6 +58,12 @@ export class CancelBookingProvider {
     booking.status = BookingStatus.CANCELLED;
     const saved = await this.bookingsRepository.save(booking);
 
+    // Free up the approximate availableSeats counter (see Workspace entity).
+    await this.workspacesService.adjustAvailableSeats(
+      saved.workspaceId,
+      saved.seatCount,
+    );
+
     // Fire-and-forget cancellation email
     Promise.all([
       this.usersRepository.findOne({ where: { id: saved.userId } }),

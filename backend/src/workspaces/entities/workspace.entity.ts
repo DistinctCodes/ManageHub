@@ -22,6 +22,13 @@ export class Workspace {
   @Column({ type: 'int', default: 1 })
   totalSeats: number;
 
+  // BE-01: this is a rough, non-date-scoped running counter kept in sync by
+  // CreateBookingProvider/CancelBookingProvider/CompleteBookingProvider — it
+  // does NOT account for booking date ranges (a booking for next month still
+  // decrements it today), so it should be treated as an approximate capacity
+  // gauge only (e.g. for admin listings). The authoritative, date-scoped
+  // availability check is GET /workspaces/:id/availability, which computes
+  // live from overlapping bookings via CheckWorkspaceAvailabilityProvider.
   @Column({ type: 'int', default: 1 })
   availableSeats: number;
 
