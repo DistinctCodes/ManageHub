@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api';
+import { apiClient } from '@/lib/apiClient';
 
 export interface MembershipPlan {
   id: string;
@@ -27,32 +27,29 @@ export interface PlanFormPayload {
   isActive: boolean;
 }
 
-// 1. Fetch All Membership Plans (Admin or Public)
+// Fetch All Membership Plans
 export function useGetMembershipPlans(includeInactive = false) {
   return useQuery<MembershipPlan[]>({
     queryKey: ['membership-plans', { includeInactive }],
-    queryFn: async () => {
-      const response = await api.get('/membership-plans', {
-        params: { includeInactive },
-      });
-      return response.data;
-    },
+    queryFn: () =>
+      apiClient.get<MembershipPlan[]>(
+        `/membership-plans${includeInactive ? '?includeInactive=true' : ''}`
+      ),
   });
 }
 
-// 2. Create Plan Mutation (Converts NGN to Kobo)
+// Create Plan Mutation (Converts NGN to Kobo)
 export function useCreatePlan() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (payload: PlanFormPayload) => {
+    mutationFn: (payload: PlanFormPayload) => {
       const { priceNgn, ...rest } = payload;
       const body = {
         ...rest,
         priceKobo: Math.round(priceNgn * 100),
       };
-      const response = await api.post('/membership-plans', body);
-      return response.data;
+      return apiClient.post<MembershipPlan, typeof body>('/membership-plans', body);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['membership-plans'] });
@@ -60,19 +57,18 @@ export function useCreatePlan() {
   });
 }
 
-// 3. Update Plan Mutation
+// Update Plan Mutation
 export function useUpdatePlan() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, payload }: { id: string; payload: Partial<PlanFormPayload> }) => {
+    mutationFn: ({ id, payload }: { id: string; payload: Partial<PlanFormPayload> }) => {
       const { priceNgn, ...rest } = payload;
       const body = {
         ...rest,
         ...(priceNgn !== undefined && { priceKobo: Math.round(priceNgn * 100) }),
       };
-      const response = await api.patch(`/membership-plans/${id}`, body);
-      return response.data;
+      return apiClient.patch<MembershipPlan, typeof body>(`/membership-plans/${id}`, body);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['membership-plans'] });
@@ -80,12 +76,10 @@ export function useUpdatePlan() {
   });
 }
 
-// 4. Public Subscribe Mutation
+// Public Subscribe Mutation
 export function useSubscribeToPlan() {
   return useMutation({
-    mutationFn: async (planId: string) => {
-      const response = await api.post(`/membership-plans/${planId}/subscribe`);
-      return response.data;
-    },
+    mutationFn: (planId: string) =>
+      apiClient.post<{ checkoutUrl?: string }>(`/membership-plans/${planId}/subscribe`),
   });
 }

@@ -1,99 +1,55 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api';
+import { apiClient } from '@/lib/apiClient';
 
 export interface Visitor {
   id: string;
   fullName: string;
-  hostName: string;
-  hostId?: string;
-  purpose: string;
-  status: 'PENDING' | 'CHECKED_IN' | 'CHECKED_OUT';
+  email: string;
+  phone: string;
+  company?: string;
+  hostName?: string;
   checkInTime?: string;
+  checkOutTime?: string;
+  status: 'EXPECTED' | 'CHECKED_IN' | 'CHECKED_OUT';
 }
 
-export interface Member {
-  id: string;
-  name: string;
-  email?: string;
-}
-
-export interface CreateVisitorPayload {
+export interface CheckInPayload {
   fullName: string;
-  hostId: string;
-  purpose: string;
+  email: string;
+  phone: string;
+  company?: string;
+  hostName?: string;
 }
 
-// 1. Get Today's Expected / Checked-In Visitors
-export function useGetTodayVisitors(search?: string) {
-  return useQuery<Visitor[]>({
-    queryKey: ['visitors', 'today', search],
-    queryFn: async () => {
-      const response = await api.get('/visitors', {
-        params: { date: 'today', search },
-      });
-      return response.data;
-    },
-  });
-}
-
-// 2. Member Typeahead Search for Walk-ins
+// Member search for typeahead
 export function useSearchMembers(query: string) {
-  return useQuery<Member[]>({
-    queryKey: ['community', 'members', query],
-    queryFn: async () => {
-      if (!query || query.length < 2) return [];
-      const response = await api.get('/community/members', {
-        params: { search: query },
-      });
-      return response.data;
-    },
+  return useQuery({
+    queryKey: ['members-search', query],
+    queryFn: () => apiClient.get<Array<{ id: string; name: string }>>(`/members/search?q=${encodeURIComponent(query)}`),
     enabled: query.length >= 2,
   });
 }
 
-// 3. Check-In Mutation
+// Visitor check-in mutation
 export function useVisitorCheckIn() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (visitorId: string) => {
-      const response = await api.post(`/visitors/${visitorId}/check-in`);
-      return response.data;
-    },
+    mutationFn: (payload: CheckInPayload) =>
+      apiClient.post<Visitor, CheckInPayload>('/visitors/check-in', payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['visitors'] });
     },
   });
 }
 
-// 4. Create & Check-In Walk-In Mutation
-export function useCreateAndCheckInWalkIn() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (payload: CreateVisitorPayload) => {
-      // Step A: Create Visitor
-      const createRes = await api.post('/visitors', payload);
-      const visitor = createRes.data;
-      // Step B: Immediately Check In
-      const checkInRes = await api.post(`/visitors/${visitor.id}/check-in`);
-      return checkInRes.data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['visitors'] });
-    },
-  });
-}
-
-// 5. Check-Out Mutation
+// Visitor check-out mutation
 export function useVisitorCheckOut() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (visitorId: string) => {
-      const response = await api.post(`/visitors/${visitorId}/check-out`);
-      return response.data;
-    },
+    mutationFn: (visitorId: string) =>
+      apiClient.post<Visitor>(`/visitors/${visitorId}/check-out`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['visitors'] });
     },
