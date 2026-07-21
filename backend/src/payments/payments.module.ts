@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Payment } from './entities/payment.entity';
 import { Booking } from '../bookings/entities/booking.entity';
@@ -18,7 +18,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Payment, Booking, User]),
-    BookingsModule,
+    forwardRef(() => BookingsModule),
     InvoicesModule,
     NotificationsModule,
   ],
@@ -32,6 +32,6 @@ import { NotificationsModule } from '../notifications/notifications.module';
     RefundPaymentProvider,
     FindPaymentsProvider,
   ],
-  exports: [PaymentsService],
+  exports: [PaymentsService, RefundPaymentProvider],
 })
 export class PaymentsModule {}

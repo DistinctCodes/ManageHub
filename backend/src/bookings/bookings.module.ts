@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Booking } from './entities/booking.entity';
 import { BookingsService } from './bookings.service';
@@ -14,11 +14,13 @@ import { WorkspacesModule } from '../workspaces/workspaces.module';
 import { User } from '../users/entities/user.entity';
 import { Payment } from '../payments/entities/payment.entity';
 import { PaystackProvider } from '../payments/providers/paystack.provider';
+import { PaymentsModule } from '../payments/payments.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Booking, User, Payment]),
     WorkspacesModule,
+    forwardRef(() => PaymentsModule),
   ],
   controllers: [BookingsController],
   providers: [

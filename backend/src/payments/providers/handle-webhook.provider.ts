@@ -95,9 +95,14 @@ export class HandleWebhookProvider {
       return;
     }
 
-    if (payment.status === PaymentStatus.SUCCESS) {
+    if (
+      payment.status === PaymentStatus.SUCCESS ||
+      payment.status === PaymentStatus.REFUNDED
+    ) {
+      // A refund may have already cancelled the booking; a late/replayed
+      // charge.success must not re-confirm it and undo the refund.
       this.logger.log(
-        `charge.success: payment ${payment.id} already succeeded — idempotent skip`,
+        `charge.success: payment ${payment.id} already ${payment.status} — idempotent skip`,
       );
       return;
     }
