@@ -1,26 +1,26 @@
 "use client";
 
 import Link from "next/link";
-import { CalendarPlus, UserPlus, BarChart3, Settings } from "lucide-react";
+import { CalendarPlus, BriefcaseBusiness, FileText, Settings } from "lucide-react";
 
 const actions = [
   {
     label: "Book a desk",
     icon: CalendarPlus,
-    href: "/dashboard",
-    desc: "Reserve workspace",
+    href: "/workspaces",
+    desc: "Browse & reserve",
   },
   {
-    label: "Invite member",
-    icon: UserPlus,
-    href: "/dashboard",
-    desc: "Send an invite link",
+    label: "Workspaces",
+    icon: BriefcaseBusiness,
+    href: "/workspaces",
+    desc: "View all spaces",
   },
   {
-    label: "View reports",
-    icon: BarChart3,
-    href: "/dashboard",
-    desc: "Analytics & insights",
+    label: "My Invoices",
+    icon: FileText,
+    href: "/invoices",
+    desc: "View & download",
   },
   {
     label: "Settings",

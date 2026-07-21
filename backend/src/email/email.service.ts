@@ -4,6 +4,7 @@ import * as nodemailer from 'nodemailer';
 import * as handlebars from 'handlebars';
 import * as fs from 'fs';
 import * as path from 'path';
+import { User } from '../users/entities/user.entity';
 
 @Injectable()
 export class EmailService {
@@ -40,6 +41,11 @@ export class EmailService {
     to: string,
     subject: string,
     html: string,
+    attachments?: Array<{
+      filename: string;
+      content: Buffer;
+      contentType: string;
+    }>,
   ): Promise<boolean> {
     try {
       await this.transporter.sendMail({
@@ -47,6 +53,7 @@ export class EmailService {
         to,
         subject,
         html,
+        attachments,
       });
       this.logger.log(`Email sent to ${to}: ${subject}`);
       return true;
@@ -146,5 +153,87 @@ export class EmailService {
       message,
     });
     return this.send(adminEmail, `New Contact: ${subject}`, html);
+  }
+
+  async sendBookingCreatedEmail(
+    email: string,
+    fullName: string,
+    data: {
+      bookingId: string;
+      workspaceName: string;
+      planType: string;
+      startDate: string;
+      endDate: string;
+      seatCount: number;
+      totalAmountNaira: string;
+    },
+  ): Promise<boolean> {
+    const html = this.compileTemplate('booking-created', { fullName, ...data });
+    return this.send(email, 'Booking Created — ManageHub', html);
+  }
+
+  async sendPaymentSuccessEmail(
+    email: string,
+    fullName: string,
+    data: {
+      bookingId: string;
+      workspaceName: string;
+      amountNaira: string;
+      paidAt: string;
+      invoiceNumber: string;
+    },
+  ): Promise<boolean> {
+    const html = this.compileTemplate('payment-success', { fullName, ...data });
+    return this.send(email, 'Payment Successful — ManageHub', html);
+  }
+
+  async sendPaymentFailedEmail(
+    email: string,
+    fullName: string,
+    data: {
+      paymentReference: string;
+      amountNaira: string;
+    },
+  ): Promise<boolean> {
+    const html = this.compileTemplate('payment-failed', { fullName, ...data });
+    return this.send(email, 'Payment Failed — ManageHub', html);
+  }
+
+  async sendBookingCancelledEmail(
+    email: string,
+    fullName: string,
+    data: {
+      bookingId: string;
+      workspaceName: string;
+      startDate: string;
+      endDate: string;
+      cancelledBy: string;
+    },
+  ): Promise<boolean> {
+    const html = this.compileTemplate('booking-cancelled', {
+      fullName,
+      ...data,
+    });
+    return this.send(email, 'Booking Cancelled — ManageHub', html);
+  }
+
+  async sendInvoiceReadyEmail(
+    email: string,
+    fullName: string,
+    data: {
+      invoiceNumber: string;
+      amountNaira: string;
+      paidAt: string;
+    },
+    pdfBuffer: Buffer,
+  ): Promise<boolean> {
+    const html = this.compileTemplate('invoice-ready', { fullName, ...data });
+    return this.send(email, `Invoice ${data.invoiceNumber} — ManageHub`, html, [
+      {
+        filename: `${data.invoiceNumber}.pdf`,
+        content: pdfBuffer,
+        contentType: 'application/pdf',
+      },
+    ]);
   }
 }

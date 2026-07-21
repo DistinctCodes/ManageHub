@@ -4,6 +4,13 @@ import { UserMessages } from './user-messages';
 import { JwtPayload } from '../interface/user.interface';
 import { User } from '../../users/entities/user.entity';
 
+type TwoFaPendingPayload = {
+  sub: string;
+  type: '2fa_pending';
+  iat?: number;
+  exp?: number;
+};
+
 type JwtExpiry = `${number}${'s' | 'm' | 'h' | 'd'}` | number;
 
 @Injectable()
@@ -59,5 +66,27 @@ export class JwtHelper {
       accessToken: this.generateAccessToken(user),
       refreshToken: this.generateRefreshToken(user),
     };
+  }
+
+  public generateTempToken(userId: string): string {
+    const payload: TwoFaPendingPayload = { sub: userId, type: '2fa_pending' };
+    return this.jwtService.sign(payload, {
+      secret: process.env.JWT_SECRET as string,
+      expiresIn: '5m' as any,
+    });
+  }
+
+  public verifyTempToken(token: string): TwoFaPendingPayload {
+    try {
+      const payload = this.jwtService.verify<TwoFaPendingPayload>(token, {
+        secret: process.env.JWT_SECRET as string,
+      });
+      if (payload.type !== '2fa_pending') {
+        throw new UnauthorizedException('Invalid token type');
+      }
+      return payload;
+    } catch {
+      throw new UnauthorizedException('Invalid or expired 2FA token');
+    }
   }
 }

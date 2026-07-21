@@ -1,120 +1,275 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Payment, PaymentStatus, EscrowStatus } from '../entities/payment.entity';
+import { Payment } from '../entities/payment.entity';
+import { PaymentStatus } from '../enums/payment-status.enum';
+import { PaystackProvider } from './paystack.provider';
 import { SorobanEscrowProvider } from './soroban-escrow.provider';
-import * as StellarSdk from '@stellar/stellar-sdk';
+import { BookingsService } from '../../bookings/bookings.service';
+import { Booking } from '../../bookings/entities/booking.entity';
+import { PlanType } from '../../bookings/enums/plan-type.enum';
+import { InvoicesService } from '../../invoices/invoices.service';
+import { NotificationsService } from '../../notifications/notifications.service';
+import { NotificationType } from '../../notifications/enums/notification-type.enum';
+import { User } from '../../users/entities/user.entity';
+import { EmailService } from '../../email/email.service';
+
+const LONG_TERM_PLANS = new Set([
+  PlanType.MONTHLY,
+  PlanType.QUARTERLY,
+  PlanType.YEARLY,
+]);
 
 @Injectable()
 export class HandleWebhookProvider {
   private readonly logger = new Logger(HandleWebhookProvider.name);
-  private custodianKeypair: StellarSdk.Keypair | null = null;
 
   constructor(
     @InjectRepository(Payment)
-    private readonly paymentRepository: Repository<Payment>,
-    private readonly sorobanEscrow: SorobanEscrowProvider,
-  ) {
-    const secret = process.env.SOROBAN_CUSTODIAN_SECRET_KEY;
-    if (secret) {
-      this.custodianKeypair = StellarSdk.Keypair.fromSecret(secret);
-    }
-  }
+    private readonly paymentsRepository: Repository<Payment>,
+    @InjectRepository(Booking)
+    private readonly bookingsRepository: Repository<Booking>,
+    @InjectRepository(User)
+    private readonly usersRepository: Repository<User>,
+    private readonly paystackProvider: PaystackProvider,
+    private readonly sorobanEscrowProvider: SorobanEscrowProvider,
+    private readonly bookingsService: BookingsService,
+    private readonly invoicesService: InvoicesService,
+    private readonly notificationsService: NotificationsService,
+    private readonly emailService: EmailService,
+  ) {}
 
-  async handlePaymentSuccess(payment: Payment): Promise<void> {
-    if (!this.custodianKeypair) {
-      this.logger.warn('No custodian keypair configured, skipping escrow creation');
+  async handle(rawBody: Buffer, signature: string): Promise<void> {
+    const valid = this.paystackProvider.verifyWebhookSignature(
+      rawBody,
+      signature,
+    );
+    if (!valid) {
+      throw new UnauthorizedException('Invalid Paystack webhook signature');
+    }
+
+    let event: Record<string, unknown>;
+    try {
+      event = JSON.parse(rawBody.toString()) as Record<string, unknown>;
+    } catch {
+      throw new BadRequestException('Malformed webhook payload');
+    }
+
+    const eventType = event.event as string;
+    const data = event.data as Record<string, unknown>;
+    const reference = data?.reference as string;
+
+    if (!reference) {
+      this.logger.warn(
+        `Webhook event "${eventType}" has no reference — skipped`,
+      );
       return;
     }
 
-    if (payment.escrowStatus !== EscrowStatus.NOT_CREATED) {
-      this.logger.log(`Escrow already exists for payment ${payment.reference}`);
+    if (eventType === 'charge.success') {
+      await this.handleChargeSuccess(reference, data);
+    } else if (eventType === 'charge.failed') {
+      await this.handleChargeFailed(reference);
+    } else {
+      this.logger.log(`Unhandled Paystack event: ${eventType}`);
+    }
+  }
+
+  private async handleChargeSuccess(
+    reference: string,
+    data: Record<string, unknown>,
+  ): Promise<void> {
+    const payment = await this.paymentsRepository.findOne({
+      where: { providerReference: reference },
+    });
+
+    if (!payment) {
+      this.logger.warn(
+        `charge.success: no payment found for reference ${reference}`,
+      );
+      return;
+    }
+
+    if (payment.status === PaymentStatus.SUCCESS) {
+      this.logger.log(
+        `charge.success: payment ${payment.id} already succeeded — idempotent skip`,
+      );
+      return;
+    }
+
+    payment.status = PaymentStatus.SUCCESS;
+    payment.paidAt = new Date();
+    payment.metadata = data;
+    await this.paymentsRepository.save(payment);
+
+    // Confirm the booking
+    const booking = await this.bookingsService.confirm(payment.bookingId);
+
+    // For long-term bookings, record on-chain escrow
+    if (LONG_TERM_PLANS.has(booking.planType)) {
+      await this.recordSorobanEscrow(payment, booking);
+    }
+
+    // Generate invoice asynchronously — do not block payment confirmation
+    this.invoicesService.generateForPayment(payment.id).catch((err: Error) => {
+      this.logger.error(
+        `Failed to generate invoice for payment ${payment.id}: ${err.message}`,
+      );
+    });
+
+    // Send payment success email
+    this.usersRepository
+      .findOne({ where: { id: payment.userId } })
+      .then((user) => {
+        this.bookingsRepository
+          .findOne({ where: { id: payment.bookingId } })
+          .then((bk) => {
+            const emailRecipient =
+              user?.email ?? (bk?.isGuestBooking ? bk?.guestInfo?.email : null);
+            const displayName =
+              user?.fullName ??
+              (bk?.isGuestBooking ? bk?.guestInfo?.name : null);
+            if (!emailRecipient || !displayName) return;
+            this.emailService
+              .sendPaymentSuccessEmail(emailRecipient, displayName, {
+                bookingId: payment.bookingId,
+                workspaceName: bk?.workspaceId ?? '',
+                amountNaira: (payment.amount / 100).toFixed(2),
+                paidAt: payment.paidAt
+                  ? new Date(payment.paidAt).toLocaleString()
+                  : '',
+                invoiceNumber: '',
+              })
+              .catch(() => void 0);
+          })
+          .catch(() => void 0);
+      })
+      .catch(() => void 0);
+
+    // Notify user (skip for guest bookings which have no userId)
+    if (payment.userId) {
+      this.notificationsService
+        .create({
+          userId: payment.userId,
+          type: NotificationType.PAYMENT_SUCCESS,
+          title: 'Payment Successful',
+          message: `Your payment of ₦${(payment.amount / 100).toFixed(2)} has been confirmed and your booking is now active.`,
+          metadata: { paymentId: payment.id, bookingId: payment.bookingId },
+        })
+        .catch(() => void 0);
+    }
+
+    this.logger.log(
+      `charge.success: payment ${payment.id} succeeded, booking ${booking.id} confirmed`,
+    );
+  }
+
+  private async handleChargeFailed(reference: string): Promise<void> {
+    const payment = await this.paymentsRepository.findOne({
+      where: { providerReference: reference },
+    });
+
+    if (!payment) {
+      this.logger.warn(
+        `charge.failed: no payment found for reference ${reference}`,
+      );
+      return;
+    }
+
+    if (payment.status !== PaymentStatus.PENDING) {
+      return;
+    }
+
+    payment.status = PaymentStatus.FAILED;
+    await this.paymentsRepository.save(payment);
+
+    // Send payment failed email
+    if (payment.userId) {
+      this.usersRepository
+        .findOne({ where: { id: payment.userId } })
+        .then((user) => {
+          if (!user) return;
+          this.emailService
+            .sendPaymentFailedEmail(user.email, user.fullName, {
+              paymentReference: payment.providerReference ?? payment.id,
+              amountNaira: (payment.amount / 100).toFixed(2),
+            })
+            .catch(() => void 0);
+        })
+        .catch(() => void 0);
+    } else {
+      // Guest booking — look up email from booking guestInfo
+      this.bookingsRepository
+        .findOne({ where: { id: payment.bookingId } })
+        .then((bk) => {
+          if (!bk?.guestInfo?.email) return;
+          this.emailService
+            .sendPaymentFailedEmail(bk.guestInfo.email, bk.guestInfo.name, {
+              paymentReference: payment.providerReference ?? payment.id,
+              amountNaira: (payment.amount / 100).toFixed(2),
+            })
+            .catch(() => void 0);
+        })
+        .catch(() => void 0);
+    }
+
+    if (payment.userId) {
+      this.notificationsService
+        .create({
+          userId: payment.userId,
+          type: NotificationType.PAYMENT_FAILED,
+          title: 'Payment Failed',
+          message: 'Your payment could not be processed. Please try again.',
+          metadata: { paymentId: payment.id, bookingId: payment.bookingId },
+        })
+        .catch(() => void 0);
+    }
+
+    this.logger.log(`charge.failed: payment ${payment.id} marked FAILED`);
+  }
+
+  private async recordSorobanEscrow(
+    payment: Payment,
+    booking: Booking,
+  ): Promise<void> {
+    if (!this.sorobanEscrowProvider.isEnabled) {
+      this.logger.log(
+        `Soroban escrow disabled — skipping on-chain escrow for booking ${booking.id}`,
+      );
       return;
     }
 
     try {
-      const escrowId = this.generateEscrowId(payment.reference);
+      const beneficiary = this.sorobanEscrowProvider.beneficiary;
+      const releaseAfterUnix =
+        Math.floor(new Date(booking.endDate).getTime() / 1000) + 86400;
 
-      await this.sorobanEscrow.createEscrow({
-        id: escrowId,
-        payerKeypair: this.custodianKeypair,
-        custodianAddress: this.custodianKeypair.publicKey(),
-        payeeAddress: payment.metadata?.payeeAddress as string || this.custodianKeypair.publicKey(),
-        amount: payment.amount,
-        tokenAddress: process.env.SOROBAN_USDC_CONTRACT_ID || '',
-        bookingId: payment.bookingId || payment.reference,
+      const txHash = await this.sorobanEscrowProvider.createEscrow(
+        booking.id,
+        payment.userId,
+        beneficiary,
+        payment.amount,
+        `Booking ${booking.id}`,
+        releaseAfterUnix,
+      );
+
+      await this.bookingsRepository.update(booking.id, {
+        sorobanEscrowId: txHash,
       });
 
-      payment.sorobanEscrowId = escrowId;
-      payment.escrowStatus = EscrowStatus.FUNDED;
-      await this.paymentRepository.save(payment);
-
-      this.logger.log(`Escrow ${escrowId} created for payment ${payment.reference}`);
-    } catch (error) {
-      this.logger.error(`Failed to create escrow for payment ${payment.reference}: ${error.message}`);
-    }
-  }
-
-  async handleBookingCompleted(bookingId: string): Promise<void> {
-    const payment = await this.paymentRepository.findOne({
-      where: { bookingId },
-    });
-
-    if (!payment || !payment.sorobanEscrowId || !this.custodianKeypair) {
-      return;
-    }
-
-    if (payment.escrowStatus !== EscrowStatus.FUNDED) {
-      this.logger.warn(`Escrow not in funded state for booking ${bookingId}`);
-      return;
-    }
-
-    try {
-      await this.sorobanEscrow.releaseEscrow(
-        this.custodianKeypair,
-        payment.sorobanEscrowId,
+      this.logger.log(
+        `Soroban escrow recorded for booking ${booking.id}: ${txHash}`,
       );
-
-      payment.escrowStatus = EscrowStatus.RELEASED;
-      await this.paymentRepository.save(payment);
-
-      this.logger.log(`Escrow released for booking ${bookingId}`);
-    } catch (error) {
-      this.logger.error(`Failed to release escrow for booking ${bookingId}: ${error.message}`);
-    }
-  }
-
-  async handleBookingCancelled(bookingId: string): Promise<void> {
-    const payment = await this.paymentRepository.findOne({
-      where: { bookingId },
-    });
-
-    if (!payment || !payment.sorobanEscrowId || !this.custodianKeypair) {
-      return;
-    }
-
-    if (payment.escrowStatus !== EscrowStatus.FUNDED) {
-      this.logger.warn(`Escrow not in funded state for booking ${bookingId}`);
-      return;
-    }
-
-    try {
-      await this.sorobanEscrow.refundEscrow(
-        this.custodianKeypair,
-        payment.sorobanEscrowId,
+    } catch (err) {
+      // Non-critical — log but do not fail the payment confirmation
+      this.logger.error(
+        `Failed to record Soroban escrow for booking ${booking.id}: ${(err as Error).message}`,
       );
-
-      payment.escrowStatus = EscrowStatus.REFUNDED;
-      await this.paymentRepository.save(payment);
-
-      this.logger.log(`Escrow refunded for booking ${bookingId}`);
-    } catch (error) {
-      this.logger.error(`Failed to refund escrow for booking ${bookingId}: ${error.message}`);
     }
-  }
-
-  private generateEscrowId(reference: string): string {
-    const hash = StellarSdk.hash(Buffer.from(reference));
-    return hash.toString('hex').substring(0, 64);
   }
 }

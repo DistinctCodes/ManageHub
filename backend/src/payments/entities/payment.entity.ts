@@ -2,70 +2,60 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
+  ManyToOne,
   CreateDateColumn,
   UpdateDateColumn,
+  Index,
+  JoinColumn,
 } from 'typeorm';
-
-export enum PaymentStatus {
-  PENDING = 'pending',
-  SUCCESS = 'success',
-  FAILED = 'failed',
-  ABANDONED = 'abandoned',
-}
-
-export enum EscrowStatus {
-  NOT_CREATED = 'not_created',
-  FUNDED = 'funded',
-  RELEASED = 'released',
-  REFUNDED = 'refunded',
-}
+import { User } from '../../users/entities/user.entity';
+import { Booking } from '../../bookings/entities/booking.entity';
+import { PaymentProvider } from '../enums/payment-provider.enum';
+import { PaymentStatus } from '../enums/payment-status.enum';
 
 @Entity('payments')
+@Index(['bookingId'])
+@Index(['userId'])
+@Index(['providerReference'])
 export class Payment {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column('varchar', { length: 64, unique: true })
-  reference: string;
+  @Column('uuid')
+  bookingId: string;
 
-  @Column('decimal', { precision: 12, scale: 2 })
+  @ManyToOne(() => Booking, { onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'bookingId' })
+  booking: Booking;
+
+  @Column({ type: 'uuid', nullable: true })
+  userId: string | null;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'userId' })
+  user: User;
+
+  // Amount in kobo
+  @Column({ type: 'bigint' })
   amount: number;
 
-  @Column('varchar', { length: 3, default: 'NGN' })
+  @Column({ type: 'varchar', length: 3, default: 'NGN' })
   currency: string;
+
+  @Column({ type: 'enum', enum: PaymentProvider })
+  provider: PaymentProvider;
+
+  @Column({ nullable: true })
+  providerReference: string;
 
   @Column({ type: 'enum', enum: PaymentStatus, default: PaymentStatus.PENDING })
   status: PaymentStatus;
 
-  @Column('varchar', { length: 254, nullable: true })
-  email?: string;
+  @Column({ type: 'timestamptz', nullable: true })
+  paidAt: Date;
 
-  @Column('uuid', { nullable: true })
-  userId?: string;
-
-  @Column('varchar', { length: 100, nullable: true })
-  description?: string;
-
-  @Column('jsonb', { nullable: true })
-  metadata?: Record<string, unknown>;
-
-  @Column('varchar', { length: 100, nullable: true })
-  paystackReference?: string;
-
-  @Column('varchar', { length: 50, nullable: true })
-  gatewayResponse?: string;
-
-  @Column({ type: 'timestamp', nullable: true })
-  paidAt?: Date;
-
-  @Column({ type: 'enum', enum: EscrowStatus, default: EscrowStatus.NOT_CREATED })
-  escrowStatus: EscrowStatus;
-
-  @Column('varchar', { length: 128, nullable: true })
-  sorobanEscrowId?: string;
-
-  @Column('varchar', { length: 100, nullable: true })
-  bookingId?: string;
+  @Column({ type: 'jsonb', nullable: true })
+  metadata: Record<string, unknown>;
 
   @CreateDateColumn()
   createdAt: Date;

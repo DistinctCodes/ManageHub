@@ -1,186 +1,438 @@
-import { Injectable, Logger } from '@nestjs/common';
-import * as StellarSdk from '@stellar/stellar-sdk';
+import {
+  BadGatewayException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import {
+  SorobanRpc,
+  TransactionBuilder,
+  Operation,
+  Keypair,
+  xdr,
+} from '@stellar/stellar-sdk';
+import {
+  mapScValToescrow,
+  mapScValToescrowStatus,
+} from 'src/utils/soroban-types';
+
+const TTL = 10 * 60; // 10 minutes
+
+const REQUIRED_CONFIG_KEYS = [
+  'STELLAR_ESCROW_CONTRACT_ID',
+  'STELLAR_SECRET_KEY',
+  'STELLAR_NETWORK',
+  'STELLAR_BENEFICIARY_ADDRESS',
+] as const;
 
 @Injectable()
 export class SorobanEscrowProvider {
   private readonly logger = new Logger(SorobanEscrowProvider.name);
-  private server: StellarSdk.rpc.Server;
-  private contractId: string;
-  private networkPassphrase: string;
+  private readonly enabled: boolean;
+  private readonly contractId: string;
+  private readonly server: SorobanRpc.Server | null;
+  private readonly source: Keypair | null;
+  private readonly networkPassphrase: string;
+  private readonly beneficiaryAddress: string;
 
-  constructor() {
-    const rpcUrl = process.env.SOROBAN_RPC_URL || 'https://soroban-testnet.stellar.org';
-    this.server = new StellarSdk.rpc.Server(rpcUrl);
-    this.contractId = process.env.SOROBAN_ESCROW_CONTRACT_ID || '';
-    this.networkPassphrase =
-      process.env.SOROBAN_NETWORK_PASSPHRASE || StellarSdk.Networks.TESTNET;
+  constructor(private readonly configService: ConfigService) {
+    this.enabled =
+      this.configService.get<string>('SOROBAN_ENABLED', 'false') === 'true';
+
+    if (!this.enabled) {
+      // Feature disabled: construct no RPC client and require no Stellar config.
+      this.contractId = '';
+      this.networkPassphrase = '';
+      this.beneficiaryAddress = '';
+      this.source = null;
+      this.server = null;
+      this.logger.log(
+        'Soroban escrow disabled (SOROBAN_ENABLED is not "true") — on-chain escrow will be skipped.',
+      );
+      return;
+    }
+
+    // Feature enabled: all required config must be present. Fail fast at
+    // startup with a descriptive error rather than silently at webhook time.
+    const missing = REQUIRED_CONFIG_KEYS.filter(
+      (key) => !this.configService.get<string>(key),
+    );
+    if (missing.length > 0) {
+      throw new Error(
+        `SOROBAN_ENABLED=true but required Stellar configuration is missing: ${missing.join(
+          ', ',
+        )}. Set these variables or set SOROBAN_ENABLED=false to disable on-chain escrow.`,
+      );
+    }
+
+    this.contractId = this.configService.get<string>(
+      'STELLAR_ESCROW_CONTRACT_ID',
+    ) as string;
+    this.networkPassphrase = this.configService.get<string>(
+      'STELLAR_NETWORK',
+    ) as string;
+    this.beneficiaryAddress = this.configService.get<string>(
+      'STELLAR_BENEFICIARY_ADDRESS',
+    ) as string;
+    this.source = Keypair.fromSecret(
+      this.configService.get<string>('STELLAR_SECRET_KEY') as string,
+    );
+    this.server = new SorobanRpc.Server(
+      this.configService.get<string>(
+        'STELLAR_HORIZON_URL',
+        'https://soroban-testnet.stellar.org',
+      ),
+      { allowHttp: true },
+    );
   }
 
-  async createEscrow(params: {
-    id: string;
-    payerKeypair: StellarSdk.Keypair;
-    custodianAddress: string;
-    payeeAddress: string;
-    amount: number;
-    tokenAddress: string;
-    bookingId: string;
-  }): Promise<string> {
-    try {
-      const contract = new StellarSdk.Contract(this.contractId);
-      const sourceAccount = await this.server.getAccount(
-        params.payerKeypair.publicKey(),
-      );
+  /** Whether on-chain Soroban escrow is enabled and fully configured. */
+  get isEnabled(): boolean {
+    return this.enabled;
+  }
 
-      const escrowIdBytes = StellarSdk.nativeToScVal(params.id, {
-        type: 'bytes',
-      });
+  /** Configured beneficiary address. Only meaningful when {@link isEnabled}. */
+  get beneficiary(): string {
+    return this.beneficiaryAddress;
+  }
 
-      const txBuilder = new StellarSdk.TransactionBuilder(sourceAccount, {
-        fee: StellarSdk.BASE_FEE,
-        networkPassphrase: this.networkPassphrase,
-      })
-        .addOperation(
-          contract.call(
-            'create_escrow',
-            escrowIdBytes,
-            StellarSdk.Address.fromString(params.custodianAddress).toScVal(),
-            StellarSdk.Address.fromString(params.payerKeypair.publicKey()).toScVal(),
-            StellarSdk.Address.fromString(params.payeeAddress).toScVal(),
-            StellarSdk.nativeToScVal(params.amount * 100, { type: 'i128' }),
-            StellarSdk.Address.fromString(params.tokenAddress).toScVal(),
-            StellarSdk.nativeToScVal(params.bookingId, { type: 'string' }),
+  async createEscrow(
+    bookingId: string,
+    depositorAddress: string,
+    beneficiary: string,
+    amount: number,
+    memo: string,
+    releaseAfterUnix: number,
+  ): Promise<string> {
+    this.logger.log(
+      `[Soroban] createEscrow: ${bookingId} - ${amount} from ${depositorAddress}`,
+    );
+
+    const timebounds = {
+      minTime: 0,
+      maxTime: Math.floor(Date.now() / 1000) + TTL,
+    };
+
+    const tx = new TransactionBuilder(await this.getSourceAccount(), {
+      fee: '100',
+      networkPassphrase: this.networkPassphrase,
+      timebounds,
+    })
+      .addOperation(
+        Operation.invokeHostFunction({
+          func: xdr.HostFunction.fromXDR(
+            Buffer.from(
+              'AAAAAwoAAAAJZHJhd19mcm9tAAAAAAIAAAALZGVwb3NpdG9yAAAADwAAAAdhbW91bnQAAAAACg==',
+              'base64',
+            ),
           ),
-        )
-        .setTimeout(StellarSdk.TimeoutInfinite)
-        .build();
+          auth: [
+            new xdr.SorobanAuthorizationEntry({
+              credentials:
+                xdr.SorobanCredentials.sorobanCredentialsSourceAccount(),
+              rootInvocation: new xdr.SorobanAuthorizedInvocation({
+                function:
+                  xdr.SorobanAuthorizedFunction.sorobanAuthorizedFunctionTypeContractFn(
+                    new xdr.InvokeContractArgs({
+                      contractAddress: xdr.ScAddress.scAddressTypeContract(
+                        Buffer.from(this.contractId, 'hex'),
+                      ),
+                      functionName: 'draw_from',
+                      args: [
+                        xdr.ScVal.scvAddress(
+                          xdr.ScAddress.scAddressTypeAccount(
+                            xdr.PublicKey.publicKeyTypeEd25519(
+                              Keypair.fromPublicKey(
+                                depositorAddress,
+                              ).rawPublicKey(),
+                            ),
+                          ),
+                        ),
+                        xdr.ScVal.scvU128(
+                          new xdr.UInt128Parts({
+                            hi: xdr.Uint64.fromString('0'),
+                            lo: xdr.Uint64.fromString(amount.toString()),
+                          }),
+                        ),
+                      ],
+                    }),
+                  ),
+                subInvocations: [],
+              }),
+            }),
+          ],
+        }),
+      )
+      .build();
 
-      txBuilder.sign(params.payerKeypair);
+    try {
+      const preparedTransaction = await this.server.prepareTransaction(tx);
+      preparedTransaction.sign(this.getSigningKeypair());
 
-      const result = await this.server.sendTransaction(txBuilder);
+      const sentTransaction =
+        await this.server.sendTransaction(preparedTransaction);
 
-      if (result.status === 'ERROR') {
-        throw new Error(
-          `Transaction failed: ${JSON.stringify(result.errorResult)}`,
+      let getTransactionResponse =
+        await this.server.getTransaction(sentTransaction.hash);
+
+      const thirtySeconds = 30 * 1000;
+      const startTime = Date.now();
+      while (
+        getTransactionResponse.status !==
+          SorobanRpc.Api.GetTransactionStatus.SUCCESS &&
+        Date.now() - startTime < thirtySeconds
+      ) {
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        // eslint-disable-next-line no-await-in-loop
+        getTransactionResponse =
+          // eslint-disable-next-line no-await-in-loop
+          await this.server.getTransaction(sentTransaction.hash);
+      }
+
+      if (
+        getTransactionResponse.status !==
+        SorobanRpc.Api.GetTransactionStatus.SUCCESS
+      ) {
+        this.logger.error(
+          `[Soroban] createEscrow failed for booking ${bookingId}: Transaction execution failed`,
+        );
+        throw new BadGatewayException(
+          'Failed to execute Soroban transaction.',
         );
       }
 
-      return result.hash;
+      return sentTransaction.hash;
     } catch (error) {
-      this.logger.error(`Failed to create escrow: ${error.message}`);
-      throw error;
+      this.logger.error(
+        `[Soroban] createEscrow failed for booking ${bookingId}: ${error.message}`,
+      );
+      throw new BadGatewayException(
+        'Failed to create escrow on Soroban network.',
+      );
     }
   }
 
-  async releaseEscrow(custodianKeypair: StellarSdk.Keypair, escrowId: string): Promise<string> {
-    try {
-      const contract = new StellarSdk.Contract(this.contractId);
-      const sourceAccount = await this.server.getAccount(
-        custodianKeypair.publicKey(),
-      );
+  async releaseEscrow(escrowId: string): Promise<string> {
+    this.logger.log(`[Soroban] releaseEscrow: ${escrowId}`);
 
-      const escrowIdBytes = StellarSdk.nativeToScVal(escrowId, {
-        type: 'bytes',
-      });
+    const timebounds = {
+      minTime: 0,
+      maxTime: Math.floor(Date.now() / 1000) + TTL,
+    };
 
-      const txBuilder = new StellarSdk.TransactionBuilder(sourceAccount, {
-        fee: StellarSdk.BASE_FEE,
-        networkPassphrase: this.networkPassphrase,
-      })
-        .addOperation(
-          contract.call(
-            'release_escrow',
-            StellarSdk.Address.fromString(custodianKeypair.publicKey()).toScVal(),
-            escrowIdBytes,
+    const tx = new TransactionBuilder(await this.getSourceAccount(), {
+      fee: '100',
+      networkPassphrase: this.networkPassphrase,
+      timebounds,
+    })
+      .addOperation(
+        Operation.invokeHostFunction({
+          func: xdr.HostFunction.fromXDR(
+            Buffer.from(
+              'AAAAAQAAAAdyZWxlYXNlAAAAAAEAAAAMZXNjcm93X2lkAAAAAAAS',
+              'base64',
+            ),
           ),
-        )
-        .setTimeout(StellarSdk.TimeoutInfinite)
-        .build();
+          auth: [],
+        }),
+      )
+      .build();
 
-      txBuilder.sign(custodianKeypair);
+    try {
+      const preparedTransaction = await this.server.prepareTransaction(tx);
+      preparedTransaction.sign(this.getSigningKeypair());
 
-      const result = await this.server.sendTransaction(txBuilder);
+      const sentTransaction =
+        await this.server.sendTransaction(preparedTransaction);
 
-      if (result.status === 'ERROR') {
-        throw new Error(
-          `Transaction failed: ${JSON.stringify(result.errorResult)}`,
+      let getTransactionResponse =
+        await this.server.getTransaction(sentTransaction.hash);
+
+      const thirtySeconds = 30 * 1000;
+      const startTime = Date.now();
+      while (
+        getTransactionResponse.status !==
+          SorobanRpc.Api.GetTransactionStatus.SUCCESS &&
+        Date.now() - startTime < thirtySeconds
+      ) {
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        // eslint-disable-next-line no-await-in-loop
+        getTransactionResponse =
+          // eslint-disable-next-line no-await-in-loop
+          await this.server.getTransaction(sentTransaction.hash);
+      }
+
+      if (
+        getTransactionResponse.status !==
+        SorobanRpc.Api.GetTransactionStatus.SUCCESS
+      ) {
+        this.logger.error(
+          `[Soroban] releaseEscrow failed for escrow ${escrowId}: Transaction execution failed`,
+        );
+        throw new BadGatewayException(
+          'Failed to execute Soroban transaction.',
         );
       }
 
-      return result.hash;
+      return sentTransaction.hash;
     } catch (error) {
-      this.logger.error(`Failed to release escrow: ${error.message}`);
-      throw error;
+      this.logger.error(
+        `[Soroban] releaseEscrow failed for escrow ${escrowId}: ${error.message}`,
+      );
+      throw new BadGatewayException(
+        'Failed to release escrow on Soroban network.',
+      );
     }
   }
 
-  async refundEscrow(custodianKeypair: StellarSdk.Keypair, escrowId: string): Promise<string> {
-    try {
-      const contract = new StellarSdk.Contract(this.contractId);
-      const sourceAccount = await this.server.getAccount(
-        custodianKeypair.publicKey(),
-      );
+  async refundEscrow(escrowId: string): Promise<string> {
+    this.logger.log(`[Soroban] refundEscrow: ${escrowId}`);
 
-      const escrowIdBytes = StellarSdk.nativeToScVal(escrowId, {
-        type: 'bytes',
-      });
+    const timebounds = {
+      minTime: 0,
+      maxTime: Math.floor(Date.now() / 1000) + TTL,
+    };
 
-      const txBuilder = new StellarSdk.TransactionBuilder(sourceAccount, {
-        fee: StellarSdk.BASE_FEE,
-        networkPassphrase: this.networkPassphrase,
-      })
-        .addOperation(
-          contract.call(
-            'refund_escrow',
-            StellarSdk.Address.fromString(custodianKeypair.publicKey()).toScVal(),
-            escrowIdBytes,
+    const tx = new TransactionBuilder(await this.getSourceAccount(), {
+      fee: '100',
+      networkPassphrase: this.networkPassphrase,
+      timebounds,
+    })
+      .addOperation(
+        Operation.invokeHostFunction({
+          func: xdr.HostFunction.fromXDR(
+            Buffer.from(
+              'AAAAAQAAAAdyZWZ1bmQAAAAAAAEAAAAMZXNjcm93X2lkAAAAAAAS',
+              'base64',
+            ),
           ),
-        )
-        .setTimeout(StellarSdk.TimeoutInfinite)
-        .build();
+          auth: [],
+        }),
+      )
+      .build();
 
-      txBuilder.sign(custodianKeypair);
+    try {
+      const preparedTransaction = await this.server.prepareTransaction(tx);
+      preparedTransaction.sign(this.getSigningKeypair());
 
-      const result = await this.server.sendTransaction(txBuilder);
+      const sentTransaction =
+        await this.server.sendTransaction(preparedTransaction);
 
-      if (result.status === 'ERROR') {
-        throw new Error(
-          `Transaction failed: ${JSON.stringify(result.errorResult)}`,
+      let getTransactionResponse =
+        await this.server.getTransaction(sentTransaction.hash);
+
+      const thirtySeconds = 30 * 1000;
+      const startTime = Date.now();
+      while (
+        getTransactionResponse.status !==
+          SorobanRpc.Api.GetTransactionStatus.SUCCESS &&
+        Date.now() - startTime < thirtySeconds
+      ) {
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        // eslint-disable-next-line no-await-in-loop
+        getTransactionResponse =
+          // eslint-disable-next-line no-await-in-loop
+          await this.server.getTransaction(sentTransaction.hash);
+      }
+
+      if (
+        getTransactionResponse.status !==
+        SorobanRpc.Api.GetTransactionStatus.SUCCESS
+      ) {
+        this.logger.error(
+          `[Soroban] refundEscrow failed for escrow ${escrowId}: Transaction execution failed`,
+        );
+        throw new BadGatewayException(
+          'Failed to execute Soroban transaction.',
         );
       }
 
-      return result.hash;
+      return sentTransaction.hash;
     } catch (error) {
-      this.logger.error(`Failed to refund escrow: ${error.message}`);
-      throw error;
+      this.logger.error(
+        `[Soroban] refundEscrow failed for escrow ${escrowId}: ${error.message}`,
+      );
+      throw new BadGatewayException(
+        'Failed to refund escrow on Soroban network.',
+      );
     }
   }
 
-  async getEscrowStatus(escrowId: string): Promise<string> {
+  async getEscrowStatus(escrowId: string): Promise<any> {
+    this.logger.log(`[Soroban] getEscrowStatus: ${escrowId}`);
+
+    const timebounds = {
+      minTime: 0,
+      maxTime: Math.floor(Date.now() / 1000) + TTL,
+    };
+
+    const tx = new TransactionBuilder(await this.getSourceAccount(), {
+      fee: '100',
+      networkPassphrase: this.networkPassphrase,
+      timebounds,
+    })
+      .addOperation(
+        Operation.invokeHostFunction({
+          func: xdr.HostFunction.fromXDR(
+            Buffer.from(
+              'AAAAAQAAAApnZXRfZXNjcm93AAAAAAEAAAAMZXNjcm93X2lkAAAAAAAS',
+              'base64',
+            ),
+          ),
+          auth: [],
+        }),
+      )
+      .build();
+
     try {
-      const contract = new StellarSdk.Contract(this.contractId);
-      const sourceAccount = await this.server.getHealth();
+      const preparedTransaction = await this.server.prepareTransaction(tx);
+      const simulatedTransaction =
+        await this.server.simulateTransaction(preparedTransaction);
 
-      const escrowIdBytes = StellarSdk.nativeToScVal(escrowId, {
-        type: 'bytes',
-      });
+      if (
+        !SorobanRpc.Api.isSimulationSuccess(simulatedTransaction) ||
+        !simulatedTransaction.result?.retval
+      ) {
+        this.logger.error(
+          `[Soroban] getEscrowStatus failed for escrow ${escrowId}: Invalid simulation response`,
+        );
+        throw new NotFoundException('Escrow not found.');
+      }
 
-      const result = await this.server.simulateTransaction(
-        new StellarSdk.TransactionBuilder(
-          await this.server.getAccount(this.contractId),
-          {
-            fee: StellarSdk.BASE_FEE,
-            networkPassphrase: this.networkPassphrase,
-          },
-        )
-          .addOperation(contract.call('get_escrow', escrowIdBytes))
-          .setTimeout(StellarSdk.TimeoutInfinite)
-          .build(),
-      );
-
-      return JSON.stringify(result);
+      const escrow = mapScValToescrow(simulatedTransaction.result.retval);
+      return {
+        ...escrow,
+        status: mapScValToescrowStatus(escrow.status),
+      };
     } catch (error) {
-      this.logger.error(`Failed to get escrow status: ${error.message}`);
-      throw error;
+      this.logger.error(
+        `[Soroban] getEscrowStatus failed for escrow ${escrowId}: ${error.message}`,
+      );
+      throw new BadGatewayException(
+        'Failed to get escrow status from Soroban network.',
+      );
     }
+  }
+
+  private getSigningKeypair(): Keypair {
+    if (!this.enabled) {
+      throw new BadGatewayException(
+        'Soroban escrow is disabled (SOROBAN_ENABLED is not "true").',
+      );
+    }
+    if (!this.source) {
+      throw new BadGatewayException(
+        'Soroban signing key is not configured (STELLAR_SECRET_KEY missing).',
+      );
+    }
+    return this.source;
+  }
+
+  private async getSourceAccount() {
+    return await this.server.getAccount(this.getSigningKeypair().publicKey());
   }
 }
