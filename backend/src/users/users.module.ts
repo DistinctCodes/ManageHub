@@ -8,16 +8,48 @@ import { FindOneUserByEmailProvider } from './providers/findOneUserByEmail.provi
 import { FindOneUserByIdProvider } from './providers/findOneUserById.provider';
 import { CreateUserProvider } from './providers/createUser.provider';
 import { ValidateUserProvider } from './providers/validateUser.provider';
+import { CloudinaryModule } from '../cloudinary/cloudinary.module';
+import { FindAllUsersProvider } from './providers/findAllUsers.provider';
+import { UpdateUserProvider } from './providers/updateUser.provider';
+import { DeleteUserProvider } from './providers/deleteUser.provider';
+import { UploadProfilePictureProvider } from './providers/uploadProfilePicture.provider';
+import { ForgotPasswordProvider } from './providers/forgotPassword.provider';
+import { ResetPasswordProvider } from './providers/resetPassword.provider';
+import { FindAllAdminsProvider } from './providers/findAllAdmins.provider';
+import { FindAdminByIdProvider } from './providers/findAdminById.provider';
+import { GetMembersProvider } from './providers/get-members.provider';
+import { UpdateMemberStatusProvider } from './providers/update-member-status.provider';
+import { GetMemberStatsProvider } from './providers/get-member-stats.provider';
+import { MembersController } from './members.controller';
+import { OnboardingStatusProvider } from './providers/onboarding-status.provider';
+import { Booking } from '../bookings/entities/booking.entity';
+import { Notification } from '../notifications/entities/notification.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User]), forwardRef(() => AuthModule)],
-  controllers: [UsersController],
+  imports: [
+    TypeOrmModule.forFeature([User, Booking, Notification]),
+    forwardRef(() => AuthModule),
+    CloudinaryModule,
+  ],
+  controllers: [UsersController, MembersController],
   providers: [
     UsersService,
+    CreateUserProvider,
     FindOneUserByEmailProvider,
     FindOneUserByIdProvider,
-    CreateUserProvider,
     ValidateUserProvider,
+    FindAllUsersProvider,
+    UpdateUserProvider,
+    DeleteUserProvider,
+    UploadProfilePictureProvider,
+    ForgotPasswordProvider,
+    ResetPasswordProvider,
+    FindAllAdminsProvider,
+    FindAdminByIdProvider,
+    GetMembersProvider,
+    UpdateMemberStatusProvider,
+    GetMemberStatsProvider,
+    OnboardingStatusProvider,
   ],
   exports: [UsersService],
 })

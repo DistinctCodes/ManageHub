@@ -1,21 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
+import { jwtVerify } from "jose";
 
 const publicRoutes = ["/", "/login", "/register", "/forgot-password"];
 
-const protectedRoutes = {
-  "/dashboard": ["users", "admin"],
-  "/users": ["admin"],
-  "/admin": ["admin"],
-} as const;
+const authOnly = [
+  "/dashboard",
+  "/onboarding",
+  "/profile",
+  "/settings",
+  "/workspaces",
+  "/bookings",
+  "/invoices",
+  "/check-in",
+  "/notifications",
+];
+const adminOnly = ["/admin", "/users"];
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get("authToken")?.value;
-  console.log(token);
   const isPublicRoute = publicRoutes.includes(pathname);
-  const isPrivateRoute = Object.keys(protectedRoutes).some((route) =>
-    pathname.startsWith(route)
-  );
+  const isAuthRoute = authOnly.some((route) => pathname.startsWith(route));
+  const isAdminRoute = adminOnly.some((route) => pathname.startsWith(route));
+  const isPrivateRoute = isAuthRoute || isAdminRoute;
 
   // Check if the route is public
   if (isPublicRoute) {
@@ -37,8 +44,26 @@ export function middleware(request: NextRequest) {
       return NextResponse.redirect(loginUrl);
     }
 
-    // For role-based protection, we'll handle this in the component level
-    // since we need to decode the JWT to get user role
+    try {
+      const secret = new TextEncoder().encode(process.env.JWT_SECRET || "");
+      const { payload } = await jwtVerify(token, secret);
+      const userRole = payload.role as string;
+
+      if (isAdminRoute) {
+        if (
+          userRole !== "super_admin" &&
+          userRole !== "admin" &&
+          userRole !== "staff"
+        ) {
+          return NextResponse.redirect(new URL("/dashboard", request.url));
+        }
+      }
+    } catch (error) {
+      // If token is invalid or expired
+      const loginUrl = new URL("/login", request.url);
+      loginUrl.searchParams.set("redirect", pathname);
+      return NextResponse.redirect(loginUrl);
+    }
   }
 
   return NextResponse.next();

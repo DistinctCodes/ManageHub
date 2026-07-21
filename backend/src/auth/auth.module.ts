@@ -1,61 +1,58 @@
-import { Module, forwardRef } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { RefreshToken } from './entities/refreshToken.entity';
-import { AuthController } from './auth.controller';
-import { AuthService } from './providers/auth.service';
-import { UsersModule } from '../users/users.module';
-import { HashingProvider } from './providers/hashing.provider';
-import { BcryptProvider } from './providers/bcrypt.provider';
-import { LocalStrategy } from './strategies/local.strategy';
-import { JwtStrategy } from './strategies/jwt.strategy';
-import { JwtRefreshStrategy } from './strategies/jwtRefresh.strategy';
-import { LoginUserProvider } from './providers/loginUser.provider';
-import { GenerateTokensProvider } from './providers/generateTokens.provider';
-import { RefreshTokensProvider } from './providers/refreshTokens.provider';
-import { RefreshTokenRepositoryOperations } from './providers/RefreshTokenCrud.repository';
-import { FindOneRefreshTokenProvider } from './providers/findOneRefreshToken.provider';
+import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { AuthService } from './auth.service';
+import { AuthController } from './auth.controller';
+import { UserHelper } from './helper/user-helper';
+import { JwtHelper } from './helper/jwt-helper';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { User } from '../users/entities/user.entity';
 import { JwtModule } from '@nestjs/jwt';
+import { RolesGuard } from './guard/roles.guard';
+import { PassportModule } from '@nestjs/passport';
+import { JwtStrategy } from './strategy/jwt.strategy';
+import { HashingProvider } from './providers/hashing.provider';
+import { GenerateTokensProvider } from './providers/generateTokens.provider';
+import { RefreshTokenRepositoryOperations } from './providers/refreshToken.repository';
+import { RefreshToken } from './entities/refreshToken.entity';
+import { SetupTotpProvider } from './providers/setup-totp.provider';
+import { VerifyTotpProvider } from './providers/verify-totp.provider';
+import { ManageTotpProvider } from './providers/manage-totp.provider';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([RefreshToken]),
-    forwardRef(() => UsersModule),
-    ConfigModule,
+    TypeOrmModule.forFeature([User, RefreshToken]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        secret: configService.get('JWT_SECRET'),
+        secret: configService.get<string>('JWT_SECRET'),
         signOptions: {
-          expiresIn: configService.get('JWT_ACCESS_EXPIRATION'),
+          expiresIn: (configService.get<string>('JWT_EXPIRATION') ??
+            '7d') as any,
         },
       }),
     }),
+    PassportModule,
   ],
   controllers: [AuthController],
   providers: [
     AuthService,
-    {
-      provide: HashingProvider,
-      useClass: BcryptProvider,
-    },
-    LocalStrategy,
+    UserHelper,
+    JwtHelper,
     JwtStrategy,
-    JwtRefreshStrategy,
-    LoginUserProvider,
+    RolesGuard,
+    HashingProvider,
     GenerateTokensProvider,
-    RefreshTokensProvider,
     RefreshTokenRepositoryOperations,
-    FindOneRefreshTokenProvider,
+    SetupTotpProvider,
+    VerifyTotpProvider,
+    ManageTotpProvider,
   ],
   exports: [
     AuthService,
     HashingProvider,
     GenerateTokensProvider,
-    RefreshTokensProvider,
     RefreshTokenRepositoryOperations,
-    FindOneRefreshTokenProvider,
   ],
 })
 export class AuthModule {}

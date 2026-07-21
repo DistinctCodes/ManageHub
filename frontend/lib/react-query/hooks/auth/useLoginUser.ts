@@ -22,10 +22,11 @@ export const useLoginUser = () => {
   return useMutation({
     mutationKey: mutationKeys.auth.loginUser,
     mutationFn: async (data: LoginUser) => {
+      // console.log("Simulating Backend Call...",data)
+      
       return await login(data);
     },
-    onSuccess: (data) => {
-      console.log("Login success:", data);
+    onSuccess: () => {
       toast.success("Login successful");
       
       // Handle redirect after successful login
@@ -36,8 +37,18 @@ export const useLoginUser = () => {
         router.push("/dashboard");
       }
     },
-    onError: (error) => {
-      console.error("Login failed:", error);
+    onError: (error: any) => {
+      if (error?.twoFactorRequired) {
+        router.push(
+          `/verify-2fa?tempToken=${encodeURIComponent(error.tempToken)}&email=${encodeURIComponent(error.email)}`
+        );
+        return;
+      }
+      if (error?.unverified) {
+        toast.info("Please verify your email to continue.");
+        router.push(`/verify-otp?email=${encodeURIComponent(error.email)}`);
+        return;
+      }
       toast.error("Login failed. Please check your credentials.");
     },
   });

@@ -20,15 +20,17 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen px-4">
       <div className="text-center space-y-6 max-w-md">
-        <h1 className="text-2xl font-bold text-gray-900">Something went wrong</h1>
+        <h1 className="text-2xl font-bold text-gray-900">
+          Something went wrong
+        </h1>
         <p className="text-gray-600">
           An unexpected error occurred. Please try again.
         </p>
-        
+
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <button
             onClick={reset}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors"
           >
             Try Again
           </button>
@@ -53,7 +55,10 @@ export default function ErrorPage({ error, reset }: ErrorPageProps) {
                 </div>
                 {error.digest && (
                   <div className="text-sm">
-                    <strong>ID:</strong> <code className="bg-gray-200 px-1 rounded">{error.digest}</code>
+                    <strong>ID:</strong>{" "}
+                    <code className="bg-gray-200 px-1 rounded">
+                      {error.digest}
+                    </code>
                   </div>
                 )}
               </div>

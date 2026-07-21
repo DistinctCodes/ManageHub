@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f4f7; margin: 0; padding: 0; }
+    .container { max-width: 560px; margin: 40px auto; background: #fff; border-radius: 8px; padding: 40px; }
+    .header { font-size: 20px; font-weight: bold; color: #1a1a1a; margin-bottom: 16px; }
+    .text { color: #4a5568; font-size: 15px; line-height: 1.6; }
+    .field { background: #f7f7f5; border-radius: 6px; padding: 16px; margin: 16px 0; }
+    .field p { margin: 6px 0; color: #2d3748; font-size: 14px; }
+    .label { font-weight: bold; color: #1a1a1a; }
+    .message-box { background: #f7f7f5; border-left: 3px solid #1a1a1a; border-radius: 4px; padding: 16px; margin: 16px 0; }
+    .message-box p { color: #2d3748; font-size: 14px; line-height: 1.6; margin: 0; white-space: pre-wrap; }
+    .footer { text-align: center; color: #718096; font-size: 13px; margin-top: 32px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">New Contact Form Submission</div>
+    <p class="text">A new message has been submitted through the contact form.</p>
+    <div class="field">
+      <p><span class="label">Name:</span> {{fullName}}</p>
+      <p><span class="label">Email:</span> <a href="mailto:{{email}}">{{email}}</a></p>
+      <p><span class="label">Subject:</span> {{subject}}</p>
+    </div>
+    <p class="text"><strong>Message:</strong></p>
+    <div class="message-box">
+      <p>{{message}}</p>
+    </div>
+    <p class="text">Reply directly to the sender at <a href="mailto:{{email}}">{{email}}</a>.</p>
+    <div class="footer">&copy; 2025 ManageHub Admin</div>
+  </div>
+</body>
+</html>

@@ -1,5 +1,5 @@
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_BACKEND_API_URL || "http://localhost:6000";
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:6001/api";
 
 class ApiClient {
   private baseURL: string;
@@ -43,7 +43,10 @@ class ApiClient {
 
       return await response.json();
     } catch (error) {
-      throw new Error("Network error occured");
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error("Network error occurred");
     }
   }
 

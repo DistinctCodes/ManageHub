@@ -7,8 +7,10 @@ import {
   UpdateDateColumn,
   DeleteDateColumn,
 } from 'typeorm';
+import { Exclude } from 'class-transformer';
 import { RefreshToken } from '../../auth/entities/refreshToken.entity';
 import { UserRole } from '../enums/userRoles.enum';
+import { MembershipStatus } from '../enums/membership-status.enum';
 
 @Entity('users')
 export class User {
@@ -27,6 +29,7 @@ export class User {
   @Column({ unique: true })
   email: string;
 
+  @Exclude()
   @Column()
   password: string;
 
@@ -37,11 +40,48 @@ export class User {
   })
   role: UserRole;
 
+  @Exclude()
   @Column({ nullable: true })
   passwordResetToken?: string;
 
+  @Exclude()
   @Column({ type: 'timestamptz', nullable: true })
   passwordResetExpiresIn?: Date;
+
+  @Exclude()
+  @Column({ type: 'timestamptz', nullable: true })
+  lastPasswordResetSentAt?: Date;
+
+  @Exclude()
+  @Column({ nullable: true })
+  verificationToken?: string;
+
+  @Exclude()
+  @Column({ type: 'timestamptz', nullable: true })
+  verificationTokenExpiry?: Date;
+
+  @Exclude()
+  @Column({ type: 'timestamptz', nullable: true })
+  lastVerificationEmailSent?: Date;
+
+  @Exclude()
+  @Column({ nullable: true })
+  verificationCode?: string;
+
+  @Exclude()
+  @Column({ type: 'timestamptz', nullable: true })
+  verificationCodeExpiresAt?: Date;
+
+  @Exclude()
+  @Column({ nullable: true })
+  passwordResetCode?: string;
+
+  @Exclude()
+  @Column({ type: 'timestamptz', nullable: true })
+  passwordResetCodeExpiresAt?: Date;
+
+  @Column({ default: false })
+  isVerified: boolean;
 
   @Column({ default: true })
   isActive: boolean;
@@ -52,6 +92,13 @@ export class User {
   @Column({ default: false })
   isSuspended: boolean;
 
+  @Column({ nullable: true, type: 'varchar', length: 500 })
+  profilePicture?: string;
+
+  @Column({ nullable: true, type: 'varchar', length: 15 })
+  phone?: string;
+
+  @Exclude()
   @OneToMany(() => RefreshToken, (refreshToken) => refreshToken.user)
   refreshTokens: RefreshToken[];
 
@@ -61,6 +108,33 @@ export class User {
   @UpdateDateColumn()
   updatedAt: Date;
 
+  @Column({ default: false })
+  twoFactorEnabled: boolean;
+
+  @Exclude()
+  @Column({ nullable: true, type: 'varchar', length: 255 })
+  totpSecret?: string;
+
+  @Exclude()
+  @Column({ type: 'jsonb', nullable: true })
+  totpBackupCodes?: string[];
+
+  @Column({
+    type: 'enum',
+    enum: MembershipStatus,
+    default: MembershipStatus.INACTIVE,
+  })
+  membershipStatus: MembershipStatus;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  memberSince: Date;
+
+  @Column({ type: 'int', default: 0 })
+  profileCompleteness: number;
+
   @DeleteDateColumn()
   deletedAt: Date;
+  get fullName(): string {
+    return `${this.firstname} ${this.lastname}`.trim();
+  }
 }

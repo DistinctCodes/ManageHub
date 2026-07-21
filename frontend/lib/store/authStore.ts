@@ -46,12 +46,23 @@ export const useAuthStore = create<AuthStore>()(
           try {
             set({ isLoading: true });
 
-            const response = await apiClient.post<AuthResponse>(
-              "/auth/login",
-              data
-            );
+            const response = await apiClient.post<
+              AuthResponse & { message?: string; requiresTwoFactor?: boolean; tempToken?: string }
+            >("/auth/login", data);
 
-            const { user, accessToken } = response;
+            const { user, accessToken, message, requiresTwoFactor, tempToken } = response;
+
+            // If 2FA is required, surface a typed error so useLoginUser can redirect
+            if (requiresTwoFactor && tempToken) {
+              set({ isLoading: false });
+              throw { twoFactorRequired: true, tempToken, email: data.email };
+            }
+
+            // If user is not verified, the backend returns a message without accessToken
+            if (!accessToken && message) {
+              set({ isLoading: false });
+              throw { unverified: true, email: data.email, message };
+            }
 
             // set the token in the api request headers authorization so that it always sends it to the backend when sending a request.
             apiClient.setToken(accessToken);
@@ -134,7 +145,7 @@ export const useAuthStore = create<AuthStore>()(
             storage.setToken(accessToken);
             storage.setUser(user);
           } catch (error) {
-            get().logout;
+            get().logout();
             throw error;
           }
         },
@@ -144,8 +155,11 @@ export const useAuthStore = create<AuthStore>()(
           try {
             set({ isLoading: true });
 
+            const currentUser = get().user;
+            if (!currentUser) throw new Error("Not authenticated");
+
             const user = await apiClient.patch<User>(
-              "/users/profile",
+              `/users/${currentUser.id}`,
               userData
             );
 
@@ -222,13 +236,22 @@ export const useAuthState = () =>
     }))
   );
 
-export const useAuthActions = () =>
-  useAuthStore((state) => ({
-    login: state.login,
-    register: state.register,
-    logout: state.logout,
-    refreshAccessToken: state.refreshAccessToken,
-    updateProfile: state.updateProfile,
-    initializeAuth: state.initializeAuth,
-    clearAuth: state.clearAuth,
-  }));
+export const useAuthActions = () => {
+  const login = useAuthStore((state) => state.login);
+  const register = useAuthStore((state) => state.register);
+  const logout = useAuthStore((state) => state.logout);
+  const refreshAccessToken = useAuthStore((state) => state.refreshAccessToken);
+  const updateProfile = useAuthStore((state) => state.updateProfile);
+  const initializeAuth = useAuthStore((state) => state.initializeAuth);
+  const clearAuth = useAuthStore((state) => state.clearAuth);
+
+  return {
+    login,
+    register,
+    logout,
+    refreshAccessToken,
+    updateProfile,
+    initializeAuth,
+    clearAuth,
+  };
+};

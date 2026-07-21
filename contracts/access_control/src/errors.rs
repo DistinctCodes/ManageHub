@@ -37,6 +37,42 @@ pub enum AccessControlError {
     MaxRolesExceeded = 114,
     /// Contract is paused
     ContractPaused = 115,
+    /// Multisig not enabled for this operation
+    MultisigNotEnabled = 116,
+    /// Insufficient approvals for proposal execution
+    InsufficientApprovals = 117,
+    /// Proposal not found
+    ProposalNotFound = 118,
+    /// Proposal already executed
+    ProposalAlreadyExecuted = 119,
+    /// Proposal has expired
+    ProposalExpired = 120,
+    /// Time-lock not yet passed
+    TimeLockActive = 121,
+    /// Already approved this proposal
+    AlreadyApproved = 122,
+    /// Already rejected this proposal
+    AlreadyRejected = 123,
+    /// Cannot execute proposal yet
+    CannotExecuteProposal = 124,
+    /// Maximum pending proposals reached
+    MaxProposalsReached = 125,
+    /// Invalid proposal type for this action
+    InvalidProposalType = 126,
+    /// Invalid multisig configuration
+    InvalidMultisigConfig = 127,
+    /// Threshold too high for number of admins
+    ThresholdTooHigh = 128,
+    /// Threshold too low for security requirements
+    ThresholdTooLow = 129,
+    /// Cannot remove last admin
+    CannotRemoveLastAdmin = 130,
+    /// Duplicate admin address
+    DuplicateAdmin = 131,
+    /// Not authorized as multisig admin
+    NotMultisigAdmin = 132,
+    /// Proposal rejection threshold reached
+    ProposalRejected = 133,
 }
 
 impl AccessControlError {
@@ -63,6 +99,26 @@ impl AccessControlError {
             AccessControlError::RoleHierarchyViolation => "Role hierarchy violation",
             AccessControlError::MaxRolesExceeded => "Maximum roles per user exceeded",
             AccessControlError::ContractPaused => "Contract is currently paused",
+            AccessControlError::MultisigNotEnabled => "Multisig not enabled for this operation",
+            AccessControlError::InsufficientApprovals => {
+                "Insufficient approvals for proposal execution"
+            }
+            AccessControlError::ProposalNotFound => "Proposal not found",
+            AccessControlError::ProposalAlreadyExecuted => "Proposal already executed",
+            AccessControlError::ProposalExpired => "Proposal has expired",
+            AccessControlError::TimeLockActive => "Time-lock period not yet passed",
+            AccessControlError::AlreadyApproved => "Already approved this proposal",
+            AccessControlError::AlreadyRejected => "Already rejected this proposal",
+            AccessControlError::CannotExecuteProposal => "Cannot execute proposal yet",
+            AccessControlError::MaxProposalsReached => "Maximum pending proposals reached",
+            AccessControlError::InvalidProposalType => "Invalid proposal type for this action",
+            AccessControlError::InvalidMultisigConfig => "Invalid multisig configuration",
+            AccessControlError::ThresholdTooHigh => "Threshold too high for number of admins",
+            AccessControlError::ThresholdTooLow => "Threshold too low for security requirements",
+            AccessControlError::CannotRemoveLastAdmin => "Cannot remove the last admin",
+            AccessControlError::DuplicateAdmin => "Duplicate admin address",
+            AccessControlError::NotMultisigAdmin => "Not authorized as multisig admin",
+            AccessControlError::ProposalRejected => "Proposal rejection threshold reached",
         }
     }
 

@@ -1,23 +1,22 @@
-'use client';
+"use client";
 
-import { LoginPage } from '@/components/auth/LoginPage';
-
+import LoginForm from "@/components/auth/LoginForm";
+import { useLoginUser } from "@/lib/react-query/hooks/auth/useLoginUser";
 export default function LoginPageRoute() {
-  const handleEmailLogin = (data: { email: string; password: string; rememberMe?: boolean }) => {
-    console.log('Email login:', data);
-    // TODO: Implement actual authentication logic
-    // For now, just log the data and potentially redirect to dashboard
-  };
+  const { mutate: loginUser, isPending } = useLoginUser();
 
-  const handleBiometricScan = () => {
-    console.log('Biometric scan initiated');
-    // TODO: Implement actual biometric authentication
+  const handleEmailLogin = (data: {
+    email: string;
+    password: string;
+    rememberMe?: boolean;
+  }) => {
+    loginUser(data);
   };
 
   return (
-    <LoginPage
+    <LoginForm
       onEmailLogin={handleEmailLogin}
-      onBiometricScan={handleBiometricScan}
+      isLoading={isPending}
     />
   );
 }

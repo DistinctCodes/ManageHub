@@ -1,6 +1,6 @@
 import { HttpException, InternalServerErrorException } from '@nestjs/common';
 
-export function ErrorCatch(error: any, message: string) {
+export function ErrorCatch(error: any, message: string): never {
   if (error instanceof HttpException) {
     throw error;
   }

@@ -1,62 +1,83 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { cn } from '@/utils/cn';
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/Input";
+import { cn } from "@/utils/cn";
+import { loginSchema, type LoginSchema } from "@/lib/schemas/loginSchema";
+import { toast } from "sonner";
+import Link from "next/link";
 
-const emailLoginSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-  password: z.string().min(1, 'Password is required'),
-  rememberMe: z.boolean().optional(),
-});
-
-type EmailLoginFormData = z.infer<typeof emailLoginSchema>;
+type EmailLoginFormData = LoginSchema & { rememberMe?: boolean };
 
 interface EmailLoginFormProps {
   onSubmit: (data: EmailLoginFormData) => void;
   className?: string;
+  isLoading?: boolean;
 }
 
-export function EmailLoginForm({ onSubmit, className }: EmailLoginFormProps) {
+export function EmailLoginForm({
+  onSubmit,
+  className,
+  isLoading,
+}: EmailLoginFormProps) {
   const [showPassword, setShowPassword] = useState(false);
 
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useForm<EmailLoginFormData>({
-    resolver: zodResolver(emailLoginSchema),
-    mode: 'onBlur', // Validate on blur for better UX
+    resolver: zodResolver(
+      loginSchema.and(
+        z.object({
+          rememberMe: z.boolean().optional(),
+        }),
+      ),
+    ),
+    mode: "onBlur",
     defaultValues: {
-      email: '',
-      password: '',
+      email: "",
+      password: "",
       rememberMe: false,
     },
   });
 
+  useEffect(() => {
+    if (errors.email?.message) {
+      toast.error(errors.email.message);
+    }
+    if (errors.password?.message) {
+      toast.error(errors.password.message);
+    }
+  }, [errors.email, errors.password]);
+
+  const handleLocalSubmit = (data: EmailLoginFormData) => {
+    onSubmit?.(data);
+  };
+
   return (
     <form
-      onSubmit={handleSubmit(onSubmit)}
-      className={cn('space-y-6', className)}
+      onSubmit={handleSubmit(handleLocalSubmit)}
+      className={cn("space-y-6", className)}
     >
       <div className="space-y-2">
-        <label htmlFor="email" className="text-sm font-medium text-gray-700">
+        <label htmlFor="email" className="text-sm font-medium">
           Email Address
         </label>
         <div className="relative">
-          <Mail className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+          <Mail className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2" />
           <Input
             id="email"
             type="email"
             placeholder="Enter your email"
             className="pl-10"
             error={errors.email?.message}
-            {...register('email')}
+            {...register("email")}
           />
         </div>
       </div>
@@ -69,16 +90,16 @@ export function EmailLoginForm({ onSubmit, className }: EmailLoginFormProps) {
           <Lock className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
           <Input
             id="password"
-            type={showPassword ? 'text' : 'password'}
+            type={showPassword ? "text" : "password"}
             placeholder="Enter your password"
-            className="pl-10 pr-10"
+            className="pl-10 pr-10 text-black"
             error={errors.password?.message}
-            {...register('password')}
+            {...register("password")}
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+            className="absolute right-3 top-1/2 -translate-y-1/2 hover:text-gray-600 focus:outline-none"
           >
             {showPassword ? (
               <EyeOff className="h-5 w-5" />
@@ -93,27 +114,44 @@ export function EmailLoginForm({ onSubmit, className }: EmailLoginFormProps) {
         <label className="flex items-center space-x-2">
           <input
             type="checkbox"
-            className="h-4 w-4 rounded border-gray-300 text-[#2563EB] focus:ring-[#2563EB]"
-            {...register('rememberMe')}
+            className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-300"
+            {...register("rememberMe")}
           />
           <span className="text-sm text-gray-600">Remember me</span>
         </label>
-        <button
-          type="button"
-          className="text-sm text-[#2563EB] hover:text-blue-700 focus:outline-none focus:underline"
+        <Link
+          href={"/forgot-password"}
+          className="text-sm text-gray-900 hover:text-blue-700 focus:outline-none focus:underline"
         >
           Forgot password?
-        </button>
+        </Link>
       </div>
 
-      <Button
+      <button
         type="submit"
-        size="lg"
-        className="w-full"
-        disabled={isSubmitting}
+        disabled={isLoading}
+        className={`
+    w-full 
+    bg-gray-900 
+    text-white 
+    font-semibold 
+    py-2 px-4 
+    rounded-md 
+    shadow-sm 
+    hover:bg-gray-800 
+    hover:cursor-pointer 
+    focus:outline-none 
+    focus:ring-2 
+    focus:ring-gray-300 
+    focus:ring-offset-1 
+    transition-colors 
+    duration-200 
+    disabled:opacity-50 
+    disabled:cursor-not-allowed
+  `}
       >
-        {isSubmitting ? 'Signing in...' : 'Sign In'}
-      </Button>
+        {isLoading ? "Signing in..." : "Sign In"}
+      </button>
     </form>
   );
 }

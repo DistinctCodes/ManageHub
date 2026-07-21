@@ -11,7 +11,10 @@ mod access_control_tests;
 
 pub use access_control::AccessControlModule;
 pub use errors::{AccessControlError, AccessControlResult};
-pub use types::{AccessControlConfig, MembershipInfo, MultiSigConfig, ProposalAction, UserRole};
+pub use types::{
+    AccessControlConfig, MembershipInfo, MultiSigConfig, PendingProposal, ProposalAction,
+    ProposalStats, ProposalType, UserRole,
+};
 
 #[contract]
 pub struct AccessControl;
@@ -126,5 +129,41 @@ impl AccessControl {
             UserRole::Guest
         };
         AccessControlModule::check_access(&env, caller, role).unwrap_or(false)
+    }
+
+    // ============================================================================
+    // Enhanced Multisig Endpoints
+    // ============================================================================
+
+    pub fn reject_proposal(env: Env, rejecter: Address, proposal_id: u64) {
+        AccessControlModule::reject_proposal(&env, rejecter, proposal_id).unwrap()
+    }
+
+    pub fn cancel_proposal(env: Env, proposer: Address, proposal_id: u64) {
+        AccessControlModule::cancel_proposal(&env, proposer, proposal_id).unwrap()
+    }
+
+    pub fn get_proposal(env: Env, proposal_id: u64) -> Option<PendingProposal> {
+        AccessControlModule::get_proposal(&env, proposal_id)
+    }
+
+    pub fn get_pending_proposals(env: Env) -> Vec<u64> {
+        AccessControlModule::get_pending_proposals(&env)
+    }
+
+    pub fn get_proposal_stats(env: Env) -> ProposalStats {
+        AccessControlModule::get_proposal_stats(&env)
+    }
+
+    pub fn cleanup_expired_proposals(env: Env) -> u32 {
+        AccessControlModule::cleanup_expired_proposals(&env).unwrap_or(0)
+    }
+
+    pub fn is_emergency_mode(env: Env) -> bool {
+        AccessControlModule::is_emergency_mode(&env)
+    }
+
+    pub fn deactivate_emergency_mode(env: Env, caller: Address) {
+        AccessControlModule::deactivate_emergency_mode(&env, caller).unwrap()
     }
 }
