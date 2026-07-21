@@ -24,6 +24,8 @@ import { MembersController } from './members.controller';
 import { OnboardingStatusProvider } from './providers/onboarding-status.provider';
 import { Booking } from '../bookings/entities/booking.entity';
 import { Notification } from '../notifications/entities/notification.entity';
+import { DataExportProvider } from './providers/data-export.provider';
+import { AccountErasureProvider } from './providers/account-erasure.provider';
 
 @Module({
   imports: [
@@ -50,6 +52,8 @@ import { Notification } from '../notifications/entities/notification.entity';
     UpdateMemberStatusProvider,
     GetMemberStatsProvider,
     OnboardingStatusProvider,
+    DataExportProvider,
+    AccountErasureProvider,
   ],
   exports: [UsersService],
 })

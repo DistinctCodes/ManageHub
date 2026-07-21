@@ -6,11 +6,17 @@ import { WorkspaceTrackingService } from './workspace-tracking.service';
 import { WorkspaceTrackingController } from './workspace-tracking.controller';
 import { CheckInProvider } from './providers/check-in.provider';
 import { OccupancyProvider } from './providers/occupancy.provider';
+import { AttendanceProvider } from './providers/attendance.provider';
 
 @Module({
   imports: [TypeOrmModule.forFeature([WorkspaceLog, Workspace])],
   controllers: [WorkspaceTrackingController],
-  providers: [WorkspaceTrackingService, CheckInProvider, OccupancyProvider],
+  providers: [
+    WorkspaceTrackingService,
+    CheckInProvider,
+    OccupancyProvider,
+    AttendanceProvider,
+  ],
   exports: [WorkspaceTrackingService],
 })
 export class WorkspaceTrackingModule {}

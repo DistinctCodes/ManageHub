@@ -3,9 +3,9 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, LessThan, Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
-import { WorkspaceLog } from '../../workspace-tracking/entities/workspace-log.entity';
-import { NotificationsService } from '../../notifications/notifications.service';
-import { NotificationType } from '../../notifications/enums/notification-type.enum';
+import { WorkspaceLog } from '../workspace-tracking/entities/workspace-log.entity';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/enums/notification-type.enum';
 
 @Injectable()
 export class StaleCheckinJob {
