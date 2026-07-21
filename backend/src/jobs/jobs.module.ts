@@ -5,6 +5,7 @@ import { Payment } from '../payments/entities/payment.entity';
 import { WorkspaceLog } from '../workspace-tracking/entities/workspace-log.entity';
 import { BookingsModule } from '../bookings/bookings.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { StaleCheckinJob } from './stale-checkin.job';
 import { AutoCompleteBookingsJob } from './auto-complete-bookings.job';
 import { ExpirePendingBookingsProvider } from './providers/expire-pending-bookings.provider';
 
@@ -21,6 +22,6 @@ import { ExpirePendingBookingsProvider } from './providers/expire-pending-bookin
     BookingsModule,
     NotificationsModule,
   ],
-  providers: [AutoCompleteBookingsJob, ExpirePendingBookingsProvider],
+  providers: [StaleCheckinJob, AutoCompleteBookingsJob, ExpirePendingBookingsProvider],
 })
 export class JobsModule {}
