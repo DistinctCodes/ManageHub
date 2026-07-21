@@ -7,12 +7,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Booking } from '../entities/booking.entity';
 import { BookingStatus } from '../enums/booking-status.enum';
+import { WorkspacesService } from '../../workspaces/workspaces.service';
 
 @Injectable()
 export class CompleteBookingProvider {
   constructor(
     @InjectRepository(Booking)
     private readonly bookingsRepository: Repository<Booking>,
+    private readonly workspacesService: WorkspacesService,
   ) {}
 
   async complete(bookingId: string): Promise<Booking> {
@@ -27,6 +29,16 @@ export class CompleteBookingProvider {
     }
 
     booking.status = BookingStatus.COMPLETED;
-    return this.bookingsRepository.save(booking);
+    const saved = await this.bookingsRepository.save(booking);
+
+    // Free up the approximate availableSeats counter (see Workspace entity):
+    // COMPLETED bookings, like CANCELLED ones, no longer count against
+    // CheckWorkspaceAvailabilityProvider's live overlap query.
+    await this.workspacesService.adjustAvailableSeats(
+      saved.workspaceId,
+      saved.seatCount,
+    );
+
+    return saved;
   }
 }

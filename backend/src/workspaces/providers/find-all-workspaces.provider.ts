@@ -36,7 +36,11 @@ export class FindAllWorkspacesProvider {
     }
 
     if (minSeats) {
-      qb.andWhere('workspace.availableSeats >= :minSeats', { minSeats });
+      // Filters by total capacity, not live availability — availableSeats is
+      // stale (see BE-01). Live per-date-range availability isn't meaningful
+      // here since this endpoint has no date-range param; use
+      // GET /workspaces/:id/availability for a live, date-scoped check.
+      qb.andWhere('workspace.totalSeats >= :minSeats', { minSeats });
     }
 
     if (maxRate) {

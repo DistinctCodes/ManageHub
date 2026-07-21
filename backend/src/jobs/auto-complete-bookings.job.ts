@@ -2,11 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { LessThan, Repository } from 'typeorm';
-import { Booking } from '../../bookings/entities/booking.entity';
-import { BookingStatus } from '../../bookings/enums/booking-status.enum';
-import { CompleteBookingProvider } from '../../bookings/providers/complete-booking.provider';
-import { NotificationsService } from '../../notifications/notifications.service';
-import { NotificationType } from '../../notifications/enums/notification-type.enum';
+import { Booking } from '../bookings/entities/booking.entity';
+import { BookingStatus } from '../bookings/enums/booking-status.enum';
+import { CompleteBookingProvider } from '../bookings/providers/complete-booking.provider';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType } from '../notifications/enums/notification-type.enum';
 
 @Injectable()
 export class AutoCompleteBookingsJob {
