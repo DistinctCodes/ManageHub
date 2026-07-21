@@ -20,6 +20,7 @@ import {
 import { WorkspaceTrackingService } from './workspace-tracking.service';
 import { CheckInDto } from './dto/check-in.dto';
 import { OccupancyQueryDto } from './dto/occupancy-query.dto';
+import { AttendanceQueryDto } from './dto/attendance-query.dto';
 import { GetCurrentUser } from '../auth/decorators/getCurrentUser.decorator';
 import { Roles } from '../auth/decorators/roles.decorators';
 import { RolesGuard } from '../auth/guard/roles.guard';
@@ -101,5 +102,51 @@ export class WorkspaceTrackingController {
       limit ? Number(limit) : 50,
     );
     return { message: 'Recent logs retrieved', data };
+  }
+
+  // ── Attendance history endpoints ────────────────────────────────────────────
+
+  @Get('attendance/my-history')
+  @Roles(UserRole.USER, UserRole.STAFF, UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @ApiOperation({
+    summary: 'Get my attendance history (paginated)',
+    description:
+      "Returns the authenticated member's check-in/out history with optional workspace and date filters.",
+  })
+  async getMyAttendanceHistory(
+    @GetCurrentUser('id') userId: string,
+    @Query() query: AttendanceQueryDto,
+  ) {
+    const data = await this.workspaceTrackingService.getMemberAttendanceHistory(
+      userId,
+      query,
+    );
+    return { message: 'Attendance history retrieved', data };
+  }
+
+  @Get('attendance/my-summary')
+  @Roles(UserRole.USER, UserRole.STAFF, UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @ApiOperation({
+    summary: 'Get my attendance summary',
+    description:
+      'Returns aggregate stats: total sessions, total minutes, average session length, and distinct workspaces visited.',
+  })
+  async getMyAttendanceSummary(@GetCurrentUser('id') userId: string) {
+    const data =
+      await this.workspaceTrackingService.getMemberAttendanceSummary(userId);
+    return { message: 'Attendance summary retrieved', data };
+  }
+
+  @Get('attendance/admin-report')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @ApiOperation({
+    summary: 'Admin: aggregate attendance report for all members',
+    description:
+      'Returns paginated check-in logs across all members. Supports workspace and date range filters.',
+  })
+  async getAdminAttendanceReport(@Query() query: AttendanceQueryDto) {
+    const data =
+      await this.workspaceTrackingService.getAdminAttendanceReport(query);
+    return { message: 'Admin attendance report retrieved', data };
   }
 }
