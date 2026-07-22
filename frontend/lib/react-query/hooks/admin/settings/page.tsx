@@ -2,14 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { useGetHubSettings, BusinessHour } from '@/lib/react-query/hooks/admin/settings/useGetHubSettings';
-import { useUpdateHubSettings } from '@/lib/react-query/hooks/admin/settings/useUpdateHubSettings';
+import { useUpdateHubSettings, UpdateHubSettingsPayload } from '@/lib/react-query/hooks/admin/settings/useUpdateHubSettings';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { toast } from '@/components/ui/use-toast';
-import { Loader2, Upload, Building, Clock, Calendar, Landmark, Palette } from 'lucide-react';
+import { Loader2, Building, Clock, Calendar, Landmark, Palette } from 'lucide-react';
 
 const TIME_INTERVALS = Array.from({ length: 48 }, (_, i) => {
   const hours = Math.floor(i / 2).toString().padStart(2, '0');
@@ -18,6 +18,14 @@ const TIME_INTERVALS = Array.from({ length: 48 }, (_, i) => {
 });
 
 const DAYS_OF_WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
+
+interface ApiErrorShape {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+}
 
 export default function AdminSettingsPage() {
   const { data: settings, isLoading, isError } = useGetHubSettings();
@@ -85,7 +93,7 @@ export default function AdminSettingsPage() {
     }
   }, [settings]);
 
-  const handleSave = (sectionName: string, payload: Record<string, any>) => {
+  const handleSave = (sectionName: string, payload: UpdateHubSettingsPayload) => {
     updateSettings(payload, {
       onSuccess: () => {
         toast({
@@ -93,7 +101,7 @@ export default function AdminSettingsPage() {
           description: `${sectionName} settings saved successfully.`,
         });
       },
-      onError: (error: any) => {
+      onError: (error: ApiErrorShape) => {
         toast({
           title: 'Failed to update settings',
           description: error?.response?.data?.message || 'An unexpected error occurred.',
