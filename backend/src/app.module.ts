@@ -26,6 +26,7 @@ import { MembershipPlansModule } from './membership-plans/membership-plans.modul
 import { ParkingModule } from './parking/parking.module';
 import { VisitorsModule } from './visitors/visitors.module';
 import { JobsModule } from './jobs/jobs.module';
+import { createNestDatabaseOptions } from './database/typeorm.config';
 
 @Module({
   imports: [
@@ -58,25 +59,18 @@ import { JobsModule } from './jobs/jobs.module';
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => {
-        const host = configService.get<string>('DATABASE_HOST');
-        const sslRequired =
-          configService.get<string>('NODE_ENV') === 'production' ||
-          configService.get<string>('PGSSLMODE') === 'require' ||
-          configService.get<string>('DATABASE_SSL') === 'true' ||
-          (host ? host.includes('neon.tech') : false);
-        return {
-          type: 'postgres',
-          database: configService.get('DATABASE_NAME'),
-          password: configService.get('DATABASE_PASSWORD'),
-          username: configService.get('DATABASE_USERNAME'),
-          port: +configService.get('DATABASE_PORT'),
-          host,
-          autoLoadEntities: true,
-          synchronize: true,
-          ssl: sslRequired ? { rejectUnauthorized: false } : false,
-        };
-      },
+      useFactory: (configService: ConfigService) =>
+        createNestDatabaseOptions({
+          ...process.env,
+          DATABASE_HOST: configService.get<string>('DATABASE_HOST'),
+          DATABASE_PORT: configService.get<string>('DATABASE_PORT'),
+          DATABASE_USERNAME: configService.get<string>('DATABASE_USERNAME'),
+          DATABASE_PASSWORD: configService.get<string>('DATABASE_PASSWORD'),
+          DATABASE_NAME: configService.get<string>('DATABASE_NAME'),
+          DATABASE_SSL: configService.get<string>('DATABASE_SSL'),
+          PGSSLMODE: configService.get<string>('PGSSLMODE'),
+          NODE_ENV: configService.get<string>('NODE_ENV'),
+        }),
     }),
     EmailModule,
     AuthModule,
