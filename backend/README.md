@@ -32,6 +32,34 @@
 $ npm install
 ```
 
+## Database migrations
+
+The application never synchronizes entity changes to the database at startup.
+Apply the checked-in migrations before starting an environment:
+
+```bash
+npm run migration:run
+```
+
+Create a migration after changing an entity (replace `DescriptiveName` with a
+meaningful name), inspect the generated file, and commit it with the entity
+change:
+
+```bash
+npm run migration:generate -- src/migrations/DescriptiveName
+```
+
+To undo the most recently applied migration in a local/development database:
+
+```bash
+npm run migration:revert
+```
+
+The commands use `src/database/data-source.ts` and the same environment
+variables as the application (`DATABASE_HOST`, `DATABASE_PORT`,
+`DATABASE_USERNAME`, `DATABASE_PASSWORD`, `DATABASE_NAME`, `DATABASE_SSL`, and
+`PGSSLMODE`). Do not use `synchronize` or edit an already-applied migration.
+
 ## Compile and run the project
 
 ```bash
