@@ -1,93 +1,64 @@
+import { BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { HandleWebhookProvider } from './handle-webhook.provider';
-import { PaymentStatus } from '../enums/payment-status.enum';
 
-describe('HandleWebhookProvider — charge.success idempotency', () => {
+describe('HandleWebhookProvider', () => {
   let provider: HandleWebhookProvider;
 
-  const paymentsRepository = { findOne: jest.fn(), save: jest.fn() };
-  const bookingsRepository = { findOne: jest.fn(), update: jest.fn() };
-  const usersRepository = { findOne: jest.fn() };
   const paystackProvider = {
     verifyWebhookSignature: jest.fn().mockReturnValue(true),
   };
-  const sorobanEscrowProvider = { createEscrow: jest.fn() };
-  const bookingsService = { confirm: jest.fn() };
-  const invoicesService = {
-    generateForPayment: jest.fn().mockResolvedValue(undefined),
-  };
-  const notificationsService = {
-    create: jest.fn().mockResolvedValue(undefined),
-  };
-  const emailService = {
-    sendPaymentSuccessEmail: jest.fn().mockResolvedValue(true),
+  const paymentOutcomeProvider = {
+    handleChargeSuccess: jest.fn().mockResolvedValue(undefined),
+    handleChargeFailed: jest.fn().mockResolvedValue(undefined),
   };
 
-  const buildEvent = (reference: string) =>
-    Buffer.from(
-      JSON.stringify({ event: 'charge.success', data: { reference } }),
-    );
+  const buildEvent = (event: string, reference = 'ref-1') =>
+    Buffer.from(JSON.stringify({ event, data: { reference } }));
 
   beforeEach(() => {
     jest.clearAllMocks();
-    paymentsRepository.save.mockImplementation((p: unknown) =>
-      Promise.resolve(p),
-    );
-    usersRepository.findOne.mockResolvedValue(null);
-    bookingsRepository.findOne.mockResolvedValue(null);
+    paystackProvider.verifyWebhookSignature.mockReturnValue(true);
     provider = new HandleWebhookProvider(
-      paymentsRepository as any,
-      bookingsRepository as any,
-      usersRepository as any,
       paystackProvider as any,
-      sorobanEscrowProvider as any,
-      bookingsService as any,
-      invoicesService as any,
-      notificationsService as any,
-      emailService as any,
+      paymentOutcomeProvider as any,
     );
   });
 
-  it('confirms the booking for a fresh PENDING payment', async () => {
-    paymentsRepository.findOne.mockResolvedValue({
-      id: 'pay-1',
-      bookingId: 'booking-1',
-      status: PaymentStatus.PENDING,
-      amount: 100000,
-    });
-    bookingsService.confirm.mockResolvedValue({
-      id: 'booking-1',
-      planType: 'daily',
-    });
+  it('delegates charge.success events to the shared outcome provider', async () => {
+    await provider.handle(buildEvent('charge.success'), 'sig');
 
-    await provider.handle(buildEvent('ref-1'), 'sig');
-
-    expect(bookingsService.confirm).toHaveBeenCalledWith('booking-1');
-    expect(paymentsRepository.save).toHaveBeenCalled();
+    expect(paymentOutcomeProvider.handleChargeSuccess).toHaveBeenCalledWith(
+      'ref-1',
+      { reference: 'ref-1' },
+    );
   });
 
-  it('does not re-confirm a payment that is already SUCCESS', async () => {
-    paymentsRepository.findOne.mockResolvedValue({
-      id: 'pay-1',
-      bookingId: 'booking-1',
-      status: PaymentStatus.SUCCESS,
-    });
+  it('delegates charge.failed events to the shared outcome provider', async () => {
+    await provider.handle(buildEvent('charge.failed'), 'sig');
 
-    await provider.handle(buildEvent('ref-1'), 'sig');
-
-    expect(bookingsService.confirm).not.toHaveBeenCalled();
-    expect(paymentsRepository.save).not.toHaveBeenCalled();
+    expect(paymentOutcomeProvider.handleChargeFailed).toHaveBeenCalledWith(
+      'ref-1',
+    );
   });
 
-  it('does not resurrect a booking whose payment was already REFUNDED', async () => {
-    paymentsRepository.findOne.mockResolvedValue({
-      id: 'pay-1',
-      bookingId: 'booking-1',
-      status: PaymentStatus.REFUNDED,
-    });
+  it('does not delegate unhandled Paystack events', async () => {
+    await provider.handle(buildEvent('transfer.success'), 'sig');
 
-    await provider.handle(buildEvent('ref-1'), 'sig');
+    expect(paymentOutcomeProvider.handleChargeSuccess).not.toHaveBeenCalled();
+    expect(paymentOutcomeProvider.handleChargeFailed).not.toHaveBeenCalled();
+  });
 
-    expect(bookingsService.confirm).not.toHaveBeenCalled();
-    expect(paymentsRepository.save).not.toHaveBeenCalled();
+  it('rejects invalid webhook signatures', async () => {
+    paystackProvider.verifyWebhookSignature.mockReturnValue(false);
+
+    await expect(provider.handle(buildEvent('charge.success'), 'sig')).rejects.toThrow(
+      UnauthorizedException,
+    );
+  });
+
+  it('rejects malformed JSON payloads', async () => {
+    await expect(provider.handle(Buffer.from('{'), 'sig')).rejects.toThrow(
+      BadRequestException,
+    );
   });
 });
