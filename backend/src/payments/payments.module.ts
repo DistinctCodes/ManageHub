@@ -11,6 +11,7 @@ import { InitializePaymentProvider } from './providers/initialize-payment.provid
 import { HandleWebhookProvider } from './providers/handle-webhook.provider';
 import { RefundPaymentProvider } from './providers/refund-payment.provider';
 import { FindPaymentsProvider } from './providers/find-payments.provider';
+import { PaymentOutcomeProvider } from './providers/payment-outcome.provider';
 import { BookingsModule } from '../bookings/bookings.module';
 import { InvoicesModule } from '../invoices/invoices.module';
 import { NotificationsModule } from '../notifications/notifications.module';
@@ -31,7 +32,13 @@ import { NotificationsModule } from '../notifications/notifications.module';
     HandleWebhookProvider,
     RefundPaymentProvider,
     FindPaymentsProvider,
+    PaymentOutcomeProvider,
   ],
-  exports: [PaymentsService, RefundPaymentProvider],
+  exports: [
+    PaymentsService,
+    RefundPaymentProvider,
+    PaystackProvider,
+    PaymentOutcomeProvider,
+  ],
 })
 export class PaymentsModule {}

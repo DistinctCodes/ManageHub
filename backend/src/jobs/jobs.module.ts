@@ -5,9 +5,11 @@ import { Payment } from '../payments/entities/payment.entity';
 import { WorkspaceLog } from '../workspace-tracking/entities/workspace-log.entity';
 import { BookingsModule } from '../bookings/bookings.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { PaymentsModule } from '../payments/payments.module';
 import { StaleCheckinJob } from './stale-checkin.job';
 import { AutoCompleteBookingsJob } from './auto-complete-bookings.job';
 import { ExpirePendingBookingsProvider } from './providers/expire-pending-bookings.provider';
+import { ReconcilePendingPaymentsProvider } from './providers/reconcile-pending-payments.provider';
 
 /**
  * Shared background-jobs module.
@@ -21,7 +23,13 @@ import { ExpirePendingBookingsProvider } from './providers/expire-pending-bookin
     TypeOrmModule.forFeature([Booking, Payment, WorkspaceLog]),
     BookingsModule,
     NotificationsModule,
+    PaymentsModule,
   ],
-  providers: [StaleCheckinJob, AutoCompleteBookingsJob, ExpirePendingBookingsProvider],
+  providers: [
+    StaleCheckinJob,
+    AutoCompleteBookingsJob,
+    ExpirePendingBookingsProvider,
+    ReconcilePendingPaymentsProvider,
+  ],
 })
 export class JobsModule {}
