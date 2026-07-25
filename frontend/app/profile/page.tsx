@@ -49,7 +49,7 @@ export default function ProfilePage() {
         firstname: user.firstname,
         lastname: user.lastname,
         email: user.email,
-        showInDirectory: (user as Record<string, unknown>).showInDirectory as boolean ?? false,
+        showInDirectory: ((user as unknown) as Record<string, unknown>).showInDirectory as boolean ?? false,
       });
     }
   }, [user, reset]);
