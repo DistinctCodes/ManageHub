@@ -19,6 +19,7 @@ import {
   Bell,
   BarChart3,
   CreditCard,
+  Calendar,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuthState, useAuthActions } from "@/lib/store/authStore";
@@ -28,6 +29,8 @@ const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Workspaces", href: "/workspaces", icon: BriefcaseBusiness },
   { label: "My Bookings", href: "/bookings", icon: BookOpen },
+  { label: "Events", href: "/events", icon: Calendar },
+  { label: "Members", href: "/members", icon: Users },
   { label: "Check In / Out", href: "/check-in", icon: LogIn },
   { label: "Notifications", href: "/notifications", icon: Bell },
   { label: "Invoices", href: "/invoices", icon: FileText },
