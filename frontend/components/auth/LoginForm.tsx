@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -47,15 +47,32 @@ export default function LoginForm({
     [],
   );
 
-  const {
+const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, submitCount },
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues,
     mode: "onSubmit",
   });
+
+  const [announcement, setAnnouncement] = useState("");
+  const lastSubmittedRef = useRef(0);
+
+  useEffect(() => {
+    if (submitCount > lastSubmittedRef.current && Object.keys(errors).length > 0) {
+      lastSubmittedRef.current = submitCount;
+      const firstErrorField = Object.keys(errors)[0];
+      const errorEl = document.getElementById(firstErrorField);
+      errorEl?.focus();
+      const count = Object.keys(errors).length;
+      setAnnouncement(`${count} field${count > 1 ? "s" : ""} need${count > 1 ? "" : "s"} attention`);
+    }
+    if (Object.keys(errors).length === 0 && submitCount > 0) {
+      setAnnouncement("");
+    }
+  }, [errors, submitCount]);
 
   const onSubmit = (values: LoginFormValues) => login(values);
 
@@ -72,7 +89,9 @@ export default function LoginForm({
         <form
           onSubmit={handleSubmit(onSubmit)}
           className="bg-white rounded-xl shadow-sm border border-gray-200 p-8"
+          aria-label="Sign in form"
         >
+          <div aria-live="polite" className="sr-only">{announcement}</div>
           <div className="space-y-6">
             {/* Email Input */}
             <div>
@@ -87,14 +106,18 @@ export default function LoginForm({
                   <Mail className="h-5 w-5 text-gray-400" />
                 </div>
                 <input
+                  id="email"
                   type="email"
                   {...register("email")}
                   required
+                  aria-required={true}
+                  aria-invalid={!!errors.email}
+                  aria-describedby={errors.email ? "email-error" : undefined}
                   className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-transparent transition-all"
                   placeholder="Enter your email"
                 />
                 {errors.email?.message && (
-                  <p className="text-xs text-red-600 mt-1">
+                  <p id="email-error" className="text-xs text-red-600 mt-1" role="alert">
                     {errors.email.message}
                   </p>
                 )}
@@ -114,9 +137,13 @@ export default function LoginForm({
                   <Lock className="h-5 w-5 text-gray-400" />
                 </div>
                 <input
+                  id="password"
                   type={showPassword ? "text" : "password"}
                   {...register("password")}
                   required
+                  aria-required={true}
+                  aria-invalid={!!errors.password}
+                  aria-describedby={errors.password ? "password-error" : undefined}
                   className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-transparent transition-all"
                   placeholder="Enter your password"
                 />
@@ -133,7 +160,7 @@ export default function LoginForm({
                   )}
                 </button>
                 {errors.password?.message && (
-                  <p className="text-xs text-red-600 mt-1">
+                  <p id="password-error" className="text-xs text-red-600 mt-1" role="alert">
                     {errors.password.message}
                   </p>
                 )}
@@ -144,6 +171,7 @@ export default function LoginForm({
             <div className="flex items-center justify-between">
               <div className="flex items-center">
                 <input
+                  id="remember-me"
                   type="checkbox"
                   {...register("rememberMe")}
                   className="h-4 w-4 text-gray-900 focus:ring-gray-300 border-gray-300 rounded"
@@ -167,7 +195,7 @@ export default function LoginForm({
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gray-900 text-white py-3 px-4 rounded-lg font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 transition-colors"
+              className="w-full bg-gray-900 text-white py-3 px-4 rounded-lg font-medium hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? "Logging in..." : "Login"}
             </button>
