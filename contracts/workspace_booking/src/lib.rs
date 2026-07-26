@@ -1,8 +1,5 @@
 // contracts/workspace_booking/src/lib.rs
 #![no_std]
-// The env.events().publish() API is deprecated in favour of #[contractevent],
-// but kept here for consistency with the rest of the ManageHub contracts.
-#![allow(deprecated)]
 
 mod errors;
 mod types;
@@ -16,8 +13,11 @@ pub use types::{
 };
 
 use soroban_sdk::{
-    contract, contractimpl, contracttype, symbol_short, token, Address, Env, String, Vec,
+    contract, contractevent, contractimpl, contracttype, token, Address, Env, String, Vec,
 };
+
+/// Keep workspace/booking records for ~30 days (in ledgers; ~1 ledger / 5 s).
+const BOOKING_TTL_LEDGERS: u32 = 518_400;
 
 // ── Storage keys ──────────────────────────────────────────────────────────────
 
@@ -37,6 +37,66 @@ pub enum DataKey {
     MemberBookings(Address),
     /// List of booking IDs associated with a workspace.
     WorkspaceBookings(String),
+}
+
+// ── Contract Events (#[contractevent]) ────────────────────────────────────────
+
+#[contractevent]
+#[derive(Clone, Debug, PartialEq)]
+pub struct ContractInitialized {
+    pub admin: Address,
+    pub payment_token: Address,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, PartialEq)]
+pub struct WorkspaceRegistered {
+    pub id: String,
+    pub name: String,
+    pub workspace_type: WorkspaceType,
+    pub capacity: u32,
+    pub hourly_rate: u128,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, PartialEq)]
+pub struct WorkspaceAvailabilityChanged {
+    pub workspace_id: String,
+    pub is_available: bool,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, PartialEq)]
+pub struct WorkspaceRateChanged {
+    pub workspace_id: String,
+    pub hourly_rate: u128,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, PartialEq)]
+pub struct WorkspaceBooked {
+    pub booking_id: String,
+    pub member: Address,
+    pub workspace_id: String,
+    pub start_time: u64,
+    pub end_time: u64,
+    pub amount: u128,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, PartialEq)]
+pub struct BookingCancelled {
+    pub booking_id: String,
+    pub caller: Address,
+    pub refund_amount: u128,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, PartialEq)]
+pub struct BookingCompleted {
+    pub booking_id: String,
+    pub workspace_id: String,
+    pub member: Address,
 }
 
 // ── Contract ──────────────────────────────────────────────────────────────────
@@ -111,8 +171,7 @@ impl WorkspaceBookingContract {
             .instance()
             .set(&DataKey::PaymentToken, &payment_token);
 
-        env.events()
-            .publish((symbol_short!("init"),), (admin, payment_token));
+        ContractInitialized { admin, payment_token }.publish(&env);
         Ok(())
     }
 
@@ -163,6 +222,11 @@ impl WorkspaceBookingContract {
         env.storage()
             .persistent()
             .set(&DataKey::Workspace(id.clone()), &workspace);
+        env.storage().persistent().extend_ttl(
+            &DataKey::Workspace(id.clone()),
+            BOOKING_TTL_LEDGERS,
+            BOOKING_TTL_LEDGERS,
+        );
 
         let mut list: Vec<String> = env
             .storage()
@@ -172,10 +236,7 @@ impl WorkspaceBookingContract {
         list.push_back(id.clone());
         env.storage().instance().set(&DataKey::WorkspaceList, &list);
 
-        env.events().publish(
-            (symbol_short!("ws_reg"), id),
-            (name, workspace_type, capacity, hourly_rate),
-        );
+        WorkspaceRegistered { id, name, workspace_type, capacity, hourly_rate }.publish(&env);
         Ok(())
     }
 
@@ -204,8 +265,7 @@ impl WorkspaceBookingContract {
             .persistent()
             .set(&DataKey::Workspace(workspace_id.clone()), &workspace);
 
-        env.events()
-            .publish((symbol_short!("ws_avail"), workspace_id), (is_available,));
+        WorkspaceAvailabilityChanged { workspace_id, is_available }.publish(&env);
         Ok(())
     }
 
@@ -233,8 +293,7 @@ impl WorkspaceBookingContract {
             .persistent()
             .set(&DataKey::Workspace(workspace_id.clone()), &workspace);
 
-        env.events()
-            .publish((symbol_short!("ws_rate"), workspace_id), (hourly_rate,));
+        WorkspaceRateChanged { workspace_id, hourly_rate }.publish(&env);
         Ok(())
     }
 
@@ -291,7 +350,10 @@ impl WorkspaceBookingContract {
         // Cost = hourly_rate × ⌈duration_seconds / 3600⌉
         let duration_secs = end_time - start_time;
         let duration_hours = duration_secs.div_ceil(3600);
-        let amount: u128 = workspace.hourly_rate * duration_hours as u128;
+        let amount: u128 = workspace
+            .hourly_rate
+            .checked_mul(duration_hours as u128)
+            .ok_or(Error::Overflow)?;
 
         // Collect payment from member → contract
         let payment_token = Self::get_payment_token(&env)?;
@@ -317,6 +379,11 @@ impl WorkspaceBookingContract {
         env.storage()
             .persistent()
             .set(&DataKey::Booking(booking_id.clone()), &booking);
+        env.storage().persistent().extend_ttl(
+            &DataKey::Booking(booking_id.clone()),
+            BOOKING_TTL_LEDGERS,
+            BOOKING_TTL_LEDGERS,
+        );
 
         // Index: workspace → bookings
         let mut ws_bookings: Vec<String> = env
@@ -329,6 +396,11 @@ impl WorkspaceBookingContract {
             &DataKey::WorkspaceBookings(workspace_id.clone()),
             &ws_bookings,
         );
+        env.storage().persistent().extend_ttl(
+            &DataKey::WorkspaceBookings(workspace_id.clone()),
+            BOOKING_TTL_LEDGERS,
+            BOOKING_TTL_LEDGERS,
+        );
 
         // Index: member → bookings
         let mut member_bookings: Vec<String> = env
@@ -340,11 +412,13 @@ impl WorkspaceBookingContract {
         env.storage()
             .persistent()
             .set(&DataKey::MemberBookings(member.clone()), &member_bookings);
-
-        env.events().publish(
-            (symbol_short!("booked"), booking_id),
-            (member, workspace_id, start_time, end_time, amount),
+        env.storage().persistent().extend_ttl(
+            &DataKey::MemberBookings(member.clone()),
+            BOOKING_TTL_LEDGERS,
+            BOOKING_TTL_LEDGERS,
         );
+
+        WorkspaceBooked { booking_id, member, workspace_id, start_time, end_time, amount }.publish(&env);
         Ok(())
     }
 
@@ -376,16 +450,14 @@ impl WorkspaceBookingContract {
             &(booking.amount_paid as i128),
         );
 
+        let refund_amount = booking.amount_paid;
         booking.status = BookingStatus::Cancelled;
         booking.cancelled_at = Some(env.ledger().timestamp());
         env.storage()
             .persistent()
             .set(&DataKey::Booking(booking_id.clone()), &booking);
 
-        env.events().publish(
-            (symbol_short!("cancel"), booking_id),
-            (caller, booking.amount_paid),
-        );
+        BookingCancelled { booking_id, caller, refund_amount }.publish(&env);
         Ok(())
     }
 
@@ -405,16 +477,16 @@ impl WorkspaceBookingContract {
             return Err(Error::BookingNotActive);
         }
 
+        let workspace_id = booking.workspace_id.clone();
+        let member = booking.member.clone();
+
         booking.status = BookingStatus::Completed;
         booking.completed_at = Some(env.ledger().timestamp());
         env.storage()
             .persistent()
             .set(&DataKey::Booking(booking_id.clone()), &booking);
 
-        env.events().publish(
-            (symbol_short!("complete"), booking_id),
-            (booking.workspace_id, booking.member),
-        );
+        BookingCompleted { booking_id, workspace_id, member }.publish(&env);
         Ok(())
     }
 

@@ -29,6 +29,9 @@ pub enum StakingDataKey {
 /// Keep stake records for ~30 days.
 const STAKE_TTL_LEDGERS: u32 = 518_400;
 
+/// Keep staking tier records for ~90 days.
+const TIER_TTL_LEDGERS: u32 = 1_555_200;
+
 // ---------------------------------------------------------------------------
 // Module
 // ---------------------------------------------------------------------------
@@ -99,6 +102,11 @@ impl StakingModule {
         env.storage()
             .persistent()
             .set(&StakingDataKey::Tier(tier.id.clone()), &tier);
+        env.storage().persistent().extend_ttl(
+            &StakingDataKey::Tier(tier.id.clone()),
+            TIER_TTL_LEDGERS,
+            TIER_TTL_LEDGERS,
+        );
 
         // Append tier ID to the tier list.
         let mut list: Vec<String> = env

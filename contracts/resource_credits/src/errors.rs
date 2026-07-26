@@ -16,4 +16,6 @@ pub enum Error {
     InvalidAmount = 5,
     /// Account not found in storage.
     AccountNotFound = 6,
+    /// Arithmetic overflow.
+    Overflow = 7,
 }

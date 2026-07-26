@@ -1,13 +1,13 @@
 #![no_std]
-// The env.events().publish() API is deprecated in favour of #[contractevent],
-// but kept here for consistency with the rest of the ManageHub contracts.
-#![allow(deprecated)]
 
 mod errors;
 mod types;
 
 use errors::Error;
-use soroban_sdk::{contract, contractimpl, contracttype, symbol_short, Address, Env};
+use soroban_sdk::{contract, contractevent, contractimpl, contracttype, Address, Env};
+
+/// Keep balances for ~90 days (in ledgers; ~1 ledger / 5 s).
+const BALANCE_TTL_LEDGERS: u32 = 1_555_200;
 
 /// Storage keys for the contract.
 #[contracttype]
@@ -18,6 +18,32 @@ pub enum DataKey {
     TotalSupply,
     TransactionHistory(Address),
 }
+
+// ── Contract Events (#[contractevent]) ───────────────────────────────────────
+
+#[contractevent]
+#[derive(Clone, Debug, PartialEq)]
+pub struct CreditsMinted {
+    pub recipient: Address,
+    pub amount: u128,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, PartialEq)]
+pub struct CreditsTransferred {
+    pub from: Address,
+    pub to: Address,
+    pub amount: u128,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, PartialEq)]
+pub struct CreditsSpent {
+    pub member: Address,
+    pub amount: u128,
+}
+
+// ── Contract ─────────────────────────────────────────────────────────────────
 
 #[contract]
 pub struct ResourceCreditsContract;
@@ -64,9 +90,15 @@ impl ResourceCreditsContract {
             .persistent()
             .get(&DataKey::Balance(recipient.clone()))
             .unwrap_or(0u128);
+        let new_bal = bal.checked_add(amount).ok_or(Error::Overflow)?;
         env.storage()
             .persistent()
-            .set(&DataKey::Balance(recipient.clone()), &(bal + amount));
+            .set(&DataKey::Balance(recipient.clone()), &new_bal);
+        env.storage().persistent().extend_ttl(
+            &DataKey::Balance(recipient.clone()),
+            BALANCE_TTL_LEDGERS,
+            BALANCE_TTL_LEDGERS,
+        );
 
         let supply: u128 = env
             .storage()
@@ -75,10 +107,9 @@ impl ResourceCreditsContract {
             .unwrap_or(0u128);
         env.storage()
             .instance()
-            .set(&DataKey::TotalSupply, &(supply + amount));
+            .set(&DataKey::TotalSupply, &supply.checked_add(amount).ok_or(Error::Overflow)?);
 
-        env.events()
-            .publish((symbol_short!("mint"), recipient), amount);
+        CreditsMinted { recipient, amount }.publish(&env);
         Ok(())
     }
 
@@ -108,18 +139,28 @@ impl ResourceCreditsContract {
         env.storage()
             .persistent()
             .set(&DataKey::Balance(from.clone()), &(from_bal - amount));
+        env.storage().persistent().extend_ttl(
+            &DataKey::Balance(from.clone()),
+            BALANCE_TTL_LEDGERS,
+            BALANCE_TTL_LEDGERS,
+        );
 
         let to_bal: u128 = env
             .storage()
             .persistent()
             .get(&DataKey::Balance(to.clone()))
             .unwrap_or(0u128);
+        let new_to_bal = to_bal.checked_add(amount).ok_or(Error::Overflow)?;
         env.storage()
             .persistent()
-            .set(&DataKey::Balance(to.clone()), &(to_bal + amount));
+            .set(&DataKey::Balance(to.clone()), &new_to_bal);
+        env.storage().persistent().extend_ttl(
+            &DataKey::Balance(to.clone()),
+            BALANCE_TTL_LEDGERS,
+            BALANCE_TTL_LEDGERS,
+        );
 
-        env.events()
-            .publish((symbol_short!("transfer"), from, to), amount);
+        CreditsTransferred { from, to, amount }.publish(&env);
         Ok(())
     }
 
@@ -144,6 +185,11 @@ impl ResourceCreditsContract {
         env.storage()
             .persistent()
             .set(&DataKey::Balance(member.clone()), &(bal - amount));
+        env.storage().persistent().extend_ttl(
+            &DataKey::Balance(member.clone()),
+            BALANCE_TTL_LEDGERS,
+            BALANCE_TTL_LEDGERS,
+        );
 
         let supply: u128 = env
             .storage()
@@ -154,8 +200,7 @@ impl ResourceCreditsContract {
             .instance()
             .set(&DataKey::TotalSupply, &(supply - amount));
 
-        env.events()
-            .publish((symbol_short!("spend"), member), amount);
+        CreditsSpent { member, amount }.publish(&env);
         Ok(())
     }
 

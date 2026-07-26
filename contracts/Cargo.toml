@@ -8,6 +8,11 @@ members = [
     "workspace_booking",
     "payment_escrow",
     "resource_credits",
+    "staking_rewards",
+    "subscription_tier",
+    "attendance_batch",
+    "token_upgrade",
+    "pause_control",
 ]
 
 [workspace.dependencies]

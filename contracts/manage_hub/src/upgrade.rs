@@ -27,6 +27,9 @@ const UPGRADE_HISTORY_TTL_LEDGERS: u32 = 1_555_200;
 /// Keep version snapshots for ~90 days.
 const VERSION_SNAPSHOT_TTL_LEDGERS: u32 = 1_555_200;
 
+/// Keep membership tokens for ~90 days.
+const TOKEN_TTL_LEDGERS: u32 = 1_555_200;
+
 // ---------------------------------------------------------------------------
 // Module
 // ---------------------------------------------------------------------------
@@ -139,6 +142,11 @@ impl UpgradeModule {
         env.storage()
             .persistent()
             .set(&DataKey::Token(token_id.clone()), &updated_token);
+        env.storage().persistent().extend_ttl(
+            &DataKey::Token(token_id.clone()),
+            TOKEN_TTL_LEDGERS,
+            TOKEN_TTL_LEDGERS,
+        );
 
         // Record upgrade history
         let record = MigrationModule::build_record(
@@ -296,6 +304,11 @@ impl UpgradeModule {
         env.storage()
             .persistent()
             .set(&DataKey::Token(token_id.clone()), &rolled_back_token);
+        env.storage().persistent().extend_ttl(
+            &DataKey::Token(token_id.clone()),
+            TOKEN_TTL_LEDGERS,
+            TOKEN_TTL_LEDGERS,
+        );
 
         // Record rollback in history
         let record = MigrationModule::build_record(
@@ -398,6 +411,11 @@ impl UpgradeModule {
         env.storage()
             .persistent()
             .set(&DataKey::Token(token_id.clone()), &updated_token);
+        env.storage().persistent().extend_ttl(
+            &DataKey::Token(token_id.clone()),
+            TOKEN_TTL_LEDGERS,
+            TOKEN_TTL_LEDGERS,
+        );
 
         // Record
         let record = MigrationModule::build_record(
