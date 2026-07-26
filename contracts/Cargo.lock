@@ -762,6 +762,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8e04e2fd2b8188ea827b32ef11de88377086d690286ab35747ef7f9bf3ccb590"
 
 [[package]]
+name = "integration_tests"
+version = "0.0.0"
+dependencies = [
+ "common_types",
+ "payment_escrow",
+ "resource_credits",
+ "soroban-sdk",
+ "workspace_booking",
+]
+
+[[package]]
 name = "itertools"
 version = "0.10.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -931,6 +942,7 @@ checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
 name = "payment_escrow"
 version = "0.0.0"
 dependencies = [
+ "common_types",
  "soroban-sdk",
 ]
 
@@ -1050,6 +1062,7 @@ dependencies = [
 name = "resource_credits"
 version = "0.0.0"
 dependencies = [
+ "common_types",
  "soroban-sdk",
 ]
 
@@ -1778,6 +1791,7 @@ dependencies = [
 name = "workspace_booking"
 version = "0.0.0"
 dependencies = [
+ "common_types",
  "soroban-sdk",
 ]
 

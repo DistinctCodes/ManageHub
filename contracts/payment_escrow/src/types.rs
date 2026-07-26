@@ -1,6 +1,9 @@
 // contracts/payment_escrow/src/types.rs
 use soroban_sdk::{contracttype, Address, String};
 
+// Re-use PaymentStatus from common_types to avoid duplication across contracts.
+pub use common_types::PaymentStatus;
+
 /// Lifecycle state of an escrow.
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]

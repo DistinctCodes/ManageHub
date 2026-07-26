@@ -10,6 +10,91 @@ use soroban_sdk::{contracttype, Address, Map, String, Vec};
 // Metadata Types for Token Metadata System
 // ============================================================================
 
+// ============================================================================
+// Cross-Contract Shared Types
+// ============================================================================
+
+/// Lifecycle state of a booking.
+///
+/// Shared across workspace_booking and any contract that tracks reservations.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum BookingStatus {
+    /// Booking is awaiting confirmation.
+    Pending,
+    /// Booking has been confirmed.
+    Confirmed,
+    /// Booking is confirmed and currently active.
+    Active,
+    /// Booking finished successfully.
+    Completed,
+    /// Booking cancelled by member or admin.
+    Cancelled,
+}
+
+/// Lifecycle state of a payment or escrow transaction.
+///
+/// Shared across payment_escrow and any contract that processes payments.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum PaymentStatus {
+    /// Payment is locked and awaiting a release decision.
+    Pending,
+    /// Funds have been sent to the beneficiary.
+    Deposited,
+    /// Funds have been sent to the beneficiary (released).
+    Released,
+    /// Funds have been returned to the depositor.
+    Refunded,
+    /// Depositor raised a dispute — admin must resolve before funds move.
+    Disputed,
+    /// Dispute has been resolved (funds released or refunded).
+    Resolved,
+}
+
+/// Status of a resource credit account.
+///
+/// Shared across resource_credits and any contract that manages credit balances.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum CreditStatus {
+    /// Credit account is active and usable.
+    Active,
+    /// Credit account has expired.
+    Expired,
+    /// Credit account is suspended (e.g. due to policy violation).
+    Suspended,
+}
+
+/// Types of notifications emitted by ManageHub contracts.
+///
+/// Shared across all contracts that emit lifecycle events for the notification
+/// service or off-chain indexers.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum NotificationType {
+    /// A workspace booking has been confirmed.
+    BookingConfirmed,
+    /// A payment has been received / deposited into escrow.
+    PaymentReceived,
+    /// A subscription has been renewed.
+    SubscriptionRenewed,
+    /// A subscription has been cancelled.
+    SubscriptionCancelled,
+    /// A membership token has been issued.
+    TokenIssued,
+    /// A membership token has been transferred.
+    TokenTransferred,
+    /// Resource credits have been minted.
+    CreditsMinted,
+    /// Resource credits have been spent.
+    CreditsSpent,
+    /// An emergency pause has been activated.
+    EmergencyPause,
+    /// An escalation or dispute has been raised.
+    DisputeRaised,
+}
+
 /// Maximum length for metadata description text
 pub const MAX_DESCRIPTION_LENGTH: u32 = 500;
 

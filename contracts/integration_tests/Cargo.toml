@@ -1,0 +1,19 @@
+[package]
+name = "integration_tests"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["lib"]
+doctest = false
+
+[dependencies]
+soroban-sdk = { workspace = true }
+common_types = { workspace = true }
+workspace_booking = { path = "../workspace_booking", features = ["testutils"] }
+payment_escrow = { path = "../payment_escrow", features = ["testutils"] }
+resource_credits = { path = "../resource_credits", features = ["testutils"] }
+
+[dev-dependencies]
+soroban-sdk = { workspace = true, features = ["testutils"] }

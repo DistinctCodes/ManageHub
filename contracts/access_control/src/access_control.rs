@@ -46,6 +46,9 @@ impl AccessControlModule {
             return Err(AccessControlError::ConfigurationError);
         }
 
+        // SAFETY: requires auth — prevents front-running initialization
+        admin.require_auth();
+
         env.storage().persistent().set(&DataKey::Admin, &admin);
 
         env.storage()
