@@ -1,6 +1,18 @@
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:6001/api";
 
+export class ApiError extends Error {
+  status?: number;
+  data?: any;
+
+  constructor(message: string, status?: number, data?: any) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.data = data;
+  }
+}
+
 class ApiClient {
   private baseURL: string;
   private token: string | null = null;
@@ -37,16 +49,31 @@ class ApiClient {
       const response = await fetch(url, config);
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "An API error occurred");
+        if (response.status === 401 && typeof window !== "undefined") {
+          window.dispatchEvent(new Event("session-expired"));
+        }
+        let errorData: any = {};
+        try {
+          errorData = await response.json();
+        } catch {
+          errorData = {};
+        }
+        throw new ApiError(
+          errorData.message || "An API error occurred",
+          response.status,
+          errorData
+        );
       }
 
       return await response.json();
     } catch (error) {
-      if (error instanceof Error) {
+      if (error instanceof ApiError) {
         throw error;
       }
-      throw new Error("Network error occurred");
+      if (error instanceof Error) {
+        throw new ApiError(error.message);
+      }
+      throw new ApiError("Network error occurred");
     }
   }
 
