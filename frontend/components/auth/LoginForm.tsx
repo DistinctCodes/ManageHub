@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useLogin } from "@/hooks/use-login";
+import { useLogin } from "@/lib/hooks/useLogin";
 import {
   Eye,
   EyeOff,
