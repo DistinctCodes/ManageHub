@@ -10,6 +10,7 @@ import {
   SlidersHorizontal,
   Building2,
 } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 
 const WORKSPACE_TYPES: { label: string; value: WorkspaceType | "" }[] = [
   { label: "All Types", value: "" },
@@ -84,17 +85,26 @@ export default function WorkspacesPage() {
           ))}
         </div>
       ) : isError ? (
-        <div className="text-center py-16 text-gray-500">
-          <Building2 className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-          <p className="font-medium">Failed to load workspaces</p>
-          <p className="text-sm mt-1">Please try again later.</p>
-        </div>
+        <EmptyState
+          variant="error"
+          icon={Building2}
+          title="We couldn’t load the workspaces"
+          description="Please refresh the page or try again shortly."
+          actionLabel="Try again"
+          onAction={() => window.location.reload()}
+        />
       ) : workspaces.length === 0 ? (
-        <div className="text-center py-16 text-gray-500">
-          <Building2 className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-          <p className="font-medium">No workspaces found</p>
-          <p className="text-sm mt-1">Try adjusting your search or filters.</p>
-        </div>
+        <EmptyState
+          icon={Building2}
+          title={search || type ? "No workspaces match this filter" : "No workspaces available yet"}
+          description={
+            search || type
+              ? "Try broadening your search or clearing the filters to see more options."
+              : "New spaces will appear here as soon as they’re added to the hub."
+          }
+          actionLabel={search || type ? "Clear filters" : "Book your first workspace"}
+          actionHref={search || type ? "/workspaces" : "/workspaces"}
+        />
       ) : (
         <>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">

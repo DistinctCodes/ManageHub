@@ -17,6 +17,7 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/ui/empty-state"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
@@ -179,14 +180,14 @@ export default function InvoiceDetailPage() {
   // Acceptance Criteria: Clean Error state display block
   if (error || !invoice) {
     return (
-      <div className="max-w-md mx-auto my-12 p-6 text-center space-y-4">
-        <div className="flex justify-center"><AlertCircle className="h-12 w-12 text-rose-500" /></div>
-        <h2 className="text-xl font-bold text-slate-900">Document Retrieval Alert</h2>
-        <p className="text-sm text-muted-foreground">{error || "The requested bill summary could not be found."}</p>
-        <Button asChild className="w-full">
-          <Link href="/invoices"><ArrowLeft className="mr-2 h-4 w-4" /> Return to Invoices</Link>
-        </Button>
-      </div>
+      <EmptyState
+        variant="error"
+        icon={AlertCircle}
+        title="We couldn’t load this invoice"
+        description={error || "The requested bill summary could not be found."}
+        actionLabel="Back to invoices"
+        actionHref="/invoices"
+      />
     )
   }
 
