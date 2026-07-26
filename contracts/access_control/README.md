@@ -1,49 +1,26 @@
-# Access Control System for ManageHub
-
-A comprehensive Role-Based Access Control (RBAC) system for the ManageHub project, built on Soroban smart contracts.
+# Access Control Contract
 
 ## Overview
 
-This access control system provides secure user permission management through hierarchical roles, admin controls, and cross-contract integration. The system was developed to meet the specific requirements of role-based access control with admin restrictions and comprehensive testing.
-
-## Core Features
-
-- **Hierarchical Role System**: Three-tier role structure (Admin > Member > Guest)
-- **Admin-Restricted Operations**: Role assignment and system management limited to admins
-- **Cross-Contract Integration**: Seamless integration with membership token contracts
-- **Comprehensive Testing**: Full test coverage for all access control scenarios
-- **Modular Design**: Clean separation of concerns with dedicated modules
+The `access_control` contract provides a comprehensive Role-Based Access Control (RBAC) system for the ManageHub platform. It implements hierarchical role management (Admin > Member > Guest), multi-signature governance with configurable thresholds, admin transfer workflows, and blacklisting. Designed for cross-contract integration with subscription and membership token contracts.
 
 ## Architecture
 
-### Core Components
-
-1. **src/access_control.rs** - Main RBAC implementation containing:
-   - `DataKey` enum for storage organization (e.g., `UserRole(Address)`)
-   - Core functions: `set_role()`, `get_role()`, `check_access()`
-   - Admin validation and access enforcement
-
-2. **src/types.rs** - Data type definitions:
-   - `UserRole` enum (Admin, Member, Guest)
-   - Configuration structures
-   - Cross-contract interface types
-
-3. **src/errors.rs** - Error handling:
-   - `Unauthorized` error for access violations
-   - Categorized error types for different scenarios
-   - Result type aliases for clean error handling
-
-4. **src/lib.rs** - Soroban contract interface:
-   - Public contract functions
-   - Integration point for other contracts
-   - Proper Soroban contract annotations
+```
+src/
+├── lib.rs                   — Contract entry points
+├── access_control.rs        — Core RBAC implementation
+├── types.rs                 — UserRole, MultiSigConfig, ProposalAction, etc.
+├── errors.rs                — AccessControlError codes (100–133)
+└── access_control_tests.rs  — Unit tests
+```
 
 ### Role Hierarchy
 
 ```
 Admin (Level 2)
   ├── Can assign/remove roles for all users
-  ├── Can manage system configuration  
+  ├── Can manage system configuration
   ├── Can pause/unpause the system
   └── Can transfer admin privileges
 
@@ -55,148 +32,154 @@ Guest (Level 0)
   └── Default role with access to public functions only
 ```
 
-## Key Functions
+### Multisig Governance
 
-### Core Access Control Functions
+| Threshold Level | Use Case |
+|-----------------|----------|
+| `required_signatures` | Standard operations (role assignment) |
+| `critical_threshold` | Critical operations (config updates, admin add/remove) |
+| `emergency_threshold` | Emergency operations (force admin transfer, emergency pause) |
 
-- `set_role(user, role)` - Assign role to user (admin-only)
-- `get_role(user)` - Retrieve user's current role
-- `check_access(user, required_role)` - Verify user has required access level
-- `require_access(user, required_role)` - Enforce access or throw error
+### Proposal Lifecycle
 
-### Administrative Functions
+```
+  Create Proposal ──► Approve/Reject ──► Execute (if threshold met)
+        │                    │
+        │                    └──► Cancel (by proposer)
+        │
+        └──► Expire (after expiry_duration)
+```
 
-- `initialize(admin)` - Initialize the system with an admin
-- `is_admin(user)` - Check if user has admin privileges
-- `remove_role(user)` - Remove user's role (admin-only)
-- `transfer_admin(new_admin)` - Transfer admin privileges
+## Functions
 
-### System Management
-
-- `pause()` / `unpause()` - Emergency system controls (admin-only)
-- `update_config()` - Modify system configuration (admin-only)
-- `blacklist_user()` / `unblacklist_user()` - User access management
-
-## Usage Examples
-
-### Basic Role Management
+### Core RBAC
 
 ```rust
-use access_control::{AccessControl, UserRole};
+fn initialize(env: Env, admin: Address)
+fn set_role(env: Env, admin: Address, user: Address, role: UserRole)
+fn get_role(env: Env, user: Address) -> UserRole
+fn check_access(env: Env, user: Address, required_role: UserRole) -> bool
+fn require_access(env: Env, user: Address, required_role: UserRole)
+fn is_admin(env: Env, user: Address) -> bool
+fn remove_role(env: Env, admin: Address, user: Address)
+```
 
-// Initialize the system
-AccessControl::initialize(env, admin_address);
+### Configuration
 
-// Assign roles (admin-only)
-AccessControl::set_role(env, admin, user_address, UserRole::Member);
+```rust
+fn update_config(env: Env, admin: Address, config: AccessControlConfig)
+fn get_config(env: Env) -> AccessControlConfig
+fn pause(env: Env, admin: Address)
+fn unpause(env: Env, admin: Address)
+```
+
+### Blacklisting
+
+```rust
+fn blacklist_user(env: Env, admin: Address, user: Address)
+fn unblacklist_user(env: Env, admin: Address, user: Address)
+fn is_blacklisted(env: Env, user: Address) -> bool
+```
+
+### Admin Transfer
+
+```rust
+fn propose_admin_transfer(env: Env, current_admin: Address, new_admin: Address)
+fn accept_admin_transfer(env: Env, new_admin: Address)
+fn cancel_admin_transfer(env: Env, current_admin: Address)
+```
+
+### Multisig
+
+```rust
+fn initialize_multisig(env: Env, admins: Vec<Address>, required_signatures: u32)
+fn create_proposal(env: Env, proposer: Address, action: ProposalAction) -> u64
+fn approve_proposal(env: Env, approver: Address, proposal_id: u64)
+fn reject_proposal(env: Env, rejecter: Address, proposal_id: u64)
+fn cancel_proposal(env: Env, proposer: Address, proposal_id: u64)
+fn get_proposal(env: Env, proposal_id: u64) -> Option<PendingProposal>
+fn get_pending_proposals(env: Env) -> Vec<u64>
+fn get_proposal_stats(env: Env) -> ProposalStats
+fn cleanup_expired_proposals(env: Env) -> u32
+fn is_emergency_mode(env: Env) -> bool
+fn deactivate_emergency_mode(env: Env, caller: Address)
+```
+
+### Multisig Queries
+
+```rust
+fn is_multisig_enabled(env: Env) -> bool
+fn get_multisig_admins(env: Env) -> Vec<Address>
+fn get_multisig_threshold(env: Env) -> u32
+```
+
+## Proposal Actions
+
+| Action | Type | Description |
+|--------|------|-------------|
+| `SetRole(Address, UserRole)` | Standard | Assign a role to a user |
+| `UpdateConfig(AccessControlConfig)` | Critical | Update access control configuration |
+| `AddAdmin(Address)` | Critical | Add a new admin |
+| `RemoveAdmin(Address)` | Critical | Remove an admin |
+| `Pause` | Critical | Pause the contract |
+| `Unpause` | Standard | Unpause the contract |
+| `TransferAdmin(Address)` | Critical | Transfer admin privileges |
+| `UpdateMultisigConfig(MultiSigConfig)` | Critical | Update multisig thresholds |
+| `EmergencyPause(String)` | Emergency | Emergency pause with reason |
+| `BatchBlacklist(Vec<Address>)` | Critical | Blacklist multiple users |
+| `ScheduleUpgrade(Address, u64)` | TimeLocked | Schedule a contract upgrade |
+| `EmergencyAdminTransfer(Address)` | Emergency | Force admin transfer |
+
+## Example Usage
+
+```rust
+// Initialize with RBAC
+AccessControl::initialize(&env, admin.clone());
+
+// Assign a role
+AccessControl::set_role(&env, admin.clone(), user.clone(), UserRole::Member);
 
 // Check access
-let has_access = AccessControl::check_access(env, user, UserRole::Member);
+let has_access = AccessControl::check_access(&env, user.clone(), UserRole::Member);
 
-// Enforce access (throws error if insufficient)
-AccessControl::require_access(env, user, UserRole::Admin)?;
+// Enforce access
+AccessControl::require_access(&env, user, UserRole::Admin)?;
+
+// Initialize multisig with 2-of-3 threshold
+AccessControl::initialize_multisig(&env, admins, 2);
+
+// Create a proposal
+let proposal_id = AccessControl::create_proposal(
+    &env,
+    proposer.clone(),
+    ProposalAction::SetRole(new_user, UserRole::Admin),
+);
+
+// Approve
+AccessControl::approve_proposal(&env, approver, proposal_id);
 ```
 
-### Integration with Other Contracts
+## Error Codes
 
-```rust
-use access_control::AccessControl;
-
-#[contractimpl]
-impl MyContract {
-    pub fn admin_function(env: Env, caller: Address) -> Result<(), Error> {
-        // Require admin access
-        AccessControl::require_access(&env, caller, UserRole::Admin)?;
-        
-        // Your admin logic here
-        Ok(())
-    }
-    
-    pub fn member_function(env: Env, caller: Address) -> Result<(), Error> {
-        // Require member or higher access
-        AccessControl::require_access(&env, caller, UserRole::Member)?;
-        
-        // Your member logic here
-        Ok(())
-    }
-}
-```
+| Code | Name | Description |
+|------|------|-------------|
+| 100 | `Unauthorized` | Caller not authorized |
+| 101 | `AdminRequired` | Admin privileges required |
+| 103 | `InsufficientRole` | User role too low |
+| 109 | `NotInitialized` | System not initialized |
+| 115 | `ContractPaused` | Contract is paused |
+| 116 | `MultisigNotEnabled` | Multisig not enabled |
+| 117 | `InsufficientApprovals` | Not enough approvals for execution |
+| 118 | `ProposalNotFound` | Proposal not found |
+| 119 | `ProposalAlreadyExecuted` | Proposal already executed |
+| 120 | `ProposalExpired` | Proposal has expired |
+| 121 | `TimeLockActive` | Time-lock period not yet passed |
+| 125 | `MaxProposalsReached` | Too many pending proposals |
+| 130 | `CannotRemoveLastAdmin` | Cannot remove the last admin |
+| 133 | `ProposalRejected` | Rejection threshold reached |
 
 ## Testing
 
-The system includes comprehensive tests covering:
-
-- Role assignment and retrieval
-- Access control enforcement
-- Admin privilege validation
-- Cross-contract integration
-- Error handling scenarios
-- Edge cases and security scenarios
-
-Run tests with:
 ```bash
 cargo test -p access_control
 ```
-
-## Integration Requirements
-
-### Dependencies
-
-Add to your `Cargo.toml`:
-```toml
-[dependencies]
-access_control = { path = "../access-control" }
-soroban-sdk = { workspace = true }
-```
-
-### Contract Integration
-
-1. Import the access control system
-2. Initialize with an admin address
-3. Use access control functions in your contract methods
-4. Handle errors appropriately
-
-## Security Considerations
-
-- **Admin Privileges**: Only admins can assign/remove roles
-- **Role Hierarchy**: Higher roles inherit lower role permissions
-- **Access Enforcement**: All protected functions validate user access
-- **Error Handling**: Unauthorized access attempts are properly rejected
-- **Cross-Contract Safety**: Secure integration with membership tokens
-
-## API Reference
-
-| Function | Description | Access Level |
-|----------|-------------|--------------|
-| `initialize()` | Initialize the system | Public (once) |
-| `set_role()` | Assign role to user | Admin only |
-| `get_role()` | Get user's current role | Public |
-| `check_access()` | Check user access level | Public |
-| `require_access()` | Enforce access or error | Public |
-| `is_admin()` | Check admin privileges | Public |
-| `remove_role()` | Remove user's role | Admin only |
-| `pause()` / `unpause()` | Emergency controls | Admin only |
-
-## Error Handling
-
-The system uses a comprehensive error handling approach:
-
-```rust
-match AccessControl::set_role(env, admin, user, role) {
-    Ok(()) => // Success
-    Err(AccessControlError::Unauthorized) => // Access denied
-    Err(AccessControlError::InvalidAddress) => // Invalid input
-    // Handle other errors...
-}
-```
-
-## Acceptance Criteria Met
-
- **Roles assigned and checked** - Complete role management system
- **Access enforced** - Comprehensive access control validation  
- **Tests pass** - All 34 tests passing with 100% success rate
- **Integrates with types/errors** - Clean modular architecture
- **Admin restrictions** - All role operations restricted to admins
- **DataKey enum implemented** - Proper storage organization
- **Core functions implemented** - set_role, get_role, check_access
- **Included in lib.rs** - Proper contract integration
