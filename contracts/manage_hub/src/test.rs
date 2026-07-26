@@ -142,7 +142,7 @@ fn test_log_attendance_multiple_entries_same_user() {
 }
 
 #[test]
-#[should_panic(expected = "HostError: Error(Contract, #7)")]
+#[should_panic(expected = "HostError: Error(Contract, #1006)")]
 fn test_log_attendance_details_limit() {
     let env = Env::default();
     env.mock_all_auths();
@@ -334,7 +334,7 @@ fn test_renew_subscription_success() {
 }
 
 #[test]
-#[should_panic(expected = "HostError: Error(Contract, #10)")]
+#[should_panic(expected = "HostError: Error(Contract, #1009)")]
 fn test_renew_subscription_not_found() {
     let env = Env::default();
     env.mock_all_auths();
@@ -355,7 +355,7 @@ fn test_renew_subscription_not_found() {
 }
 
 #[test]
-#[should_panic(expected = "HostError: Error(Contract, #8)")]
+#[should_panic(expected = "HostError: Error(Contract, #1007)")]
 fn test_create_subscription_invalid_amount() {
     let env = Env::default();
     env.mock_all_auths();
@@ -383,7 +383,7 @@ fn test_create_subscription_invalid_amount() {
 }
 
 #[test]
-#[should_panic(expected = "HostError: Error(Contract, #9)")]
+#[should_panic(expected = "HostError: Error(Contract, #1008)")]
 fn test_create_subscription_invalid_token() {
     let env = Env::default();
     env.mock_all_auths();
@@ -539,7 +539,7 @@ fn test_cancel_subscription_success() {
 }
 
 #[test]
-#[should_panic(expected = "HostError: Error(Contract, #10)")]
+#[should_panic(expected = "HostError: Error(Contract, #1009)")]
 fn test_cancel_subscription_not_found() {
     let env = Env::default();
     env.mock_all_auths();
@@ -554,7 +554,7 @@ fn test_cancel_subscription_not_found() {
 }
 
 #[test]
-#[should_panic(expected = "HostError: Error(Contract, #13)")]
+#[should_panic(expected = "HostError: Error(Contract, #1012)")]
 fn test_create_duplicate_subscription() {
     let env = Env::default();
     env.mock_all_auths();
@@ -677,7 +677,7 @@ fn test_get_subscription_retrieves_correct_data() {
 }
 
 #[test]
-#[should_panic(expected = "HostError: Error(Contract, #10)")]
+#[should_panic(expected = "HostError: Error(Contract, #1009)")]
 fn test_get_subscription_not_found() {
     let env = Env::default();
     env.mock_all_auths();
@@ -1194,7 +1194,7 @@ fn test_pause_stats() {
 }
 
 #[test]
-#[should_panic(expected = "HostError: Error(Contract, #24)")]
+#[should_panic(expected = "HostError: Error(Contract, #1023)")]
 fn test_pause_already_paused_subscription() {
     let env = Env::default();
     env.mock_all_auths();
@@ -1223,7 +1223,7 @@ fn test_pause_already_paused_subscription() {
 }
 
 #[test]
-#[should_panic(expected = "HostError: Error(Contract, #28)")]
+#[should_panic(expected = "HostError: Error(Contract, #1027)")]
 fn test_resume_not_paused_subscription() {
     let env = Env::default();
     env.mock_all_auths();
@@ -1247,7 +1247,7 @@ fn test_resume_not_paused_subscription() {
 }
 
 #[test]
-#[should_panic(expected = "HostError: Error(Contract, #24)")]
+#[should_panic(expected = "HostError: Error(Contract, #1023)")]
 fn test_renew_paused_subscription() {
     let env = Env::default();
     env.mock_all_auths();
@@ -1350,7 +1350,7 @@ fn test_renew_token_success() {
 }
 
 #[test]
-#[should_panic(expected = "HostError: Error(Contract, #32)")]
+#[should_panic(expected = "HostError: Error(Contract, #1031)")]
 fn test_renew_token_tier_not_found() {
     let env = Env::default();
     env.mock_all_auths();
@@ -1410,7 +1410,7 @@ fn test_grace_period_entry() {
 }
 
 #[test]
-#[should_panic(expected = "HostError: Error(Contract, #47)")]
+#[should_panic(expected = "HostError: Error(Contract, #1046)")]
 fn test_transfer_blocked_in_grace_period() {
     let env = Env::default();
     env.mock_all_auths();
@@ -1560,7 +1560,7 @@ fn test_auto_renewal_eligibility() {
 }
 
 #[test]
-#[should_panic(expected = "HostError: Error(Contract, #48)")]
+#[should_panic(expected = "HostError: Error(Contract, #1047)")]
 fn test_grace_period_expired() {
     let env = Env::default();
     env.mock_all_auths();
@@ -1952,7 +1952,7 @@ fn test_fractionalize_transfer_and_get_holders() {
 }
 
 #[test]
-#[should_panic(expected = "HostError: Error(Contract, #8)")]
+#[should_panic(expected = "HostError: Error(Contract, #1007)")]
 fn test_fractionalize_rejects_invalid_min_fraction_size() {
     let env = Env::default();
     env.mock_all_auths();
@@ -1973,7 +1973,7 @@ fn test_fractionalize_rejects_invalid_min_fraction_size() {
 }
 
 #[test]
-#[should_panic(expected = "HostError: Error(Contract, #8)")]
+#[should_panic(expected = "HostError: Error(Contract, #1007)")]
 fn test_transfer_fraction_requires_min_fraction_granularity() {
     let env = Env::default();
     env.mock_all_auths();
@@ -1995,7 +1995,7 @@ fn test_transfer_fraction_requires_min_fraction_granularity() {
 }
 
 #[test]
-#[should_panic(expected = "HostError: Error(Contract, #4)")]
+#[should_panic(expected = "HostError: Error(Contract, #1003)")]
 fn test_recombine_requires_full_share_ownership() {
     let env = Env::default();
     env.mock_all_auths();
@@ -3245,7 +3245,7 @@ fn test_royalty_config() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #8)")]
+#[should_panic(expected = "Error(Contract, #1007)")]
 fn test_royalty_validation_fail() {
     let env = Env::default();
     env.mock_all_auths();
@@ -3319,7 +3319,7 @@ fn test_transfer_with_royalty_events() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #4)")]
+#[should_panic(expected = "Error(Contract, #1003)")]
 fn test_process_tier_change_rejects_non_admin_caller() {
     let env = Env::default();
     env.mock_all_auths();

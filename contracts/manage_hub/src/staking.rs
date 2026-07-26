@@ -135,6 +135,7 @@ impl StakingModule {
         tier_id: String,
         amount: i128,
     ) -> Result<(), Error> {
+        crate::guards::PauseGuard::require_not_paused(&env)?;
         staker.require_auth();
 
         let config = Self::get_config(&env)?;
@@ -237,6 +238,7 @@ impl StakingModule {
     ///
     /// Emits: `Unstaked(staker, amount, rewards)`
     pub fn unstake_tokens(env: Env, staker: Address) -> Result<(), Error> {
+        crate::guards::PauseGuard::require_not_paused(&env)?;
         staker.require_auth();
 
         let config = Self::get_config(&env)?;
@@ -284,6 +286,7 @@ impl StakingModule {
     ///
     /// Emits: `EmergencyUnstaked(staker, amount_returned, penalty)`
     pub fn emergency_unstake(env: Env, staker: Address) -> Result<(), Error> {
+        crate::guards::PauseGuard::require_not_paused(&env)?;
         staker.require_auth();
 
         let config = Self::get_config(&env)?;

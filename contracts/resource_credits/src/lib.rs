@@ -17,6 +17,7 @@ pub enum DataKey {
     Balance(Address),
     TotalSupply,
     TransactionHistory(Address),
+    ContractPaused,
 }
 
 #[contract]
@@ -24,6 +25,18 @@ pub struct ResourceCreditsContract;
 
 #[contractimpl]
 impl ResourceCreditsContract {
+    fn require_not_paused(env: &Env) -> Result<(), Error> {
+        let paused: bool = env
+            .storage()
+            .instance()
+            .get(&DataKey::ContractPaused)
+            .unwrap_or(false);
+        if paused {
+            return Err(Error::ContractPaused);
+        }
+        Ok(())
+    }
+
     /// Initialize the contract with an admin and payment token.
     pub fn initialize(env: Env, admin: Address, payment_token: Address) -> Result<(), Error> {
         if env.storage().instance().has(&DataKey::Admin) {
@@ -46,6 +59,7 @@ impl ResourceCreditsContract {
         recipient: Address,
         amount: u128,
     ) -> Result<(), Error> {
+        Self::require_not_paused(&env)?;
         if amount == 0 {
             return Err(Error::InvalidAmount);
         }
@@ -91,6 +105,7 @@ impl ResourceCreditsContract {
         to: Address,
         amount: u128,
     ) -> Result<(), Error> {
+        Self::require_not_paused(&env)?;
         if amount == 0 {
             return Err(Error::InvalidAmount);
         }
@@ -127,6 +142,7 @@ impl ResourceCreditsContract {
     ///
     /// CT-04: decrements member balance and TotalSupply.
     pub fn spend_credits(env: Env, member: Address, amount: u128) -> Result<(), Error> {
+        Self::require_not_paused(&env)?;
         if amount == 0 {
             return Err(Error::InvalidAmount);
         }
@@ -173,5 +189,53 @@ impl ResourceCreditsContract {
             .instance()
             .get(&DataKey::TotalSupply)
             .unwrap_or(0u128)
+    }
+
+    // ── Pause controls ────────────────────────────────────────────────────────
+
+    /// Pause all state-changing operations (admin only).
+    pub fn pause(env: Env, caller: Address) -> Result<(), Error> {
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(Error::AdminNotSet)?;
+        if caller != admin {
+            return Err(Error::Unauthorized);
+        }
+        caller.require_auth();
+        env.storage()
+            .instance()
+            .set(&DataKey::ContractPaused, &true);
+        env.events()
+            .publish((symbol_short!("pause"),), (caller, env.ledger().timestamp()));
+        Ok(())
+    }
+
+    /// Resume state-changing operations (admin only).
+    pub fn unpause(env: Env, caller: Address) -> Result<(), Error> {
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(Error::AdminNotSet)?;
+        if caller != admin {
+            return Err(Error::Unauthorized);
+        }
+        caller.require_auth();
+        env.storage()
+            .instance()
+            .set(&DataKey::ContractPaused, &false);
+        env.events()
+            .publish((symbol_short!("unpause"),), (caller, env.ledger().timestamp()));
+        Ok(())
+    }
+
+    /// Whether the contract is currently paused.
+    pub fn is_paused(env: Env) -> bool {
+        env.storage()
+            .instance()
+            .get(&DataKey::ContractPaused)
+            .unwrap_or(false)
     }
 }

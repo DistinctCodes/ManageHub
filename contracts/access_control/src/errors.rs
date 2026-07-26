@@ -1,78 +1,80 @@
 use soroban_sdk::contracterror;
 
 /// Access control specific errors
+///
+/// Error code range: 2000–2999
 #[contracterror]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 #[repr(u32)]
 pub enum AccessControlError {
     /// Caller is not authorized to perform this action
-    Unauthorized = 100,
+    Unauthorized = 2000,
     /// Caller does not have admin privileges
-    AdminRequired = 101,
+    AdminRequired = 2001,
     /// Invalid role specified
-    InvalidRole = 102,
+    InvalidRole = 2002,
     /// User does not have the required role
-    InsufficientRole = 103,
+    InsufficientRole = 2003,
     /// Role assignment failed
-    RoleAssignmentFailed = 104,
+    RoleAssignmentFailed = 2004,
     /// Membership token contract not configured
-    MembershipTokenNotSet = 105,
+    MembershipTokenNotSet = 2005,
     /// Cross-contract call to membership token failed
-    MembershipTokenCallFailed = 106,
+    MembershipTokenCallFailed = 2006,
     /// User does not have required membership token
-    InsufficientMembership = 107,
+    InsufficientMembership = 2007,
     /// Invalid membership token balance
-    InvalidTokenBalance = 108,
+    InvalidTokenBalance = 2008,
     /// Access control not initialized
-    NotInitialized = 109,
+    NotInitialized = 2009,
     /// Configuration error
-    ConfigurationError = 110,
+    ConfigurationError = 2010,
     /// Storage operation failed
-    StorageError = 111,
+    StorageError = 2011,
     /// Invalid address provided
-    InvalidAddress = 112,
+    InvalidAddress = 2012,
     /// Role hierarchy violation
-    RoleHierarchyViolation = 113,
+    RoleHierarchyViolation = 2013,
     /// Maximum roles per user exceeded
-    MaxRolesExceeded = 114,
+    MaxRolesExceeded = 2014,
     /// Contract is paused
-    ContractPaused = 115,
+    ContractPaused = 2015,
     /// Multisig not enabled for this operation
-    MultisigNotEnabled = 116,
+    MultisigNotEnabled = 2016,
     /// Insufficient approvals for proposal execution
-    InsufficientApprovals = 117,
+    InsufficientApprovals = 2017,
     /// Proposal not found
-    ProposalNotFound = 118,
+    ProposalNotFound = 2018,
     /// Proposal already executed
-    ProposalAlreadyExecuted = 119,
+    ProposalAlreadyExecuted = 2019,
     /// Proposal has expired
-    ProposalExpired = 120,
+    ProposalExpired = 2020,
     /// Time-lock not yet passed
-    TimeLockActive = 121,
+    TimeLockActive = 2021,
     /// Already approved this proposal
-    AlreadyApproved = 122,
+    AlreadyApproved = 2022,
     /// Already rejected this proposal
-    AlreadyRejected = 123,
+    AlreadyRejected = 2023,
     /// Cannot execute proposal yet
-    CannotExecuteProposal = 124,
+    CannotExecuteProposal = 2024,
     /// Maximum pending proposals reached
-    MaxProposalsReached = 125,
+    MaxProposalsReached = 2025,
     /// Invalid proposal type for this action
-    InvalidProposalType = 126,
+    InvalidProposalType = 2026,
     /// Invalid multisig configuration
-    InvalidMultisigConfig = 127,
+    InvalidMultisigConfig = 2027,
     /// Threshold too high for number of admins
-    ThresholdTooHigh = 128,
+    ThresholdTooHigh = 2028,
     /// Threshold too low for security requirements
-    ThresholdTooLow = 129,
+    ThresholdTooLow = 2029,
     /// Cannot remove last admin
-    CannotRemoveLastAdmin = 130,
+    CannotRemoveLastAdmin = 2030,
     /// Duplicate admin address
-    DuplicateAdmin = 131,
+    DuplicateAdmin = 2031,
     /// Not authorized as multisig admin
-    NotMultisigAdmin = 132,
+    NotMultisigAdmin = 2032,
     /// Proposal rejection threshold reached
-    ProposalRejected = 133,
+    ProposalRejected = 2033,
 }
 
 impl AccessControlError {
@@ -184,9 +186,10 @@ mod tests {
 
     #[test]
     fn test_error_codes() {
-        // Ensure error codes are unique and in expected range
-        assert_eq!(AccessControlError::Unauthorized as u32, 100);
-        assert_eq!(AccessControlError::AdminRequired as u32, 101);
-        assert_eq!(AccessControlError::ContractPaused as u32, 115);
+        // Ensure error codes are in the 2000-2999 range
+        assert_eq!(AccessControlError::Unauthorized as u32, 2000);
+        assert_eq!(AccessControlError::AdminRequired as u32, 2001);
+        assert_eq!(AccessControlError::ContractPaused as u32, 2015);
+        assert_eq!(AccessControlError::ProposalRejected as u32, 2033);
     }
 }

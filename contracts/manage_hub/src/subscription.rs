@@ -120,6 +120,7 @@ impl SubscriptionContract {
         amount: i128,
         duration: u64,
     ) -> Result<(), Error> {
+        crate::guards::PauseGuard::require_not_paused(&env)?;
         // Require user authentication
         user.require_auth();
 
@@ -441,6 +442,7 @@ impl SubscriptionContract {
 
     #[allow(deprecated)]
     pub fn cancel_subscription(env: Env, id: String) -> Result<(), Error> {
+        crate::guards::PauseGuard::require_not_paused(&env)?;
         let key = SubscriptionDataKey::Subscription(id.clone());
         let mut subscription: Subscription = env
             .storage()
@@ -485,6 +487,7 @@ impl SubscriptionContract {
         amount: i128,
         duration: u64,
     ) -> Result<(), Error> {
+        crate::guards::PauseGuard::require_not_paused(&env)?;
         // Get existing subscription
         let key = SubscriptionDataKey::Subscription(id.clone());
         let mut subscription = Self::get_subscription(env.clone(), id.clone())?;
@@ -833,6 +836,7 @@ impl SubscriptionContract {
         billing_cycle: BillingCycle,
         promo_code: Option<String>,
     ) -> Result<(), Error> {
+        crate::guards::PauseGuard::require_not_paused(&env)?;
         user.require_auth();
 
         // Check if subscription already exists
@@ -953,6 +957,7 @@ impl SubscriptionContract {
         subscription_id: String,
         new_tier_id: String,
     ) -> Result<String, Error> {
+        crate::guards::PauseGuard::require_not_paused(&env)?;
         user.require_auth();
 
         // Get current subscription
@@ -1029,6 +1034,7 @@ impl SubscriptionContract {
         subscription_id: String,
         payment_token: Address,
     ) -> Result<(), Error> {
+        crate::guards::PauseGuard::require_not_paused(&env)?;
         caller.require_auth();
 
         let key = SubscriptionDataKey::TierChangeRequest(change_request_id.clone());
@@ -1109,6 +1115,7 @@ impl SubscriptionContract {
         user: Address,
         change_request_id: String,
     ) -> Result<(), Error> {
+        crate::guards::PauseGuard::require_not_paused(&env)?;
         user.require_auth();
 
         let key = SubscriptionDataKey::TierChangeRequest(change_request_id.clone());
@@ -1157,18 +1164,18 @@ impl SubscriptionContract {
 
         // Validate discount
         if params.discount_percent > 100 {
-            return Err(Error::InvalidDiscountPercent);
+            return Err(Error::InvalidPaymentAmount);
         }
 
         // Validate date range
         if params.end_date <= params.start_date {
-            return Err(Error::InvalidPromoDateRange);
+            return Err(Error::InvalidDateRange);
         }
 
         // Check if promotion already exists
         let key = SubscriptionDataKey::TierPromotion(params.promo_id.clone());
         if env.storage().persistent().has(&key) {
-            return Err(Error::PromotionAlreadyExists);
+            return Err(Error::SubscriptionAlreadyExists);
         }
 
         let promotion = TierPromotion {
@@ -1243,7 +1250,7 @@ impl SubscriptionContract {
                 if promotion.tier_id == *tier_id && promotion.promo_code == *promo_code {
                     // Validate promotion is active
                     if current_time < promotion.start_date || current_time > promotion.end_date {
-                        return Err(Error::PromoCodeExpired);
+                        return Err(Error::TokenExpired);
                     }
 
                     // Check max redemptions

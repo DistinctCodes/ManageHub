@@ -59,7 +59,7 @@ fn test_initialize_success() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #3)")]
+#[should_panic(expected = "Error(Contract, #5002)")]
 fn test_initialize_twice_fails() {
     let env = Env::default();
     let contract_id = setup_contract(&env);
@@ -109,7 +109,7 @@ fn test_create_escrow_success() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #5)")]
+#[should_panic(expected = "Error(Contract, #5004)")]
 fn test_create_escrow_duplicate_id_fails() {
     let env = Env::default();
     env.mock_all_auths();
@@ -141,7 +141,7 @@ fn test_create_escrow_duplicate_id_fails() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #11)")]
+#[should_panic(expected = "Error(Contract, #5010)")]
 fn test_create_escrow_zero_amount_fails() {
     let env = Env::default();
     env.mock_all_auths();
@@ -230,7 +230,7 @@ fn test_refund_returns_funds_to_depositor() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #2)")]
+#[should_panic(expected = "Error(Contract, #5001)")]
 fn test_release_non_admin_fails() {
     let env = Env::default();
     env.mock_all_auths();
@@ -257,7 +257,7 @@ fn test_release_non_admin_fails() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #6)")]
+#[should_panic(expected = "Error(Contract, #5005)")]
 fn test_release_already_released_fails() {
     let env = Env::default();
     env.mock_all_auths();
@@ -318,7 +318,7 @@ fn test_raise_dispute_within_window() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #8)")]
+#[should_panic(expected = "Error(Contract, #5007)")]
 fn test_raise_dispute_after_window_fails() {
     let env = Env::default();
     env.mock_all_auths();
@@ -347,7 +347,7 @@ fn test_raise_dispute_after_window_fails() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #8)")]
+#[should_panic(expected = "Error(Contract, #5007)")]
 fn test_raise_dispute_when_window_zero_fails() {
     let env = Env::default();
     env.mock_all_auths();
@@ -436,7 +436,7 @@ fn test_resolve_dispute_refunds_to_depositor() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #7)")]
+#[should_panic(expected = "Error(Contract, #5006)")]
 fn test_resolve_dispute_on_pending_escrow_fails() {
     let env = Env::default();
     env.mock_all_auths();
@@ -499,7 +499,7 @@ fn test_claim_after_release_time_succeeds() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #9)")]
+#[should_panic(expected = "Error(Contract, #5008)")]
 fn test_claim_before_release_time_fails() {
     let env = Env::default();
     env.mock_all_auths();
@@ -529,7 +529,7 @@ fn test_claim_before_release_time_fails() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #10)")]
+#[should_panic(expected = "Error(Contract, #5009)")]
 fn test_claim_when_auto_claim_disabled_fails() {
     let env = Env::default();
     env.mock_all_auths();

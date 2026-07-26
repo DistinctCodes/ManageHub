@@ -583,3 +583,19 @@ pub struct RoyaltyInfo {
     /// Total percentage across all recipients (in basis points)
     pub total_percentage: u32,
 }
+
+// ============================================================================
+// Two-Step Admin Transfer Types
+// ============================================================================
+
+/// Represents a pending admin transfer proposal.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct PendingAdminTransfer {
+    /// The address proposed to become the new admin.
+    pub proposed_admin: Address,
+    /// The address that proposed the transfer (current admin).
+    pub proposer: Address,
+    /// Timestamp after which the proposal expires (24 hours default).
+    pub expiry: u64,
+}

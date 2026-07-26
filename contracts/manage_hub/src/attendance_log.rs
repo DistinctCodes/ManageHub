@@ -35,6 +35,7 @@ impl AttendanceLogModule {
         action: AttendanceAction,
         details: Map<String, String>,
     ) -> Result<(), Error> {
+        crate::guards::PauseGuard::require_not_paused(&env)?;
         // Enforce initiator authentication
         user_id.require_auth();
 

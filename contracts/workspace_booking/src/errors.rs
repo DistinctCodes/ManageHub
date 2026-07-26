@@ -2,79 +2,81 @@ use soroban_sdk::contracterror;
 
 /// Contract error definitions.
 ///
-/// Error codes are stable and should never be reordered.
-/// Reserved ranges are used for future compatibility.
+/// Error code range: 4000–4999
 ///
-/// 1–99   → Core contract errors  
-/// 100–199 → Booking related errors  
-/// 200–299 → Workspace related errors
+/// 4000–4099 → Core contract errors
+/// 4100–4199 → Booking related errors
+/// 4200–4299 → Workspace related errors
 #[contracterror]
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[repr(u32)]
 pub enum Error {
     /// No admin has been set yet.
-    AdminNotSet = 1,
+    AdminNotSet = 4000,
 
     /// Caller is not authorized.
-    Unauthorized = 2,
+    Unauthorized = 4001,
 
     /// Contract already initialized.
-    AlreadyInitialized = 3,
+    AlreadyInitialized = 4002,
 
     /// Payment token not configured.
-    PaymentTokenNotSet = 4,
+    PaymentTokenNotSet = 4003,
 
     /// Provided string exceeds allowed length.
-    StringTooLong = 5,
+    StringTooLong = 4004,
 
     /// Workspace capacity must be >= 1.
-    InvalidCapacity = 6,
+    InvalidCapacity = 4005,
 
     /// Hourly rate must be > 0.
-    InvalidRate = 7,
+    InvalidRate = 4006,
 
     /// Invalid booking time window.
-    InvalidTimeRange = 8,
+    InvalidTimeRange = 4007,
+
+    /// Contract is paused.
+    ContractPaused = 4008,
 
     // -----------------------------
-    // Booking Errors (100–199)
+    // Booking Errors (4100–4199)
     // -----------------------------
     /// Booking ID not found.
-    BookingNotFound = 100,
+    BookingNotFound = 4100,
 
     /// Booking already exists.
-    BookingAlreadyExists = 101,
+    BookingAlreadyExists = 4101,
 
     /// Booking overlaps with another booking.
-    BookingConflict = 102,
+    BookingConflict = 4102,
 
     /// Booking must be active for this operation.
-    BookingNotActive = 103,
+    BookingNotActive = 4103,
 
     /// Booking expired.
-    BookingExpired = 104,
+    BookingExpired = 4104,
 
     /// Booking already cancelled.
-    BookingAlreadyCancelled = 105,
+    BookingAlreadyCancelled = 4105,
 
     /// Booking already completed.
-    BookingAlreadyCompleted = 106,
+    BookingAlreadyCompleted = 4106,
 
     /// Member balance insufficient for payment.
-    InsufficientBalance = 107,
+    InsufficientBalance = 4107,
 
     // -----------------------------
-    // Workspace Errors (200–299)
+    // Workspace Errors (4200–4299)
     // -----------------------------
     /// Workspace ID not found.
-    WorkspaceNotFound = 200,
+    WorkspaceNotFound = 4200,
 
     /// Workspace already exists.
-    WorkspaceAlreadyExists = 201,
+    WorkspaceAlreadyExists = 4201,
 
     /// Workspace currently unavailable.
-    WorkspaceUnavailable = 202,
+    WorkspaceUnavailable = 4202,
 
     /// Cannot modify workspace while active bookings exist.
-    WorkspaceHasActiveBookings = 203,
+    WorkspaceHasActiveBookings = 4203,
 }
