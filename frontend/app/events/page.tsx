@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/apiClient";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Calendar, MapPin, Users } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import Link from "next/link";
 
 interface HubEvent {
@@ -49,10 +50,13 @@ export default function EventsPage() {
           ))}
         </div>
       ) : events.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <Calendar className="w-10 h-10 text-gray-200 mb-4" />
-          <p className="text-sm font-medium text-gray-500">No upcoming events.</p>
-        </div>
+        <EmptyState
+          icon={Calendar}
+          title="No upcoming events"
+          description="Check back soon for community sessions, member meetups, and more."
+          actionLabel="Browse workspaces"
+          actionHref="/workspaces"
+        />
       ) : (
         <div className="space-y-3">
           {events.map((ev) => (

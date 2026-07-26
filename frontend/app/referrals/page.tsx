@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Users } from 'lucide-react';
 
 export default function ReferralsPage() {
   const [referrals, setReferrals] = useState<any[]>([]);
@@ -36,8 +38,17 @@ export default function ReferralsPage() {
         <button onClick={handleReferUser} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 w-full">Send Referral</button>
       </div>
 
-      <div className="space-y-2">
-        {referrals.map((ref) => (
+      {referrals.length === 0 ? (
+        <EmptyState
+          icon={Users}
+          title="No referrals yet"
+          description="Share your invite link with colleagues and track their activity here."
+          actionLabel="Book your first workspace"
+          actionHref="/workspaces"
+        />
+      ) : (
+        <div className="space-y-2">
+          {referrals.map((ref) => (
           <div key={ref.id} className="border rounded p-3 bg-gray-50 flex justify-between items-center">
             <div>
               <p className="font-semibold">{ref.email}</p>
@@ -45,8 +56,9 @@ export default function ReferralsPage() {
             </div>
             <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">{ref.status}</span>
           </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

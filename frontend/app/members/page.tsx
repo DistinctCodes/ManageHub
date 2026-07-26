@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/apiClient";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Users, Search, ExternalLink } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface DirectoryMember {
   id: string;
@@ -78,17 +79,17 @@ export default function MembersPage() {
           ))}
         </div>
       ) : members.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <Users className="w-10 h-10 text-gray-200 mb-4" />
-          <p className="text-sm font-medium text-gray-500">
-            {search ? "No members found for your search." : "No members in the directory yet."}
-          </p>
-          {!search && (
-            <a href="/profile" className="mt-2 text-sm text-gray-900 underline flex items-center gap-1">
-              Update your profile to appear here <ExternalLink className="w-3 h-3" />
-            </a>
-          )}
-        </div>
+        <EmptyState
+          icon={Users}
+          title={search ? "No members match this search" : "No members in the directory yet"}
+          description={
+            search
+              ? "Try a broader keyword or clear the filters to see more people."
+              : "Fill out your profile so other members can discover you here."
+          }
+          actionLabel={search ? "Clear filters" : "Update your profile"}
+          actionHref={search ? "/members" : "/profile"}
+        />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {members.map((m) => {

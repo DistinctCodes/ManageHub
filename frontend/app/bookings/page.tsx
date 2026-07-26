@@ -15,6 +15,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/ui/empty-state";
 
 const STATUS_STYLES: Record<BookingStatus, string> = {
   PENDING: "bg-amber-50 text-amber-700",
@@ -200,25 +201,22 @@ export default function MyBookingsPage() {
           ))}
         </div>
       ) : isError ? (
-        <div className="text-center py-16 text-gray-500">
-          <BookOpen className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-          <p className="font-medium">Failed to load bookings</p>
-        </div>
+        <EmptyState
+          variant="error"
+          icon={BookOpen}
+          title="We couldn’t load your bookings"
+          description="Please refresh the page or try again in a moment."
+          actionLabel="Try again"
+          onAction={() => refetch()}
+        />
       ) : bookings.length === 0 ? (
-        <div className="text-center py-16 text-gray-500">
-          <BookOpen className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-          <p className="font-medium">No bookings yet</p>
-          <p className="text-sm mt-1">
-            Browse workspaces to make your first booking.
-          </p>
-          <Link
-            href="/workspaces"
-            className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-700"
-          >
-            <CalendarPlus className="w-4 h-4" />
-            Browse workspaces
-          </Link>
-        </div>
+        <EmptyState
+          icon={BookOpen}
+          title="No bookings yet"
+          description="Reserve a workspace to get started and keep track of upcoming plans here."
+          actionLabel="Book your first workspace"
+          actionHref="/workspaces"
+        />
       ) : (
         <>
           <div className="space-y-3">

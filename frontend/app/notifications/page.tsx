@@ -6,6 +6,7 @@ import { useGetNotifications } from "@/lib/react-query/hooks/notifications/useGe
 import { useMarkNotificationRead } from "@/lib/react-query/hooks/notifications/useMarkNotificationRead";
 import { useMarkAllRead } from "@/lib/react-query/hooks/notifications/useMarkAllRead";
 import { Notification } from "@/lib/types/notification";
+import { EmptyState } from "@/components/ui/empty-state";
 import {
   Bell,
   CheckCheck,
@@ -85,15 +86,13 @@ export default function NotificationsPage() {
           ))}
         </div>
       ) : notifications.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <Bell className="w-10 h-10 text-gray-200 mb-4" />
-          <p className="text-sm font-medium text-gray-500">
-            No notifications yet
-          </p>
-          <p className="text-xs text-gray-400 mt-1">
-            You&apos;ll be notified about bookings, payments, and more.
-          </p>
-        </div>
+        <EmptyState
+          icon={Bell}
+          title="No notifications yet"
+          description="You’ll see booking and payment updates here as they happen."
+          actionLabel="Book your first workspace"
+          actionHref="/workspaces"
+        />
       ) : (
         <div className="space-y-2 max-w-2xl">
           {notifications.map((n) => (
