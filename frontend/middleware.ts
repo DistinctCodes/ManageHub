@@ -13,6 +13,8 @@ const protectedRoutes: Record<string, string[]> = {
   "/invoices": ["user", "admin"],
   "/check-in": ["user", "admin"],
   "/notifications": ["user", "admin"],
+  "/members": ["user", "admin"],
+  "/events": ["user", "admin"],
   "/admin": ["admin"],
   "/users": ["admin"],
 };
