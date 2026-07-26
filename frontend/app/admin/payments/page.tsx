@@ -294,10 +294,13 @@ export default function AdminPaymentsPage() {
           ))}
         </div>
       ) : payments.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <CreditCard className="w-10 h-10 text-gray-200 mb-4" />
-          <p className="text-sm font-medium text-gray-500">No payments found</p>
-        </div>
+        <EmptyState
+          icon={CreditCard}
+          title="No payments found"
+          description="Payments will appear here once members complete bookings or invoices."
+          actionLabel="Back to payments"
+          actionHref="/admin/payments"
+        />
       ) : (
         <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
           <div className="overflow-x-auto">

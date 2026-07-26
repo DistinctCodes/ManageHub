@@ -16,6 +16,7 @@ import {
   ChevronRight,
   Building2,
 } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 
 const TYPE_LABELS: Record<string, string> = {
   COWORKING: "Coworking",
@@ -105,17 +106,13 @@ export default function AdminWorkspacesPage() {
           ))}
         </div>
       ) : workspaces.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <Building2 className="w-10 h-10 text-gray-200 mb-4" />
-          <p className="text-sm font-medium text-gray-500">No workspaces found</p>
-          <button
-            type="button"
-            onClick={() => setModalWorkspace("new")}
-            className="mt-4 text-sm text-gray-900 underline"
-          >
-            Create the first one
-          </button>
-        </div>
+        <EmptyState
+          icon={Building2}
+          title={search ? "No workspaces match this search" : "No workspaces found"}
+          description={search ? "Try broadening your keywords or clear the filters to see more results." : "Create the first workspace to start managing availability and bookings."}
+          actionLabel={search ? "Clear filters" : "Create workspace"}
+          onAction={search ? () => setSearch("") : () => setModalWorkspace("new")}
+        />
       ) : (
         <>
           <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">

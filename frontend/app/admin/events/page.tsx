@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { apiClient } from "@/lib/apiClient";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface AdminEvent {
   id: string;
@@ -41,7 +42,17 @@ export default function AdminEventsPage() {
             </tr>
           ))}
           {events.length === 0 && (
-            <tr><td colSpan={3} className="py-4 text-center text-gray-500">No events yet.</td></tr>
+            <tr>
+              <td colSpan={3} className="py-8">
+                <EmptyState
+                  icon={Calendar}
+                  title="No events yet"
+                  description="Create the first event to get the community calendar started."
+                  actionLabel="Create event"
+                  actionHref="/admin/events"
+                />
+              </td>
+            </tr>
           )}
         </tbody>
       </table>

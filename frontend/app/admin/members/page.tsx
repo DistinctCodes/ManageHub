@@ -5,6 +5,7 @@ import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { useGetAllMembers } from "@/lib/react-query/hooks/admin/members/useGetAllMembers";
 import { useUpdateMemberStatus } from "@/lib/react-query/hooks/admin/members/useUpdateMemberStatus";
 import { Users, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export default function AdminMembersPage() {
   const [page, setPage] = useState(1);
@@ -64,10 +65,13 @@ export default function AdminMembersPage() {
           ))}
         </div>
       ) : members.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <Users className="w-10 h-10 text-gray-200 mb-4" />
-          <p className="text-sm font-medium text-gray-500">No members found</p>
-        </div>
+        <EmptyState
+          icon={Users}
+          title={search ? "No members match this search" : "No members found"}
+          description={search ? "Try a broader keyword or clear the filter to see the full list." : "This workspace doesn’t have any members yet."}
+          actionLabel={search ? "Clear filters" : "Back to members"}
+          actionHref="/admin/members"
+        />
       ) : (
         <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
           <div className="overflow-x-auto">

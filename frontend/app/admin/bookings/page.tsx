@@ -6,6 +6,7 @@ import { useGetAllBookings } from "@/lib/react-query/hooks/admin/bookings/useGet
 import { useUpdateBookingStatus } from "@/lib/react-query/hooks/admin/bookings/useUpdateBookingStatus";
 import { BookingStatus } from "@/lib/types/booking";
 import { BookOpen, ChevronLeft, ChevronRight } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 
 const STATUSES: { value: BookingStatus | ""; label: string }[] = [
   { value: "", label: "All" },
@@ -100,10 +101,13 @@ export default function AdminBookingsPage() {
           ))}
         </div>
       ) : bookings.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <BookOpen className="w-10 h-10 text-gray-200 mb-4" />
-          <p className="text-sm font-medium text-gray-500">No bookings found</p>
-        </div>
+        <EmptyState
+          icon={BookOpen}
+          title="No bookings found"
+          description="There aren’t any reservations matching the current filters right now."
+          actionLabel="Clear filters"
+          actionHref="/admin/bookings"
+        />
       ) : (
         <>
           <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
