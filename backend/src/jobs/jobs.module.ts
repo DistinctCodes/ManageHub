@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { BullModule } from '@nestjs/bull';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Booking } from '../bookings/entities/booking.entity';
 import { Payment } from '../payments/entities/payment.entity';
@@ -10,6 +11,8 @@ import { StaleCheckinJob } from './stale-checkin.job';
 import { AutoCompleteBookingsJob } from './auto-complete-bookings.job';
 import { ExpirePendingBookingsProvider } from './providers/expire-pending-bookings.provider';
 import { ReconcilePendingPaymentsProvider } from './providers/reconcile-pending-payments.provider';
+import { JobsObservabilityService } from './jobs-observability.service';
+import { JobsObservabilityController } from './jobs-observability.controller';
 
 /**
  * Shared background-jobs module.
@@ -21,15 +24,22 @@ import { ReconcilePendingPaymentsProvider } from './providers/reconcile-pending-
 @Module({
   imports: [
     TypeOrmModule.forFeature([Booking, Payment, WorkspaceLog]),
+    BullModule.registerQueue(
+      { name: 'email' },
+      { name: 'bookings' },
+      { name: 'notifications' },
+    ),
     BookingsModule,
     NotificationsModule,
     PaymentsModule,
   ],
+  controllers: [JobsObservabilityController],
   providers: [
     StaleCheckinJob,
     AutoCompleteBookingsJob,
     ExpirePendingBookingsProvider,
     ReconcilePendingPaymentsProvider,
+    JobsObservabilityService,
   ],
 })
 export class JobsModule {}

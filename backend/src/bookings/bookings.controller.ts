@@ -10,12 +10,15 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  Res,
 } from '@nestjs/common';
+import { Response } from 'express';
 import {
   ApiTags,
   ApiBearerAuth,
   ApiOperation,
   ApiQuery,
+  ApiProduces,
 } from '@nestjs/swagger';
 import { BookingsService } from './bookings.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
@@ -27,12 +30,16 @@ import { UserRole } from '../users/enums/userRoles.enum';
 import { GetCurrentUser } from '../auth/decorators/getCurrentUser.decorator';
 import { PlanType } from './enums/plan-type.enum';
 import { Public } from '../auth/decorators/public.decorator';
+import { BookingsExportService } from './bookings-export.service';
 
 @ApiTags('bookings')
 @ApiBearerAuth()
 @Controller('bookings')
 export class BookingsController {
-  constructor(private readonly bookingsService: BookingsService) {}
+  constructor(
+    private readonly bookingsService: BookingsService,
+    private readonly bookingsExportService: BookingsExportService,
+  ) {}
 
   @Post('public/day-pass')
   @Public()
@@ -145,5 +152,31 @@ export class BookingsController {
   async complete(@Param('id', ParseUUIDPipe) id: string) {
     const booking = await this.bookingsService.complete(id);
     return { message: 'Booking completed successfully', data: booking };
+  }
+
+  @Get('admin/export/csv')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Export bookings as CSV (Admin only)' })
+  @ApiProduces('text/csv')
+  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'endDate', required: false })
+  @ApiQuery({ name: 'status', required: false })
+  async exportBookingsCsv(
+    @Res() res: Response,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('status') status?: string,
+  ) {
+    const csv = await this.bookingsExportService.exportBookingsCsv({
+      startDate,
+      endDate,
+      status,
+    });
+    res.set({
+      'Content-Type': 'text/csv',
+      'Content-Disposition': 'attachment; filename="bookings-export.csv"',
+    });
+    res.end(csv);
   }
 }

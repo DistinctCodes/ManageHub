@@ -13,6 +13,7 @@ import {
   ApiOperation,
   ApiProduces,
   ApiTags,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { InvoicesService } from './invoices.service';
 import { InvoiceQueryDto } from './dto/invoice-query.dto';
@@ -20,6 +21,7 @@ import { GetCurrentUser } from '../auth/decorators/getCurrentUser.decorator';
 import { Roles } from '../auth/decorators/roles.decorators';
 import { RolesGuard } from '../auth/guard/roles.guard';
 import { UserRole } from '../users/enums/userRoles.enum';
+import { InvoicesExportService } from './invoices-export.service';
 
 @ApiTags('Invoices')
 @ApiBearerAuth()
@@ -27,7 +29,10 @@ import { UserRole } from '../users/enums/userRoles.enum';
 @Roles(UserRole.USER, UserRole.STAFF, UserRole.ADMIN, UserRole.SUPER_ADMIN)
 @Controller('invoices')
 export class InvoicesController {
-  constructor(private readonly invoicesService: InvoicesService) {}
+  constructor(
+    private readonly invoicesService: InvoicesService,
+    private readonly invoicesExportService: InvoicesExportService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'List invoices (users see own; admins see all)' })
@@ -71,5 +76,30 @@ export class InvoicesController {
       'Content-Length': pdf.length,
     });
     res.end(pdf);
+  }
+
+  @Get('admin/export/csv')
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Export invoices as CSV (Admin only)' })
+  @ApiProduces('text/csv')
+  @ApiQuery({ name: 'status', required: false })
+  @ApiQuery({ name: 'startDate', required: false })
+  @ApiQuery({ name: 'endDate', required: false })
+  async exportInvoicesCsv(
+    @Res() res: Response,
+    @Query('status') status?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const csv = await this.invoicesExportService.exportInvoicesCsv({
+      status,
+      startDate,
+      endDate,
+    });
+    res.set({
+      'Content-Type': 'text/csv',
+      'Content-Disposition': 'attachment; filename="invoices-export.csv"',
+    });
+    res.end(csv);
   }
 }

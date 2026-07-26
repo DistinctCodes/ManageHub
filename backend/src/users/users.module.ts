@@ -26,6 +26,7 @@ import { Booking } from '../bookings/entities/booking.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { DataExportProvider } from './providers/data-export.provider';
 import { AccountErasureProvider } from './providers/account-erasure.provider';
+import { UsersExportService } from './users-export.service';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { AccountErasureProvider } from './providers/account-erasure.provider';
     OnboardingStatusProvider,
     DataExportProvider,
     AccountErasureProvider,
+    UsersExportService,
   ],
   exports: [UsersService],
 })

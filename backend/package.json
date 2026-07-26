@@ -24,7 +24,8 @@
     "migration:revert": "npm run typeorm -- migration:revert -d src/database/data-source.ts",
     "demo:seed": "node scripts/demo-data.js seed",
     "demo:clear": "node scripts/demo-data.js clear",
-    "demo:info": "node scripts/demo-data.js info"
+    "demo:info": "node scripts/demo-data.js info",
+    "demo:validate": "node scripts/demo-data.js validate"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.972.0",

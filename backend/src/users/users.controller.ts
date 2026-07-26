@@ -12,8 +12,11 @@ import {
   Delete,
   HttpStatus,
   Logger,
+  Res,
+  UseGuards,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Response } from 'express';
 import { UsersService } from './providers/users.service';
 import { GetCurrentUser } from '../auth/decorators/getCurrentUser.decorator';
 import { UserRole } from './enums/userRoles.enum';
@@ -23,11 +26,15 @@ import {
   ApiConsumes,
   ApiBody,
   ApiBearerAuth,
+  ApiProduces,
 } from '@nestjs/swagger';
 import { UpdateUserDto } from './dto/updateUser.dto';
 import { OnboardingStatusProvider } from './providers/onboarding-status.provider';
 import { DataExportProvider } from './providers/data-export.provider';
 import { AccountErasureProvider } from './providers/account-erasure.provider';
+import { UsersExportService } from './users-export.service';
+import { Roles } from '../auth/decorators/roles.decorators';
+import { RolesGuard } from '../auth/guard/roles.guard';
 
 @ApiTags('users')
 @ApiBearerAuth()
@@ -40,6 +47,7 @@ export class UsersController {
     private readonly onboardingStatusProvider: OnboardingStatusProvider,
     private readonly dataExportProvider: DataExportProvider,
     private readonly accountErasureProvider: AccountErasureProvider,
+    private readonly usersExportService: UsersExportService,
   ) {}
 
   @Post(':id/profile-picture')
@@ -160,5 +168,36 @@ export class UsersController {
     this.logger.log(`Account deletion requested for user ${userId}`);
     const result = await this.accountErasureProvider.anonymizeUser(userId);
     return result;
+  }
+
+  @Get('admin/export/csv')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Export all users as CSV (Admin only)' })
+  @ApiProduces('text/csv')
+  async exportUsersCsv(@Res() res: Response) {
+    this.logger.log('Admin CSV export requested for users');
+    const csv = await this.usersExportService.exportUsersCsv();
+    res.set({
+      'Content-Type': 'text/csv',
+      'Content-Disposition': 'attachment; filename="users-export.csv"',
+    });
+    res.end(csv);
+  }
+
+  @Get('admin/export/excel')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.SUPER_ADMIN)
+  @ApiOperation({ summary: 'Export all users as Excel (Admin only)' })
+  @ApiProduces('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+  async exportUsersExcel(@Res() res: Response) {
+    this.logger.log('Admin Excel export requested for users');
+    const buffer = await this.usersExportService.exportUsersExcel();
+    res.set({
+      'Content-Type':
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': 'attachment; filename="users-export.xlsx"',
+    });
+    res.end(buffer);
   }
 }
