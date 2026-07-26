@@ -42,6 +42,13 @@ export class FindInvoicesProvider {
       });
     }
 
+    if (query.search) {
+      qb.andWhere(
+        '(LOWER(invoice.invoiceNumber) LIKE :search OR LOWER(invoice.status) LIKE :search)',
+        { search: `%${query.search.toLowerCase()}%` },
+      );
+    }
+
     qb.orderBy('invoice.createdAt', 'DESC').skip(skip).take(limit);
 
     const [data, total] = await qb.getManyAndCount();

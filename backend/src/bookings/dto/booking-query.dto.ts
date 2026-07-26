@@ -49,4 +49,9 @@ export class BookingQueryDto {
   @IsOptional()
   @IsString()
   endDate?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  search?: string;
 }
