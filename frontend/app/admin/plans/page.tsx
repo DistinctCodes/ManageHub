@@ -150,8 +150,14 @@ export default function AdminPlansPage() {
               </tr>
             ) : plans.length === 0 ? (
               <tr>
-                <td colSpan={8} className="py-12 text-center text-gray-400">
-                  No membership plans found. Click "Create Plan" to add one.
+                <td colSpan={8} className="py-12">
+                  <EmptyState
+                    icon={Plus}
+                    title="No membership plans yet"
+                    description="Create your first plan to start offering memberships to new members."
+                    actionLabel="Create plan"
+                    onAction={() => setShowCreateModal(true)}
+                  />
                 </td>
               </tr>
             ) : (

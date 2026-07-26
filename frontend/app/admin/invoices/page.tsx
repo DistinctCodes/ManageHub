@@ -6,6 +6,7 @@ import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { useGetAdminInvoices } from "@/lib/react-query/hooks/admin/invoices/useGetAdminInvoices";
 import { InvoiceStatus } from "@/lib/types/invoice";
 import { FileText, ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 
 const STATUS_OPTIONS: { value: InvoiceStatus | ""; label: string }[] = [
   { value: "", label: "All" },
@@ -165,10 +166,13 @@ export default function AdminInvoicesPage() {
           ))}
         </div>
       ) : invoices.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <FileText className="w-10 h-10 text-gray-200 mb-4" />
-          <p className="text-sm font-medium text-gray-500">No invoices found</p>
-        </div>
+        <EmptyState
+          icon={FileText}
+          title={search || status || from || to ? "No invoices match this filter" : "No invoices found"}
+          description={search || status || from || to ? "Try clearing the search or date filters to broaden the view." : "Invoices will appear here once bookings are created and billed."}
+          actionLabel={search || status || from || to ? "Clear filters" : "Back to invoices"}
+          actionHref="/admin/invoices"
+        />
       ) : (
         <>
           <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
