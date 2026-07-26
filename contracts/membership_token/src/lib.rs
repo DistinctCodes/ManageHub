@@ -1,5 +1,8 @@
 #![no_std]
 
+#[cfg(test)]
+mod test;
+
 use soroban_sdk::{contract, contracterror, contractimpl, contracttype, Address, BytesN, Env};
 
 #[contract]

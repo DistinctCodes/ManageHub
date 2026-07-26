@@ -171,6 +171,40 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: http://localhost:3001
 
+  # ─────────────────────────────────────────────
+  # SECURITY AUDIT
+  # ─────────────────────────────────────────────
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        env:
+          RUSTUP_TOOLCHAIN: stable
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            contracts/target
+          key: ${{ runner.os }}-cargo-audit-${{ hashFiles('''contracts/Cargo.lock''') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-audit-
+            ${{ runner.os }}-cargo-
+      - name: Install cargo-deny
+        run: cargo install cargo-deny
+      - name: Run cargo-deny
+        run: cargo deny check
+        working-directory: contracts
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+      - name: Run cargo-audit
+        run: cargo audit
+        working-directory: contracts
+
   e2e:
     name: Frontend E2E (Playwright)
     runs-on: ubuntu-latest

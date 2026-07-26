@@ -6,6 +6,9 @@
 mod errors;
 mod types;
 
+#[cfg(test)]
+mod test;
+
 use errors::Error;
 use soroban_sdk::{contract, contractimpl, contracttype, symbol_short, Address, Env};
 
