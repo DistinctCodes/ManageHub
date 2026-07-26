@@ -32,6 +32,7 @@ export class FindBookingsProvider {
       workspaceId,
       startDate,
       endDate,
+      search,
     } = query;
 
     const isAdmin =
@@ -66,6 +67,12 @@ export class FindBookingsProvider {
     if (startDate)
       qb.andWhere('booking.startDate >= :startDate', { startDate });
     if (endDate) qb.andWhere('booking.endDate <= :endDate', { endDate });
+    if (search) {
+      qb.andWhere(
+        '(LOWER(workspace.name) LIKE :search OR LOWER(booking.id) LIKE :search OR LOWER(booking.status) LIKE :search)',
+        { search: `%${search.toLowerCase()}%` },
+      );
+    }
 
     const total = await qb.getCount();
     const data = await qb

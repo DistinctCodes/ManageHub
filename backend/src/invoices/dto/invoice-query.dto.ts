@@ -26,4 +26,9 @@ export class InvoiceQueryDto {
   @IsOptional()
   @IsUUID()
   bookingId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  search?: string;
 }

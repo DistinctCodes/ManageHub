@@ -41,6 +41,14 @@ export const queryKeys = {
   twoFactor: {
     status: ["2fa", "status"] as const,
   },
+  search: {
+    workspaces: (query: string) => ["search", "workspaces", query] as const,
+    members: (query: string) => ["search", "members", query] as const,
+    bookings: (isAdmin: boolean, query: string) =>
+      ["search", "bookings", isAdmin, query] as const,
+    invoices: (isAdmin: boolean, query: string) =>
+      ["search", "invoices", isAdmin, query] as const,
+  },
   admin: {
     workspaces: {
       all: ["admin", "workspaces"] as const,
