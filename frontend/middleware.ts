@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
+import { shouldBlockSandbox } from "./lib/sandbox";
 
 const publicRoutes = ["/", "/login", "/register", "/forgot-password"];
 
@@ -35,6 +36,21 @@ async function decodeToken(token: string) {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get("authToken")?.value;
+
+  if (pathname.startsWith("/sandbox")) {
+    const response = shouldBlockSandbox(pathname, process.env)
+      ? new NextResponse("Not Found", {
+          status: 404,
+          headers: {
+            "X-Robots-Tag": "noindex, nofollow",
+          },
+        })
+      : NextResponse.next();
+
+    response.headers.set("X-Robots-Tag", "noindex, nofollow");
+    return response;
+  }
+
   const isPublicRoute = publicRoutes.includes(pathname);
   const matchedRoute = Object.keys(protectedRoutes).find((route) =>
     pathname.startsWith(route)

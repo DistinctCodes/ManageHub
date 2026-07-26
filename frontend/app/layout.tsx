@@ -5,6 +5,7 @@ import "./globals.css";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import Script from "next/script";
+import { shouldBlockSandbox } from "@/lib/sandbox";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,6 +16,8 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+const sandboxBlocked = shouldBlockSandbox("/sandbox", process.env);
 
 export const metadata: Metadata = {
   manifest: "/manifest.json",
@@ -75,11 +78,11 @@ export const metadata: Metadata = {
     site: "@managehubs",
   },
   robots: {
-    index: true,
-    follow: true,
+    index: !sandboxBlocked,
+    follow: !sandboxBlocked,
     googleBot: {
-      index: true,
-      follow: true,
+      index: !sandboxBlocked,
+      follow: !sandboxBlocked,
       "max-video-preview": -1,
       "max-image-preview": "large",
       "max-snippet": -1,
