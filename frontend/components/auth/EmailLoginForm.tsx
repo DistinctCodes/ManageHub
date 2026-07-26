@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -26,6 +26,9 @@ export function EmailLoginForm({
   isLoading,
 }: EmailLoginFormProps) {
   const [showPassword, setShowPassword] = useState(false);
+  const [announcement, setAnnouncement] = useState("");
+  const [submitCount, setSubmitCount] = useState(0);
+  const lastSubmittedRef = useRef(0);
 
   const {
     register,
@@ -57,14 +60,31 @@ export function EmailLoginForm({
   }, [errors.email, errors.password]);
 
   const handleLocalSubmit = (data: EmailLoginFormData) => {
+    setSubmitCount((prev) => prev + 1);
     onSubmit?.(data);
   };
+
+  useEffect(() => {
+    if (submitCount > lastSubmittedRef.current && Object.keys(errors).length > 0) {
+      lastSubmittedRef.current = submitCount;
+      const firstErrorField = Object.keys(errors)[0];
+      const errorEl = document.getElementById(firstErrorField);
+      errorEl?.focus();
+      const count = Object.keys(errors).length;
+      setAnnouncement(`${count} field${count > 1 ? "s" : ""} need${count > 1 ? "" : "s"} attention`);
+    }
+    if (Object.keys(errors).length === 0 && submitCount > 0) {
+      setAnnouncement("");
+    }
+  }, [errors, submitCount]);
 
   return (
     <form
       onSubmit={handleSubmit(handleLocalSubmit)}
       className={cn("space-y-6", className)}
+      aria-label="Sign in form"
     >
+      <div aria-live="polite" className="sr-only">{announcement}</div>
       <div className="space-y-2">
         <label htmlFor="email" className="text-sm font-medium">
           Email Address
@@ -77,9 +97,14 @@ export function EmailLoginForm({
             placeholder="Enter your email"
             className="pl-10"
             error={errors.email?.message}
+            aria-required={true}
+            aria-describedby={errors.email ? "email-error" : undefined}
             {...register("email")}
           />
         </div>
+        {errors.email?.message && (
+          <p id="email-error" className="text-sm text-red-600 mt-1" role="alert">{errors.email.message}</p>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -94,6 +119,8 @@ export function EmailLoginForm({
             placeholder="Enter your password"
             className="pl-10 pr-10 text-black"
             error={errors.password?.message}
+            aria-required={true}
+            aria-describedby={errors.password ? "password-error" : undefined}
             {...register("password")}
           />
           <button
@@ -108,6 +135,9 @@ export function EmailLoginForm({
             )}
           </button>
         </div>
+        {errors.password?.message && (
+          <p id="password-error" className="text-sm text-red-600 mt-1" role="alert">{errors.password.message}</p>
+        )}
       </div>
 
       <div className="flex items-center justify-between">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useGetWorkspaceById } from "@/lib/react-query/hooks/workspaces/useGetWorkspaceById";
@@ -58,6 +58,9 @@ export default function BookingForm() {
   const [seatCount, setSeatCount] = useState(1);
   const [notes, setNotes] = useState("");
   const [bookingId, setBookingId] = useState<string | null>(null);
+  const [step0Errors, setStep0Errors] = useState<Record<string, string>>({});
+  const [announcement, setAnnouncement] = useState("");
+  const formRef = useRef<HTMLFormElement>(null);
 
   const { data: workspaceData } = useGetWorkspaceById(workspaceId);
   const workspace = workspaceData?.data;
@@ -98,11 +101,47 @@ export default function BookingForm() {
 
   const today = new Date().toISOString().split("T")[0];
 
-  const canProceedStep0 =
-    workspaceId && planType && startDate && endDate && seatCount > 0;
+  const validateStep0 = () => {
+    const newErrors: Record<string, string> = {};
+    if (!workspaceId && !preselectedId) newErrors.workspaceId = "Please select a workspace";
+    if (!planType) newErrors.planType = "Please select a plan";
+    if (!startDate) newErrors.startDate = "Please select a start date";
+    if (!endDate) newErrors.endDate = "Please select an end date";
+    else if (new Date(endDate) <= new Date(startDate)) newErrors.endDate = "End date must be after start date";
+    if (seatCount < 1) newErrors.seatCount = "Must be at least 1 seat";
+    if (workspaceId && seatCount > workspace.totalSeats) newErrors.seatCount = `Cannot exceed ${workspace.totalSeats} seats`;
+    return newErrors;
+  };
+
+  const handleStep0Next = () => {
+    const newErrors = validateStep0();
+    setStep0Errors(newErrors);
+    if (Object.keys(newErrors).length > 0) {
+      const firstErrorField = Object.keys(newErrors)[0];
+      const errorEl = document.getElementById(firstErrorField);
+      errorEl?.focus();
+      const count = Object.keys(newErrors).length;
+      setAnnouncement(`${count} field${count > 1 ? "s" : ""} need${count > 1 ? "" : "s"} attention`);
+      return;
+    }
+    setStep0Errors({});
+    setAnnouncement("");
+    setStep(1);
+  };
 
   async function handleConfirmBooking() {
-    if (!canProceedStep0) return;
+    const newErrors = validateStep0();
+    if (Object.keys(newErrors).length > 0) {
+      setStep0Errors(newErrors);
+      const firstErrorField = Object.keys(newErrors)[0];
+      const errorEl = document.getElementById(firstErrorField);
+      errorEl?.focus();
+      const count = Object.keys(newErrors).length;
+      setAnnouncement(`${count} field${count > 1 ? "s" : ""} need${count > 1 ? "" : "s"} attention`);
+      return;
+    }
+    setStep0Errors({});
+    setAnnouncement("");
     try {
       const res = await createBooking({
         workspaceId,
@@ -187,16 +226,21 @@ export default function BookingForm() {
 
       {/* Step 0: Details */}
       {step === 0 && (
-        <div className="bg-white rounded-xl border border-gray-100 p-6 space-y-5">
+        <form ref={formRef} onSubmit={(e) => { e.preventDefault(); handleStep0Next(); }} className="bg-white rounded-xl border border-gray-100 p-6 space-y-5" aria-label="Booking details form">
+          <div aria-live="polite" className="sr-only">{announcement}</div>
           {/* Workspace select (only shown if no preselection) */}
           {!preselectedId && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label htmlFor="workspaceId" className="block text-sm font-medium text-gray-700 mb-1.5">
                 Workspace <span className="text-red-500">*</span>
               </label>
               <select
+                id="workspaceId"
                 value={workspaceId}
                 onChange={(e) => setWorkspaceId(e.target.value)}
+                aria-required={true}
+                aria-invalid={!!step0Errors.workspaceId}
+                aria-describedby={step0Errors.workspaceId ? "workspaceId-error" : undefined}
                 className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-200 bg-white"
               >
                 <option value="">Select a workspace</option>
@@ -206,6 +250,9 @@ export default function BookingForm() {
                   </option>
                 ))}
               </select>
+              {step0Errors.workspaceId && (
+                <p id="workspaceId-error" className="text-sm text-red-600 mt-1" role="alert">{step0Errors.workspaceId}</p>
+              )}
             </div>
           )}
 
@@ -237,85 +284,109 @@ export default function BookingForm() {
 
           {/* Plan type */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+            <label id="planType-label" className="block text-sm font-medium text-gray-700 mb-1.5">
               Plan <span className="text-red-500">*</span>
             </label>
-            <div className="grid grid-cols-3 gap-2">
-              {PLAN_TYPES.map((p) => (
-                <button
-                  key={p.value}
-                  type="button"
-                  onClick={() => setPlanType(p.value)}
-                  className={`p-3 rounded-lg border text-left transition-colors ${
-                    planType === p.value
-                      ? "border-gray-900 bg-gray-900 text-white"
-                      : "border-gray-200 hover:border-gray-300"
-                  }`}
-                >
-                  <p className="text-sm font-medium">{p.label}</p>
-                  <p
-                    className={`text-xs mt-0.5 ${
-                      planType === p.value ? "text-gray-300" : "text-gray-400"
-                    }`}
+            <div role="radiogroup" aria-labelledby="planType-label" aria-required={true} aria-invalid={!!step0Errors.planType} aria-describedby={step0Errors.planType ? "planType-error" : undefined}>
+              <div className="grid grid-cols-3 gap-2">
+                {PLAN_TYPES.map((p) => (
+                  <button
+                    key={p.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={planType === p.value}
+                    onClick={() => { setPlanType(p.value); setStep0Errors((prev) => { const next = { ...prev }; delete next.planType; return next; }); }}
+                    className={`p-3 rounded-lg border text-left transition-colors ${
+                      planType === p.value
+                        ? "border-gray-900 bg-gray-900 text-white"
+                        : "border-gray-200 hover:border-gray-300"
+                    } ${step0Errors.planType ? "border-red-500" : ""}`}
                   >
-                    {p.desc}
-                  </p>
-                </button>
-              ))}
+                    <p className="text-sm font-medium">{p.label}</p>
+                    <p
+                      className={`text-xs mt-0.5 ${
+                        planType === p.value ? "text-gray-300" : "text-gray-400"
+                      }`}
+                    >
+                      {p.desc}
+                    </p>
+                  </button>
+                ))}
+              </div>
             </div>
+            {step0Errors.planType && (
+              <p id="planType-error" className="text-sm text-red-600 mt-1" role="alert">{step0Errors.planType}</p>
+            )}
           </div>
 
           {/* Dates */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1.5">
                 Start Date <span className="text-red-500">*</span>
               </label>
               <input
+                id="startDate"
                 type="date"
                 value={startDate}
                 min={today}
-                onChange={(e) => setStartDate(e.target.value)}
+                onChange={(e) => { setStartDate(e.target.value); setStep0Errors((prev) => { const next = { ...prev }; delete next.startDate; return next; }); }}
+                aria-required={true}
+                aria-invalid={!!step0Errors.startDate}
+                aria-describedby={step0Errors.startDate ? "startDate-error" : undefined}
                 className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-200"
               />
+              {step0Errors.startDate && (
+                <p id="startDate-error" className="text-sm text-red-600 mt-1" role="alert">{step0Errors.startDate}</p>
+              )}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1.5">
                 End Date <span className="text-red-500">*</span>
               </label>
               <input
+                id="endDate"
                 type="date"
                 value={endDate}
                 min={startDate || today}
-                onChange={(e) => setEndDate(e.target.value)}
+                onChange={(e) => { setEndDate(e.target.value); setStep0Errors((prev) => { const next = { ...prev }; delete next.endDate; return next; }); }}
+                aria-required={true}
+                aria-invalid={!!step0Errors.endDate}
+                aria-describedby={step0Errors.endDate ? "endDate-error" : undefined}
                 className="w-full px-3.5 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-200"
               />
+              {step0Errors.endDate && (
+                <p id="endDate-error" className="text-sm text-red-600 mt-1" role="alert">{step0Errors.endDate}</p>
+              )}
             </div>
           </div>
 
           {/* Seats */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+            <label htmlFor="seatCount" className="block text-sm font-medium text-gray-700 mb-1.5">
               Number of Seats <span className="text-red-500">*</span>
             </label>
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => setSeatCount((s) => Math.max(1, s - 1))}
+                onClick={() => { setSeatCount((s) => Math.max(1, s - 1)); setStep0Errors((prev) => { const next = { ...prev }; delete next.seatCount; return next; }); }}
+                aria-label="Decrease seat count"
                 className="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50"
               >
                 −
               </button>
-              <span className="w-10 text-center text-sm font-semibold text-gray-900">
+              <span id="seatCount" className="w-10 text-center text-sm font-semibold text-gray-900" aria-live="polite">
                 {seatCount}
               </span>
               <button
                 type="button"
-                onClick={() =>
+                onClick={() => {
                   setSeatCount((s) =>
                     Math.min(workspace?.totalSeats ?? 99, s + 1)
-                  )
-                }
+                  );
+                  setStep0Errors((prev) => { const next = { ...prev }; delete next.seatCount; return next; });
+                }}
+                aria-label="Increase seat count"
                 className="w-9 h-9 rounded-lg border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-50"
               >
                 +
@@ -326,14 +397,18 @@ export default function BookingForm() {
                 </span>
               )}
             </div>
+            {step0Errors.seatCount && (
+              <p id="seatCount-error" className="text-sm text-red-600 mt-1" role="alert">{step0Errors.seatCount}</p>
+            )}
           </div>
 
           {/* Notes */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+            <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-1.5">
               Notes (optional)
             </label>
             <textarea
+              id="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
@@ -359,14 +434,13 @@ export default function BookingForm() {
           )}
 
           <button
-            onClick={() => setStep(1)}
-            disabled={!canProceedStep0}
+            type="submit"
             className="flex items-center justify-center gap-2 w-full py-2.5 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Continue to review
             <ArrowRight className="w-4 h-4" />
           </button>
-        </div>
+        </form>
       )}
 
       {/* Step 1: Review */}

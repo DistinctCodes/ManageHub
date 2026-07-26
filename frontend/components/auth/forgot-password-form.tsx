@@ -64,10 +64,14 @@ const calculatePasswordStrength = (
 };
 
 export function ForgotPasswordForm() {
-  const [step, setStep] = useState<Step>("email");
-  const [submittedEmail, setSubmittedEmail] = useState("");
-  const [verifiedOtp, setVerifiedOtp] = useState("");
-  const [cooldown, setCooldown] = useState(0);
+   const [step, setStep] = useState<Step>("email");
+   const [submittedEmail, setSubmittedEmail] = useState("");
+   const [verifiedOtp, setVerifiedOtp] = useState("");
+   const [cooldown, setCooldown] = useState(0);
+   const [emailAnnouncement, setEmailAnnouncement] = useState("");
+   const [passwordAnnouncement, setPasswordAnnouncement] = useState("");
+   const emailLastSubmittedRef = useRef(0);
+   const passwordLastSubmittedRef = useRef(0);
 
   // OTP state
   const [otp, setOtp] = useState(["", "", "", ""]);
@@ -116,6 +120,26 @@ export function ForgotPasswordForm() {
       inputRefs.current[0]?.focus();
     }
   }, [step]);
+
+  useEffect(() => {
+    if (emailForm.formState.submitCount > 0 && Object.keys(emailForm.formState.errors).length > 0) {
+      const firstErrorField = Object.keys(emailForm.formState.errors)[0];
+      const errorEl = document.getElementById(firstErrorField);
+      errorEl?.focus();
+      const count = Object.keys(emailForm.formState.errors).length;
+      setEmailAnnouncement(`${count} field${count > 1 ? "s" : ""} need${count > 1 ? "" : "s"} attention`);
+    }
+  }, [emailForm.formState.errors, emailForm.formState.submitCount]);
+
+  useEffect(() => {
+    if (passwordForm.formState.submitCount > 0 && Object.keys(passwordForm.formState.errors).length > 0) {
+      const firstErrorField = Object.keys(passwordForm.formState.errors)[0];
+      const errorEl = document.getElementById(firstErrorField);
+      errorEl?.focus();
+      const count = Object.keys(passwordForm.formState.errors).length;
+      setPasswordAnnouncement(`${count} field${count > 1 ? "s" : ""} need${count > 1 ? "" : "s"} attention`);
+    }
+  }, [passwordForm.formState.errors, passwordForm.formState.submitCount]);
 
   // Step 1: Submit email
   const onSubmitEmail = (data: ForgotPasswordFormType) => {
@@ -272,41 +296,51 @@ export function ForgotPasswordForm() {
 
         {/* Main Content Card */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-          {/* Step 1: Email */}
-          {step === "email" && (
-            <form
-              onSubmit={emailForm.handleSubmit(onSubmitEmail)}
-              className="space-y-6"
-            >
-              <div>
-                <label
-                  htmlFor="email"
-                  className="block text-sm font-medium text-gray-700 mb-2"
-                >
-                  Email Address
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Mail className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    id="email"
-                    type="email"
-                    {...emailForm.register("email")}
-                    className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-transparent transition-all ${
-                      emailError ? "border-red-500" : "border-gray-300"
-                    }`}
-                    placeholder="Enter your email address"
-                    disabled={isSendingEmail}
-                  />
-                </div>
-                {serverError && (
-                  <p className="mt-2 text-sm text-red-600 flex items-center">
-                    <AlertCircle className="h-4 w-4 mr-1" />
-                    {serverError}
-                  </p>
-                )}
-              </div>
+{/* Step 1: Email */}
+           {step === "email" && (
+             <form
+               onSubmit={emailForm.handleSubmit(onSubmitEmail)}
+               className="space-y-6"
+               aria-label="Forgot password email form"
+             >
+               <div aria-live="polite" className="sr-only">{emailAnnouncement}</div>
+               <div>
+                 <label
+                   htmlFor="email"
+                   className="block text-sm font-medium text-gray-700 mb-2"
+                 >
+                   Email Address
+                 </label>
+                 <div className="relative">
+                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                     <Mail className="h-5 w-5 text-gray-400" />
+                   </div>
+                   <input
+                     id="email"
+                     type="email"
+                     {...emailForm.register("email")}
+                     aria-required={true}
+                     aria-invalid={!!emailForm.formState.errors.email}
+                     aria-describedby={emailForm.formState.errors.email ? "email-error" : undefined}
+                     className={`block w-full pl-10 pr-3 py-3 border rounded-lg placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-transparent transition-all ${
+                       emailError ? "border-red-500" : "border-gray-300"
+                     }`}
+                     placeholder="Enter your email address"
+                     disabled={isSendingEmail}
+                   />
+                 </div>
+                 {emailForm.formState.errors.email && (
+                   <p id="email-error" className="mt-2 text-sm text-red-600 flex items-center" role="alert">
+                     {emailForm.formState.errors.email.message}
+                   </p>
+                 )}
+                 {serverError && (
+                   <p className="mt-2 text-sm text-red-600 flex items-center">
+                     <AlertCircle className="h-4 w-4 mr-1" />
+                     {serverError}
+                   </p>
+                 )}
+               </div>
 
               <button
                 type="submit"
@@ -432,137 +466,145 @@ export function ForgotPasswordForm() {
             </div>
           )}
 
-          {/* Step 3: New password */}
-          {step === "new-password" && (
-            <form
-              onSubmit={passwordForm.handleSubmit(onResetPassword)}
-              className="space-y-6"
-            >
-              <div>
-                <label
-                  htmlFor="password"
-                  className="block text-sm font-medium text-gray-700 mb-2"
-                >
-                  New Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    {...passwordForm.register("password")}
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Enter your new password"
-                    disabled={isResetting}
-                    className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-all ${
-                      passwordForm.formState.errors.password
-                        ? "border-red-300 focus:ring-red-500"
-                        : password
-                          ? "border-teal-300 focus:ring-teal-500"
-                          : "border-gray-300 focus:ring-gray-300"
-                    } disabled:bg-gray-50 disabled:cursor-not-allowed`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    tabIndex={-1}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="w-5 h-5" />
-                    ) : (
-                      <Eye className="w-5 h-5" />
-                    )}
-                  </button>
-                </div>
-                {password && (
-                  <div className="mt-2">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium text-gray-600">
-                        Password Strength:
-                      </span>
-                      <span
-                        className="text-xs font-semibold"
-                        style={{ color: passwordStrength.color }}
-                      >
-                        {passwordStrength.label}
-                      </span>
-                    </div>
-                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                      <div
-                        className="h-full transition-all duration-300 rounded-full"
-                        style={{
-                          width: `${passwordStrength.strength}%`,
-                          backgroundColor: passwordStrength.color,
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
-                {passwordForm.formState.errors.password && (
-                  <p className="mt-2 text-sm text-red-600">
-                    {passwordForm.formState.errors.password.message}
-                  </p>
-                )}
-              </div>
+{/* Step 3: New password */}
+           {step === "new-password" && (
+             <form
+               onSubmit={passwordForm.handleSubmit(onResetPassword)}
+               className="space-y-6"
+               aria-label="Reset password form"
+             >
+               <div aria-live="polite" className="sr-only">{passwordAnnouncement}</div>
+               <div>
+                 <label
+                   htmlFor="password"
+                   className="block text-sm font-medium text-gray-700 mb-2"
+                 >
+                   New Password
+                 </label>
+                 <div className="relative">
+                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                   <input
+                     {...passwordForm.register("password")}
+                     id="password"
+                     type={showPassword ? "text" : "password"}
+                     placeholder="Enter your new password"
+                     disabled={isResetting}
+                     aria-required={true}
+                     aria-invalid={!!passwordForm.formState.errors.password}
+                     aria-describedby={passwordForm.formState.errors.password ? "password-error" : undefined}
+                     className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-all ${
+                       passwordForm.formState.errors.password
+                         ? "border-red-300 focus:ring-red-500"
+                         : password
+                           ? "border-teal-300 focus:ring-teal-500"
+                           : "border-gray-300 focus:ring-gray-300"
+                     } disabled:bg-gray-50 disabled:cursor-not-allowed`}
+                   />
+                   <button
+                     type="button"
+                     onClick={() => setShowPassword(!showPassword)}
+                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                     tabIndex={-1}
+                   >
+                     {showPassword ? (
+                       <EyeOff className="w-5 h-5" />
+                     ) : (
+                       <Eye className="w-5 h-5" />
+                     )}
+                   </button>
+                 </div>
+                 {password && (
+                   <div className="mt-2">
+                     <div className="flex items-center justify-between mb-1">
+                       <span className="text-xs font-medium text-gray-600">
+                         Password Strength:
+                       </span>
+                       <span
+                         className="text-xs font-semibold"
+                         style={{ color: passwordStrength.color }}
+                       >
+                         {passwordStrength.label}
+                       </span>
+                     </div>
+                     <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                       <div
+                         className="h-full transition-all duration-300 rounded-full"
+                         style={{
+                           width: `${passwordStrength.strength}%`,
+                           backgroundColor: passwordStrength.color,
+                         }}
+                       />
+                     </div>
+                   </div>
+                 )}
+                 {passwordForm.formState.errors.password && (
+                   <p id="password-error" className="mt-2 text-sm text-red-600" role="alert">
+                     {passwordForm.formState.errors.password.message}
+                   </p>
+                 )}
+               </div>
 
-              <div>
-                <label
-                  htmlFor="confirmPassword"
-                  className="block text-sm font-medium text-gray-700 mb-2"
-                >
-                  Confirm New Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    {...passwordForm.register("confirmPassword")}
-                    id="confirmPassword"
-                    type={showConfirmPassword ? "text" : "password"}
-                    placeholder="Re-enter your new password"
-                    disabled={isResetting}
-                    className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-all ${
-                      passwordForm.formState.errors.confirmPassword
-                        ? "border-red-300 focus:ring-red-500"
-                        : passwordsMatch
-                          ? "border-teal-300 focus:ring-teal-500"
-                          : "border-gray-300 focus:ring-gray-300"
-                    } disabled:bg-gray-50 disabled:cursor-not-allowed`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    tabIndex={-1}
-                  >
-                    {showConfirmPassword ? (
-                      <EyeOff className="w-5 h-5" />
-                    ) : (
-                      <Eye className="w-5 h-5" />
-                    )}
-                  </button>
-                </div>
-                {confirmPassword && (
-                  <div className="mt-2 flex items-center gap-2">
-                    {passwordsMatch ? (
-                      <>
-                        <CheckCircle2 className="w-4 h-4 text-teal-600" />
-                        <span className="text-sm text-teal-600 font-medium">
-                          Passwords match
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-sm text-red-600">
-                        Passwords do not match
-                      </span>
-                    )}
-                  </div>
-                )}
-                {passwordForm.formState.errors.confirmPassword && (
-                  <p className="mt-2 text-sm text-red-600">
-                    {passwordForm.formState.errors.confirmPassword.message}
-                  </p>
-                )}
-              </div>
+               <div>
+                 <label
+                   htmlFor="confirmPassword"
+                   className="block text-sm font-medium text-gray-700 mb-2"
+                 >
+                   Confirm New Password
+                 </label>
+                 <div className="relative">
+                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                   <input
+                     {...passwordForm.register("confirmPassword")}
+                     id="confirmPassword"
+                     type={showConfirmPassword ? "text" : "password"}
+                     placeholder="Re-enter your new password"
+                     disabled={isResetting}
+                     aria-required={true}
+                     aria-invalid={!!passwordForm.formState.errors.confirmPassword}
+                     aria-describedby={passwordForm.formState.errors.confirmPassword ? "confirmPassword-error" : undefined}
+                     className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-all ${
+                       passwordForm.formState.errors.confirmPassword
+                         ? "border-red-300 focus:ring-red-500"
+                         : passwordsMatch
+                           ? "border-teal-300 focus:ring-teal-500"
+                           : "border-gray-300 focus:ring-gray-300"
+                     } disabled:bg-gray-50 disabled:cursor-not-allowed`}
+                   />
+                   <button
+                     type="button"
+                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                     tabIndex={-1}
+                   >
+                     {showConfirmPassword ? (
+                       <EyeOff className="w-5 h-5" />
+                     ) : (
+                       <Eye className="w-5 h-5" />
+                     )}
+                   </button>
+                 </div>
+                 {confirmPassword && (
+                   <div className="mt-2 flex items-center gap-2">
+                     {passwordsMatch ? (
+                       <>
+                         <CheckCircle2 className="w-4 h-4 text-teal-600" />
+                         <span className="text-sm text-teal-600 font-medium">
+                           Passwords match
+                         </span>
+                       </>
+                     ) : (
+                       <span className="text-sm text-red-600">
+                         Passwords do not match
+                       </span>
+                     )}
+                   </div>
+                 )}
+                 {passwordForm.formState.errors.confirmPassword && (
+                   <p id="confirmPassword-error" className="mt-2 text-sm text-red-600" role="alert">
+                     {passwordForm.formState.errors.confirmPassword.message}
+                   </p>
+                 )}
+               </div>
 
               <button
                 type="submit"
