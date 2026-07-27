@@ -171,3 +171,23 @@ export function createArticleMetadata(
     ...options
   });
 }
+
+/**
+ * Quick helper for consistent page metadata with site name suffix.
+ *
+ * @param title - Page title (will be suffixed with " | ManageHub")
+ * @param description - Page description
+ * @param path - URL path for canonical and OpenGraph URL
+ * @returns Metadata object
+ */
+export function generateMetadata(
+  title: string,
+  description: string,
+  path: string
+): Metadata {
+  return buildMetadata({
+    title: `${title} | ManageHub`,
+    description,
+    canonical: path,
+  });
+}
