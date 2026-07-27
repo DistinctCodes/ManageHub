@@ -1,5 +1,8 @@
 use soroban_sdk::{contracttype, Address};
 
+// Re-use CreditStatus from common_types to avoid duplication across contracts.
+pub use common_types::CreditStatus;
+
 /// Type of credit transaction.
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]

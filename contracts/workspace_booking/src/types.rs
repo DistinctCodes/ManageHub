@@ -1,5 +1,8 @@
 use soroban_sdk::{contracttype, Address, String};
 
+// Re-use BookingStatus from common_types to avoid duplication across contracts.
+pub use common_types::BookingStatus;
+
 /// Maximum allowed length for workspace identifiers.
 #[allow(dead_code)]
 pub const MAX_ID_LEN: u32 = 64;
@@ -57,26 +60,6 @@ pub enum WorkspaceAvailability {
 
     /// Workspace cannot be booked with reason
     Unavailable(UnavailabilityReason),
-}
-
-/// Lifecycle state of a booking.
-#[contracttype]
-#[derive(Clone, Debug, PartialEq)]
-pub enum BookingStatus {
-    /// Booking is confirmed and currently active.
-    Active,
-
-    /// Booking finished successfully.
-    Completed,
-
-    /// Booking cancelled by member or admin.
-    Cancelled,
-
-    /// Member never showed up for the reservation.
-    NoShow,
-
-    /// Reservation window passed without completion.
-    Expired,
 }
 
 /// A physical or logical workspace that can be booked.

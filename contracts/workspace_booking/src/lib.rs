@@ -182,6 +182,7 @@ impl WorkspaceBookingContract {
         if env.storage().instance().has(&DataKey::Admin) {
             return Err(Error::AlreadyInitialized);
         }
+        // SAFETY: requires auth
         admin.require_auth();
         env.storage().instance().set(&DataKey::Admin, &admin);
         env.storage()
