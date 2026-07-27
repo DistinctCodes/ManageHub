@@ -8,6 +8,9 @@ use common_types::{
 };
 use soroban_sdk::{contracttype, symbol_short, Address, BytesN, Env, Map, String, Vec};
 
+/// Keep attendance logs for ~30 days (in ledgers).
+const LOG_TTL_LEDGERS: u32 = 518_400;
+
 #[contracttype]
 #[derive(Clone, Debug, PartialEq)]
 pub enum DataKey {
@@ -68,6 +71,11 @@ impl AttendanceLogModule {
         env.storage()
             .persistent()
             .set(&DataKey::AttendanceLog(id.clone()), &log);
+        env.storage().persistent().extend_ttl(
+            &DataKey::AttendanceLog(id.clone()),
+            LOG_TTL_LEDGERS,
+            LOG_TTL_LEDGERS,
+        );
 
         // Append to user's attendance logs
         let mut user_logs: Vec<AttendanceLog> = env
@@ -79,6 +87,11 @@ impl AttendanceLogModule {
         env.storage()
             .persistent()
             .set(&DataKey::AttendanceLogsByUser(user_id.clone()), &user_logs);
+        env.storage().persistent().extend_ttl(
+            &DataKey::AttendanceLogsByUser(user_id.clone()),
+            LOG_TTL_LEDGERS,
+            LOG_TTL_LEDGERS,
+        );
 
         // Emit event for off-chain indexing
         env.events()
@@ -154,7 +167,7 @@ impl AttendanceLogModule {
                         let next_log = filtered_logs.get(j).unwrap();
                         if next_log.action == AttendanceAction::ClockOut {
                             let duration = next_log.timestamp - log.timestamp;
-                            total_duration += duration;
+                            total_duration = total_duration.saturating_add(duration);
                             sessions.push_back(SessionPair {
                                 clock_in_time: log.timestamp,
                                 clock_out_time: next_log.timestamp,
@@ -312,7 +325,7 @@ impl AttendanceLogModule {
 
         for i in 0..sessions.len() {
             let session = sessions.get(i).unwrap();
-            total_duration += session.duration;
+            total_duration = total_duration.saturating_add(session.duration);
 
             if session.clock_in_time < first_clock_in {
                 first_clock_in = session.clock_in_time;
@@ -386,7 +399,7 @@ impl AttendanceLogModule {
             let hour = ((log.timestamp % 86400) / 3600) as u32;
 
             let count = hour_counts.get(hour).unwrap_or(0);
-            hour_counts.set(hour, count + 1);
+            hour_counts.set(hour, count.saturating_add(1));
         }
 
         // Build result vector
@@ -443,7 +456,7 @@ impl AttendanceLogModule {
             let day_of_week = ((days_since_epoch + 4) % 7) as u32;
 
             let count = day_counts.get(day_of_week).unwrap_or(0);
-            day_counts.set(day_of_week, count + 1);
+            day_counts.set(day_of_week, count.saturating_add(1));
         }
 
         // Build result vector

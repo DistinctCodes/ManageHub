@@ -11,6 +11,9 @@ use common_types::{
 };
 use soroban_sdk::{contracttype, symbol_short, Address, BytesN, Env, Map, String, Vec};
 
+/// Keep membership tokens and their metadata for ~90 days (in ledgers).
+const TOKEN_TTL_LEDGERS: u32 = 1_555_200;
+
 #[contracttype]
 pub enum DataKey {
     Token(BytesN<32>),
@@ -117,6 +120,11 @@ impl MembershipTokenContract {
         env.storage()
             .persistent()
             .set(&DataKey::Token(id.clone()), &token);
+        env.storage().persistent().extend_ttl(
+            &DataKey::Token(id.clone()),
+            TOKEN_TTL_LEDGERS,
+            TOKEN_TTL_LEDGERS,
+        );
 
         // Emit token issued event
         env.events().publish(
@@ -193,6 +201,11 @@ impl MembershipTokenContract {
         env.storage()
             .persistent()
             .set(&DataKey::Token(id.clone()), &token);
+        env.storage().persistent().extend_ttl(
+            &DataKey::Token(id.clone()),
+            TOKEN_TTL_LEDGERS,
+            TOKEN_TTL_LEDGERS,
+        );
 
         // Emit token transferred event
         env.events().publish(
@@ -534,7 +547,7 @@ impl MembershipTokenContract {
             .persistent()
             .get::<DataKey, TokenMetadata>(&DataKey::Metadata(token_id.clone()))
         {
-            existing_metadata.version + 1
+            existing_metadata.version.saturating_add(1)
         } else {
             1
         };
@@ -577,6 +590,11 @@ impl MembershipTokenContract {
         env.storage()
             .persistent()
             .set(&DataKey::Metadata(token_id.clone()), &metadata);
+        env.storage().persistent().extend_ttl(
+            &DataKey::Metadata(token_id.clone()),
+            TOKEN_TTL_LEDGERS,
+            TOKEN_TTL_LEDGERS,
+        );
 
         // Create and store metadata update history
         let metadata_update = MetadataUpdate {
@@ -599,6 +617,11 @@ impl MembershipTokenContract {
         env.storage()
             .persistent()
             .set(&DataKey::MetadataHistory(token_id.clone()), &history);
+        env.storage().persistent().extend_ttl(
+            &DataKey::MetadataHistory(token_id.clone()),
+            TOKEN_TTL_LEDGERS,
+            TOKEN_TTL_LEDGERS,
+        );
 
         // Emit metadata set event
         env.events().publish(
@@ -709,7 +732,7 @@ impl MembershipTokenContract {
         validate_metadata(&metadata).map_err(|_| Error::MetadataValidationFailed)?;
 
         // Update version and timestamp
-        metadata.version += 1;
+        metadata.version = metadata.version.saturating_add(1);
         metadata.last_updated = env.ledger().timestamp();
         metadata.updated_by = token.user.clone();
 
@@ -806,7 +829,7 @@ impl MembershipTokenContract {
         }
 
         // Update version and timestamp
-        metadata.version += 1;
+        metadata.version = metadata.version.saturating_add(1);
         metadata.last_updated = env.ledger().timestamp();
         metadata.updated_by = token.user.clone();
 
@@ -1041,7 +1064,7 @@ impl MembershipTokenContract {
             .set(&DataKey::Token(id.clone()), &token);
         env.storage()
             .persistent()
-            .extend_ttl(&DataKey::Token(id.clone()), 100, 1000);
+            .extend_ttl(&DataKey::Token(id.clone()), TOKEN_TTL_LEDGERS, TOKEN_TTL_LEDGERS);
 
         // Record renewal in history
         Self::record_renewal(
@@ -1083,7 +1106,7 @@ impl MembershipTokenContract {
         env.storage().persistent().set(&history_key, &history);
         env.storage()
             .persistent()
-            .extend_ttl(&history_key, 100, 1000);
+            .extend_ttl(&history_key, TOKEN_TTL_LEDGERS, TOKEN_TTL_LEDGERS);
     }
 
     /// Gets the renewal history for a token.

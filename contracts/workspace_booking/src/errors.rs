@@ -77,4 +77,7 @@ pub enum Error {
 
     /// Cannot modify workspace while active bookings exist.
     WorkspaceHasActiveBookings = 203,
+
+    /// Arithmetic overflow.
+    Overflow = 204,
 }

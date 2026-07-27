@@ -3,6 +3,12 @@
 
 use soroban_sdk::{contracttype, symbol_short, Address, BytesN, Env, Map, String, Vec};
 
+/// Keep subscriptions and tiers for ~30 days (in ledgers).
+const SUBSCRIPTION_TTL_LEDGERS: u32 = 518_400;
+
+/// Keep tier records for ~90 days (in ledgers).
+const TIER_TTL_LEDGERS: u32 = 1_555_200;
+
 use crate::attendance_log::AttendanceLogModule;
 use crate::errors::Error;
 use crate::membership_token::DataKey as MembershipTokenDataKey;
@@ -166,7 +172,7 @@ impl SubscriptionContract {
 
         // Store and extend TTL with same key
         env.storage().persistent().set(&key, &subscription);
-        env.storage().persistent().extend_ttl(&key, 100, 1000);
+        env.storage().persistent().extend_ttl(&key, SUBSCRIPTION_TTL_LEDGERS, SUBSCRIPTION_TTL_LEDGERS);
 
         // Emit subscription created event
         env.events().publish(
@@ -267,7 +273,7 @@ impl SubscriptionContract {
 
         let key = SubscriptionDataKey::Subscription(id.clone());
         env.storage().persistent().set(&key, &subscription);
-        env.storage().persistent().extend_ttl(&key, 100, 1000);
+        env.storage().persistent().extend_ttl(&key, SUBSCRIPTION_TTL_LEDGERS, SUBSCRIPTION_TTL_LEDGERS);
 
         env.events().publish(
             (
@@ -367,7 +373,7 @@ impl SubscriptionContract {
 
         let key = SubscriptionDataKey::Subscription(id.clone());
         env.storage().persistent().set(&key, &subscription);
-        env.storage().persistent().extend_ttl(&key, 100, 1000);
+        env.storage().persistent().extend_ttl(&key, SUBSCRIPTION_TTL_LEDGERS, SUBSCRIPTION_TTL_LEDGERS);
 
         env.events().publish(
             (
@@ -524,7 +530,7 @@ impl SubscriptionContract {
 
         // Store updated subscription and extend TTL
         env.storage().persistent().set(&key, &subscription);
-        env.storage().persistent().extend_ttl(&key, 100, 1000);
+        env.storage().persistent().extend_ttl(&key, SUBSCRIPTION_TTL_LEDGERS, SUBSCRIPTION_TTL_LEDGERS);
 
         // Update tier analytics if subscription has a tier
         if !subscription.tier_id.is_empty() {
@@ -664,7 +670,7 @@ impl SubscriptionContract {
 
         // Store tier
         env.storage().persistent().set(&key, &tier);
-        env.storage().persistent().extend_ttl(&key, 100, 1000);
+        env.storage().persistent().extend_ttl(&key, SUBSCRIPTION_TTL_LEDGERS, SUBSCRIPTION_TTL_LEDGERS);
 
         // Add to tier list
         let list_key = SubscriptionDataKey::TierList;
@@ -675,6 +681,7 @@ impl SubscriptionContract {
             .unwrap_or_else(|| Vec::new(&env));
         tier_list.push_back(params.id.clone());
         env.storage().persistent().set(&list_key, &tier_list);
+        env.storage().persistent().extend_ttl(&list_key, TIER_TTL_LEDGERS, TIER_TTL_LEDGERS);
 
         // Initialize analytics for this tier
         let analytics = TierAnalytics {
@@ -688,6 +695,9 @@ impl SubscriptionContract {
         };
         let analytics_key = SubscriptionDataKey::TierAnalytics(params.id.clone());
         env.storage().persistent().set(&analytics_key, &analytics);
+        env.storage()
+            .persistent()
+            .extend_ttl(&analytics_key, TIER_TTL_LEDGERS, TIER_TTL_LEDGERS);
 
         // Emit tier created event
         env.events().publish(
@@ -893,7 +903,7 @@ impl SubscriptionContract {
 
         // Store subscription
         env.storage().persistent().set(&key, &subscription);
-        env.storage().persistent().extend_ttl(&key, 100, 1000);
+        env.storage().persistent().extend_ttl(&key, SUBSCRIPTION_TTL_LEDGERS, SUBSCRIPTION_TTL_LEDGERS);
 
         // Update tier analytics
         Self::update_tier_analytics_on_subscribe(&env, &tier_id, final_price)?;
@@ -996,6 +1006,9 @@ impl SubscriptionContract {
         // Store change request
         let key = SubscriptionDataKey::TierChangeRequest(change_id.clone());
         env.storage().persistent().set(&key, &change_request);
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, SUBSCRIPTION_TTL_LEDGERS, SUBSCRIPTION_TTL_LEDGERS);
 
         // Add to user's change history
         let history_key = SubscriptionDataKey::UserTierChangeHistory(user.clone());
@@ -1006,6 +1019,9 @@ impl SubscriptionContract {
             .unwrap_or_else(|| Vec::new(&env));
         history.push_back(change_id.clone());
         env.storage().persistent().set(&history_key, &history);
+        env.storage()
+            .persistent()
+            .extend_ttl(&history_key, SUBSCRIPTION_TTL_LEDGERS, SUBSCRIPTION_TTL_LEDGERS);
 
         // Emit tier change requested event
         env.events().publish(
@@ -1183,8 +1199,9 @@ impl SubscriptionContract {
         };
 
         env.storage().persistent().set(&key, &promotion);
-
-        // Add to promotion list
+        env.storage()
+            .persistent()
+            .extend_ttl(&key, SUBSCRIPTION_TTL_LEDGERS, SUBSCRIPTION_TTL_LEDGERS);
         let list_key = SubscriptionDataKey::TierPromotionList;
         let mut promo_list: Vec<String> = env
             .storage()
@@ -1193,6 +1210,9 @@ impl SubscriptionContract {
             .unwrap_or_else(|| Vec::new(&env));
         promo_list.push_back(params.promo_id.clone());
         env.storage().persistent().set(&list_key, &promo_list);
+        env.storage()
+            .persistent()
+            .extend_ttl(&list_key, SUBSCRIPTION_TTL_LEDGERS, SUBSCRIPTION_TTL_LEDGERS);
 
         // Emit promotion created event
         env.events().publish(
@@ -1261,7 +1281,7 @@ impl SubscriptionContract {
                     };
 
                     // Increment redemption count
-                    promotion.current_redemptions += 1;
+                    promotion.current_redemptions = promotion.current_redemptions.saturating_add(1);
                     env.storage()
                         .persistent()
                         .set(&SubscriptionDataKey::TierPromotion(promo_id), &promotion);
@@ -1354,8 +1374,8 @@ impl SubscriptionContract {
                     updated_at: env.ledger().timestamp(),
                 });
 
-        analytics.active_subscribers += 1;
-        analytics.total_revenue += amount;
+        analytics.active_subscribers = analytics.active_subscribers.saturating_add(1);
+        analytics.total_revenue = analytics.total_revenue.saturating_add(amount);
         analytics.updated_at = env.ledger().timestamp();
 
         env.storage().persistent().set(&key, &analytics);
@@ -1378,7 +1398,7 @@ impl SubscriptionContract {
         {
             from_analytics.active_subscribers = from_analytics.active_subscribers.saturating_sub(1);
             if *change_type == TierChangeType::Downgrade {
-                from_analytics.downgrades_count += 1;
+                from_analytics.downgrades_count = from_analytics.downgrades_count.saturating_add(1);
             }
             from_analytics.updated_at = env.ledger().timestamp();
             env.storage().persistent().set(&from_key, &from_analytics);
@@ -1388,9 +1408,9 @@ impl SubscriptionContract {
         let to_key = SubscriptionDataKey::TierAnalytics(to_tier_id.clone());
         if let Some(mut to_analytics) = env.storage().persistent().get::<_, TierAnalytics>(&to_key)
         {
-            to_analytics.active_subscribers += 1;
+            to_analytics.active_subscribers = to_analytics.active_subscribers.saturating_add(1);
             if *change_type == TierChangeType::Upgrade {
-                to_analytics.upgrades_count += 1;
+                to_analytics.upgrades_count = to_analytics.upgrades_count.saturating_add(1);
             }
             to_analytics.updated_at = env.ledger().timestamp();
             env.storage().persistent().set(&to_key, &to_analytics);

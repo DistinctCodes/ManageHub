@@ -5,6 +5,9 @@ use crate::membership_token::{DataKey as MembershipDataKey, MembershipToken};
 use crate::types::{DividendDistribution, FractionHolder, FractionalTokenInfo};
 use soroban_sdk::{contracttype, Address, BytesN, Env, Map, String, Vec};
 
+/// Keep fractionalization data for ~90 days (in ledgers).
+const FRACTION_TTL_LEDGERS: u32 = 1_555_200;
+
 #[contracttype]
 pub enum FractionDataKey {
     FractionInfo(BytesN<32>),
@@ -58,9 +61,19 @@ impl FractionalizationModule {
         env.storage()
             .persistent()
             .set(&FractionDataKey::FractionInfo(token_id.clone()), &info);
+        env.storage().persistent().extend_ttl(
+            &FractionDataKey::FractionInfo(token_id.clone()),
+            FRACTION_TTL_LEDGERS,
+            FRACTION_TTL_LEDGERS,
+        );
         env.storage()
             .persistent()
             .set(&FractionDataKey::FractionShares(token_id.clone()), &shares);
+        env.storage().persistent().extend_ttl(
+            &FractionDataKey::FractionShares(token_id.clone()),
+            FRACTION_TTL_LEDGERS,
+            FRACTION_TTL_LEDGERS,
+        );
 
         env.events().publish(
             (
