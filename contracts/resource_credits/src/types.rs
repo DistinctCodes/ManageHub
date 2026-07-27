@@ -27,3 +27,23 @@ pub struct CreditBalance {
     pub owner: Address,
     pub amount: u128,
 }
+
+/// A credit record with optional expiry metadata.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct Credit {
+    pub owner: Address,
+    pub amount: u128,
+    /// Timestamp (ledger close time) after which this credit is considered expired.
+    /// `None` means the credit does not expire.
+    pub expires_at: Option<u64>,
+}
+
+/// Summary returned by reconciliation.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq)]
+pub struct ReconciliationReport {
+    pub total_balance: u128,
+    pub total_supply: u128,
+    pub mismatch: bool,
+}

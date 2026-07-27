@@ -16,4 +16,8 @@ pub enum Error {
     InvalidAmount = 5,
     /// Account not found in storage.
     AccountNotFound = 6,
+    /// Credit has expired past its TTL.
+    CreditExpired = 501,
+    /// Reconciliation detected a balance mismatch.
+    ReconciliationMismatch = 502,
 }
