@@ -40,6 +40,8 @@ pub enum DataKey {
     MemberBookings(Address),
     /// List of booking IDs associated with a workspace.
     WorkspaceBookings(String),
+    /// Whether the contract is paused.
+    ContractPaused,
 }
 
 // ── Contract Events (#[contractevent]) ────────────────────────────────────────
@@ -126,6 +128,18 @@ impl WorkspaceBookingContract {
         Ok(())
     }
 
+    fn require_not_paused(env: &Env) -> Result<(), Error> {
+        let paused: bool = env
+            .storage()
+            .instance()
+            .get(&DataKey::ContractPaused)
+            .unwrap_or(false);
+        if paused {
+            return Err(Error::ContractPaused);
+        }
+        Ok(())
+    }
+
     fn get_payment_token(env: &Env) -> Result<Address, Error> {
         env.storage()
             .instance()
@@ -196,6 +210,7 @@ impl WorkspaceBookingContract {
         capacity: u32,
         hourly_rate: u128,
     ) -> Result<(), Error> {
+        Self::require_not_paused(&env)?;
         Self::require_admin(&env, &caller)?;
 
         if capacity == 0 {
@@ -251,6 +266,7 @@ impl WorkspaceBookingContract {
         workspace_id: String,
         is_available: bool,
     ) -> Result<(), Error> {
+        Self::require_not_paused(&env)?;
         Self::require_admin(&env, &caller)?;
 
         let mut workspace: Workspace = env
@@ -279,6 +295,7 @@ impl WorkspaceBookingContract {
         workspace_id: String,
         hourly_rate: u128,
     ) -> Result<(), Error> {
+        Self::require_not_paused(&env)?;
         Self::require_admin(&env, &caller)?;
 
         if hourly_rate == 0 {
@@ -320,6 +337,7 @@ impl WorkspaceBookingContract {
         start_time: u64,
         end_time: u64,
     ) -> Result<(), Error> {
+        Self::require_not_paused(&env)?;
         member.require_auth();
 
         if env
@@ -429,6 +447,7 @@ impl WorkspaceBookingContract {
     ///
     /// Only the booking member or the admin may cancel.
     pub fn cancel_booking(env: Env, caller: Address, booking_id: String) -> Result<(), Error> {
+        Self::require_not_paused(&env)?;
         caller.require_auth();
 
         let mut booking: Booking = env
@@ -468,6 +487,7 @@ impl WorkspaceBookingContract {
     ///
     /// Call this after the member has checked out to close the booking record.
     pub fn complete_booking(env: Env, caller: Address, booking_id: String) -> Result<(), Error> {
+        Self::require_not_paused(&env)?;
         Self::require_admin(&env, &caller)?;
 
         let mut booking: Booking = env
@@ -568,5 +588,37 @@ impl WorkspaceBookingContract {
     /// Return the payment token address.
     pub fn payment_token(env: Env) -> Result<Address, Error> {
         Self::get_payment_token(&env)
+    }
+
+    // ── Pause controls ────────────────────────────────────────────────────────
+
+    /// Pause all state-changing operations (admin only).
+    pub fn pause(env: Env, caller: Address) -> Result<(), Error> {
+        Self::require_admin(&env, &caller)?;
+        env.storage()
+            .instance()
+            .set(&DataKey::ContractPaused, &true);
+        env.events()
+            .publish((symbol_short!("pause"),), (caller, env.ledger().timestamp()));
+        Ok(())
+    }
+
+    /// Resume state-changing operations (admin only).
+    pub fn unpause(env: Env, caller: Address) -> Result<(), Error> {
+        Self::require_admin(&env, &caller)?;
+        env.storage()
+            .instance()
+            .set(&DataKey::ContractPaused, &false);
+        env.events()
+            .publish((symbol_short!("unpause"),), (caller, env.ledger().timestamp()));
+        Ok(())
+    }
+
+    /// Whether the contract is currently paused.
+    pub fn is_paused(env: Env) -> bool {
+        env.storage()
+            .instance()
+            .get(&DataKey::ContractPaused)
+            .unwrap_or(false)
     }
 }

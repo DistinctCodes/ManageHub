@@ -24,6 +24,7 @@ impl FractionalizationModule {
         total_shares: i128,
         min_fraction_size: i128,
     ) -> Result<(), Error> {
+        crate::guards::PauseGuard::require_not_paused(&env)?;
         if total_shares <= 1 {
             return Err(Error::InvalidPaymentAmount);
         }
@@ -94,6 +95,7 @@ impl FractionalizationModule {
         to: Address,
         share_amount: i128,
     ) -> Result<(), Error> {
+        crate::guards::PauseGuard::require_not_paused(&env)?;
         let info = Self::get_fraction_info(&env, &token_id)?;
         if share_amount <= 0 {
             return Err(Error::InvalidPaymentAmount);
@@ -153,6 +155,7 @@ impl FractionalizationModule {
         token_id: BytesN<32>,
         holder: Address,
     ) -> Result<(), Error> {
+        crate::guards::PauseGuard::require_not_paused(&env)?;
         let info = Self::get_fraction_info(&env, &token_id)?;
         holder.require_auth();
 
@@ -229,6 +232,7 @@ impl FractionalizationModule {
         token_id: BytesN<32>,
         total_amount: i128,
     ) -> Result<DividendDistribution, Error> {
+        crate::guards::PauseGuard::require_not_paused(&env)?;
         if total_amount <= 0 {
             return Err(Error::InvalidPaymentAmount);
         }

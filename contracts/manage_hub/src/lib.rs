@@ -75,7 +75,7 @@ pub mod royalty;
 mod staking;
 mod staking_errors;
 mod subscription;
-mod types;
+pub mod types;
 mod upgrade;
 mod upgrade_errors;
 mod validation;
@@ -94,10 +94,10 @@ use subscription::SubscriptionContract;
 use types::{
     AttendanceAction, AttendanceSummary, BatchMintParams, BatchTransferParams, BatchUpdateParams,
     BatchUpgradeResult, BillingCycle, CreatePromotionParams, CreateTierParams,
-    DividendDistribution, EmergencyPauseState, FractionHolder, MembershipStatus, PauseConfig,
-    PauseHistoryEntry, PauseStats, StakeInfo, StakingConfig, StakingTier, Subscription,
-    SubscriptionTier, TierAnalytics, TierFeature, TierPromotion, TokenAllowance, UpdateTierParams,
-    UpgradeConfig, UpgradeRecord, UserSubscriptionInfo,
+    DividendDistribution, EmergencyPauseState, FractionHolder, MembershipStatus,
+    PendingAdminTransfer, PauseConfig, PauseHistoryEntry, PauseStats, StakeInfo, StakingConfig,
+    StakingTier, Subscription, SubscriptionTier, TierAnalytics, TierFeature, TierPromotion,
+    TokenAllowance, UpdateTierParams, UpgradeConfig, UpgradeRecord, UserSubscriptionInfo,
 };
 use upgrade::UpgradeModule;
 
@@ -1328,6 +1328,246 @@ impl Contract {
     /// * `AdminNotSet` - Upgrade system has not been configured yet
     pub fn get_upgrade_config(env: Env) -> Result<UpgradeConfig, Error> {
         UpgradeModule::get_upgrade_config(env)
+    }
+
+    // ============================================================================
+    // Two-Step Admin Transfer
+    // ============================================================================
+
+    /// Propose a new admin for the contract (step 1 of 2).
+    ///
+    /// The current admin proposes a transfer. The proposed admin must call
+    /// `accept_admin_transfer` within 24 hours to complete the transfer.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `current_admin` - Current admin address (must be authorized)
+    /// * `new_admin` - Address of the proposed new admin
+    ///
+    /// # Events
+    /// * `AdminTransferProposed` - Emitted when a transfer is proposed
+    ///
+    /// # Errors
+    /// * `AdminNotSet` - No admin has been configured
+    /// * `Unauthorized` - Caller is not the current admin
+    /// * `AdminTransferAlreadyPending` - A transfer is already pending
+    pub fn propose_admin_transfer(
+        env: Env,
+        current_admin: Address,
+        new_admin: Address,
+    ) -> Result<(), Error> {
+        let stored_admin: Address = env
+            .storage()
+            .instance()
+            .get(&membership_token::DataKey::Admin)
+            .ok_or(Error::AdminNotSet)?;
+        if current_admin != stored_admin {
+            return Err(Error::Unauthorized);
+        }
+        current_admin.require_auth();
+
+        if current_admin == new_admin {
+            return Err(Error::Unauthorized);
+        }
+
+        // Check if a transfer is already pending
+        let existing: Option<PendingAdminTransfer> = env
+            .storage()
+            .instance()
+            .get(&membership_token::DataKey::PendingAdminTransfer);
+        if existing.is_some() {
+            return Err(Error::AdminTransferAlreadyPending);
+        }
+
+        let pending = PendingAdminTransfer {
+            proposed_admin: new_admin.clone(),
+            proposer: current_admin.clone(),
+            expiry: env
+                .ledger()
+                .timestamp()
+                .checked_add(86_400)
+                .ok_or(Error::TimestampOverflow)?,
+        };
+
+        env.storage()
+            .instance()
+            .set(&membership_token::DataKey::PendingAdminTransfer, &pending);
+
+        // Emit AdminTransferProposed event
+        env.events().publish(
+            (
+                soroban_sdk::symbol_short!("adm_prop"),
+                current_admin.clone(),
+                new_admin.clone(),
+            ),
+            pending.expiry,
+        );
+
+        Ok(())
+    }
+
+    /// Accept an admin transfer (step 2 of 2).
+    ///
+    /// The proposed new admin calls this to complete the transfer.
+    /// Must be called within 24 hours of the proposal.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `new_admin` - The proposed new admin address (must be authorized)
+    ///
+    /// # Events
+    /// * `AdminTransferCompleted` - Emitted when transfer completes
+    ///
+    /// # Errors
+    /// * `AdminNotSet` - No admin has been configured
+    /// * `AdminTransferNotFound` - No pending transfer found
+    /// * `AdminTransferExpired` - The transfer proposal has expired
+    /// * `Unauthorized` - Caller is not the proposed new admin
+    pub fn accept_admin_transfer(env: Env, new_admin: Address) -> Result<(), Error> {
+        let pending: PendingAdminTransfer = env
+            .storage()
+            .instance()
+            .get(&membership_token::DataKey::PendingAdminTransfer)
+            .ok_or(Error::AdminTransferNotFound)?;
+
+        if pending.proposed_admin != new_admin {
+            return Err(Error::Unauthorized);
+        }
+        new_admin.require_auth();
+
+        let now = env.ledger().timestamp();
+        if now > pending.expiry {
+            return Err(Error::AdminTransferExpired);
+        }
+
+        let old_admin = pending.proposer.clone();
+
+        // Update admin
+        env.storage()
+            .instance()
+            .set(&membership_token::DataKey::Admin, &new_admin);
+
+        // Remove pending transfer
+        env.storage()
+            .instance()
+            .remove(&membership_token::DataKey::PendingAdminTransfer);
+
+        // Emit AdminTransferCompleted event
+        env.events().publish(
+            (
+                soroban_sdk::symbol_short!("adm_done"),
+                old_admin.clone(),
+                new_admin.clone(),
+            ),
+            now,
+        );
+
+        Ok(())
+    }
+
+    /// Cancel a pending admin transfer.
+    ///
+    /// Only the admin who proposed the transfer can cancel it.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `admin` - The admin who proposed the transfer (must be authorized)
+    ///
+    /// # Events
+    /// * `AdminTransferCancelled` - Emitted when a transfer is cancelled
+    ///
+    /// # Errors
+    /// * `AdminTransferNotFound` - No pending transfer found
+    /// * `Unauthorized` - Caller is not the proposer
+    pub fn cancel_admin_transfer(env: Env, admin: Address) -> Result<(), Error> {
+        let pending: PendingAdminTransfer = env
+            .storage()
+            .instance()
+            .get(&membership_token::DataKey::PendingAdminTransfer)
+            .ok_or(Error::AdminTransferNotFound)?;
+
+        if pending.proposer != admin {
+            return Err(Error::Unauthorized);
+        }
+        admin.require_auth();
+
+        let proposed = pending.proposed_admin.clone();
+
+        env.storage()
+            .instance()
+            .remove(&membership_token::DataKey::PendingAdminTransfer);
+
+        // Emit AdminTransferCancelled event
+        env.events().publish(
+            (soroban_sdk::symbol_short!("adm_canc"), admin.clone(), proposed),
+            env.ledger().timestamp(),
+        );
+
+        Ok(())
+    }
+
+    /// Get the current pending admin transfer, if any.
+    pub fn get_pending_admin_transfer(env: Env) -> Option<PendingAdminTransfer> {
+        env.storage()
+            .instance()
+            .get(&membership_token::DataKey::PendingAdminTransfer)
+    }
+
+    // ============================================================================
+    // Admin Key Rotation
+    // ============================================================================
+
+    /// Rotate the admin key — replaces the admin address directly.
+    ///
+    /// This is a single-step operation for emergency key rotation scenarios.
+    /// Unlike the two-step transfer, this does not require the new admin to
+    /// accept. Use with caution.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment
+    /// * `old_key` - Current admin address (must be authorized)
+    /// * `new_key` - New admin address
+    ///
+    /// # Events
+    /// * `AdminKeyRotated` - Emitted when the admin key is rotated
+    ///
+    /// # Errors
+    /// * `AdminNotSet` - No admin has been configured
+    /// * `Unauthorized` - Caller is not the current admin
+    pub fn rotate_admin_key(
+        env: Env,
+        old_key: Address,
+        new_key: Address,
+    ) -> Result<(), Error> {
+        let stored_admin: Address = env
+            .storage()
+            .instance()
+            .get(&membership_token::DataKey::Admin)
+            .ok_or(Error::AdminNotSet)?;
+        if old_key != stored_admin {
+            return Err(Error::Unauthorized);
+        }
+        old_key.require_auth();
+
+        if old_key == new_key {
+            return Err(Error::Unauthorized);
+        }
+
+        env.storage()
+            .instance()
+            .set(&membership_token::DataKey::Admin, &new_key);
+
+        // Emit AdminKeyRotated event
+        env.events().publish(
+            (
+                soroban_sdk::symbol_short!("adm_rot"),
+                old_key.clone(),
+                new_key.clone(),
+            ),
+            env.ledger().timestamp(),
+        );
+
+        Ok(())
     }
 }
 

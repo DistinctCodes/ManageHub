@@ -51,7 +51,7 @@ fn test_initialize_success() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #3)")]
+#[should_panic(expected = "Error(Contract, #4002)")]
 fn test_initialize_twice_fails() {
     let env = Env::default();
     let contract_id = setup_contract(&env);
@@ -98,7 +98,7 @@ fn test_register_workspace_success() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #201)")]
+#[should_panic(expected = "Error(Contract, #4201)")]
 fn test_register_workspace_duplicate_id_fails() {
     let env = Env::default();
     let contract_id = setup_contract(&env);
@@ -130,7 +130,7 @@ fn test_register_workspace_duplicate_id_fails() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #2)")]
+#[should_panic(expected = "Error(Contract, #4001)")]
 fn test_register_workspace_non_admin_fails() {
     let env = Env::default();
     let contract_id = setup_contract(&env);
@@ -200,7 +200,7 @@ fn test_book_workspace_success() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #102)")]
+#[should_panic(expected = "Error(Contract, #4102)")]
 fn test_book_workspace_conflict_fails() {
     let env = Env::default();
     env.mock_all_auths();
@@ -334,7 +334,7 @@ fn test_complete_booking_by_admin() {
 }
 
 #[test]
-#[should_panic(expected = "Error(Contract, #103)")]
+#[should_panic(expected = "Error(Contract, #4103)")]
 fn test_cancel_already_cancelled_fails() {
     let env = Env::default();
     env.mock_all_auths();

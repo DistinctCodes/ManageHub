@@ -31,6 +31,8 @@ pub enum DataKey {
     DepositorEscrows(Address),
     /// List of escrow IDs where this address is the beneficiary.
     BeneficiaryEscrows(Address),
+    /// Whether the contract is paused.
+    ContractPaused,
 }
 
 // ── Contract ──────────────────────────────────────────────────────────────────
@@ -63,6 +65,18 @@ impl PaymentEscrowContract {
             .instance()
             .get(&DataKey::PaymentToken)
             .ok_or(Error::PaymentTokenNotSet)
+    }
+
+    fn require_not_paused(env: &Env) -> Result<(), Error> {
+        let paused: bool = env
+            .storage()
+            .instance()
+            .get(&DataKey::ContractPaused)
+            .unwrap_or(false);
+        if paused {
+            return Err(Error::ContractPaused);
+        }
+        Ok(())
     }
 
     fn get_dispute_window(env: &Env) -> u64 {
@@ -152,6 +166,7 @@ impl PaymentEscrowContract {
         description: String,
         release_after: u64,
     ) -> Result<(), Error> {
+        Self::require_not_paused(&env)?;
         depositor.require_auth();
 
         if amount <= 0 {
@@ -226,6 +241,7 @@ impl PaymentEscrowContract {
 
     /// Release escrow funds to the beneficiary (admin only, Pending status).
     pub fn release(env: Env, caller: Address, escrow_id: String) -> Result<(), Error> {
+        Self::require_not_paused(&env)?;
         Self::require_admin(&env, &caller)?;
 
         let mut escrow = Self::load_escrow(&env, &escrow_id)?;
@@ -253,6 +269,7 @@ impl PaymentEscrowContract {
 
     /// Refund escrow funds to the depositor (admin only, Pending status).
     pub fn refund(env: Env, caller: Address, escrow_id: String) -> Result<(), Error> {
+        Self::require_not_paused(&env)?;
         Self::require_admin(&env, &caller)?;
 
         let mut escrow = Self::load_escrow(&env, &escrow_id)?;
@@ -286,6 +303,7 @@ impl PaymentEscrowContract {
     /// window. Once disputed, only the admin can move the funds via
     /// `resolve_dispute`.
     pub fn raise_dispute(env: Env, caller: Address, escrow_id: String) -> Result<(), Error> {
+        Self::require_not_paused(&env)?;
         caller.require_auth();
 
         let mut escrow = Self::load_escrow(&env, &escrow_id)?;
@@ -327,6 +345,7 @@ impl PaymentEscrowContract {
         escrow_id: String,
         release_to_beneficiary: bool,
     ) -> Result<(), Error> {
+        Self::require_not_paused(&env)?;
         Self::require_admin(&env, &caller)?;
 
         let mut escrow = Self::load_escrow(&env, &escrow_id)?;
@@ -369,6 +388,7 @@ impl PaymentEscrowContract {
     /// Only works when the escrow has `release_after > 0` and the current
     /// ledger timestamp has reached or exceeded that value.
     pub fn claim(env: Env, caller: Address, escrow_id: String) -> Result<(), Error> {
+        Self::require_not_paused(&env)?;
         caller.require_auth();
 
         let mut escrow = Self::load_escrow(&env, &escrow_id)?;
@@ -440,5 +460,37 @@ impl PaymentEscrowContract {
     /// Return the current default dispute window in seconds.
     pub fn dispute_window(env: Env) -> u64 {
         Self::get_dispute_window(&env)
+    }
+
+    // ── Pause controls ────────────────────────────────────────────────────────
+
+    /// Pause all state-changing operations (admin only).
+    pub fn pause(env: Env, caller: Address) -> Result<(), Error> {
+        Self::require_admin(&env, &caller)?;
+        env.storage()
+            .instance()
+            .set(&DataKey::ContractPaused, &true);
+        env.events()
+            .publish((symbol_short!("pause"),), (caller, env.ledger().timestamp()));
+        Ok(())
+    }
+
+    /// Resume state-changing operations (admin only).
+    pub fn unpause(env: Env, caller: Address) -> Result<(), Error> {
+        Self::require_admin(&env, &caller)?;
+        env.storage()
+            .instance()
+            .set(&DataKey::ContractPaused, &false);
+        env.events()
+            .publish((symbol_short!("unpause"),), (caller, env.ledger().timestamp()));
+        Ok(())
+    }
+
+    /// Whether the contract is currently paused.
+    pub fn is_paused(env: Env) -> bool {
+        env.storage()
+            .instance()
+            .get(&DataKey::ContractPaused)
+            .unwrap_or(false)
     }
 }

@@ -38,6 +38,8 @@ pub enum DataKey {
     /// Version snapshot for rollback, keyed by token ID and version number.
     VersionSnapshot(BytesN<32>, u32),
     Royalty(BytesN<32>),
+    /// Pending admin transfer proposal.
+    PendingAdminTransfer,
 }
 
 #[contracttype]
@@ -636,6 +638,7 @@ impl MembershipTokenContract {
         env: Env,
         params: Vec<crate::types::BatchUpdateParams>,
     ) -> Result<(), Error> {
+        PauseGuard::require_not_paused(&env)?;
         let admin: Address = env
             .storage()
             .instance()
@@ -692,6 +695,7 @@ impl MembershipTokenContract {
         token_id: BytesN<32>,
         updates: Map<String, MetadataValue>,
     ) -> Result<(), Error> {
+        PauseGuard::require_not_paused(&env)?;
         // Verify token exists
         let token: MembershipToken = env
             .storage()
@@ -801,6 +805,7 @@ impl MembershipTokenContract {
         token_id: BytesN<32>,
         attribute_keys: Vec<String>,
     ) -> Result<(), Error> {
+        PauseGuard::require_not_paused(&env)?;
         // Verify token exists
         let token: MembershipToken = env
             .storage()
@@ -916,6 +921,7 @@ impl MembershipTokenContract {
         auto_renewal_notice_days: u64,
         renewals_enabled: bool,
     ) -> Result<(), Error> {
+        PauseGuard::require_not_paused(&env)?;
         // Get admin address and require authorization
         let admin: Address = env
             .storage()
@@ -1196,6 +1202,7 @@ impl MembershipTokenContract {
         enabled: bool,
         payment_token: Address,
     ) -> Result<(), Error> {
+        PauseGuard::require_not_paused(&env)?;
         // Get token to verify it exists and get user
         let token: MembershipToken = env
             .storage()
@@ -1285,6 +1292,7 @@ impl MembershipTokenContract {
     /// # Returns
     /// * Success or error
     pub fn process_auto_renewal(env: Env, id: BytesN<32>) -> Result<(), Error> {
+        PauseGuard::require_not_paused(&env)?;
         // Get token
         let mut token: MembershipToken = env
             .storage()
