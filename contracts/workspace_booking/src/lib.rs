@@ -10,6 +10,9 @@ mod types;
 #[cfg(test)]
 mod test;
 
+#[cfg(test)]
+mod proptest_tests;
+
 pub use errors::Error;
 pub use types::{
     Booking, BookingStatus, UnavailabilityReason, Workspace, WorkspaceAvailability, WorkspaceType,

@@ -99,6 +99,36 @@ jobs:
         run: cargo build --all --verbose
 
   # ─────────────────────────────────────────────
+  # WASM SIZE REPORT
+  # ─────────────────────────────────────────────
+  size-report:
+    name: WASM Size Report
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        env:
+          RUSTUP_TOOLCHAIN: stable
+      - name: Add WASM target
+        run: rustup target add wasm32v1-none
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            contracts/target
+          key: ${{ runner.os }}-cargo-size-${{ hashFiles('''contracts/Cargo.lock''') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-size-
+            ${{ runner.os }}-cargo-
+      - name: Build and report WASM sizes
+        run: bash contracts/scripts/track-wasm-size.sh
+      - name: Check WASM budget
+        run: bash contracts/scripts/track-wasm-size.sh --check
+
+  # ─────────────────────────────────────────────
   # BACKEND — NestJS
   # ─────────────────────────────────────────────
   backend:
