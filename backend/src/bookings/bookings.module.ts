@@ -15,6 +15,7 @@ import { User } from '../users/entities/user.entity';
 import { Payment } from '../payments/entities/payment.entity';
 import { PaystackProvider } from '../payments/providers/paystack.provider';
 import { PaymentsModule } from '../payments/payments.module';
+import { BookingsExportService } from './bookings-export.service';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { PaymentsModule } from '../payments/payments.module';
     CompleteBookingProvider,
     FindBookingsProvider,
     PaystackProvider,
+    BookingsExportService,
   ],
   exports: [BookingsService],
 })

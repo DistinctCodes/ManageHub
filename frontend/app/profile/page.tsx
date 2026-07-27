@@ -7,7 +7,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuthState, useAuthActions } from "@/lib/store/authStore";
 import { apiClient } from "@/lib/apiClient";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
-import { Camera, X } from "lucide-react";
+import { Camera, X, Loader2 } from "lucide-react";
+import { CloudinaryUploadWidget } from "@/components/CloudinaryUploadWidget";
 
 const profileSchema = z.object({
   firstname: z.string().min(1, "First name is required"),
@@ -30,12 +31,12 @@ export default function ProfilePage() {
   const { user } = useAuthState();
   const { initializeAuth } = useAuthActions();
   const [saving, setSaving] = useState(false);
-  const [uploadingPic, setUploadingPic] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [profilePic, setProfilePic] = useState<string | null>(null);
   const [skills, setSkills] = useState<string[]>([]);
   const [skillInput, setSkillInput] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   const { register, handleSubmit, formState: { errors }, reset, watch } = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
@@ -82,25 +83,19 @@ export default function ProfilePage() {
     }
   };
 
-  const handlePictureUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-    setUploadingPic(true);
-    const formData = new FormData();
-    formData.append("file", file);
+  const handleAvatarUpload = async (url: string) => {
+    if (!user) return;
+    setUploadingAvatar(true);
+    setMessage(null);
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:6001/api"}/users/${user.id}/profile-picture`,
-        { method: "POST", headers: { Authorization: `Bearer ${localStorage.getItem("accessToken") || ""}` }, body: formData }
-      );
-      if (!res.ok) throw new Error("Upload failed");
-      const json = await res.json();
-      setProfilePic(json.data?.profilePicture || null);
-      setMessage({ type: "success", text: "Profile picture updated." });
+      await apiClient.patch(`/users/${user.id}`, { profilePicture: url });
+      setProfilePic(url);
+      setMessage({ type: "success", text: "Avatar updated." });
+      initializeAuth();
     } catch (err) {
       setMessage({ type: "error", text: err instanceof Error ? err.message : "Upload failed." });
     } finally {
-      setUploadingPic(false);
+      setUploadingAvatar(false);
     }
   };
 
@@ -134,11 +129,11 @@ export default function ProfilePage() {
                 {initials}
               </div>
             )}
-            <button type="button" onClick={() => fileRef.current?.click()} disabled={uploadingPic}
-              className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-gray-900 text-white flex items-center justify-center hover:bg-gray-800 transition-colors">
-              <Camera className="w-3.5 h-3.5" />
-            </button>
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePictureUpload} />
+            {uploadingAvatar && (
+              <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center">
+                <Loader2 className="w-5 h-5 text-white animate-spin" />
+              </div>
+            )}
           </div>
           <div>
             <p className="font-semibold text-gray-900">{user.firstname} {user.lastname}</p>
@@ -146,6 +141,12 @@ export default function ProfilePage() {
             <p className="text-xs text-gray-400 mt-1 capitalize">
               {user.role} &middot; Joined {new Date(user.createdAt).toLocaleDateString("en", { month: "long", year: "numeric" })}
             </p>
+            <div className="mt-2">
+              <CloudinaryUploadWidget
+                onUpload={handleAvatarUpload}
+                folder="avatars"
+              />
+            </div>
           </div>
         </div>
 
