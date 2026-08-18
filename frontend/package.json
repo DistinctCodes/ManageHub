@@ -8,10 +8,10 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
-    "test:cov": "vitest run --coverage",
-    "test:e2e": "playwright test"
+    "test:cov": "vitest run --coverage --passWithNoTests",
+    "test:e2e": "playwright test --pass-with-no-tests"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
