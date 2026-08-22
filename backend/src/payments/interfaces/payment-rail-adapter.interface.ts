@@ -47,4 +47,12 @@ export interface PaymentRailAdapter {
   verifyByReference(
     providerReference: string,
   ): Promise<PaymentVerificationResult>;
+
+  /**
+   * Executes a (partial) refund against the provider for an already-CONFIRMED
+   * payment (issue #1572). Called only AFTER the refund ledger entry is
+   * already committed — this is the best-effort provider-side execution,
+   * not the source of truth for "was this refund accepted" (the ledger is).
+   */
+  refund(providerReference: string, amount: number): Promise<void>;
 }

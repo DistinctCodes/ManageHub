@@ -88,4 +88,10 @@ export class SandboxRailAdapter implements PaymentRailAdapter {
   ): value is PaymentVerificationOutcome {
     return value === 'confirmed' || value === 'failed' || value === 'pending';
   }
+
+  // No real provider wired up yet — a refund here always "succeeds"
+  // (matches initiate()/verifyByReference()'s sandbox placeholder nature).
+  async refund(_providerReference: string, _amount: number): Promise<void> {
+    return;
+  }
 }

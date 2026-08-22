@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { PaymentRail } from '../enums/payment-rail.enum';
 import { PaymentStatus } from '../enums/payment-status.enum';
+import { PaymentFailureReason } from '../enums/payment-failure-reason.enum';
 import { Payment } from '../entities/payment.entity';
 
 export class PaymentResponseDto {
@@ -18,6 +19,10 @@ export class PaymentResponseDto {
   @ApiProperty({ nullable: true }) provider: string | null;
   @ApiProperty({ nullable: true }) providerReference: string | null;
   @ApiProperty({ nullable: true }) expiresAt: Date | null;
+  @ApiProperty({ enum: PaymentFailureReason, nullable: true })
+  failureReason: PaymentFailureReason | null;
+  @ApiProperty() reconciliationAttempts: number;
+  @ApiProperty({ nullable: true }) manualReviewReason: string | null;
   @ApiProperty() createdAt: Date;
   @ApiProperty() updatedAt: Date;
 
@@ -33,6 +38,9 @@ export class PaymentResponseDto {
     dto.provider = payment.provider;
     dto.providerReference = payment.providerReference;
     dto.expiresAt = payment.expiresAt;
+    dto.failureReason = payment.failureReason;
+    dto.reconciliationAttempts = payment.reconciliationAttempts;
+    dto.manualReviewReason = payment.manualReviewReason;
     dto.createdAt = payment.createdAt;
     dto.updatedAt = payment.updatedAt;
     return dto;

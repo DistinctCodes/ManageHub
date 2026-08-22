@@ -16,15 +16,30 @@ const ALLOWED_TRANSITIONS: Record<PaymentStatus, PaymentStatus[]> = {
     PaymentStatus.CONFIRMED,
     PaymentStatus.FAILED,
     PaymentStatus.EXPIRED,
+    // Escalation tier (issue #1572) — reconciliation couldn't resolve this
+    // automatically after the long threshold.
+    PaymentStatus.MANUAL_REVIEW,
   ],
   [PaymentStatus.CONFIRMED]: [
     PaymentStatus.REFUNDED,
     PaymentStatus.PARTIALLY_REFUNDED,
+    PaymentStatus.DISPUTED,
   ],
   [PaymentStatus.FAILED]: [],
   [PaymentStatus.EXPIRED]: [],
   [PaymentStatus.REFUNDED]: [],
-  [PaymentStatus.PARTIALLY_REFUNDED]: [],
+  // A later partial refund can complete into a full refund; the status
+  // itself doesn't change on every additional partial (the refund ledger
+  // tracks that), only when the refunded total reaches the captured amount.
+  [PaymentStatus.PARTIALLY_REFUNDED]: [PaymentStatus.REFUNDED],
+  // Admin recovery actions (issue #1572) — mark-resolved-manually or void.
+  [PaymentStatus.MANUAL_REVIEW]: [
+    PaymentStatus.CONFIRMED,
+    PaymentStatus.FAILED,
+    PaymentStatus.VOIDED,
+  ],
+  [PaymentStatus.DISPUTED]: [PaymentStatus.REFUNDED],
+  [PaymentStatus.VOIDED]: [],
 };
 
 export function canTransition(from: PaymentStatus, to: PaymentStatus): boolean {

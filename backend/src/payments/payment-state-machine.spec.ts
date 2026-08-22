@@ -12,8 +12,15 @@ describe('payment state machine', () => {
     [PaymentStatus.AWAITING_CONFIRMATION, PaymentStatus.CONFIRMED],
     [PaymentStatus.AWAITING_CONFIRMATION, PaymentStatus.FAILED],
     [PaymentStatus.AWAITING_CONFIRMATION, PaymentStatus.EXPIRED],
+    [PaymentStatus.AWAITING_CONFIRMATION, PaymentStatus.MANUAL_REVIEW],
     [PaymentStatus.CONFIRMED, PaymentStatus.REFUNDED],
     [PaymentStatus.CONFIRMED, PaymentStatus.PARTIALLY_REFUNDED],
+    [PaymentStatus.CONFIRMED, PaymentStatus.DISPUTED],
+    [PaymentStatus.PARTIALLY_REFUNDED, PaymentStatus.REFUNDED],
+    [PaymentStatus.MANUAL_REVIEW, PaymentStatus.CONFIRMED],
+    [PaymentStatus.MANUAL_REVIEW, PaymentStatus.FAILED],
+    [PaymentStatus.MANUAL_REVIEW, PaymentStatus.VOIDED],
+    [PaymentStatus.DISPUTED, PaymentStatus.REFUNDED],
   ];
 
   it.each(VALID_TRANSITIONS)('allows %s -> %s', (from, to) => {
@@ -43,7 +50,7 @@ describe('payment state machine', () => {
       PaymentStatus.FAILED,
       PaymentStatus.EXPIRED,
       PaymentStatus.REFUNDED,
-      PaymentStatus.PARTIALLY_REFUNDED,
+      PaymentStatus.VOIDED,
     ];
     for (const status of terminal) {
       for (const to of ALL_STATUSES) {
