@@ -12,7 +12,7 @@ import { Payment } from './entities/payment.entity';
 import { Refund } from './entities/refund.entity';
 import { PaymentStatus } from './enums/payment-status.enum';
 import { assertValidTransition } from './payment-state-machine';
-import { SandboxRailAdapter } from './adapters/sandbox-rail.adapter';
+import { PaymentRailRegistry } from './payment-rail-registry';
 import { PaymentsGateway } from './payments.gateway';
 import { retryWithBackoff } from './utils/retry-with-backoff';
 
@@ -41,7 +41,7 @@ export class RefundsService {
     private readonly paymentRepository: Repository<Payment>,
     @InjectRepository(Refund)
     private readonly refundRepository: Repository<Refund>,
-    private readonly railAdapter: SandboxRailAdapter,
+    private readonly railRegistry: PaymentRailRegistry,
     private readonly gateway: PaymentsGateway,
   ) {}
 
@@ -81,7 +81,10 @@ export class RefundsService {
     // need a saga/outbox, tracked separately).
     try {
       await retryWithBackoff(
-        () => this.railAdapter.refund(payment.providerReference ?? '', amount),
+        () =>
+          this.railRegistry
+            .get(payment.rail)
+            .refund(payment.providerReference ?? '', amount),
         { maxAttempts: 3, baseDelayMs: 50, maxDelayMs: 500 },
       );
     } catch (error) {

@@ -130,11 +130,13 @@ function makeConfigService(overrides: Record<string, number> = {}) {
 
 describe('ReconciliationService', () => {
   let railAdapter: { verifyByReference: jest.Mock };
+  let railRegistry: { get: jest.Mock };
   let confirmationService: { apply: jest.Mock };
   let gateway: { emitPaymentUpdate: jest.Mock };
 
   beforeEach(() => {
     railAdapter = { verifyByReference: jest.fn() };
+    railRegistry = { get: jest.fn().mockReturnValue(railAdapter) };
     confirmationService = { apply: jest.fn() };
     gateway = { emitPaymentUpdate: jest.fn() };
   });
@@ -148,7 +150,7 @@ describe('ReconciliationService', () => {
     const service = new ReconciliationService(
       paymentRepository as any,
       confirmationService as any,
-      railAdapter as any,
+      railRegistry as any,
       gateway as any,
       config as any,
     );

@@ -264,6 +264,55 @@ describe('WalletsService', () => {
     });
   });
 
+  describe('signPayload', () => {
+    it('delegates to KeyCustodyService for an active custodial wallet', async () => {
+      const account = makeAccount();
+      walletAccountRepository.findOne.mockResolvedValueOnce(account);
+      const signature = Buffer.from('sig');
+      keyCustody.sign.mockResolvedValueOnce(signature);
+      const payload = Buffer.from('tx-hash');
+
+      const result = await service.signPayload('user-1', payload, 'escrow-create');
+
+      expect(result).toBe(signature);
+      expect(keyCustody.sign).toHaveBeenCalledWith(
+        account.id,
+        payload,
+        'SYSTEM',
+        'escrow-create',
+      );
+    });
+
+    it('rejects when the user has no custodial wallet', async () => {
+      walletAccountRepository.findOne.mockResolvedValueOnce(null);
+
+      await expect(
+        service.signPayload('user-1', Buffer.from('x'), 'r'),
+      ).rejects.toThrow(BadRequestException);
+      expect(keyCustody.sign).not.toHaveBeenCalled();
+    });
+
+    it('rejects when the wallet is external, not custodial', async () => {
+      walletAccountRepository.findOne.mockResolvedValueOnce(
+        makeAccount({ custodyType: WalletCustodyType.EXTERNAL }),
+      );
+
+      await expect(
+        service.signPayload('user-1', Buffer.from('x'), 'r'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects when the custodial wallet is not active', async () => {
+      walletAccountRepository.findOne.mockResolvedValueOnce(
+        makeAccount({ status: WalletStatus.PENDING }),
+      );
+
+      await expect(
+        service.signPayload('user-1', Buffer.from('x'), 'r'),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
   describe('createLinkChallenge', () => {
     it('issues a nonce with the configured TTL', async () => {
       config.get.mockReturnValue(120);

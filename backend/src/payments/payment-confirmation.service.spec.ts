@@ -49,6 +49,7 @@ describe('PaymentConfirmationService', () => {
   let paymentsService: { transitionStatus: jest.Mock };
   let gateway: { emitPaymentUpdate: jest.Mock };
   let railAdapter: { verifyByReference: jest.Mock };
+  let railRegistry: { get: jest.Mock };
   let config: { get: jest.Mock };
   let service: PaymentConfirmationService;
 
@@ -63,6 +64,7 @@ describe('PaymentConfirmationService', () => {
     };
     gateway = { emitPaymentUpdate: jest.fn() };
     railAdapter = { verifyByReference: jest.fn() };
+    railRegistry = { get: jest.fn().mockReturnValue(railAdapter) };
     config = { get: jest.fn((_key: string, fallback?: unknown) => fallback) };
 
     service = new PaymentConfirmationService(
@@ -70,7 +72,7 @@ describe('PaymentConfirmationService', () => {
       eventRepository as any,
       paymentsService as any,
       gateway as any,
-      railAdapter as any,
+      railRegistry as any,
       config as any,
     );
   });

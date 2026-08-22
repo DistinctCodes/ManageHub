@@ -96,6 +96,32 @@ export class WalletsService {
   }
 
   /**
+   * The one sanctioned way for another module (e.g. the Soroban escrow
+   * rail, issue #1574) to get something signed by a user's custodial
+   * wallet. Resolves the user's wallet, then delegates to
+   * KeyCustodyService — callers never get a decrypted key, only a
+   * signature, and only for a CUSTODIAL wallet that's actually ACTIVE.
+   */
+  async signPayload(
+    userId: string,
+    payload: Buffer,
+    reason: string,
+  ): Promise<Buffer> {
+    const account = await this.walletAccountRepository.findOne({
+      where: { userId },
+    });
+    if (!account || account.custodyType !== WalletCustodyType.CUSTODIAL) {
+      throw new BadRequestException(
+        'User has no custodial wallet to sign with',
+      );
+    }
+    if (account.status !== WalletStatus.ACTIVE) {
+      throw new BadRequestException('Custodial wallet is not active');
+    }
+    return this.keyCustody.sign(account.id, payload, 'SYSTEM', reason);
+  }
+
+  /**
    * Admin-only funding stub: records a ledger credit, it does not move
    * real on-chain funds. Enough to make the payment flows that depend on
    * a funded custodial wallet demoable — see issue #1573's scope note.

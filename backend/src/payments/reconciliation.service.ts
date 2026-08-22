@@ -16,7 +16,7 @@ import { ConfirmationSource } from './enums/confirmation-source.enum';
 import { assertValidTransition } from './payment-state-machine';
 import { PaymentConfirmationService } from './payment-confirmation.service';
 import { PaymentsGateway } from './payments.gateway';
-import { SandboxRailAdapter } from './adapters/sandbox-rail.adapter';
+import { PaymentRailRegistry } from './payment-rail-registry';
 import { withTimeout } from './utils/with-timeout';
 
 export interface ReconciliationSummary {
@@ -51,7 +51,7 @@ export class ReconciliationService {
     @InjectRepository(Payment)
     private readonly paymentRepository: Repository<Payment>,
     private readonly confirmationService: PaymentConfirmationService,
-    private readonly railAdapter: SandboxRailAdapter,
+    private readonly railRegistry: PaymentRailRegistry,
     private readonly gateway: PaymentsGateway,
     private readonly config: ConfigService,
   ) {}
@@ -242,7 +242,9 @@ export class ReconciliationService {
     let outcome: 'confirmed' | 'failed' | 'pending';
     try {
       const result = await withTimeout(
-        this.railAdapter.verifyByReference(payment.providerReference),
+        this.railRegistry
+          .get(payment.rail)
+          .verifyByReference(payment.providerReference),
         timeoutMs,
       );
       outcome = result.outcome;

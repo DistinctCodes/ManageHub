@@ -55,6 +55,7 @@ function uniqueViolation(constraint: string) {
 describe('PaymentsService', () => {
   let repository: MockRepository;
   let railAdapter: { initiate: jest.Mock };
+  let railRegistry: { get: jest.Mock };
   let config: { get: jest.Mock };
   let service: PaymentsService;
 
@@ -63,10 +64,11 @@ describe('PaymentsService', () => {
     railAdapter = {
       initiate: jest.fn().mockResolvedValue({ providerReference: 'ref-1' }),
     };
+    railRegistry = { get: jest.fn().mockReturnValue(railAdapter) };
     config = { get: jest.fn().mockReturnValue(30) };
     service = new PaymentsService(
       repository as any,
-      railAdapter as any,
+      railRegistry as any,
       config as any,
     );
   });
