@@ -18,15 +18,20 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequestUser } from '../auth/interfaces/authenticated-request.interface';
 import { PaymentsService } from './payments.service';
+import { PaymentConfirmationService } from './payment-confirmation.service';
 import { InitiatePaymentDto } from './dto/initiate-payment.dto';
 import { PaymentResponseDto } from './dto/payment-response.dto';
+import { VerifyReturnResponseDto } from './dto/verify-return-response.dto';
 
 @ApiTags('payments')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('payments')
 export class PaymentsController {
-  constructor(private readonly paymentsService: PaymentsService) {}
+  constructor(
+    private readonly paymentsService: PaymentsService,
+    private readonly confirmationService: PaymentConfirmationService,
+  ) {}
 
   @Post('initiate')
   @ApiOperation({
@@ -68,5 +73,29 @@ export class PaymentsController {
   ): Promise<PaymentResponseDto[]> {
     const payments = await this.paymentsService.findAll(currentUser);
     return payments.map((payment) => PaymentResponseDto.fromEntity(payment));
+  }
+
+  @Post(':id/verify-return')
+  @ApiOperation({
+    summary:
+      'Bounded synchronous verify-on-return fast path for the checkout ' +
+      'return leg. Never marks a payment CONFIRMED without an ' +
+      'authoritative provider response — a timeout returns verified:false ' +
+      'with the payment unchanged; the webhook/real-time channel remains ' +
+      'authoritative.',
+  })
+  @ApiResponse({ status: 200, type: VerifyReturnResponseDto })
+  async verifyReturn(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() currentUser: RequestUser,
+  ): Promise<VerifyReturnResponseDto> {
+    const payment = await this.paymentsService.findOne(id, currentUser);
+    const { payment: updated, verified } =
+      await this.confirmationService.verifyOnReturn(payment);
+
+    return {
+      payment: PaymentResponseDto.fromEntity(updated),
+      verified,
+    };
   }
 }
