@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
+import { BullModule } from '@nestjs/bull';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -24,6 +25,24 @@ import { WalletsModule } from './wallets/wallets.module';
         database: config.get<string>('DATABASE_NAME'),
         autoLoadEntities: true,
         synchronize: false,
+      }),
+    }),
+    // Backs the Soroban escrow submission queue (issue #1574) — see
+    // PaymentsModule — on the same Redis instance .env.example already
+    // documents for Bull-backed background jobs. The queue is registered
+    // regardless of SOROBAN_ENABLED (ioredis retries quietly in the
+    // background if Redis isn't reachable rather than blocking app
+    // startup); no job is ever added to it unless the Soroban rail is
+    // actually enabled and something calls it.
+    BullModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        redis: {
+          host: config.get<string>('REDIS_HOST', 'localhost'),
+          port: config.get<number>('REDIS_PORT', 6379),
+          password: config.get<string>('REDIS_PASSWORD') || undefined,
+          db: config.get<number>('REDIS_DB', 0),
+        },
       }),
     }),
     AuthModule,

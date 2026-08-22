@@ -109,10 +109,12 @@ function makeHarness(initialPayment: Payment) {
 
 describe('RefundsService', () => {
   let railAdapter: { refund: jest.Mock };
+  let railRegistry: { get: jest.Mock };
   let gateway: { emitPaymentUpdate: jest.Mock };
 
   beforeEach(() => {
     railAdapter = { refund: jest.fn().mockResolvedValue(undefined) };
+    railRegistry = { get: jest.fn().mockReturnValue(railAdapter) };
     gateway = { emitPaymentUpdate: jest.fn() };
   });
 
@@ -121,7 +123,7 @@ describe('RefundsService', () => {
     const service = new RefundsService(
       harness.paymentRepository as any,
       harness.refundRepository as any,
-      railAdapter as any,
+      railRegistry as any,
       gateway as any,
     );
     return { service, harness };
@@ -226,7 +228,7 @@ describe('RefundsService', () => {
     const service = new RefundsService(
       harness.paymentRepository as any,
       {} as any,
-      railAdapter as any,
+      railRegistry as any,
       gateway as any,
     );
 

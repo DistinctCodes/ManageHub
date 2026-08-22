@@ -17,7 +17,7 @@ import {
   PaymentStatus,
 } from './enums/payment-status.enum';
 import { assertValidTransition } from './payment-state-machine';
-import { SandboxRailAdapter } from './adapters/sandbox-rail.adapter';
+import { PaymentRailRegistry } from './payment-rail-registry';
 
 const USER_IDEMPOTENCY_KEY_CONSTRAINT = 'uq_payments_user_id_idempotency_key';
 const BOOKING_NON_TERMINAL_CONSTRAINT = 'uq_payments_booking_id_non_terminal';
@@ -33,7 +33,7 @@ export class PaymentsService {
   constructor(
     @InjectRepository(Payment)
     private readonly paymentRepository: Repository<Payment>,
-    private readonly railAdapter: SandboxRailAdapter,
+    private readonly railRegistry: PaymentRailRegistry,
     private readonly config: ConfigService,
   ) {}
 
@@ -159,7 +159,7 @@ export class PaymentsService {
   private async progressToAwaitingConfirmation(
     payment: Payment,
   ): Promise<Payment> {
-    const result = await this.railAdapter.initiate(payment);
+    const result = await this.railRegistry.get(payment.rail).initiate(payment);
     payment.providerReference = result.providerReference;
     this.transitionStatus(payment, PaymentStatus.AWAITING_CONFIRMATION);
     return this.paymentRepository.save(payment);

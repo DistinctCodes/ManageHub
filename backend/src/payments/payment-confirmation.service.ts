@@ -10,7 +10,7 @@ import { PaymentStatus } from './enums/payment-status.enum';
 import { PaymentVerificationOutcome } from './interfaces/payment-rail-adapter.interface';
 import { PaymentsService } from './payments.service';
 import { PaymentsGateway } from './payments.gateway';
-import { SandboxRailAdapter } from './adapters/sandbox-rail.adapter';
+import { PaymentRailRegistry } from './payment-rail-registry';
 import { withTimeout } from './utils/with-timeout';
 
 const DEFAULT_VERIFY_TIMEOUT_MS = 3000;
@@ -43,7 +43,7 @@ export class PaymentConfirmationService {
     private readonly eventRepository: Repository<ConfirmationEvent>,
     private readonly paymentsService: PaymentsService,
     private readonly gateway: PaymentsGateway,
-    private readonly railAdapter: SandboxRailAdapter,
+    private readonly railRegistry: PaymentRailRegistry,
     private readonly config: ConfigService,
   ) {}
 
@@ -170,7 +170,9 @@ export class PaymentConfirmationService {
     let result: { outcome: PaymentVerificationOutcome };
     try {
       result = await withTimeout(
-        this.railAdapter.verifyByReference(payment.providerReference),
+        this.railRegistry
+          .get(payment.rail)
+          .verifyByReference(payment.providerReference),
         timeoutMs,
       );
     } catch (error) {

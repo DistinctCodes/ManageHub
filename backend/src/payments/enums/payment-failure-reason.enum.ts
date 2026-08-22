@@ -13,4 +13,17 @@ export enum PaymentFailureReason {
   PROVIDER_ERROR = 'PROVIDER_ERROR',
   /** The payment never progressed past INITIATED before expiring — the user never returned. */
   ABANDONED = 'ABANDONED',
+
+  // ── Soroban escrow rail (issue #1574) ─────────────────────────────────
+
+  /** Transaction simulation failed against current contract/ledger state (e.g. a require_auth or balance check would revert). */
+  SIMULATION_FAILED = 'SIMULATION_FAILED',
+  /** The network rejected the transaction for an underpriced fee. */
+  INSUFFICIENT_FEE = 'INSUFFICIENT_FEE',
+  /** Two transactions raced for the same signing account's sequence number. */
+  SEQUENCE_CONFLICT = 'SEQUENCE_CONFLICT',
+  /** The transaction's time-bounds elapsed before it was included in a ledger. */
+  TRANSACTION_EXPIRED = 'TRANSACTION_EXPIRED',
+  /** The contract call itself reverted on-chain (e.g. insufficient custodial balance). */
+  CONTRACT_REVERTED = 'CONTRACT_REVERTED',
 }
