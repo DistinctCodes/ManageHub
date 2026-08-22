@@ -5,13 +5,17 @@ import { EnvelopeKeyManagementService } from './key-management.service';
 const MASTER_KEY = randomBytes(32).toString('base64');
 
 describe('EnvelopeKeyManagementService', () => {
-  function makeService(masterKey: string | undefined = MASTER_KEY) {
+  // No default value here on purpose: a default triggered by an explicit
+  // `undefined` argument would silently swallow the "no master key
+  // configured" case below (JS substitutes the default whenever the
+  // argument is `undefined`, explicit or not).
+  function makeService(masterKey: string | undefined) {
     const config = { get: jest.fn().mockReturnValue(masterKey) };
     return new EnvelopeKeyManagementService(config as any);
   }
 
   it('wraps and unwraps a data key back to the original bytes', async () => {
-    const service = makeService();
+    const service = makeService(MASTER_KEY);
     const dataKey = randomBytes(32);
 
     const wrapped = await service.wrapDataKey(dataKey);
@@ -21,7 +25,7 @@ describe('EnvelopeKeyManagementService', () => {
   });
 
   it('produces ciphertext that does not contain the plaintext data key', async () => {
-    const service = makeService();
+    const service = makeService(MASTER_KEY);
     const dataKey = randomBytes(32);
 
     const wrapped = await service.wrapDataKey(dataKey);
@@ -30,7 +34,7 @@ describe('EnvelopeKeyManagementService', () => {
   });
 
   it('fails to unwrap with a tampered auth tag', async () => {
-    const service = makeService();
+    const service = makeService(MASTER_KEY);
     const wrapped = await service.wrapDataKey(randomBytes(32));
     wrapped.tag = randomBytes(16).toString('base64');
 

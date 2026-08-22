@@ -6,7 +6,7 @@ import { EnvelopeKeyManagementService } from './key-management.service';
 const STELLAR_SECRET_PATTERN = /^S[A-Z0-9]{55}$/;
 const STELLAR_PUBLIC_PATTERN = /^G[A-Z0-9]{55}$/;
 
-function makeManager(materialRepository: any) {
+function makeManager(materialRepository: any): any {
   return { getRepository: jest.fn().mockReturnValue(materialRepository) };
 }
 
