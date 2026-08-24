@@ -24,7 +24,23 @@ async function bootstrap() {
         '## Payment state machine\n' +
         'INITIATED -> AWAITING_CONFIRMATION -> CONFIRMED | FAILED | EXPIRED\n' +
         'CONFIRMED -> REFUNDED | PARTIALLY_REFUNDED\n' +
-        'All transitions are enforced by a single guarded service method.',
+        'All transitions are enforced by a single guarded service method.\n\n' +
+        '## Credit ledger\n' +
+        'Charges too small to settle on-chain per event move value inside a ' +
+        'double-entry ledger instead: a charge debits the member and credits ' +
+        'platform revenue, and value only crosses the platform boundary ' +
+        'later, in one netted settlement batch per recipient.\n' +
+        '- Every ledger transaction balances (debits == credits) and its ' +
+        '`reference` is unique, so any retry is a no-op rather than a ' +
+        'duplicate.\n' +
+        '- A charge is refused if it would breach the account overdraft ' +
+        'ceiling (0 by default), checked under the account row lock so ' +
+        'concurrent charges cannot overdraw together.\n' +
+        '- Revenue splits are basis points summing to exactly 10000, ' +
+        'allocated by the largest-remainder method so rounding never loses ' +
+        'or duplicates a minor unit.\n' +
+        '- Settlement never marks a ledger entry settled until the payout ' +
+        'rail confirms the transfer from fresh state.',
     )
     .setVersion('1.0')
     .addBearerAuth()

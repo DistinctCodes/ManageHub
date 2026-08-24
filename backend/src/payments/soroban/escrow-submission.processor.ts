@@ -11,7 +11,10 @@ import { PaymentFailureReason } from '../enums/payment-failure-reason.enum';
 import { ConfirmationSource } from '../enums/confirmation-source.enum';
 import { PaymentConfirmationService } from '../payment-confirmation.service';
 import { WalletsService } from '../../wallets/wallets.service';
-import { attachSignature, EscrowContractClient } from './escrow-contract.client';
+import {
+  attachSignature,
+  EscrowContractClient,
+} from './escrow-contract.client';
 import { EscrowStatus } from './escrow-status.enum';
 import { deriveEscrowId } from './escrow-id';
 import { mapSorobanError } from './soroban-error-mapping';
@@ -25,7 +28,17 @@ import {
 type SubmitJobData =
   | { kind: 'create'; paymentId: string }
   | { kind: 'release'; escrowIdHex: string; paymentId: string }
-  | { kind: 'refund'; escrowIdHex: string };
+  | { kind: 'refund'; escrowIdHex: string }
+  // Treasury -> recipient transfer for a settlement batch's off-platform
+  // leg (issue #1575). Reuses this rail rather than adding a second one:
+  // an escrow created and released to the beneficiary in one job is a
+  // transfer, and it inherits the failure/retry semantics above for free.
+  | {
+      kind: 'payout';
+      escrowIdHex: string;
+      beneficiaryAddress: string;
+      amount: number;
+    };
 
 /**
  * Runs the actual on-chain submission pipeline off the request thread
@@ -65,6 +78,8 @@ export class EscrowSubmissionProcessor {
         return this.handleRelease(job.data.escrowIdHex);
       case 'refund':
         return this.handleRefund(job.data.escrowIdHex);
+      case 'payout':
+        return this.handlePayout(job.data);
     }
   }
 
@@ -216,6 +231,99 @@ export class EscrowSubmissionProcessor {
 
   private async handleRelease(escrowIdHex: string): Promise<void> {
     await this.submitTreasuryAction(escrowIdHex, 'release');
+  }
+
+  /**
+   * The off-platform leg of a credit-ledger settlement batch (issue
+   * #1575): a treasury-funded escrow created for, and immediately
+   * released to, the recipient.
+   *
+   * Every step re-reads contract state first, so the job is idempotent
+   * against its own retries and against a duplicate delivery of the same
+   * escrow id: an escrow that already exists is not created again, and one
+   * already RELEASED is left alone. That, plus the deterministic escrow id
+   * the adapter derives from the settlement payout's idempotency key, is
+   * what lets settlement re-run a batch without paying anyone twice.
+   *
+   * This never reports success back to settlement. SettlementService only
+   * ever believes a fresh `getEscrowStatus` read (see
+   * SorobanPayoutAdapter.getPayoutStatus), so a job that dies here leaves
+   * the payout SUBMITTED and the ledger still showing the balance as owed.
+   */
+  private async handlePayout(data: {
+    escrowIdHex: string;
+    beneficiaryAddress: string;
+    amount: number;
+  }): Promise<void> {
+    const escrowId = Buffer.from(data.escrowIdHex, 'hex');
+    const treasuryKeypair = Keypair.fromSecret(
+      this.sorobanConfig.treasurySecretKey,
+    );
+
+    try {
+      const existing = await this.contractClient.getEscrowStatus(
+        this.sorobanConfig.treasuryPublicKey,
+        escrowId,
+      );
+
+      if (existing === EscrowStatus.RELEASED) {
+        this.logger.log(
+          `Payout escrow ${data.escrowIdHex} is already released — nothing to do`,
+        );
+        return;
+      }
+
+      if (existing === EscrowStatus.NOT_FOUND) {
+        const tx = await this.contractClient.buildCreateTx(
+          treasuryKeypair.publicKey(),
+          escrowId,
+          treasuryKeypair.publicKey(),
+          data.beneficiaryAddress,
+          BigInt(data.amount),
+        );
+        tx.sign(treasuryKeypair);
+        const { hash } = await this.contractClient.submit(tx);
+        const finality = await this.contractClient.pollFinality(
+          hash,
+          this.pollOptions(),
+        );
+        if (finality !== 'SUCCESS') {
+          this.logger.warn(
+            `Payout escrow ${data.escrowIdHex}: create tx ${hash} is ` +
+              `${finality} within the bounded poll — leaving it for the next ` +
+              'settlement pass to re-read',
+          );
+          return;
+        }
+      }
+
+      // Fresh read again: the create above only proves the call did not
+      // revert, not that the escrow is in the state a release needs.
+      const beforeRelease = await this.contractClient.getEscrowStatus(
+        this.sorobanConfig.treasuryPublicKey,
+        escrowId,
+      );
+      if (beforeRelease !== EscrowStatus.LOCKED) {
+        this.logger.warn(
+          `Payout escrow ${data.escrowIdHex} is ${beforeRelease} after ` +
+            'create — not releasing',
+        );
+        return;
+      }
+      await this.submitTreasuryAction(data.escrowIdHex, 'release');
+    } catch (error) {
+      const mapping = mapSorobanError(error);
+      if (mapping.alreadySucceeded) {
+        this.logger.log(
+          `Payout escrow ${data.escrowIdHex}: contract reports already done`,
+        );
+        return;
+      }
+      this.logger.error(
+        `Payout escrow ${data.escrowIdHex} failed: ` +
+          (error instanceof Error ? error.message : String(error)),
+      );
+    }
   }
 
   private async handleRefund(escrowIdHex: string): Promise<void> {

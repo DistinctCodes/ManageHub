@@ -128,6 +128,31 @@ This module manages consumable stock items (stationery, spare parts, printer car
 - `inventoryItem` - Reference to inventory item
 - `createdAt` - Movement timestamp
 
+## Credits Module — micropayment ledger & revenue distribution
+
+An internal double-entry credit ledger for high-frequency, low-value
+charges (per-minute resource usage, printing, meeting-room overage) that are
+too small to settle on-chain individually, plus a configurable multi-party
+revenue split engine and a batch settlement job that moves netted balances
+off-platform over the Soroban rail.
+
+- **Spend path** — `POST /credits/charge` debits a member's balance
+  synchronously with no rail or chain call in the hot path, refusing
+  anything that would breach the account's overdraft ceiling.
+- **Top-up path** — a CONFIRMED payment carrying
+  `metadata.purpose = "CREDIT_TOP_UP"` funds the payer's balance; one
+  payment funds many micro-charges.
+- **Split engine** — basis-point recipients validated to sum to exactly
+  100% at configuration time, allocated by the largest-remainder method so
+  rounding never loses or duplicates a minor unit.
+- **Settlement** — hourly netting into at most one on-chain transfer per
+  recipient, resumable after a crash and never marking a ledger entry
+  settled before the rail confirms the payout.
+
+Configuration lives under `CREDITS_*` in `.env.example`. For the schema,
+the overdraft and rounding policies, the failure semantics and the full API
+surface, see [Credits Module README](./src/credits/README.md).
+
 ## User Profile Management Module
 
 This module provides comprehensive user profile management capabilities with avatar upload support.

@@ -201,7 +201,9 @@ describe('EscrowSubmissionProcessor', () => {
     });
 
     it("treats a retried create against the contract's already-done guard as success via a fresh read", async () => {
-      contractClient.submit.mockRejectedValue(new Error('escrow already released'));
+      contractClient.submit.mockRejectedValue(
+        new Error('escrow already released'),
+      );
       const payment = makePayment();
       paymentRepository.findOne.mockResolvedValue(payment);
 
@@ -276,6 +278,87 @@ describe('EscrowSubmissionProcessor', () => {
       await expect(
         submitJob({ kind: 'refund', escrowIdHex: 'cd'.repeat(32) }),
       ).resolves.toBeUndefined();
+    });
+  });
+
+  /**
+   * The off-platform leg of a credit-ledger settlement batch (issue
+   * #1575): a treasury-funded escrow created for, and released to, the
+   * recipient. Every step re-reads contract state first, which is what
+   * makes a retried settlement pass safe.
+   */
+  describe('payout', () => {
+    const payoutJob = {
+      kind: 'payout' as const,
+      escrowIdHex: 'ef'.repeat(32),
+      beneficiaryAddress: Keypair.random().publicKey(),
+      amount: 25_000,
+    };
+
+    it('creates the escrow from the treasury, then releases it', async () => {
+      contractClient.getEscrowStatus
+        .mockResolvedValueOnce(EscrowStatus.NOT_FOUND)
+        .mockResolvedValueOnce(EscrowStatus.LOCKED);
+
+      await submitJob(payoutJob);
+
+      expect(contractClient.buildCreateTx).toHaveBeenCalledWith(
+        TREASURY.publicKey(),
+        Buffer.from(payoutJob.escrowIdHex, 'hex'),
+        TREASURY.publicKey(),
+        payoutJob.beneficiaryAddress,
+        BigInt(payoutJob.amount),
+      );
+      expect(contractClient.buildReleaseTx).toHaveBeenCalledWith(
+        TREASURY.publicKey(),
+        Buffer.from(payoutJob.escrowIdHex, 'hex'),
+      );
+    });
+
+    it('does not re-create an escrow that already exists', async () => {
+      contractClient.getEscrowStatus.mockResolvedValue(EscrowStatus.LOCKED);
+
+      await submitJob(payoutJob);
+
+      expect(contractClient.buildCreateTx).not.toHaveBeenCalled();
+      expect(contractClient.buildReleaseTx).toHaveBeenCalledTimes(1);
+    });
+
+    it('is a no-op for an escrow already released — no double payout', async () => {
+      contractClient.getEscrowStatus.mockResolvedValue(EscrowStatus.RELEASED);
+
+      await submitJob(payoutJob);
+
+      expect(contractClient.buildCreateTx).not.toHaveBeenCalled();
+      expect(contractClient.buildReleaseTx).not.toHaveBeenCalled();
+    });
+
+    it('does not release when the create never reached finality', async () => {
+      contractClient.getEscrowStatus.mockResolvedValue(EscrowStatus.NOT_FOUND);
+      contractClient.pollFinality.mockResolvedValue('NOT_FOUND');
+
+      await submitJob(payoutJob);
+
+      expect(contractClient.buildCreateTx).toHaveBeenCalledTimes(1);
+      expect(contractClient.buildReleaseTx).not.toHaveBeenCalled();
+    });
+
+    it('does not release an escrow that came back REFUNDED', async () => {
+      contractClient.getEscrowStatus
+        .mockResolvedValueOnce(EscrowStatus.NOT_FOUND)
+        .mockResolvedValueOnce(EscrowStatus.REFUNDED);
+
+      await submitJob(payoutJob);
+
+      expect(contractClient.buildReleaseTx).not.toHaveBeenCalled();
+    });
+
+    it('logs rather than throws on a genuine on-chain failure', async () => {
+      contractClient.getEscrowStatus.mockResolvedValue(EscrowStatus.NOT_FOUND);
+      contractClient.submit.mockRejectedValue(new Error('txBAD_SEQ'));
+
+      await expect(submitJob(payoutJob)).resolves.toBeUndefined();
+      expect(contractClient.buildReleaseTx).not.toHaveBeenCalled();
     });
   });
 });
