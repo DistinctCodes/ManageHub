@@ -8,6 +8,7 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { PaymentsModule } from './payments/payments.module';
 import { WalletsModule } from './wallets/wallets.module';
+import { CreditsModule } from './credits/credits.module';
 
 @Module({
   imports: [
@@ -48,6 +49,9 @@ import { WalletsModule } from './wallets/wallets.module';
     AuthModule,
     PaymentsModule,
     WalletsModule,
+    // Micropayment credit ledger, revenue splits and batch settlement
+    // (issue #1575). Its own @Cron jobs ride the ScheduleModule above.
+    CreditsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
