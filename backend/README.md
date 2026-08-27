@@ -60,6 +60,12 @@ variables as the application (`DATABASE_HOST`, `DATABASE_PORT`,
 `DATABASE_USERNAME`, `DATABASE_PASSWORD`, `DATABASE_NAME`, `DATABASE_SSL`, and
 `PGSSLMODE`). Do not use `synchronize` or edit an already-applied migration.
 
+## Authentication
+
+The backend now issues its own JWTs through `POST /auth/register` and
+`POST /auth/login`. Tokens are signed with `JWT_SECRET` and then verified by
+the HTTP guard and the payments socket gateway.
+
 ## Compile and run the project
 
 ```bash
@@ -153,36 +159,12 @@ Configuration lives under `CREDITS_*` in `.env.example`. For the schema,
 the overdraft and rounding policies, the failure semantics and the full API
 surface, see [Credits Module README](./src/credits/README.md).
 
-## User Profile Management Module
+## Booking references
 
-This module provides comprehensive user profile management capabilities with avatar upload support.
-
-### Features
-
-- **Profile Information Management**: Update personal details (name, email, phone, username)
-- **Avatar Management**: Upload, update, and remove profile pictures with Cloudinary integration
-- **Security & Validation**: JWT authentication, input validation, and file security
-- **API Documentation**: Complete Swagger documentation
-
-### API Endpoints
-
-- `GET /profile` - Get current user profile
-- `PATCH /profile` - Update profile information
-- `POST /profile/avatar` - Upload profile picture
-- `DELETE /profile/avatar` - Remove profile picture
-
-### Configuration
-
-Ensure the following environment variables are set for avatar upload functionality:
-
-```bash
-CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
-CLOUDINARY_API_KEY=your_cloudinary_api_key
-CLOUDINARY_API_SECRET=your_cloudinary_api_secret
-CLOUDINARY_FOLDER=profile-pictures
-```
-
-For detailed documentation, see [User Profile Module README](./src/user-profile/README.md).
+`Payment.bookingId` is currently a forward-compatible booking reference used
+by the payment idempotency and exclusivity rules. The dedicated bookings/check
+in domain is not scaffolded in this repository yet, so the related env vars
+were removed until that work lands.
 
 ## Deployment
 

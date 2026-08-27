@@ -21,6 +21,7 @@ describe('payment state machine', () => {
     [PaymentStatus.MANUAL_REVIEW, PaymentStatus.FAILED],
     [PaymentStatus.MANUAL_REVIEW, PaymentStatus.VOIDED],
     [PaymentStatus.DISPUTED, PaymentStatus.REFUNDED],
+    [PaymentStatus.DISPUTED, PaymentStatus.CONFIRMED],
   ];
 
   it.each(VALID_TRANSITIONS)('allows %s -> %s', (from, to) => {

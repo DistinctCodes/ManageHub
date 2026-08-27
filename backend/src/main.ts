@@ -2,12 +2,34 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { AllExceptionsFilter } from './common/http-exception.filter';
+import { randomUUID } from 'crypto';
+import { NextFunction, Request, Response } from 'express';
 
 async function bootstrap() {
   // rawBody is needed by the payment webhook controller to verify HMAC
   // signatures against the exact bytes the provider signed, not a
   // re-serialized copy of the parsed JSON body.
   const app = await NestFactory.create(AppModule, { rawBody: true });
+
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    res.setHeader('x-dns-prefetch-control', 'off');
+    res.setHeader('x-frame-options', 'SAMEORIGIN');
+    res.setHeader('x-content-type-options', 'nosniff');
+    res.setHeader('referrer-policy', 'no-referrer');
+    res.setHeader('x-download-options', 'noopen');
+    res.setHeader('x-permitted-cross-domain-policies', 'none');
+    if (process.env.NODE_ENV === 'production') {
+      res.setHeader(
+        'strict-transport-security',
+        'max-age=31536000; includeSubDomains',
+      );
+    }
+    if (!res.getHeader('x-request-id')) {
+      res.setHeader('x-request-id', req.header('x-request-id') || randomUUID());
+    }
+    next();
+  });
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -16,6 +38,7 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
     }),
   );
+  app.useGlobalFilters(new AllExceptionsFilter());
 
   const config = new DocumentBuilder()
     .setTitle('ManageHub API')

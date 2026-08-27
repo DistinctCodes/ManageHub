@@ -39,7 +39,10 @@ jobs:
         run: npm run build
 
       - name: Unit tests
-        run: npm run test -- --passWithNoTests
+        run: npm run test
+
+      - name: Dependency audit
+        run: npm audit --audit-level=high
 
   # ─────────────────────────────────────────────
   # FRONTEND — Next.js
@@ -119,4 +122,3 @@ jobs:
             frontend/playwright-report/
             frontend/test-results/
           retention-days: 7
-
