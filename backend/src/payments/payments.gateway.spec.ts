@@ -14,20 +14,14 @@ function makeSocket(token?: string) {
 }
 
 describe('PaymentsGateway', () => {
-  let jwtService: { verifyAsync: jest.Mock };
-  let configService: { get: jest.Mock };
+  let verifier: { verify: jest.Mock };
   let paymentsService: { findOne: jest.Mock };
   let gateway: PaymentsGateway;
 
   beforeEach(() => {
-    jwtService = { verifyAsync: jest.fn() };
-    configService = { get: jest.fn().mockReturnValue('secret') };
+    verifier = { verify: jest.fn() };
     paymentsService = { findOne: jest.fn() };
-    gateway = new PaymentsGateway(
-      jwtService as any,
-      configService as any,
-      paymentsService as any,
-    );
+    gateway = new PaymentsGateway(verifier as any, paymentsService as any);
   });
 
   describe('handleConnection', () => {
@@ -43,7 +37,7 @@ describe('PaymentsGateway', () => {
     });
 
     it('rejects a connection with an invalid token', async () => {
-      jwtService.verifyAsync.mockRejectedValueOnce(new Error('bad token'));
+      verifier.verify.mockRejectedValueOnce(new Error('bad token'));
       const socket = makeSocket('bad-token');
 
       await gateway.handleConnection(socket as any);
@@ -52,10 +46,7 @@ describe('PaymentsGateway', () => {
     });
 
     it('attaches the decoded user for a valid token', async () => {
-      jwtService.verifyAsync.mockResolvedValueOnce({
-        sub: 'user-1',
-        role: UserRole.USER,
-      });
+      verifier.verify.mockResolvedValueOnce({ id: 'user-1', role: UserRole.USER });
       const socket = makeSocket('good-token');
 
       await gateway.handleConnection(socket as any);
