@@ -126,6 +126,24 @@ export class CreditsService {
     );
   }
 
+   const harness = createLedgerHarness();
+    const ledger = new LedgerService(
+      harness.accounts as any,
+      harness.transactions as any,
+      harness.entries as any,
+    );
+    const credits = new CreditsService(
+      ledger,
+      fakeConfigService({
+        CREDITS_DEFAULT_CURRENCY: 'USD',
+        CREDITS_DEFAULT_OVERDRAFT_LIMIT: 0,
+        ...config,
+      }),
+    );
+    return { harness, ledger, credits };
+  }
+  
+
   /**
    * Resolves (creating on first use) an owned payable account — a hub
    * operator or a referrer. `externalPayoutAddress` is what makes its
