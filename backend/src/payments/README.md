@@ -98,3 +98,61 @@ and whether it exceeds `PAYMENT_MANUAL_REVIEW_ALERT_THRESHOLD`; the
 scheduled job logs a `WARN`-level alert when it does. This is a
 log-based signal by design — this module doesn't assume any particular
 metrics/observability backend is wired up yet.
+
+## Webhook payload contract
+
+Every payment rail adapter maps its provider-specific confirmation event
+into one **normalized** payload before the confirmation service consumes it.
+The shape below is the contract (BE-137); `src/webhook-contract.ts` is the
+machine-checkable source of truth, and every parsed webhook is validated
+against it before any `Payment` state is touched — a wrong-shaped event is
+rejected with a clear `400 Bad Request`, never silently mishandled.
+
+### Contract version
+
+`v1.0` — returned on every successful webhook response as `contractVersion`
+and available as `PAYMENT_WEBHOOK_CONTRACT_VERSION` in
+`src/webhook-contract.ts`. Bump this when a future issue makes a
+**breaking** change to the normalized shape.
+
+### Normalized payload
+
+```json
+{
+  "providerReference": "provider_1234",
+  "outcome": "confirmed"
+}
+```
+
+| Field              | Type                                  | Required | Notes                                                       |
+| ------------------ | ------------------------------------- | -------- | ----------------------------------------------------------- |
+| `providerReference`| string                                | yes      | The provider's id for the payment we initiated. Non-blank.   |
+| `outcome`          | `"confirmed" \| "failed" \| "pending"`| yes      | Terminal/current verdict to apply to the payment.            |
+
+### Transport & processing rules
+
+1. **Transport authenticity** — each rail has a dedicated controller
+   (`/payments/webhooks/<rail>`) that authenticates the caller at the
+   transport level (the sandbox rail uses an HMAC-SHA256 signature over the
+   raw body, secret `PAYMENT_WEBHOOK_SECRET`). A bad signature is rejected
+   with `401` before any parsing.
+2. **Per-rail mapping** — the rail adapter's `parseWebhookPayload(rawBody)`
+   maps the provider's native event fields into the normalized shape, so
+   provider-specific field names/layouts never leak past the adapter.
+3. **Contract validation** — the controller then runs
+   `validateWebhookPayload` on the normalized payload. Malformed/missing
+   fields → `400` with a field-specific message (logged as
+   `malformed_payload`).
+4. **Idempotency** — `PaymentConfirmationService.apply` looks the payment
+   up by `providerReference` and no-ops on an already-terminal payment, so
+   duplicate or replay webhooks are harmless by construction.
+
+### Adding a new rail
+
+Implement `PaymentRailAdapter` and add a `@Post('webhooks/<rail>')` handler.
+The handler must (a) verify transport authenticity, (b) call the adapter's
+`parseWebhookPayload` to map native events into the normalized shape, and
+(c) hand the validated `{ providerReference, outcome }` to
+`PaymentConfirmationService.apply`. The contract above — not any single
+provider's field names — is the boundary every rail is held to.
+

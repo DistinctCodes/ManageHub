@@ -1,60 +1,117 @@
 "use client";
 
-import { Card, CardHeader, StatusBadge } from "@/components/app-ui";
-import { listMyPayments, type Payment } from "@/lib/payments-api";
-import Cookies from "js-cookie";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
+import { getPayments } from "@/lib/payments-api";
+import { useSessionStore } from "@/lib/stores/session-store";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
-function formatMoney(amount: number, currency: string) {
-  return new Intl.NumberFormat(undefined, {
-    style: "currency",
-    currency: currency || "USD",
-  }).format(amount / 100);
+function formatAmount(amount: number, currency: string): string {
+  return `${amount.toFixed(2)} ${currency}`;
 }
 
-export default function MyPaymentsPage() {
-  const token = typeof window !== "undefined" ? Cookies.get("accessToken") : null;
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["my-payments"],
-    queryFn: () => listMyPayments(token!),
-    enabled: !!token,
+function statusTone(status: string): string {
+  switch (status) {
+    case "CONFIRMED":
+      return "text-green-600 dark:text-green-400";
+    case "FAILED":
+    case "DISPUTED":
+      return "text-red-600 dark:text-red-400";
+    case "MANUAL_REVIEW":
+      return "text-amber-600 dark:text-amber-400";
+    default:
+      return "text-gray-600 dark:text-gray-400";
+  }
+}
+
+export default function PaymentsPage() {
+  const accessToken = useSessionStore((state) => state.accessToken);
+
+  const {
+    data: payments,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["payments", "list"],
+    queryFn: () => getPayments(accessToken as string),
+    enabled: Boolean(accessToken),
   });
 
-  return (
-    <main className="mx-auto max-w-4xl px-4 py-10">
-      <Card>
-        <CardHeader title="My payments" description="Your recent payment activity." />
-        <div className="px-5 py-4">
-          {!token ? (
-            <p className="text-sm text-amber-600">Sign in to view your payments.</p>
-          ) : isLoading ? (
-            <p className="text-sm text-gray-500">Loading…</p>
-          ) : error ? (
-            <p className="text-sm text-red-600">
-              {(error as Error).message}
+  if (!accessToken) {
+    return (
+      <main className="mx-auto max-w-3xl px-4 py-10">
+        <h1 className="text-2xl font-semibold mb-6">Payments</h1>
+        <Card>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Sign in to see your payment history.
             </p>
-          ) : data && data.length === 0 ? (
-            <p className="text-sm text-gray-500">No payments yet.</p>
-          ) : (
-            <ul className="divide-y divide-gray-200 dark:divide-gray-800">
-              {(data ?? []).map((payment: Payment) => (
-                <li key={payment.id} className="flex items-center justify-between py-3">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900 dark:text-gray-50">
-                      {formatMoney(payment.amount, payment.currency)}{" "}
-                      <span className="font-normal text-gray-500">{payment.rail}</span>
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {payment.id} · {new Date(payment.createdAt).toLocaleString()}
-                    </p>
-                  </div>
-                  <StatusBadge status={payment.status} />
-                </li>
-              ))}
-            </ul>
-          )}
+            <Button asChild>
+              <Link href="/login">Sign in</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </main>
+    );
+  }
+
+  return (
+    <main className="mx-auto max-w-3xl px-4 py-10">
+      <h1 className="text-2xl font-semibold mb-6">Payments</h1>
+
+      {isLoading && (
+        <Card>
+          <CardContent>Loading your payments...</CardContent>
+        </Card>
+      )}
+
+      {error && (
+        <Card>
+          <CardContent className="text-sm text-red-600 dark:text-red-400">
+            {error.message}
+          </CardContent>
+        </Card>
+      )}
+
+      {payments && payments.length === 0 && (
+        <Card>
+          <CardContent>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              No payments yet.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {payments && payments.length > 0 && (
+        <div className="space-y-3">
+          {payments.map((payment) => (
+            <Link key={payment.id} href={`/payments/${payment.id}`}>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">
+                    {formatAmount(payment.amount, payment.currency)}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600 dark:text-gray-400">
+                    {payment.rail} &middot; {new Date(payment.createdAt).toLocaleString()}
+                  </span>
+                  <span className={`font-medium ${statusTone(payment.status)}`}>
+                    {payment.status}
+                  </span>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
         </div>
-      </Card>
+      )}
     </main>
   );
 }

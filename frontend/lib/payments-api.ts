@@ -1,4 +1,5 @@
 export type PaymentRail = "FIAT" | "STELLAR_CUSTODIAL" | "STELLAR_EXTERNAL";
+
 export type PaymentStatus =
   | "INITIATED"
   | "AWAITING_CONFIRMATION"
@@ -125,11 +126,11 @@ export function initiatePayment(
   }, idempotencyKey);
 }
 
-export function listMyPayments(accessToken: string): Promise<Payment[]> {
+export function getPayments(accessToken: string): Promise<Payment[]> {
   return apiFetch<Payment[]>("/payments", accessToken);
 }
 
-export function getPayment(accessToken: string, id: string): Promise<Payment> {
+export function getPayment(id: string, accessToken: string): Promise<Payment> {
   return apiFetch<Payment>(`/payments/${id}`, accessToken);
 }
 
@@ -148,10 +149,6 @@ export function verifyPaymentReturn(
 
 export function listMyUsage(accessToken: string): Promise<MeteredUsageEvent[]> {
   return apiFetch<MeteredUsageEvent[]>("/credits/usage", accessToken);
-}
-
-export function listAllPayments(accessToken: string): Promise<Payment[]> {
-  return apiFetch<Payment[]>("/payments", accessToken);
 }
 
 export function listManualReviewPayments(

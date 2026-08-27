@@ -1,44 +1,27 @@
 "use client";
 
-import { Button } from "@/components/app-ui";
-import { useEffect, useState } from "react";
 import Cookies from "js-cookie";
+import { ShieldAlert } from "lucide-react";
 
-export function RequireAdmin({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const [token, setToken] = useState<string | null>(null);
-  const [ready, setReady] = useState(false);
+export function useAdminToken(): string | null {
+  return Cookies.get("accessToken") ?? null;
+}
 
-  useEffect(() => {
-    setToken(Cookies.get("accessToken") ?? null);
-    setReady(true);
-  }, []);
-
-  if (!ready) {
-    return null;
-  }
-
+export function RequireAdmin({ children }: { children: React.ReactNode }) {
+  const token = useAdminToken();
   if (!token) {
     return (
-      <div className="mx-auto max-w-md px-4 py-16 text-center">
-        <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-50">
-          Admin access required
-        </h1>
-        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-          Sign in with an administrator to manage payments.
+      <div className="flex max-w-md flex-col items-center gap-3 rounded-lg border border-dashed border-gray-300 px-6 py-12 text-center dark:border-gray-700">
+        <ShieldAlert className="h-8 w-8 text-gray-400" />
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-50">
+          Admin sign-in required
+        </h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          These pages call ADMIN-gated API endpoints. Sign in with an admin
+          account so an <code className="rounded bg-gray-100 px-1 py-0.5 text-xs dark:bg-gray-800">accessToken</code> cookie is present.
         </p>
-        <a
-          href={process.env.NEXT_PUBLIC_API_URL ?? ""}
-          className="mt-4 inline-block"
-        >
-          <Button type="button">Sign in</Button>
-        </a>
       </div>
     );
   }
-
   return <>{children}</>;
 }

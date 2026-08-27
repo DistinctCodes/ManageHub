@@ -1,10 +1,10 @@
 "use client";
 
-import Cookies from "js-cookie";
 import { WalletStatusCard } from "@/components/wallet/wallet-status-card";
+import { useSessionStore } from "@/lib/stores/session-store";
 
 export default function WalletPage() {
-  const accessToken = Cookies.get("accessToken");
+  const accessToken = useSessionStore((state) => state.accessToken);
 
   return (
     <main className="mx-auto max-w-lg px-4 py-10">
