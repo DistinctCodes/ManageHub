@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Payment } from '../payments/entities/payment.entity';
 import { PaymentsModule } from '../payments/payments.module';
+import { AdminAuditModule } from '../admin-audit/admin-audit.module';
 import { LedgerAccount } from './entities/ledger-account.entity';
 import { LedgerEntry } from './entities/ledger-entry.entity';
 import { LedgerTransaction } from './entities/ledger-transaction.entity';
@@ -49,6 +50,7 @@ import { SettlementService } from './settlement.service';
       Payment,
     ]),
     PaymentsModule,
+    AdminAuditModule,
   ],
   controllers: [CreditsController, CreditsAdminController],
   providers: [
