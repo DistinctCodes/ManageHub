@@ -28,6 +28,8 @@ import { LedgerService } from './ledger.service';
 import { PaymentCreditsService } from './payment-credits.service';
 import { RevenueSplitService } from './revenue-split.service';
 import { SettlementService } from './settlement.service';
+import { AdminActionLogService } from '../admin-audit/admin-action-log.service';
+import { AdminActionType } from '../admin-audit/admin-action-type.enum';
 import { SettlementBatchStatus } from './enums/settlement-batch-status.enum';
 import { Workbook } from 'exceljs';
 import { Response } from 'express';
@@ -80,6 +82,7 @@ export class CreditsAdminController {
     private readonly splits: RevenueSplitService,
     private readonly settlement: SettlementService,
     private readonly paymentCredits: PaymentCreditsService,
+    private readonly audit: AdminActionLogService,
   ) {}
 
   // ── accounts ───────────────────────────────────────────────────────────
@@ -292,8 +295,18 @@ export class CreditsAdminController {
   async setActive(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: SetSplitConfigActiveDto,
+    @CurrentUser() currentUser: RequestUser,
   ): Promise<RevenueSplitConfigResponseDto> {
     const config = await this.splits.setActive(id, dto.active);
+    await this.audit.record({
+      actorId: currentUser.id,
+      action: dto.active
+        ? AdminActionType.SPLIT_CONFIG_ACTIVATE
+        : AdminActionType.SPLIT_CONFIG_DEACTIVATE,
+      targetType: 'RevenueSplitConfig',
+      targetId: id,
+      detail: config.name,
+    });
     return RevenueSplitConfigResponseDto.fromEntity(config);
   }
 
@@ -430,8 +443,16 @@ export class CreditsAdminController {
   @ApiResponse({ status: 201, type: SettlementBatchResponseDto })
   async executeBatch(
     @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() currentUser: RequestUser,
   ): Promise<SettlementBatchResponseDto> {
     const batch = await this.settlement.executeBatch(id);
+    await this.audit.record({
+      actorId: currentUser.id,
+      action: AdminActionType.SETTLEMENT_BATCH_EXECUTE,
+      targetType: 'SettlementBatch',
+      targetId: id,
+      detail: batch.mode,
+    });
     return SettlementBatchResponseDto.fromEntity(batch);
   }
 
@@ -445,8 +466,16 @@ export class CreditsAdminController {
   @ApiResponse({ status: 201, type: SettlementBatchResponseDto })
   async retryBatch(
     @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() currentUser: RequestUser,
   ): Promise<SettlementBatchResponseDto> {
     const batch = await this.settlement.retryBatch(id);
+    await this.audit.record({
+      actorId: currentUser.id,
+      action: AdminActionType.SETTLEMENT_BATCH_RETRY,
+      targetType: 'SettlementBatch',
+      targetId: id,
+      detail: batch.mode,
+    });
     return SettlementBatchResponseDto.fromEntity(batch);
   }
 
@@ -462,8 +491,16 @@ export class CreditsAdminController {
   async abandonBatch(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: AbandonSettlementBatchDto,
+    @CurrentUser() currentUser: RequestUser,
   ): Promise<SettlementBatchResponseDto> {
     const batch = await this.settlement.abandonBatch(id, dto.reason);
+    await this.audit.record({
+      actorId: currentUser.id,
+      action: AdminActionType.SETTLEMENT_BATCH_ABANDON,
+      targetType: 'SettlementBatch',
+      targetId: id,
+      detail: dto.reason,
+    });
     return SettlementBatchResponseDto.fromEntity(batch);
   }
 }

@@ -8,10 +8,14 @@ import {
   Req,
   UnauthorizedException,
 } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { SandboxRailAdapter } from './adapters/sandbox-rail.adapter';
 import { ConfirmationSource } from './enums/confirmation-source.enum';
+import {
+  PAYMENT_WEBHOOK_CONTRACT_VERSION,
+  validateWebhookPayload,
+} from './webhook-contract';
 import { PaymentConfirmationService } from './payment-confirmation.service';
 
 interface RawBodyRequest extends Request {
@@ -41,11 +45,34 @@ export class PaymentWebhookController {
   @ApiOperation({
     summary:
       'Sandbox rail confirmation webhook (HMAC-signed via PAYMENT_WEBHOOK_SECRET)',
+    description:
+      `Accepts a webhook whose parsed payload conforms to the normalized ` +
+      `webhook contract v${PAYMENT_WEBHOOK_CONTRACT_VERSION} documented in the ` +
+      `payments README (providerReference + outcome). The transport is ` +
+      `authenticated by the HMAC signature; the payload shape is validated ` +
+      `against the contract so a wrong-shaped event is rejected, not silently ` +
+      `mishandled.`,
+  })
+  @ApiBody({
+    description:
+      `Expected parsed shape: { "providerReference": string, ` +
+      `"outcome": "confirmed" | "failed" | "pending" }`,
+    schema: {
+      type: 'object',
+      required: ['providerReference', 'outcome'],
+      properties: {
+        providerReference: { type: 'string' },
+        outcome: {
+          type: 'string',
+          enum: ['confirmed', 'failed', 'pending'],
+        },
+      },
+    },
   })
   async sandbox(
     @Req() req: RawBodyRequest,
     @Headers('x-payment-signature') signature?: string,
-  ): Promise<{ received: boolean }> {
+  ): Promise<{ received: boolean; contractVersion: string }> {
     const rawBody = req.rawBody ?? Buffer.from(JSON.stringify(req.body ?? {}));
     const rawPayloadHash = PaymentConfirmationService.hashPayload(rawBody);
 
@@ -64,12 +91,15 @@ export class PaymentWebhookController {
     let payload;
     try {
       payload = this.railAdapter.parseWebhookPayload(rawBody);
-    } catch {
+      validateWebhookPayload(payload);
+    } catch (err) {
       await this.confirmationService.logRejectedWebhook(
         rawPayloadHash,
         'malformed_payload',
       );
-      throw new BadRequestException('Malformed webhook payload');
+      throw new BadRequestException(
+        err instanceof Error ? err.message : 'Malformed webhook payload',
+      );
     }
 
     await this.confirmationService.apply(
@@ -79,6 +109,9 @@ export class PaymentWebhookController {
       rawPayloadHash,
     );
 
-    return { received: true };
+    return {
+      received: true,
+      contractVersion: PAYMENT_WEBHOOK_CONTRACT_VERSION,
+    };
   }
 }
