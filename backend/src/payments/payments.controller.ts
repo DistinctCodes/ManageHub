@@ -22,6 +22,7 @@ import { PaymentConfirmationService } from './payment-confirmation.service';
 import { InitiatePaymentDto } from './dto/initiate-payment.dto';
 import { PaymentResponseDto } from './dto/payment-response.dto';
 import { VerifyReturnResponseDto } from './dto/verify-return-response.dto';
+import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('payments')
 @ApiBearerAuth()
@@ -34,6 +35,7 @@ export class PaymentsController {
   ) {}
 
   @Post('initiate')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @ApiOperation({
     summary: 'Initiate a payment (INITIATED -> AWAITING_CONFIRMATION)',
     description:
@@ -76,6 +78,7 @@ export class PaymentsController {
   }
 
   @Post(':id/verify-return')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOperation({
     summary:
       'Bounded synchronous verify-on-return fast path for the checkout ' +
