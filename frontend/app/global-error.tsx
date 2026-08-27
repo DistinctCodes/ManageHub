@@ -35,6 +35,11 @@ export default function GlobalError({
             >
               Try again
             </button>
+            {error.digest && (
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Error ID: {error.digest}
+              </p>
+            )}
           </div>
         </main>
       </body>
