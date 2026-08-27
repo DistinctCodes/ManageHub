@@ -12,6 +12,7 @@ import { AuthModule } from './auth/auth.module';
 import { PaymentsModule } from './payments/payments.module';
 import { WalletsModule } from './wallets/wallets.module';
 import { CreditsModule } from './credits/credits.module';
+import { AdminAuditModule } from './admin-audit/admin-audit.module';
 import { MetricsService } from './common/metrics.service';
 import { RequestContextMiddleware } from './common/request-context.middleware';
 
@@ -68,6 +69,9 @@ import { RequestContextMiddleware } from './common/request-context.middleware';
     // Micropayment credit ledger, revenue splits and batch settlement
     // (issue #1575). Its own @Cron jobs ride the ScheduleModule above.
     CreditsModule,
+    // Structured audit trail for admin actions (issue #1612). Consumed by
+    // the payments and credits admin controllers; read via /admin/audit.
+    AdminAuditModule,
   ],
   controllers: [AppController],
   providers: [

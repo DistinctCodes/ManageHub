@@ -3,6 +3,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  OnModuleInit,
   Optional,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -101,8 +102,33 @@ export interface SettlementBatchBreakdown {
  * never as paid.
  */
 @Injectable()
-export class SettlementService {
+export class SettlementService implements OnModuleInit {
   private readonly logger = new Logger(SettlementService.name);
+
+  /**
+   * Fail-fast startup validation for CREDITS_SETTLEMENT_SPLIT_CONFIG
+   * (issue #1613). When settlement is enabled and a split config is
+   * referenced by name, we confirm that config actually exists (and is
+   * usable) at boot time - otherwise a typo or a deleted config would only
+   * surface hours later on the next cron tick, silently skipping
+   * distribution.
+   */
+  async onModuleInit(): Promise<void> {
+    const name = this.config.get<string>('CREDITS_SETTLEMENT_SPLIT_CONFIG');
+    if (!name) return;
+    if (
+      this.config.get<string>('CREDITS_SETTLEMENT_ENABLED', 'true') !== 'true'
+    ) {
+      return;
+    }
+    const config = await this.splits.findConfigByName(name);
+    if (!config) {
+      throw new Error(
+        `CREDITS_SETTLEMENT_SPLIT_CONFIG="${name}" does not match any ` +
+          'RevenueSplitConfig. Fix the environment variable before starting.',
+      );
+    }
+  }
 
   constructor(
     @InjectRepository(SettlementBatch)

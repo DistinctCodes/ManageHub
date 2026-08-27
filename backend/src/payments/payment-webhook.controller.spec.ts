@@ -1,6 +1,7 @@
 import { BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { PaymentWebhookController } from './payment-webhook.controller';
 import { ConfirmationSource } from './enums/confirmation-source.enum';
+import { PAYMENT_WEBHOOK_CONTRACT_VERSION } from './webhook-contract';
 
 function makeRequest(bodyObject: unknown) {
   const rawBody = Buffer.from(JSON.stringify(bodyObject));
@@ -82,7 +83,10 @@ describe('PaymentWebhookController', () => {
 
     const result = await controller.sandbox(req, 'good-sig');
 
-    expect(result).toEqual({ received: true });
+    expect(result).toEqual({
+      received: true,
+      contractVersion: PAYMENT_WEBHOOK_CONTRACT_VERSION,
+    });
     expect(confirmationService.apply).toHaveBeenCalledWith(
       'ref-1',
       'confirmed',

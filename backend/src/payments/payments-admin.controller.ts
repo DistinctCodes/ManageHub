@@ -21,6 +21,8 @@ import { RequestUser } from '../auth/interfaces/authenticated-request.interface'
 import { UserRole } from '../auth/enums/user-role.enum';
 import { ReconciliationService } from './reconciliation.service';
 import { RefundsService } from './refunds.service';
+import { AdminActionLogService } from '../admin-audit/admin-action-log.service';
+import { AdminActionType } from '../admin-audit/admin-action-type.enum';
 import { PaymentResponseDto } from './dto/payment-response.dto';
 import { ResolvePaymentManuallyDto } from './dto/resolve-payment-manually.dto';
 import { VoidPaymentDto } from './dto/void-payment.dto';
@@ -45,6 +47,7 @@ export class PaymentsAdminController {
   constructor(
     private readonly reconciliationService: ReconciliationService,
     private readonly refundsService: RefundsService,
+    private readonly audit: AdminActionLogService,
   ) {}
 
   @Get('manual-review')
@@ -88,12 +91,20 @@ export class PaymentsAdminController {
   async resolveManually(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ResolvePaymentManuallyDto,
+    @CurrentUser() currentUser: RequestUser,
   ): Promise<PaymentResponseDto> {
     const payment = await this.reconciliationService.resolveManually(
       id,
       dto.resolution,
       dto.reason,
     );
+    await this.audit.record({
+      actorId: currentUser.id,
+      action: AdminActionType.PAYMENT_RESOLVE_MANUALLY,
+      targetType: 'Payment',
+      targetId: id,
+      detail: `Resolution: ${dto.resolution} - ${dto.reason}`,
+    });
     return PaymentResponseDto.fromEntity(payment);
   }
 
@@ -106,8 +117,16 @@ export class PaymentsAdminController {
   async void(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: VoidPaymentDto,
+    @CurrentUser() currentUser: RequestUser,
   ): Promise<PaymentResponseDto> {
     const payment = await this.reconciliationService.void(id, dto.reason);
+    await this.audit.record({
+      actorId: currentUser.id,
+      action: AdminActionType.PAYMENT_VOID,
+      targetType: 'Payment',
+      targetId: id,
+      detail: dto.reason,
+    });
     return PaymentResponseDto.fromEntity(payment);
   }
 
