@@ -17,18 +17,14 @@ export interface LinkChallengeResponse {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
-async function walletFetch<T>(
-  path: string,
-  accessToken: string,
-  init?: RequestInit,
-): Promise<T> {
+async function walletFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`,
       ...init?.headers,
     },
+    credentials: "same-origin",
   });
 
   if (!response.ok) {
@@ -39,33 +35,28 @@ async function walletFetch<T>(
   return response.json() as Promise<T>;
 }
 
-export function getWalletStatus(accessToken: string): Promise<WalletStatusResponse> {
-  return walletFetch<WalletStatusResponse>("/wallets/me", accessToken);
+export function getWalletStatus(): Promise<WalletStatusResponse> {
+  return walletFetch<WalletStatusResponse>("/wallets/me");
 }
 
-export function provisionCustodialWallet(
-  accessToken: string,
-): Promise<WalletStatusResponse> {
-  return walletFetch<WalletStatusResponse>("/wallets/provision", accessToken, {
+export function provisionCustodialWallet(): Promise<WalletStatusResponse> {
+  return walletFetch<WalletStatusResponse>("/wallets/provision", {
     method: "POST",
   });
 }
 
-export function requestLinkChallenge(
-  accessToken: string,
-): Promise<LinkChallengeResponse> {
-  return walletFetch<LinkChallengeResponse>(
-    "/wallets/link/challenge",
-    accessToken,
-    { method: "POST" },
-  );
+export function requestLinkChallenge(): Promise<LinkChallengeResponse> {
+  return walletFetch<LinkChallengeResponse>("/wallets/link/challenge", {
+    method: "POST",
+  });
 }
 
-export function verifyLinkChallenge(
-  accessToken: string,
-  params: { nonce: string; address: string; signature: string },
-): Promise<WalletStatusResponse> {
-  return walletFetch<WalletStatusResponse>("/wallets/link/verify", accessToken, {
+export function verifyLinkChallenge(params: {
+  nonce: string;
+  address: string;
+  signature: string;
+}): Promise<WalletStatusResponse> {
+  return walletFetch<WalletStatusResponse>("/wallets/link/verify", {
     method: "POST",
     body: JSON.stringify(params),
   });

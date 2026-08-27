@@ -19,7 +19,7 @@ function formatBalance(minorUnits: number, currency: string): string {
  * up behind the "Advanced" disclosure, and a "connect your own wallet"
  * option is always available for someone who wants self-custody instead.
  */
-export function WalletStatusCard({ accessToken }: { accessToken: string }) {
+export function WalletStatusCard() {
   const [status, setStatus] = useState<WalletStatusResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +31,7 @@ export function WalletStatusCard({ accessToken }: { accessToken: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    getWalletStatus(accessToken)
+    getWalletStatus()
       .then((result) => {
         if (!cancelled) setStatus(result);
       })
@@ -44,13 +44,13 @@ export function WalletStatusCard({ accessToken }: { accessToken: string }) {
     return () => {
       cancelled = true;
     };
-  }, [accessToken]);
+  }, []);
 
   async function handleGetStarted() {
     setBusy(true);
     setError(null);
     try {
-      const result = await provisionCustodialWallet(accessToken);
+      const result = await provisionCustodialWallet();
       setStatus(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -63,7 +63,7 @@ export function WalletStatusCard({ accessToken }: { accessToken: string }) {
     setBusy(true);
     setError(null);
     try {
-      const challenge = await requestLinkChallenge(accessToken);
+      const challenge = await requestLinkChallenge();
       setNonce(challenge.nonce);
       setLinking(true);
     } catch (err) {
@@ -78,7 +78,7 @@ export function WalletStatusCard({ accessToken }: { accessToken: string }) {
     setBusy(true);
     setError(null);
     try {
-      const result = await verifyLinkChallenge(accessToken, {
+      const result = await verifyLinkChallenge({
         nonce,
         address: linkAddress.trim(),
         signature: linkSignature.trim(),
