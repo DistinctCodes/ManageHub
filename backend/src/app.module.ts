@@ -13,6 +13,7 @@ import { PaymentsModule } from './payments/payments.module';
 import { WalletsModule } from './wallets/wallets.module';
 import { CreditsModule } from './credits/credits.module';
 import { RetentionModule } from './retention/retention.module';
+import { AdminAuditModule } from './admin-audit/admin-audit.module';
 import { MetricsService } from './common/metrics.service';
 import { MetricsController } from './common/metrics.controller';
 import { RequestContextMiddleware } from './common/request-context.middleware';
@@ -72,6 +73,9 @@ import { RequestContextMiddleware } from './common/request-context.middleware';
     CreditsModule,
     // Scheduled data-retention pruning (issue BE-144).
     RetentionModule,
+    // Structured audit trail for admin actions (issue #1612). Consumed by
+    // the payments and credits admin controllers; read via /admin/audit.
+    AdminAuditModule,
   ],
   controllers: [AppController, MetricsController],
   providers: [
