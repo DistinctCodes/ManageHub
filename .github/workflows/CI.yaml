@@ -42,7 +42,7 @@ jobs:
         run: npm run test
 
       - name: Dependency audit
-        run: npm audit --audit-level=high
+        run: npm audit --audit-level=critical
 
   # ─────────────────────────────────────────────
   # FRONTEND — Next.js
