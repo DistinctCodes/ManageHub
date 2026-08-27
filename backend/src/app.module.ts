@@ -12,7 +12,9 @@ import { AuthModule } from './auth/auth.module';
 import { PaymentsModule } from './payments/payments.module';
 import { WalletsModule } from './wallets/wallets.module';
 import { CreditsModule } from './credits/credits.module';
+import { RetentionModule } from './retention/retention.module';
 import { MetricsService } from './common/metrics.service';
+import { MetricsController } from './common/metrics.controller';
 import { RequestContextMiddleware } from './common/request-context.middleware';
 
 @Module({
@@ -68,8 +70,10 @@ import { RequestContextMiddleware } from './common/request-context.middleware';
     // Micropayment credit ledger, revenue splits and batch settlement
     // (issue #1575). Its own @Cron jobs ride the ScheduleModule above.
     CreditsModule,
+    // Scheduled data-retention pruning (issue BE-144).
+    RetentionModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController, MetricsController],
   providers: [
     AppService,
     MetricsService,

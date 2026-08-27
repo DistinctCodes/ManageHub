@@ -14,6 +14,30 @@ jobs:
     name: Backend (NestJS)
     runs-on: ubuntu-latest
 
+    # Fresh, empty Postgres proved the checked-in migrations can build the
+    # schema from nothing, in order, on every PR (issue BE-142).
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: managehub
+          POSTGRES_PASSWORD: managehub
+          POSTGRES_DB: managehub
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U managehub"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_HOST: localhost
+      DATABASE_PORT: 5432
+      DATABASE_USERNAME: managehub
+      DATABASE_PASSWORD: managehub
+      DATABASE_NAME: managehub
+
     defaults:
       run:
         working-directory: backend
@@ -31,6 +55,14 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Migrate fresh database (up from empty)
+        run: npm run migration:run
+
+      - name: Verify newest migration down() roundtrip
+        run: |
+          npm run migration:revert
+          npm run migration:run
 
       - name: Lint
         run: npm run lint
