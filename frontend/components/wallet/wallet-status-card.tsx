@@ -9,8 +9,36 @@ import {
   type WalletStatusResponse,
 } from "@/lib/wallet-api";
 
-function formatBalance(minorUnits: number, currency: string): string {
-  return `${(minorUnits / 10_000_000).toFixed(2)} ${currency} credit`;
+/**
+ * Minor-unit decimal places per currency. `GET /credits/balance` is
+ * currency-scoped and not always XLM-denominated (`CREDITS_DEFAULT_CURRENCY`
+ * defaults to USD) -- the Stellar stroop ratio (10^7) only applies to XLM.
+ * Falls back to 2 (the ISO 4217 default) for any currency not listed here.
+ */
+const CURRENCY_MINOR_UNIT_DECIMALS: Record<string, number> = {
+  XLM: 7,
+  // ISO 4217 zero-decimal currencies
+  JPY: 0,
+  KRW: 0,
+  VND: 0,
+  // ISO 4217 three-decimal currencies
+  BHD: 3,
+  JOD: 3,
+  KWD: 3,
+  OMR: 3,
+};
+const DEFAULT_MINOR_UNIT_DECIMALS = 2;
+
+export function minorUnitDecimals(currency: string): number {
+  return (
+    CURRENCY_MINOR_UNIT_DECIMALS[currency.toUpperCase()] ??
+    DEFAULT_MINOR_UNIT_DECIMALS
+  );
+}
+
+export function formatBalance(minorUnits: number, currency: string): string {
+  const value = minorUnits / 10 ** minorUnitDecimals(currency);
+  return `${value.toFixed(2)} ${currency} credit`;
 }
 
 /**
@@ -95,9 +123,23 @@ export function WalletStatusCard({ accessToken }: { accessToken: string }) {
     }
   }
 
+  const statusMessage = loading
+    ? "Loading your wallet…"
+    : error
+      ? error
+      : busy
+        ? "Working…"
+        : status?.provisioned
+          ? "Wallet balance loaded."
+          : "No wallet set up yet.";
+
   if (loading) {
     return (
-      <div className="rounded-lg border border-gray-200 dark:border-gray-800 p-6">
+      <div
+        className="rounded-lg border border-gray-200 dark:border-gray-800 p-6"
+        aria-live="polite"
+        role="status"
+      >
         Loading your wallet…
       </div>
     );
@@ -106,6 +148,15 @@ export function WalletStatusCard({ accessToken }: { accessToken: string }) {
   return (
     <div className="rounded-lg border border-gray-200 dark:border-gray-800 p-6 space-y-4">
       <h2 className="text-lg font-semibold">Your balance</h2>
+
+      {/*
+        Visually-hidden live region so loading/error/busy/success transitions
+        are announced to assistive technology as they happen, independent of
+        where the corresponding visible text sits in the DOM (see FE-123).
+      */}
+      <div aria-live="polite" role="status" className="sr-only">
+        {statusMessage}
+      </div>
 
       {error && (
         <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
