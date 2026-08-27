@@ -57,6 +57,7 @@ describe('PaymentsService', () => {
   let railAdapter: { initiate: jest.Mock };
   let railRegistry: { get: jest.Mock };
   let config: { get: jest.Mock };
+  let metrics: { recordPaymentTransition: jest.Mock };
   let service: PaymentsService;
 
   beforeEach(() => {
@@ -66,10 +67,12 @@ describe('PaymentsService', () => {
     };
     railRegistry = { get: jest.fn().mockReturnValue(railAdapter) };
     config = { get: jest.fn().mockReturnValue(30) };
+    metrics = { recordPaymentTransition: jest.fn() };
     service = new PaymentsService(
       repository as any,
       railRegistry as any,
       config as any,
+      metrics as any,
     );
   });
 
