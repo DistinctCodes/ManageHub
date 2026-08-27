@@ -16,6 +16,7 @@ import { PaymentWebhookController } from './payment-webhook.controller';
 import { PaymentsAdminController } from './payments-admin.controller';
 import { SandboxRailAdapter } from './adapters/sandbox-rail.adapter';
 import { WalletsModule } from '../wallets/wallets.module';
+import { AdminAuditModule } from '../admin-audit/admin-audit.module';
 import { loadSorobanConfig } from './soroban/soroban-config';
 import { SorobanRailAdapter } from './soroban/soroban-rail.adapter';
 import { SorobanPayoutAdapter } from './soroban/soroban-payout.adapter';
@@ -37,6 +38,7 @@ import {
   imports: [
     TypeOrmModule.forFeature([Payment, ConfirmationEvent, Refund]),
     WalletsModule,
+    AdminAuditModule,
     BullModule.registerQueue({ name: SOROBAN_ESCROW_QUEUE }),
   ],
   controllers: [
