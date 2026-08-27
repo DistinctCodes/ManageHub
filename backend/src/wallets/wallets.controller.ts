@@ -24,6 +24,7 @@ import { WalletResponseDto } from './dto/wallet-response.dto';
 import { LinkChallengeResponseDto } from './dto/link-challenge-response.dto';
 import { VerifyLinkDto } from './dto/verify-link.dto';
 import { FundWalletDto } from './dto/fund-wallet.dto';
+import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('wallets')
 @ApiBearerAuth()
@@ -43,6 +44,7 @@ export class WalletsController {
   }
 
   @Post('provision')
+  @Throttle({ default: { limit: 3, ttl: 60_000 } })
   @ApiOperation({
     summary:
       'Provision a custodial wallet for the current user (idempotent)',
@@ -57,6 +59,7 @@ export class WalletsController {
   }
 
   @Post('link/challenge')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @ApiOperation({
     summary: 'Issue a single-use nonce to sign with an external wallet',
   })
@@ -68,6 +71,7 @@ export class WalletsController {
   }
 
   @Post('link/verify')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOperation({
     summary:
       'Verify a signed challenge and link (or upgrade to) an external wallet',

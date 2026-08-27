@@ -93,6 +93,11 @@ function build(
       ...config,
     }),
     rail as any,
+    {
+      recordReconciliationPass: jest.fn(),
+      recordSettlementPayoutAttempt: jest.fn(),
+      recordSettlementPayoutFailure: jest.fn(),
+    } as any,
   );
 
   async function credit(accountId: string, amount: number, reference: string) {

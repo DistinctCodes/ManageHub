@@ -115,8 +115,8 @@ describe('SandboxRailAdapter', () => {
   describe('verifyByReference', () => {
     it.each([
       ['sandbox_ref_ok', 'confirmed'],
-      ['sandbox_ref_fail', 'failed'],
-      ['sandbox_ref_pending', 'pending'],
+      ['sandbox_fail_ref', 'failed'],
+      ['sandbox_pending_ref', 'pending'],
     ])('resolves %s to %s', async (reference, expectedOutcome) => {
       const adapter = new SandboxRailAdapter(makeConfig() as any);
       const result = await adapter.verifyByReference(reference);

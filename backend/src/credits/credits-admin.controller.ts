@@ -9,6 +9,7 @@ import {
   Put,
   Query,
   UseGuards,
+  Res,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -28,6 +29,8 @@ import { PaymentCreditsService } from './payment-credits.service';
 import { RevenueSplitService } from './revenue-split.service';
 import { SettlementService } from './settlement.service';
 import { SettlementBatchStatus } from './enums/settlement-batch-status.enum';
+import { Workbook } from 'exceljs';
+import { Response } from 'express';
 import {
   AbandonSettlementBatchDto,
   AdjustCreditsDto,
@@ -91,6 +94,48 @@ export class CreditsAdminController {
     return accounts.map((account) =>
       LedgerAccountResponseDto.fromEntity(account),
     );
+  }
+
+  @Get('accounts/export')
+  @ApiOperation({ summary: 'Export ledger accounts as xlsx' })
+  async exportAccounts(
+    @Query('currency') currency: string | undefined,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<Buffer> {
+    const accounts = await this.ledger.listAccounts(currency);
+    const workbook = new Workbook();
+    const sheet = workbook.addWorksheet('ledger-accounts');
+    sheet.columns = [
+      { header: 'ID', key: 'id', width: 40 },
+      { header: 'Kind', key: 'kind', width: 18 },
+      { header: 'Owner ID', key: 'ownerId', width: 40 },
+      { header: 'Currency', key: 'currency', width: 12 },
+      { header: 'Balance', key: 'balance', width: 14 },
+      { header: 'Overdraft', key: 'overdraftLimit', width: 14 },
+      { header: 'External payout address', key: 'externalPayoutAddress', width: 40 },
+      { header: 'Frozen', key: 'frozen', width: 10 },
+      { header: 'Label', key: 'label', width: 24 },
+    ];
+    sheet.addRows(
+      accounts.map((account) => ({
+        id: account.id,
+        kind: account.kind,
+        ownerId: account.ownerId ?? '',
+        currency: account.currency,
+        balance: account.balance,
+        overdraftLimit: account.overdraftLimit,
+        externalPayoutAddress: account.externalPayoutAddress ?? '',
+        frozen: account.frozen,
+        label: account.label ?? '',
+      })),
+    );
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader('Content-Disposition', 'attachment; filename="ledger-accounts.xlsx"');
+    return Buffer.from(await workbook.xlsx.writeBuffer());
   }
 
   @Post('accounts')
