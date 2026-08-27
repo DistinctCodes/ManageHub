@@ -52,7 +52,7 @@ export function formatBalance(minorUnits: number, currency: string): string {
  * up behind the "Advanced" disclosure, and a "connect your own wallet"
  * option is always available for someone who wants self-custody instead.
  */
-export function WalletStatusCard({ accessToken }: { accessToken: string }) {
+export function WalletStatusCard() {
   const queryClient = useQueryClient();
   const setAccessToken = useSessionStore((state) => state.setAccessToken);
   const [linking, setLinking] = useState(false);
@@ -64,7 +64,7 @@ export function WalletStatusCard({ accessToken }: { accessToken: string }) {
     error,
   } = useQuery({
     queryKey: ["wallet", "status"],
-    queryFn: () => getWalletStatus(accessToken),
+    queryFn: () => getWalletStatus(),
   });
 
   function applyStatus(result: WalletStatusResponse) {
@@ -72,12 +72,12 @@ export function WalletStatusCard({ accessToken }: { accessToken: string }) {
   }
 
   const provision = useMutation({
-    mutationFn: () => provisionCustodialWallet(accessToken),
+    mutationFn: () => provisionCustodialWallet(),
     onSuccess: applyStatus,
   });
 
   const challenge = useMutation({
-    mutationFn: () => requestLinkChallenge(accessToken),
+    mutationFn: () => requestLinkChallenge(),
     onSuccess: (result) => {
       setNonce(result.nonce);
       setLinking(true);
@@ -86,7 +86,7 @@ export function WalletStatusCard({ accessToken }: { accessToken: string }) {
 
   const verify = useMutation({
     mutationFn: (values: { address: string; signature: string }) =>
-      verifyLinkChallenge(accessToken, {
+      verifyLinkChallenge({
         nonce: nonce ?? "",
         address: values.address,
         signature: values.signature,

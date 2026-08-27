@@ -62,9 +62,16 @@ variables as the application (`DATABASE_HOST`, `DATABASE_PORT`,
 
 ## Authentication
 
-The backend now issues its own JWTs through `POST /auth/register` and
+The backend issues its own JWTs through `POST /auth/register` and
 `POST /auth/login`. Tokens are signed with `JWT_SECRET` and then verified by
 the HTTP guard and the payments socket gateway.
+
+**Secure token storage**: JWTs are delivered to the browser via an
+`httpOnly` cookie (`accessToken`) with `SameSite=strict` and `Secure` in
+production. Because the cookie is `httpOnly`, it is not accessible to
+JavaScript, which removes XSS as a token-theft vector. The frontend makes
+same-origin requests and relies on the browser to attach the cookie
+automatically; no `Authorization` header is built from client-side state.
 
 ## Compile and run the project
 
