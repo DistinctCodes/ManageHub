@@ -12,6 +12,7 @@ import { PaymentsService } from './payments.service';
 import { PaymentsGateway } from './payments.gateway';
 import { PaymentRailRegistry } from './payment-rail-registry';
 import { withTimeout } from './utils/with-timeout';
+import { withRequestId } from '../common/request-context';
 
 const DEFAULT_VERIFY_TIMEOUT_MS = 3000;
 
@@ -78,7 +79,9 @@ export class PaymentConfirmationService {
         anomaly: 'payment_not_found',
       });
       this.logger.warn(
-        `Confirmation event for unknown providerReference=${providerReference}`,
+        withRequestId(
+          `Confirmation event for unknown providerReference=${providerReference}`,
+        ),
       );
       return null;
     }
@@ -177,9 +180,11 @@ export class PaymentConfirmationService {
       );
     } catch (error) {
       this.logger.warn(
-        `verify-on-return failed for payment ${payment.id}: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        withRequestId(
+          `verify-on-return failed for payment ${payment.id}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        ),
       );
       return { payment, verified: false };
     }
@@ -222,7 +227,7 @@ export class PaymentConfirmationService {
       applied: false,
       anomaly,
     });
-    this.logger.warn(`Rejected webhook: ${anomaly}`);
+    this.logger.warn(withRequestId(`Rejected webhook: ${anomaly}`));
   }
 
   /**

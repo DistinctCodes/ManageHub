@@ -18,6 +18,10 @@ import { PaymentConfirmationService } from './payment-confirmation.service';
 import { PaymentsGateway } from './payments.gateway';
 import { PaymentRailRegistry } from './payment-rail-registry';
 import { withTimeout } from './utils/with-timeout';
+import { MetricsService } from '../common/metrics.service';
+import { withRequestId } from '../common/request-context';
+import { createTransport } from 'nodemailer';
+import Handlebars from 'handlebars';
 
 export interface ReconciliationSummary {
   candidates: number;
@@ -54,18 +58,25 @@ export class ReconciliationService {
     private readonly railRegistry: PaymentRailRegistry,
     private readonly gateway: PaymentsGateway,
     private readonly config: ConfigService,
+    private readonly metrics: MetricsService,
   ) {}
 
   @Cron(CronExpression.EVERY_5_MINUTES)
   async handleCron(): Promise<void> {
+    const started = Date.now();
     const summary = await this.reconcileDueBatch();
-    this.logger.log(`Reconciliation pass: ${JSON.stringify(summary)}`);
+    this.metrics.recordReconciliationPass(Date.now() - started);
+    this.logger.log(withRequestId(`Reconciliation pass: ${JSON.stringify(summary)}`));
     const metrics = await this.getMetrics();
+    this.metrics.setManualReviewDepth(metrics.manualReviewQueueDepth);
     if (metrics.alerting) {
       this.logger.warn(
-        `ALERT: manual-review queue depth ${metrics.manualReviewQueueDepth} ` +
-          `exceeds threshold ${metrics.alertThreshold}`,
+        withRequestId(
+          `ALERT: manual-review queue depth ${metrics.manualReviewQueueDepth} ` +
+            `exceeds threshold ${metrics.alertThreshold}`,
+        ),
       );
+      await this.sendManualReviewAlert(metrics.manualReviewQueueDepth, metrics.alertThreshold);
     }
   }
 
@@ -191,6 +202,51 @@ export class ReconciliationService {
       alertThreshold,
       alerting: manualReviewQueueDepth > alertThreshold,
     };
+  }
+
+  private async sendManualReviewAlert(
+    depth: number,
+    threshold: number,
+  ): Promise<void> {
+    const host = this.config.get<string>('SMTP_HOST');
+    const user = this.config.get<string>('SMTP_USER');
+    const pass = this.config.get<string>('SMTP_PASS');
+    const from = this.config.get<string>('SMTP_FROM_EMAIL');
+    const supportEmail = this.config.get<string>('SUPPORT_EMAIL');
+    if (!host || !user || !pass || !from || !supportEmail) {
+      return;
+    }
+
+    const transport = createTransport({
+      host,
+      port: this.config.get<number>('SMTP_PORT', 587),
+      secure: this.config.get<string>('SMTP_SECURE', 'false') === 'true',
+      auth: { user, pass },
+    });
+    const template = Handlebars.compile(
+      '{{company}} manual-review queue alert: {{depth}} payments exceed the threshold of {{threshold}}. Please investigate.',
+    );
+
+    try {
+      await transport.sendMail({
+        from,
+        to: supportEmail,
+        subject: `${this.config.get<string>('COMPANY_NAME', 'ManageHub')} manual review queue alert`,
+        text: template({
+          company: this.config.get<string>('COMPANY_NAME', 'ManageHub'),
+          depth,
+          threshold,
+        }),
+      });
+    } catch (error) {
+      this.logger.warn(
+        withRequestId(
+          `Unable to send manual-review alert email: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        ),
+      );
+    }
   }
 
   /**

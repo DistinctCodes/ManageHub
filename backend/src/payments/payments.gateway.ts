@@ -1,6 +1,4 @@
 import { Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
 import {
   OnGatewayConnection,
   OnGatewayDisconnect,
@@ -10,13 +8,9 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { RequestUser } from '../auth/interfaces/authenticated-request.interface';
+import { JwtTokenVerifierService } from '../auth/jwt-token-verifier.service';
 import { PaymentStatus } from './enums/payment-status.enum';
 import { PaymentsService } from './payments.service';
-
-interface JwtPayload {
-  sub: string;
-  role: RequestUser['role'];
-}
 
 function paymentRoom(paymentId: string): string {
   return `payment:${paymentId}`;
@@ -45,8 +39,7 @@ export class PaymentsGateway
   server: Server;
 
   constructor(
-    private readonly jwtService: JwtService,
-    private readonly configService: ConfigService,
+    private readonly verifier: JwtTokenVerifierService,
     private readonly paymentsService: PaymentsService,
   ) {}
 
@@ -62,10 +55,7 @@ export class PaymentsGateway
     }
 
     try {
-      const payload = await this.jwtService.verifyAsync<JwtPayload>(token, {
-        secret: this.configService.get<string>('JWT_SECRET'),
-      });
-      client.data.user = { id: payload.sub, role: payload.role };
+      client.data.user = await this.verifier.verify(token);
     } catch {
       this.rejectConnection(client, 'Invalid or expired token');
     }

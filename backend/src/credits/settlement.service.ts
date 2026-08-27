@@ -31,6 +31,8 @@ import { LedgerService } from './ledger.service';
 import { RevenueSplitService } from './revenue-split.service';
 import { EXTERNAL_PAYOUT_RAIL } from './credits.tokens';
 import { ExternalPayoutRail } from './interfaces/external-payout-rail.interface';
+import { MetricsService } from '../common/metrics.service';
+import { withRequestId } from '../common/request-context';
 
 /**
  * Serializes settlement batch CREATION platform-wide. Netting reads an
@@ -117,17 +119,20 @@ export class SettlementService {
     @Optional()
     @Inject(EXTERNAL_PAYOUT_RAIL)
     private readonly payoutRail: ExternalPayoutRail | undefined,
+    private readonly metrics: MetricsService,
   ) {}
 
   @Cron(CronExpression.EVERY_HOUR)
   async handleCron(): Promise<void> {
+    const started = Date.now();
     if (
       this.config.get<string>('CREDITS_SETTLEMENT_ENABLED', 'true') !== 'true'
     ) {
       return;
     }
     const summary = await this.runSettlement();
-    this.logger.log(`Settlement pass: ${JSON.stringify(summary)}`);
+    this.metrics.recordReconciliationPass(Date.now() - started);
+    this.logger.log(withRequestId(`Settlement pass: ${JSON.stringify(summary)}`));
   }
 
   /**
@@ -611,6 +616,7 @@ export class SettlementService {
         currency: payout.currency,
         idempotencyKey: payout.idempotencyKey,
       });
+      this.metrics.recordSettlementPayoutAttempt('submitted');
       await this.payoutRepository.update(payout.id, {
         status: SettlementPayoutStatus.SUBMITTED,
         onChainReference: submission.reference,
@@ -633,8 +639,11 @@ export class SettlementService {
       if (summary && exhausted) {
         summary.payoutsFailed++;
       }
+      this.metrics.recordSettlementPayoutFailure();
       this.logger.error(
-        `Payout ${payout.id} submission failed (attempt ${attempts}): ${message}`,
+        withRequestId(
+          `Payout ${payout.id} submission failed (attempt ${attempts}): ${message}`,
+        ),
       );
     }
   }
@@ -655,8 +664,10 @@ export class SettlementService {
       // Indeterminate: the rail could not be reached. NOT a verdict that
       // the payout failed, so nothing changes — the next pass asks again.
       this.logger.warn(
-        `Payout ${payout.id} status check failed: ` +
-          (error instanceof Error ? error.message : String(error)),
+        withRequestId(
+          `Payout ${payout.id} status check failed: ` +
+            (error instanceof Error ? error.message : String(error)),
+        ),
       );
       return;
     }
@@ -672,10 +683,12 @@ export class SettlementService {
       if (summary) {
         summary.payoutsFailed++;
       }
+      this.metrics.recordSettlementPayoutFailure();
       return;
     }
 
     await this.confirmPayout(payout, now);
+    this.metrics.recordSettlementPayoutAttempt('confirmed');
     if (summary) {
       summary.payoutsConfirmed++;
     }

@@ -17,8 +17,8 @@ import {
  *
  * verifyByReference is deterministic on the providerReference so tests (and
  * manual sandbox testing) can exercise every outcome without needing a real
- * provider: a reference containing "fail"/"pending" produces that outcome,
- * anything else is treated as confirmed.
+ * provider: a reference with the explicit `sandbox_fail_` / `sandbox_pending_`
+ * prefix produces that outcome, anything else is treated as confirmed.
  */
 @Injectable()
 export class SandboxRailAdapter implements PaymentRailAdapter {
@@ -74,10 +74,10 @@ export class SandboxRailAdapter implements PaymentRailAdapter {
   async verifyByReference(
     providerReference: string,
   ): Promise<PaymentVerificationResult> {
-    if (providerReference.includes('fail')) {
+    if (providerReference.startsWith('sandbox_fail_')) {
       return { outcome: 'failed' };
     }
-    if (providerReference.includes('pending')) {
+    if (providerReference.startsWith('sandbox_pending_')) {
       return { outcome: 'pending' };
     }
     return { outcome: 'confirmed' };
