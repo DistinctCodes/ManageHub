@@ -133,12 +133,20 @@ describe('ReconciliationService', () => {
   let railRegistry: { get: jest.Mock };
   let confirmationService: { apply: jest.Mock };
   let gateway: { emitPaymentUpdate: jest.Mock };
+  let metrics: {
+    recordReconciliationPass: jest.Mock;
+    setManualReviewDepth: jest.Mock;
+  };
 
   beforeEach(() => {
     railAdapter = { verifyByReference: jest.fn() };
     railRegistry = { get: jest.fn().mockReturnValue(railAdapter) };
     confirmationService = { apply: jest.fn() };
     gateway = { emitPaymentUpdate: jest.fn() };
+    metrics = {
+      recordReconciliationPass: jest.fn(),
+      setManualReviewDepth: jest.fn(),
+    };
   });
 
   function build(
@@ -147,13 +155,14 @@ describe('ReconciliationService', () => {
   ) {
     const paymentRepository = makePaymentRepository(seed);
     const config = makeConfigService(configOverrides);
-    const service = new ReconciliationService(
-      paymentRepository as any,
-      confirmationService as any,
-      railRegistry as any,
-      gateway as any,
-      config as any,
-    );
+      const service = new ReconciliationService(
+        paymentRepository as any,
+        confirmationService as any,
+        railRegistry as any,
+        gateway as any,
+        config as any,
+        metrics as any,
+      );
     return { service, paymentRepository };
   }
 

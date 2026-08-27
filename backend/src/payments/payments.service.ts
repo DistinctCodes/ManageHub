@@ -10,6 +10,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { RequestUser } from '../auth/interfaces/authenticated-request.interface';
 import { UserRole } from '../auth/enums/user-role.enum';
+import { MetricsService } from '../common/metrics.service';
 import { Payment } from './entities/payment.entity';
 import { InitiatePaymentDto } from './dto/initiate-payment.dto';
 import {
@@ -35,6 +36,7 @@ export class PaymentsService {
     private readonly paymentRepository: Repository<Payment>,
     private readonly railRegistry: PaymentRailRegistry,
     private readonly config: ConfigService,
+    private readonly metrics: MetricsService,
   ) {}
 
   async initiate(
@@ -86,6 +88,7 @@ export class PaymentsService {
    */
   transitionStatus(payment: Payment, next: PaymentStatus): Payment {
     assertValidTransition(payment.status, next);
+    this.metrics.recordPaymentTransition(payment.status, next);
     payment.status = next;
     return payment;
   }
