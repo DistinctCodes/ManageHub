@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getWalletStatus,
   provisionCustodialWallet,
@@ -11,6 +12,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { WalletLinkForm } from "@/components/wallet/wallet-link-form";
+import { useSessionStore } from "@/lib/stores/session-store";
 
 function formatBalance(minorUnits: number, currency: string): string {
   return `${(minorUnits / 10_000_000).toFixed(2)} ${currency} credit`;
@@ -23,79 +25,55 @@ function formatBalance(minorUnits: number, currency: string): string {
  * option is always available for someone who wants self-custody instead.
  */
 export function WalletStatusCard({ accessToken }: { accessToken: string }) {
-  const [status, setStatus] = useState<WalletStatusResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const queryClient = useQueryClient();
+  const setAccessToken = useSessionStore((state) => state.setAccessToken);
   const [linking, setLinking] = useState(false);
   const [nonce, setNonce] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    getWalletStatus(accessToken)
-      .then((result) => {
-        if (!cancelled) setStatus(result);
-      })
-      .catch((err: Error) => {
-        if (!cancelled) setError(err.message);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [accessToken]);
+  const {
+    data: status,
+    isLoading: loading,
+    error,
+  } = useQuery({
+    queryKey: ["wallet", "status"],
+    queryFn: () => getWalletStatus(accessToken),
+  });
 
-  async function handleGetStarted() {
-    setBusy(true);
-    setError(null);
-    try {
-      const result = await provisionCustodialWallet(accessToken);
-      setStatus(result);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
-      setBusy(false);
-    }
+  function applyStatus(result: WalletStatusResponse) {
+    queryClient.setQueryData<WalletStatusResponse>(["wallet", "status"], result);
   }
 
-  async function handleRequestLink() {
-    setBusy(true);
-    setError(null);
-    try {
-      const challenge = await requestLinkChallenge(accessToken);
-      setNonce(challenge.nonce);
+  const provision = useMutation({
+    mutationFn: () => provisionCustodialWallet(accessToken),
+    onSuccess: applyStatus,
+  });
+
+  const challenge = useMutation({
+    mutationFn: () => requestLinkChallenge(accessToken),
+    onSuccess: (result) => {
+      setNonce(result.nonce);
       setLinking(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
-      setBusy(false);
-    }
-  }
+    },
+  });
 
-  async function handleVerifyLink(values: {
-    address: string;
-    signature: string;
-  }) {
-    if (!nonce) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const result = await verifyLinkChallenge(accessToken, {
-        nonce,
+  const verify = useMutation({
+    mutationFn: (values: { address: string; signature: string }) =>
+      verifyLinkChallenge(accessToken, {
+        nonce: nonce ?? "",
         address: values.address,
         signature: values.signature,
-      });
-      setStatus(result);
+      }),
+    onSuccess: (result) => {
+      applyStatus(result);
       setLinking(false);
       setNonce(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
-      setBusy(false);
-    }
-  }
+    },
+  });
+
+  const pending =
+    provision.isPending || challenge.isPending || verify.isPending;
+  const errorMessage =
+    error?.message ?? provision.error?.message ?? verify.error?.message;
 
   if (loading) {
     return (
@@ -107,12 +85,15 @@ export function WalletStatusCard({ accessToken }: { accessToken: string }) {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Your balance</CardTitle>
+        <Button variant="link" onClick={() => setAccessToken(null)}>
+          Sign out
+        </Button>
       </CardHeader>
       <CardContent className="space-y-4">
-        {error && (
-          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+        {errorMessage && (
+          <p className="text-sm text-red-600 dark:text-red-400">{errorMessage}</p>
         )}
 
         {!status?.provisioned && (
@@ -122,8 +103,8 @@ export function WalletStatusCard({ accessToken }: { accessToken: string }) {
               create one for you automatically the first time you need it - no
               downloads or extra passwords required.
             </p>
-            <Button onClick={handleGetStarted} disabled={busy}>
-              {busy ? "Setting up..." : "Get started"}
+            <Button onClick={() => provision.mutate()} disabled={pending}>
+              {provision.isPending ? "Setting up..." : "Get started"}
             </Button>
           </div>
         )}
@@ -151,10 +132,10 @@ export function WalletStatusCard({ accessToken }: { accessToken: string }) {
             {status.custodyType === "CUSTODIAL" && !linking && (
               <Button
                 variant="link"
-                onClick={handleRequestLink}
-                disabled={busy}
+                onClick={() => challenge.mutate()}
+                disabled={pending}
               >
-                {busy ? "Requesting..." : "Connect a wallet you already own instead"}
+                {challenge.isPending ? "Requesting..." : "Connect a wallet you already own instead"}
               </Button>
             )}
           </div>
@@ -163,12 +144,12 @@ export function WalletStatusCard({ accessToken }: { accessToken: string }) {
         {linking && nonce && (
           <WalletLinkForm
             nonce={nonce}
-            busy={busy}
+            busy={verify.isPending}
             onCancel={() => {
               setLinking(false);
               setNonce(null);
             }}
-            onSubmit={handleVerifyLink}
+            onSubmit={(values) => verify.mutate(values)}
           />
         )}
       </CardContent>
