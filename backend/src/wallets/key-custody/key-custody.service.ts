@@ -1,13 +1,15 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomBytes, createCipheriv, createDecipheriv } from 'crypto';
-import { EntityManager, Repository } from 'typeorm';
+import { EntityManager, MoreThan, Repository } from 'typeorm';
 import { Keypair } from '@stellar/stellar-sdk';
 import { WalletKeyMaterial } from '../entities/wallet-key-material.entity';
 import { WalletKeyAccessLog } from '../entities/wallet-key-access-log.entity';
 import { EnvelopeKeyManagementService } from './key-management.service';
 
 const DATA_KEY_ALGORITHM = 'aes-256-gcm';
+const FAILED_SIGN_ALERT_THRESHOLD = 5;
+const FAILED_SIGN_ALERT_WINDOW_MS = 10 * 60_000;
 
 /**
  * The only module allowed to touch a decrypted custodial secret key. No
@@ -86,6 +88,7 @@ export class KeyCustodyService {
       return signature;
     } catch {
       await this.logAccess(walletAccountId, actor, reason, false);
+      await this.maybeAlertOnRepeatedFailures(walletAccountId);
       throw new InternalServerErrorException(
         'Custodial wallet is unavailable for signing',
       );
@@ -140,7 +143,32 @@ export class KeyCustodyService {
         actor,
         reason,
         successful,
-      }),
+        }),
     );
+  }
+
+  private async maybeAlertOnRepeatedFailures(
+    walletAccountId: string,
+  ): Promise<void> {
+    const recentFailures =
+      typeof this.accessLogRepository.count === 'function'
+        ? await this.accessLogRepository.count({
+            where: {
+              walletAccountId,
+              successful: false,
+              occurredAt: MoreThan(
+                new Date(Date.now() - FAILED_SIGN_ALERT_WINDOW_MS),
+              ),
+            },
+          })
+        : 0;
+
+    if (recentFailures >= FAILED_SIGN_ALERT_THRESHOLD) {
+      // The wallet-key audit table already tells us the pattern; the
+      // alert is just the visible signal for admins and operators.
+      console.warn(
+        `Repeated failed signing attempts detected for wallet ${walletAccountId} (${recentFailures} failures in the last 10 minutes)`,
+      );
+    }
   }
 }

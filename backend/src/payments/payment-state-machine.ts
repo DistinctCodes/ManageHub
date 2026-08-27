@@ -38,7 +38,9 @@ const ALLOWED_TRANSITIONS: Record<PaymentStatus, PaymentStatus[]> = {
     PaymentStatus.FAILED,
     PaymentStatus.VOIDED,
   ],
-  [PaymentStatus.DISPUTED]: [PaymentStatus.REFUNDED],
+  // Merchant-favor dispute resolution is an explicit admin action; only
+  // the payments admin surface is allowed to take this path.
+  [PaymentStatus.DISPUTED]: [PaymentStatus.REFUNDED, PaymentStatus.CONFIRMED],
   [PaymentStatus.VOIDED]: [],
 };
 
