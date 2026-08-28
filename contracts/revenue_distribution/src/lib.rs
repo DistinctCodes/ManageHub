@@ -1,8 +1,10 @@
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, contracttype, contracterror, vec, Env, Address, Vec};
+use soroban_sdk::{contract, contractimpl, contracttype, contracterror, Env, Address, Vec};
 
 /// Total basis points a valid configuration must sum to (100.00%).
+/// Mirrors the off-chain `TOTAL_BASIS_POINTS` constant and the
+/// `RevenueSplitRecipientDto` validation rule (sum == 10 000).
 pub const TOTAL_BASIS_POINTS: u32 = 10_000;
 
 /// A single recipient and their share in basis points.
@@ -48,6 +50,38 @@ pub struct RevenueDistributionContract;
 
 #[contractimpl]
 impl RevenueDistributionContract {
+    /// Set the distribution configuration.
+    ///
+    /// Requires admin authorization. Rejects if basis_points don't sum to
+    /// exactly `TOTAL_BASIS_POINTS` (10 000), matching the off-chain
+    /// `RevenueSplitRecipientDto` validation rule from BE-143.
+    ///
+    /// CT-57: configure entrypoint with basis-point sum validation.
+    pub fn configure(
+        env: Env,
+        admin: Address,
+        recipients: Vec<Recipient>,
+    ) -> Result<(), Error> {
+        admin.require_auth();
+
+        if recipients.is_empty() {
+            return Err(Error::EmptyRecipients);
+        }
+
+        // Validate that basis points sum to exactly TOTAL_BASIS_POINTS.
+        let mut total: u32 = 0;
+        for r in recipients.iter() {
+            total = total.checked_add(r.basis_points).ok_or(Error::ArithmeticOverflow)?;
+        }
+        if total != TOTAL_BASIS_POINTS {
+            return Err(Error::InvalidBasisPoints);
+        }
+
+        let config = RevenueConfig { recipients, admin };
+        env.storage().persistent().set(&DataKey::Config, &config);
+        Ok(())
+    }
+
     /// Return the current distribution configuration, if any.
     pub fn get_config(env: Env) -> Result<RevenueConfig, Error> {
         env.storage()
