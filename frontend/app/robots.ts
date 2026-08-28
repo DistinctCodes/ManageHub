@@ -1,11 +1,14 @@
 import type { MetadataRoute } from "next";
 
 export default function robots(): MetadataRoute.Robots {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://managehub.app";
+
   return {
     rules: {
       userAgent: "*",
-      disallow: [],
+      allow: "/",
+      disallow: ["/admin/", "/wallet/", "/payments/", "/usage/", "/login/", "/register/"],
     },
-    sitemap: `${process.env.NEXT_PUBLIC_APP_URL || "https://managehub.app"}/sitemap.xml`,
+    sitemap: `${baseUrl}/sitemap.xml`,
   };
 }
