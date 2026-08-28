@@ -14,6 +14,7 @@ import {
   Button,
 } from "@/components/admin/ui";
 import { RequireAdmin, useAdminToken } from "@/components/admin/require-admin";
+import { SettlementVolumeChart } from "@/components/admin/settlement-volume-chart";
 
 const STATUSES: Array<{ value: SettlementBatchStatus | ""; label: string }> = [
   { value: "", label: "All" },
@@ -87,6 +88,14 @@ function SettlementsInner({ token }: { token: string }) {
           />
         ))}
       </div>
+
+      <Card>
+        <CardHeader
+          title="Settlement volume by status"
+          description="Total settled amount aggregated across all batches by current status."
+        />
+        <SettlementVolumeChart batches={batches.data ?? []} />
+      </Card>
 
       <Card>
         <CardHeader title={`${batches.data?.length ?? 0} batches`} />
