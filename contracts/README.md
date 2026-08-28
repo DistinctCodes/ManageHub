@@ -72,3 +72,15 @@ this pattern. See [`payment_escrow/src/lib.rs`](payment_escrow/src/lib.rs).
 
 Additional crates (e.g. `resource_credits`, `staking_rewards`) should be added
 as workspace members in [`Cargo.toml`](Cargo.toml) as they are developed.
+
+## Tooling
+
+- `make build` / `make test` / `make deploy` / `make clean` — see the root
+  [`Makefile`](../Makefile) (CT-70).
+- `make audit` — CI-enforced authorization audit; see
+  [`scripts/audit_require_auth.sh`](../scripts/audit_require_auth.sh) (CT-72).
+
+## Security
+
+- [`SECURITY.md`](SECURITY.md) — trust model and pre-deployment checklist (CT-68).
+- [`UPGRADE.md`](UPGRADE.md) — contract upgrade/migration path (CT-69).

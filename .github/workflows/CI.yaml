@@ -154,3 +154,17 @@ jobs:
             frontend/playwright-report/
             frontend/test-results/
           retention-days: 7
+
+  # ─────────────────────────────────────────────
+  # CONTRACTS — require_auth coverage audit (CT-72)
+  # ─────────────────────────────────────────────
+  contracts-auth-audit:
+    name: Contracts — require_auth coverage (CT-72)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Audit state-changing entrypoints for require_auth()
+        run: bash scripts/audit_require_auth.sh
