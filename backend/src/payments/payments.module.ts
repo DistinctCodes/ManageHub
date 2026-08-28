@@ -1,6 +1,7 @@
-import { Module } from '@nestjs/common';
+import { Module, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { TypeOrmModule, InjectRepository } from '@nestjs/typeorm';
+import { Repository, In } from 'typeorm';
 import { BullModule } from '@nestjs/bull';
 import { Payment } from './entities/payment.entity';
 import { ConfirmationEvent } from './entities/confirmation-event.entity';
@@ -11,6 +12,8 @@ import { ReconciliationService } from './reconciliation.service';
 import { RefundsService } from './refunds.service';
 import { PaymentRailRegistry } from './payment-rail-registry';
 import { PaymentsGateway } from './payments.gateway';
+import { PaymentRail } from './enums/payment-rail.enum';
+import { PaymentStatus } from './enums/payment-status.enum';
 import { PaymentsController } from './payments.controller';
 import { PaymentWebhookController } from './payment-webhook.controller';
 import { PaymentsAdminController } from './payments-admin.controller';
@@ -123,4 +126,34 @@ import {
     EXTERNAL_PAYOUT_RAIL,
   ],
 })
-export class PaymentsModule {}
+export class PaymentsModule implements OnModuleInit {
+  private readonly logger = new Logger(PaymentsModule.name);
+
+  constructor(
+    @InjectRepository(Payment)
+    private readonly paymentRepo: Repository<Payment>,
+    private readonly configService: ConfigService,
+  ) {}
+
+  async onModuleInit(): Promise<void> {
+    const sorobanEnabled =
+      this.configService.get<string>('SOROBAN_ENABLED', 'false') === 'true';
+
+    if (sorobanEnabled) return;
+
+    const unresolvedCount = await this.paymentRepo.count({
+      where: {
+        rail: In([PaymentRail.STELLAR_CUSTODIAL, PaymentRail.STELLAR_EXTERNAL]),
+        status: PaymentStatus.AWAITING_CONFIRMATION,
+      },
+    });
+
+    if (unresolvedCount > 0) {
+      this.logger.warn(
+        `SOROBAN_ENABLED is false but ${unresolvedCount} on-chain escrow(s) ` +
+          `are still AWAITING_CONFIRMATION. These funds are locked on-chain ` +
+          `and must be resolved manually. See contracts/RUNBOOK.md.`,
+      );
+    }
+  }
+}
