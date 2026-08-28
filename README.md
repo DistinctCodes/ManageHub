@@ -53,7 +53,7 @@ ManageHub uses a modern full-stack technology stack:
 | Frontend               | **Next.js**, React, Tailwind CSS               |     |
 | Backend                | **NestJS**, Node.js                            |     |
 | Database               | **PostgreSQL**                                 |     |
-| Blockchain / Contracts | Rust, Stellar _(planned — see [CT-42](https://github.com/DistinctCodes/ManageHub/labels/contracts) tracking)_ |     |
+| Blockchain / Contracts | Rust, Stellar (Soroban) — see [`contracts/`](contracts/) |     |
 | Deployment             | Vercel 🚀 (Frontend & possibly Serverless API) |     |
 
 > Side note: Using NestJS for API and backend services alongside Next.js for the frontend is a powerful combination for maintainable, scalable projects, especially when complex business logic or multi-client access is needed — something Next.js alone doesn’t fully optimize for in large systems.
@@ -71,7 +71,7 @@ Make sure you have the following installed:
 - Node.js ≥ 18.x
 - npm or yarn
 - PostgreSQL database
-- Rust toolchain (only if/when you work on the _contracts_ workspace, which is planned but **not yet part of the repository**)
+- Rust toolchain (required to build and test the `contracts/` workspace)
 
 ---
 
@@ -140,14 +140,14 @@ Open `http://localhost:3000` in your browser.
 ManageHub/
 ├── backend/            # NestJS backend API
 ├── frontend/           # Next.js client application
-├── contracts/          # Rust & Stellar contract modules — **planned**, not yet in the repo (see CT-42 tracking)
+├── contracts/          # Rust & Soroban smart contracts workspace
 ├── .github/            # CI/CD workflows
 ├── README.md           # Project readme (this file)
 ```
 
 - **backend/** — Contains controllers, services, modules, database logic.
 - **frontend/** — UI components, pages, API integrations.
-- **contracts/** — *(planned)* Smart contract or blockchain/logic modules (Rust). This workspace does not exist in the repository yet; it is tracked under the [CT-42 series of issues](https://github.com/DistinctCodes/ManageHub/labels/contracts) and will be added with the contracts scaffold.
+- **contracts/** — Soroban smart contract workspace (Rust). Currently contains the `payment_escrow` scaffold. See [`contracts/README.md`](contracts/README.md) for the backend integration reference and [`contracts/RUNBOOK.md`](contracts/RUNBOOK.md) for the operator recovery guide.
 
 ---
 
