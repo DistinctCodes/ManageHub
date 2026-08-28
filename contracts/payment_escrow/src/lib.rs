@@ -77,13 +77,16 @@ impl PaymentEscrowContract {
         Ok(())
     }
 
-    /// Release escrowed funds to the beneficiary.
+    /// Release escrowed funds to the beneficiary. Only the payer — the
+    /// party whose funds are locked — may authorize a release (CT-72).
     pub fn release(env: Env, escrow_id: BytesN<32>) -> Result<(), Error> {
         let mut escrow: Escrow = env
             .storage()
             .persistent()
             .get(&DataKey::Escrow(escrow_id.clone()))
             .ok_or(Error::NotFound)?;
+
+        escrow.payer.require_auth();
 
         if escrow.state != EscrowState::Locked {
             return Err(Error::AlreadyResolved);
@@ -94,13 +97,16 @@ impl PaymentEscrowContract {
         Ok(())
     }
 
-    /// Refund escrowed funds back to the payer.
+    /// Refund escrowed funds back to the payer. Only the beneficiary — the
+    /// party giving up their claim — may authorize a refund (CT-72).
     pub fn refund(env: Env, escrow_id: BytesN<32>) -> Result<(), Error> {
         let mut escrow: Escrow = env
             .storage()
             .persistent()
             .get(&DataKey::Escrow(escrow_id.clone()))
             .ok_or(Error::NotFound)?;
+
+        escrow.beneficiary.require_auth();
 
         if escrow.state != EscrowState::Locked {
             return Err(Error::AlreadyResolved);
