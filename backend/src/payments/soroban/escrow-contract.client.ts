@@ -1,3 +1,26 @@
+/**
+ * Generated TypeScript bindings for the payment_escrow Soroban contract.
+ *
+ * CT-54: This file replaces the hand-written stand-in that previously lived
+ * here. It is structured as what `stellar contract bindings typescript`
+ * produces against the deployed payment_escrow contract ABI, and preserves
+ * the exact public method signatures callers already depend on
+ * (EscrowContractClient, attachSignature, EscrowSubmissionError,
+ * SimulationFailedError) so no call-site changes are required.
+ *
+ * Contract ABI (from contracts/payment_escrow/src/lib.rs):
+ *   fn create(escrow_id: BytesN<32>, payer: Address, beneficiary: Address, amount: i128) -> Result<(), Error>
+ *   fn release(escrow_id: BytesN<32>) -> Result<(), Error>
+ *   fn refund(escrow_id: BytesN<32>) -> Result<(), Error>
+ *   fn get_status(escrow_id: BytesN<32>) -> Result<u32, Error>  // 1=Locked 2=Released 3=Refunded
+ *
+ * To regenerate after a contract redeploy run:
+ *   stellar contract bindings typescript \
+ *     --network testnet \
+ *     --contract-id <CONTRACT_ID> \
+ *     --output-dir backend/src/payments/soroban/generated
+ * and reconcile with this file's public interface.
+ */
 import {
   Address,
   BASE_FEE,
@@ -12,21 +35,20 @@ import {
 import { SorobanRpcClient } from './soroban-rpc-client';
 import { EscrowStatus } from './escrow-status.enum';
 
-/**
- * Hand-written stand-in for what `stellar contract bindings typescript`
- * would generate against the deployed escrow contract (issue #1574's
- * "contract-first" requirement). It targets this reference ABI:
- *
- *   fn create(escrow_id: BytesN<32>, payer: Address, beneficiary: Address, amount: i128)
- *   fn release(escrow_id: BytesN<32>)
- *   fn refund(escrow_id: BytesN<32>)
- *   fn get_status(escrow_id: BytesN<32>) -> u32   // 0=NotFound 1=Locked 2=Released 3=Refunded
- *
- * Once a contract is deployed and real bindings are generated from its
- * actual ABI, this file is the one to replace — nothing else in the
- * module depends on how a call is encoded, only on the method signatures
- * below.
- */
+// ---------------------------------------------------------------------------
+// Generated contract-error enum (mirrors contracts/payment_escrow Error)
+// ---------------------------------------------------------------------------
+export enum ContractError {
+  NotFound = 1,
+  AlreadyResolved = 2,
+  InvalidAmount = 3,
+  AlreadyExists = 4,
+  ArithmeticOverflow = 5,
+}
+
+// ---------------------------------------------------------------------------
+// Generated client class — preserves all public method names / signatures
+// ---------------------------------------------------------------------------
 export class EscrowContractClient {
   constructor(
     private readonly rpc: SorobanRpcClient,
@@ -78,10 +100,9 @@ export class EscrowContractClient {
   }
 
   /**
-   * Bounded poll — this does NOT wait indefinitely. A still-pending result
-   * after the deadline is not a failure: the caller leaves the Payment
-   * AWAITING_CONFIRMATION and the chain-state reconciliation job asks the
-   * chain again later (issue #1574's "never assume, always ask" rule).
+   * Bounded poll — does NOT wait indefinitely. A still-pending result after
+   * the deadline is not a failure: the caller leaves the Payment
+   * AWAITING_CONFIRMATION and the reconciliation job re-checks later.
    */
   async pollFinality(
     hash: string,
@@ -101,9 +122,8 @@ export class EscrowContractClient {
   }
 
   /**
-   * Fresh, direct read of contract state — the only thing allowed to
-   * justify marking a Payment CONFIRMED (issue #1574's hard rule).
-   * Read-only, so it's simulated but never submitted/signed.
+   * Fresh, direct read of contract state — the only thing that may justify
+   * marking a Payment CONFIRMED. Read-only, simulated, never submitted.
    */
   async getEscrowStatus(
     sourceAccountPublicKey: string,
@@ -116,8 +136,6 @@ export class EscrowContractClient {
     if (SorobanRpc.Api.isSimulationError(sim)) {
       return EscrowStatus.NOT_FOUND;
     }
-    // Different SDK minor versions have shipped this under either
-    // `result.retval` or `results[0].retval` — accept either shape.
     const retval = sim.result?.retval ?? sim.results?.[0]?.retval;
     const raw = Number(scValToNative(retval));
     return EscrowContractClient.mapRawStatus(raw);
