@@ -29,7 +29,22 @@ async function walletFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     const body = await response.json().catch(() => null);
-    throw new Error(body?.message ?? `Wallet request failed (${response.status})`);
+    const errorMessage = body?.message ?? `Wallet request failed (${response.status})`;
+    const error = new Error(errorMessage);
+    
+    Sentry.captureException(error, {
+      tags: {
+        api: "wallet",
+        endpoint: path,
+        statusCode: response.status,
+      },
+      extra: {
+        requestBody: init?.body,
+        responseBody: body,
+      },
+    });
+    
+    throw error;
   }
 
   return response.json() as Promise<T>;
