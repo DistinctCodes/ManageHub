@@ -167,9 +167,22 @@ async function adminFetch<T>(
 
   if (!response.ok) {
     const body = await response.json().catch(() => null);
-    throw new Error(
-      body?.message ?? `Admin request failed (${response.status})`,
-    );
+    const errorMessage = body?.message ?? `Admin request failed (${response.status})`;
+    const error = new Error(errorMessage);
+    
+    Sentry.captureException(error, {
+      tags: {
+        api: "admin",
+        endpoint: path,
+        statusCode: response.status,
+      },
+      extra: {
+        requestBody: init?.body,
+        responseBody: body,
+      },
+    });
+    
+    throw error;
   }
 
   if (response.status === 204) {
