@@ -157,6 +157,43 @@ export function listManualReviewPayments(
   return apiFetch<Payment[]>("/payments/admin/manual-review", accessToken);
 }
 
+// ── admin payment actions (FE-104 / FE-106) ──────────────────────────────
+
+export function forceReconcilePayment(
+  accessToken: string,
+  id: string,
+): Promise<Payment> {
+  return apiFetch<Payment>(
+    `/payments/admin/${id}/force-reconcile`,
+    accessToken,
+    { method: "POST" },
+  );
+}
+
+export function resolvePaymentManually(
+  accessToken: string,
+  id: string,
+  resolution: string,
+): Promise<Payment> {
+  return apiFetch<Payment>(
+    `/payments/admin/${id}/resolve-manually`,
+    accessToken,
+    { method: "POST", body: JSON.stringify({ resolution }) },
+  );
+}
+
+export function voidPayment(
+  accessToken: string,
+  id: string,
+  reason: string,
+): Promise<Payment> {
+  return apiFetch<Payment>(
+    `/payments/admin/${id}/void`,
+    accessToken,
+    { method: "POST", body: JSON.stringify({ reason }) },
+  );
+}
+
 // ── refunds (FE-107) ─────────────────────────────────────────────────────
 
 export function requestRefund(
