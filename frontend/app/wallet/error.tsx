@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import * as Sentry from "@sentry/nextjs";
 
 export default function WalletError({
   error,
@@ -11,6 +12,11 @@ export default function WalletError({
 }) {
   useEffect(() => {
     console.error(error);
+    Sentry.captureException(error, {
+      tags: {
+        errorBoundary: "wallet",
+      },
+    });
   }, [error]);
 
   return (
