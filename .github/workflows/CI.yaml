@@ -156,6 +156,46 @@ jobs:
           retention-days: 7
 
   # ─────────────────────────────────────────────
+  # CONTRACTS — Cargo workspace build (CT-63)
+  # ─────────────────────────────────────────────
+  contracts-build:
+    name: Contracts — Cargo workspace build (CT-63)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: contracts
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # rustup reads contracts/rust-toolchain.toml automatically and installs
+      # the pinned stable channel plus the wasm32-unknown-unknown target.
+      - name: Install Rust toolchain (stable + wasm32)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: rustfmt,clippy,rust-src
+
+      # Cargo registry cache — keyed on the workspace lock-file so a
+      # dependency change always triggers a fresh fetch.
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('contracts/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      # .cargo/config.toml sets default-target = wasm32-unknown-unknown, so
+      # no explicit --target flag is needed here.
+      - name: Build workspace
+        run: cargo build --workspace
+
+  # ─────────────────────────────────────────────
   # CONTRACTS — require_auth coverage audit (CT-72)
   # ─────────────────────────────────────────────
   contracts-auth-audit:
