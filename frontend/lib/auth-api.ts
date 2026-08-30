@@ -25,9 +25,22 @@ async function authRequest<T>(
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => null);
-    throw new Error(
-      errorBody?.message ?? `Authentication failed (${response.status})`,
-    );
+    const errorMessage = errorBody?.message ?? `Authentication failed (${response.status})`;
+    const error = new Error(errorMessage);
+    
+    Sentry.captureException(error, {
+      tags: {
+        api: "auth",
+        endpoint: path,
+        statusCode: response.status,
+      },
+      extra: {
+        requestBody: body,
+        responseBody: errorBody,
+      },
+    });
+    
+    throw error;
   }
 
   return response.json() as Promise<T>;
