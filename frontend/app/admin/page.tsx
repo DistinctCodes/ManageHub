@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Landmark, Scale, Split, RefreshCw } from "lucide-react";
+import { Landmark, Scale, Split, RefreshCw, ClipboardList } from "lucide-react";
 import { Card } from "@/components/admin/ui";
 
 const cards = [
@@ -30,6 +30,13 @@ const cards = [
     description:
       "Inspect settlement batches, view breakdowns, and drive execute / retry / abandon recovery.",
     icon: RefreshCw,
+  },
+  {
+    href: "/admin/payments",
+    title: "Manual-review queue",
+    description:
+      "Payments escalated to MANUAL_REVIEW — force-reconcile, resolve, or void them from the browser.",
+    icon: ClipboardList,
   },
 ];
 

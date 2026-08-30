@@ -104,7 +104,22 @@ async function apiFetch<T>(
 
   if (!response.ok) {
     const body = await response.json().catch(() => null);
-    throw new Error(body?.message ?? `Request failed (${response.status})`);
+    const errorMessage = body?.message ?? `Request failed (${response.status})`;
+    const error = new Error(errorMessage);
+    
+    Sentry.captureException(error, {
+      tags: {
+        api: "payments",
+        endpoint: path,
+        statusCode: response.status,
+      },
+      extra: {
+        requestBody: init?.body,
+        responseBody: body,
+      },
+    });
+    
+    throw error;
   }
 
   if (response.status === 204) {
@@ -155,6 +170,43 @@ export function listManualReviewPayments(
   accessToken: string,
 ): Promise<Payment[]> {
   return apiFetch<Payment[]>("/payments/admin/manual-review", accessToken);
+}
+
+// ── admin payment actions (FE-104 / FE-106) ──────────────────────────────
+
+export function forceReconcilePayment(
+  accessToken: string,
+  id: string,
+): Promise<Payment> {
+  return apiFetch<Payment>(
+    `/payments/admin/${id}/force-reconcile`,
+    accessToken,
+    { method: "POST" },
+  );
+}
+
+export function resolvePaymentManually(
+  accessToken: string,
+  id: string,
+  resolution: string,
+): Promise<Payment> {
+  return apiFetch<Payment>(
+    `/payments/admin/${id}/resolve-manually`,
+    accessToken,
+    { method: "POST", body: JSON.stringify({ resolution }) },
+  );
+}
+
+export function voidPayment(
+  accessToken: string,
+  id: string,
+  reason: string,
+): Promise<Payment> {
+  return apiFetch<Payment>(
+    `/payments/admin/${id}/void`,
+    accessToken,
+    { method: "POST", body: JSON.stringify({ reason }) },
+  );
 }
 
 // ── refunds (FE-107) ─────────────────────────────────────────────────────
