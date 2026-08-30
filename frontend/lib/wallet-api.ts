@@ -1,3 +1,5 @@
+import * as Sentry from "@sentry/nextjs";
+
 export type WalletCustodyType = "CUSTODIAL" | "EXTERNAL";
 export type WalletStatus = "PENDING" | "ACTIVE" | "DISABLED";
 
