@@ -183,3 +183,56 @@ mod test {
         assert_eq!(result, Ok(300));
     }
 }
+
+// ---------------------------------------------------------------------------
+// CT-51: happy-path tests for create/release/refund/get_status
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod escrow_test {
+    use super::*;
+    use soroban_sdk::testutils::Address as _;
+
+    fn setup() -> (Env, PaymentEscrowContractClient<'static>, Address, Address) {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let contract_id = env.register(PaymentEscrowContract, ());
+        let client = PaymentEscrowContractClient::new(&env, &contract_id);
+
+        let payer = Address::generate(&env);
+        let beneficiary = Address::generate(&env);
+
+        (env, client, payer, beneficiary)
+    }
+
+    fn escrow_id(env: &Env, seed: u8) -> BytesN<32> {
+        BytesN::from_array(env, &[seed; 32])
+    }
+
+    /// create -> get_status=Locked -> release -> get_status=Released.
+    #[test]
+    fn test_create_release_happy_path() {
+        let (env, client, payer, beneficiary) = setup();
+        let id = escrow_id(&env, 1);
+
+        client.create(&id, &payer, &beneficiary, &1_000);
+        assert_eq!(client.get_status(&id), 1); // Locked
+
+        client.release(&id);
+        assert_eq!(client.get_status(&id), 2); // Released
+    }
+
+    /// create -> get_status=Locked -> refund -> get_status=Refunded.
+    #[test]
+    fn test_create_refund_happy_path() {
+        let (env, client, payer, beneficiary) = setup();
+        let id = escrow_id(&env, 2);
+
+        client.create(&id, &payer, &beneficiary, &500);
+        assert_eq!(client.get_status(&id), 1); // Locked
+
+        client.refund(&id);
+        assert_eq!(client.get_status(&id), 3); // Refunded
+    }
+}
