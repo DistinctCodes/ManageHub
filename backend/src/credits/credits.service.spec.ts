@@ -42,24 +42,6 @@ async function fund(
   });
 }
 
- const harness = createLedgerHarness();
-  const ledger = new LedgerService(
-    harness.accounts as any,
-    harness.transactions as any,
-    harness.entries as any,
-  );
-  const credits = new CreditsService(
-    ledger,
-    fakeConfigService({
-      CREDITS_DEFAULT_CURRENCY: 'USD',
-      CREDITS_DEFAULT_OVERDRAFT_LIMIT: 0,
-      ...config,
-    }),
-  );
-  return { harness, ledger, credits };
-}
-
-
 function assertLedgerBalances(harness: LedgerHarness, accountIds: string[]) {
   for (const accountId of accountIds) {
     expect(harness.balanceOf(accountId)).toBe(
