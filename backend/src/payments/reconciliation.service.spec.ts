@@ -377,6 +377,86 @@ describe('ReconciliationService', () => {
     });
   });
 
+  describe('handleCron — full-batch load and overlap protection (issue #1701)', () => {
+    /**
+     * A synchronous unit test can't prove a full batch beats a real 5-minute
+     * wall clock against a real provider — that belongs in a staging soak
+     * test. What it can prove: every payment in a full-size
+     * PAYMENT_RECONCILE_MAX_BATCH batch is actually processed (the `take`
+     * cap isn't silently dropping candidates), and that overlap protection
+     * exists so a pass that *does* run long can never double-process
+     * alongside the next cron tick.
+     */
+    it('processes a full PAYMENT_RECONCILE_MAX_BATCH-sized batch in one pass', async () => {
+      const now = new Date();
+      const payments = Array.from({ length: 500 }, (_, i) =>
+        makePayment({ id: `batch-${i}`, createdAt: minutesAgo(10, now) }),
+      );
+      confirmationService.apply.mockResolvedValue({
+        status: PaymentStatus.CONFIRMED,
+      });
+      railAdapter.verifyByReference.mockResolvedValue({ outcome: 'confirmed' });
+
+      const { service } = build(payments, { PAYMENT_RECONCILE_MAX_BATCH: 500 });
+      const summary = await service.reconcileDueBatch(now);
+
+      expect(summary.candidates).toBe(500);
+      expect(summary.resolved).toBe(500);
+      expect(railAdapter.verifyByReference).toHaveBeenCalledTimes(500);
+    });
+
+    it('skips a cron tick that fires while the previous pass is still running', async () => {
+      const now = new Date();
+      const payment = makePayment({ createdAt: minutesAgo(10, now) });
+      let releaseVerify!: (outcome: { outcome: 'confirmed' }) => void;
+      railAdapter.verifyByReference.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            releaseVerify = resolve;
+          }),
+      );
+      confirmationService.apply.mockResolvedValue({
+        status: PaymentStatus.CONFIRMED,
+      });
+
+      const { service } = build([payment]);
+
+      const firstPass = service.handleCron();
+      // Give the first pass's microtasks a chance to reach the pending
+      // provider call before the "overlapping" second tick fires.
+      await Promise.resolve();
+      await Promise.resolve();
+
+      await service.handleCron();
+
+      // The second tick must not have touched the provider or recorded a
+      // pass — it should have been a no-op while the first was in flight.
+      expect(railAdapter.verifyByReference).toHaveBeenCalledTimes(1);
+      expect(metrics.recordReconciliationPass).toHaveBeenCalledTimes(0);
+
+      releaseVerify!({ outcome: 'confirmed' });
+      await firstPass;
+
+      expect(metrics.recordReconciliationPass).toHaveBeenCalledTimes(1);
+    });
+
+    it('allows the next cron tick to run once the previous pass has finished', async () => {
+      const now = new Date();
+      const payment = makePayment({ createdAt: minutesAgo(10, now) });
+      confirmationService.apply.mockResolvedValue({
+        status: PaymentStatus.CONFIRMED,
+      });
+      railAdapter.verifyByReference.mockResolvedValue({ outcome: 'confirmed' });
+
+      const { service } = build([payment]);
+
+      await service.handleCron();
+      await service.handleCron();
+
+      expect(metrics.recordReconciliationPass).toHaveBeenCalledTimes(2);
+    });
+  });
+
   describe('admin recovery actions', () => {
     it('forceReconcileNow reconciles a payment immediately, bypassing the due schedule', async () => {
       const now = new Date();
