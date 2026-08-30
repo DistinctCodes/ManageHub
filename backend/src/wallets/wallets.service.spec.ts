@@ -147,6 +147,77 @@ describe('WalletsService', () => {
       expect(result).toBe(winner);
       expect(keyCustody.provisionKeypair).not.toHaveBeenCalled();
     });
+
+    /**
+     * Issue #1702: the previous test above simulates the race by scripting
+     * a single mocked rejection. This one actually fires several concurrent
+     * `provisionCustodialWallet` calls through a small in-memory
+     * WalletAccount table with the same two guarantees
+     * `credits/testing/in-memory-ledger.ts` documents for the ledger's own
+     * overdraft-race test: `transaction` serializes callbacks (standing in
+     * for the DB's insert/row locking), and the (user_id) unique index is
+     * enforced, raising the Postgres-shaped 23505 error the service
+     * recovers from. Proves exactly one wallet is ever created, every
+     * concurrent caller converges on it, and no caller ever sees the raw
+     * database constraint exception.
+     */
+    it('lets exactly one of several concurrent provision requests for the same user create a wallet', async () => {
+      const rows: any[] = [];
+      let sequence = 0;
+      let txQueue: Promise<unknown> = Promise.resolve();
+
+      const accountRepo = {
+        create: (data: any) => ({ ...data }),
+        save: async (entity: any) => {
+          if (!entity.id) {
+            const clash = rows.find((row) => row.userId === entity.userId);
+            if (clash) {
+              const error: any = new Error(
+                'duplicate key value violates unique constraint',
+              );
+              error.code = '23505';
+              error.constraint = 'uq_wallet_accounts_user_id';
+              throw error;
+            }
+            entity.id = `wallet-${++sequence}`;
+          }
+          const saved = { ...entity };
+          const index = rows.findIndex((row) => row.id === saved.id);
+          if (index >= 0) {
+            rows[index] = saved;
+          } else {
+            rows.push(saved);
+          }
+          return { ...saved };
+        },
+      };
+      walletAccountRepository.findOne = jest.fn(async ({ where }: any) => {
+        const found = rows.find((row) => row.userId === where.userId);
+        return found ? { ...found } : null;
+      });
+      const manager = { getRepository: () => accountRepo };
+      transaction.mockImplementation(async (cb: (m: any) => unknown) => {
+        const run = txQueue.then(() => cb(manager));
+        txQueue = run.then(
+          () => undefined,
+          () => undefined,
+        );
+        return run;
+      });
+      keyCustody.provisionKeypair.mockImplementation(
+        async (walletAccountId: string) => `GADDRESS-${walletAccountId}`,
+      );
+
+      const results = await Promise.all(
+        Array.from({ length: 5 }, () =>
+          service.provisionCustodialWallet('user-1'),
+        ),
+      );
+
+      expect(new Set(results.map((account) => account.id)).size).toBe(1);
+      expect(rows).toHaveLength(1);
+      expect(keyCustody.provisionKeypair).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('fundCustodialWallet', () => {
