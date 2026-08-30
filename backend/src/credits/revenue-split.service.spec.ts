@@ -187,6 +187,53 @@ describe('RevenueSplitService', () => {
       ]);
       expect(updated.recipients).toHaveLength(2);
     });
+
+    /**
+     * Issue #1700: every recipient here individually passes
+     * `RevenueSplitRecipientDto`'s per-field `@Min(1) @Max(10000)` check —
+     * the only thing wrong is the *set's* total. Proves the update path
+     * (`replaceRecipients`, backing `PUT .../recipients`) rejects that atomically
+     * — before the existing recipients are ever deleted, not after.
+     */
+    it('rejects an update whose individually-valid recipients do not sum to 10000, without touching existing rows', async () => {
+      const { splits, platform, operator } = await build();
+      const config = await splits.createConfig({
+        name: 'update-sum-check',
+        recipients: [
+          { label: 'platform fee', basisPoints: 4000, accountId: platform.id },
+          { label: 'hub operator', basisPoints: 6000, accountId: operator.id },
+        ],
+      });
+
+      // 9999: one short of 10000, every individual value still 1-10000.
+      await expect(
+        splits.replaceRecipients(config.id, [
+          { label: 'platform fee', basisPoints: 4999, accountId: platform.id },
+          { label: 'hub operator', basisPoints: 5000, accountId: operator.id },
+        ]),
+      ).rejects.toThrow(/must sum to 10000/);
+
+      // 10001: one over, same individual-field validity.
+      await expect(
+        splits.replaceRecipients(config.id, [
+          { label: 'platform fee', basisPoints: 5001, accountId: platform.id },
+          { label: 'hub operator', basisPoints: 5000, accountId: operator.id },
+        ]),
+      ).rejects.toThrow(/must sum to 10000/);
+
+      // Neither rejected update was partially applied: the original
+      // recipients (and only them) are still in place.
+      const unchanged = await splits.getConfig(config.id);
+      expect(unchanged.recipients).toHaveLength(2);
+      expect(
+        unchanged.recipients.map((r) => [r.label, r.basisPoints]),
+      ).toEqual(
+        expect.arrayContaining([
+          ['platform fee', 4000],
+          ['hub operator', 6000],
+        ]),
+      );
+    });
   });
 
   describe('computation', () => {
