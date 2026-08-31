@@ -51,6 +51,20 @@ type ReconcileOutcome = 'resolved' | 'pending' | 'provider_error' | 'escalated';
 export class ReconciliationService {
   private readonly logger = new Logger(ReconciliationService.name);
 
+  /**
+   * Overlap guard (issue #1701): nothing bounds how long a full
+   * PAYMENT_RECONCILE_MAX_BATCH pass can take against a slow or degraded
+   * provider — 500 payments each waiting up to PAYMENT_VERIFY_TIMEOUT_MS
+   * sequentially can exceed the 5-minute cron interval. Rather than let a
+   * second @Cron firing start reconciling the same payments concurrently
+   * (double `reconciliationAttempts` increments, duplicate provider calls),
+   * a run in progress makes the next tick a no-op. Process-local by design,
+   * matching this job's single-instance deployment; a multi-instance
+   * deployment would need SettlementService's `pg_advisory_xact_lock`
+   * pattern instead.
+   */
+  private isRunning = false;
+
   constructor(
     @InjectRepository(Payment)
     private readonly paymentRepository: Repository<Payment>,
@@ -63,20 +77,34 @@ export class ReconciliationService {
 
   @Cron(CronExpression.EVERY_5_MINUTES)
   async handleCron(): Promise<void> {
-    const started = Date.now();
-    const summary = await this.reconcileDueBatch();
-    this.metrics.recordReconciliationPass(Date.now() - started);
-    this.logger.log(withRequestId(`Reconciliation pass: ${JSON.stringify(summary)}`));
-    const metrics = await this.getMetrics();
-    this.metrics.setManualReviewDepth(metrics.manualReviewQueueDepth);
-    if (metrics.alerting) {
+    if (this.isRunning) {
       this.logger.warn(
         withRequestId(
-          `ALERT: manual-review queue depth ${metrics.manualReviewQueueDepth} ` +
-            `exceeds threshold ${metrics.alertThreshold}`,
+          'Skipping reconciliation pass: the previous pass is still running',
         ),
       );
-      await this.sendManualReviewAlert(metrics.manualReviewQueueDepth, metrics.alertThreshold);
+      return;
+    }
+
+    this.isRunning = true;
+    try {
+      const started = Date.now();
+      const summary = await this.reconcileDueBatch();
+      this.metrics.recordReconciliationPass(Date.now() - started);
+      this.logger.log(withRequestId(`Reconciliation pass: ${JSON.stringify(summary)}`));
+      const metrics = await this.getMetrics();
+      this.metrics.setManualReviewDepth(metrics.manualReviewQueueDepth);
+      if (metrics.alerting) {
+        this.logger.warn(
+          withRequestId(
+            `ALERT: manual-review queue depth ${metrics.manualReviewQueueDepth} ` +
+              `exceeds threshold ${metrics.alertThreshold}`,
+          ),
+        );
+        await this.sendManualReviewAlert(metrics.manualReviewQueueDepth, metrics.alertThreshold);
+      }
+    } finally {
+      this.isRunning = false;
     }
   }
 
