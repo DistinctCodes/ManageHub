@@ -9,4 +9,17 @@ import { defineConfig } from "@playwright/test";
 // ./e2e keeps the two runners out of each other's way.
 export default defineConfig({
   testDir: "./e2e",
+  use: {
+    baseURL: "http://localhost:3000",
+  },
+  // Starts the app itself so `npx playwright test` (and the CI e2e job) work
+  // standalone, without a separately-started dev server. `reuseExistingServer`
+  // lets a developer keep running `npm run dev` locally instead of paying for
+  // a second server start on every local test run.
+  webServer: {
+    command: "npm run dev",
+    url: "http://localhost:3000",
+    reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
+  },
 });
