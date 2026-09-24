@@ -4,13 +4,14 @@ This module owns the scheduled housekeeping job that stops the two
 append-only audit tables from growing without bound:
 
 - `wallet_key_access_log` — one row per key-decrypt/signing operation in
-  `KeyCustodyService`, regardless of outcome. Never contains key material.
+  `KeyCustodyService` or wallet-account lifecycle event, regardless of
+  outcome. Never contains key material.
 - `metered_usage_events` — one row per metered usage charge on the credit
   ledger.
 
-Both tables currently grow on every signing attempt and every metered
-usage event respectively. The policy below is the source of truth for how
-long rows are kept and what happens when they age out.
+The two tables grow on signing/key-lifecycle events and metered usage events
+respectively. The policy below is the source of truth for how long rows are
+kept and what happens when they age out.
 
 ## Policy
 
@@ -47,7 +48,9 @@ so the cutoff computation and repository deletes are covered by unit tests.
 
 ## Where the rows come from
 
-- `wallet_key_access_log` — written by `KeyCustodyService.logAccess`
-  (`src/wallets/key-custody/key-custody.service.ts`).
+- `wallet_key_access_log` — written by `KeyCustodyService.logAccess` and
+  `WalletsService.softDeleteWallet`
+  (`src/wallets/key-custody/key-custody.service.ts` and
+  `src/wallets/wallets.service.ts`).
 - `metered_usage_events` — written by `MeteredUsageService.recordUsage`
   (`src/credits/metered-usage.service.ts`).

@@ -30,8 +30,9 @@ custodial secret — see its file header. It uses envelope encryption
 (`EnvelopeKeyManagementService`, `KeyManagementService` interface) with a
 local AES-256-GCM master key from `WALLET_KMS_MASTER_KEY`; swapping in a
 real cloud KMS means implementing the same interface, nothing else in
-this module changes. Every decrypt (via `KeyCustodyService.sign`) is
-recorded in `wallet_key_access_log`, success or failure.
+this module changes. Every decrypt (via `KeyCustodyService.sign`) and
+wallet-account soft-deletion audit event is recorded in
+`wallet_key_access_log`, success or failure.
 
 If the KMS/decrypt step fails, `sign()` throws a clean
 `InternalServerErrorException` — there is no fallback to an unencrypted
