@@ -90,6 +90,9 @@ describe('allocateByBasisPoints', () => {
       for (const amount of amounts) {
         const allocations = allocateByBasisPoints(amount, config);
         expect(total(allocations)).toBe(amount);
+        expect(
+          allocations.every((a) => Number.isInteger(a.amount)),
+        ).toBe(true);
         expect(allocations.every((a) => a.amount >= 0)).toBe(true);
         // The remainder pass hands out strictly fewer units than there are
         // recipients, so nobody can be topped up twice in one allocation.

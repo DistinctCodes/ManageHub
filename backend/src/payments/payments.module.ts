@@ -27,8 +27,10 @@ import { EXTERNAL_PAYOUT_RAIL } from '../credits/credits.tokens';
 import { EscrowSubmissionProcessor } from './soroban/escrow-submission.processor';
 import { EscrowContractClient } from './soroban/escrow-contract.client';
 import {
+  DEFAULT_SOROBAN_RPC_TIMEOUT_MS,
   SorobanRpcClient,
   createSorobanRpcServer,
+  parseSorobanRpcTimeoutMs,
 } from './soroban/soroban-rpc-client';
 import {
   ESCROW_CONTRACT_CLIENT,
@@ -70,13 +72,25 @@ import {
     },
     {
       provide: SorobanRpcClient,
-      inject: [SOROBAN_CONFIG],
-      useFactory: (sorobanConfig: ReturnType<typeof loadSorobanConfig>) =>
-        sorobanConfig
-          ? new SorobanRpcClient(
-              sorobanConfig.rpcUrls.map(createSorobanRpcServer),
-            )
-          : null,
+      inject: [SOROBAN_CONFIG, ConfigService],
+      useFactory: (
+        sorobanConfig: ReturnType<typeof loadSorobanConfig>,
+        config: ConfigService,
+      ) => {
+        if (!sorobanConfig) {
+          return null;
+        }
+        const timeoutMs = parseSorobanRpcTimeoutMs(
+          config.get<unknown>(
+            'SOROBAN_RPC_TIMEOUT_MS',
+            DEFAULT_SOROBAN_RPC_TIMEOUT_MS,
+          ),
+        );
+        return new SorobanRpcClient(
+          sorobanConfig.rpcUrls.map(createSorobanRpcServer),
+          timeoutMs,
+        );
+      },
     },
     {
       provide: ESCROW_CONTRACT_CLIENT,

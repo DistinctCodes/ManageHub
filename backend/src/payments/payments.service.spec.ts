@@ -55,7 +55,7 @@ function uniqueViolation(constraint: string) {
 describe('PaymentsService', () => {
   let repository: MockRepository;
   let railAdapter: { initiate: jest.Mock };
-  let railRegistry: { get: jest.Mock };
+  let railRegistry: { get: jest.Mock; resolve: jest.Mock };
   let config: { get: jest.Mock };
   let metrics: { recordPaymentTransition: jest.Mock };
   let service: PaymentsService;
@@ -65,7 +65,14 @@ describe('PaymentsService', () => {
     railAdapter = {
       initiate: jest.fn().mockResolvedValue({ providerReference: 'ref-1' }),
     };
-    railRegistry = { get: jest.fn().mockReturnValue(railAdapter) };
+    railRegistry = {
+      get: jest.fn().mockReturnValue(railAdapter),
+      resolve: jest.fn().mockReturnValue({
+        adapter: railAdapter,
+        rail: PaymentRail.FIAT,
+        usedFallback: false,
+      }),
+    };
     config = { get: jest.fn().mockReturnValue(30) };
     metrics = { recordPaymentTransition: jest.fn() };
     service = new PaymentsService(
@@ -94,6 +101,67 @@ describe('PaymentsService', () => {
       expect(result.providerReference).toBe('ref-1');
       expect(railAdapter.initiate).toHaveBeenCalledTimes(1);
       expect(repository.save).toHaveBeenCalledTimes(2);
+    });
+
+    it('stores the fallback rail and retains the requested rail in metadata', async () => {
+      const fallbackAdapter = {
+        initiate: jest
+          .fn()
+          .mockResolvedValue({ providerReference: 'fallback-ref' }),
+      };
+      railRegistry.resolve.mockReturnValue({
+        adapter: fallbackAdapter,
+        rail: PaymentRail.FIAT,
+        usedFallback: true,
+      });
+      repository.findOne.mockResolvedValueOnce(null);
+      repository.findOne.mockResolvedValueOnce(null);
+
+      const result = await service.initiate(
+        'user-1',
+        'key-fallback',
+        makeDto({ rail: PaymentRail.STELLAR_CUSTODIAL }),
+      );
+
+      expect(result.rail).toBe(PaymentRail.FIAT);
+      expect(result.metadata).toMatchObject({
+        requestedRail: PaymentRail.STELLAR_CUSTODIAL,
+      });
+      expect(repository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          rail: PaymentRail.FIAT,
+          metadata: expect.objectContaining({
+            requestedRail: PaymentRail.STELLAR_CUSTODIAL,
+          }),
+        }),
+      );
+      expect(fallbackAdapter.initiate).toHaveBeenCalledWith(
+        expect.objectContaining({ rail: PaymentRail.FIAT }),
+      );
+      expect(railAdapter.initiate).not.toHaveBeenCalled();
+    });
+
+    it('replays a fallback payment against its originally requested rail', async () => {
+      const existing = {
+        id: 'p-fallback',
+        userId: 'user-1',
+        bookingId: 'booking-1',
+        amount: 5000,
+        currency: 'USD',
+        rail: PaymentRail.FIAT,
+        metadata: { requestedRail: PaymentRail.STELLAR_CUSTODIAL },
+        status: PaymentStatus.AWAITING_CONFIRMATION,
+      } as unknown as Payment;
+      repository.findOne.mockResolvedValueOnce(existing);
+
+      const result = await service.initiate(
+        'user-1',
+        'key-fallback',
+        makeDto({ rail: PaymentRail.STELLAR_CUSTODIAL }),
+      );
+
+      expect(result).toBe(existing);
+      expect(railRegistry.resolve).not.toHaveBeenCalled();
     });
 
     it('replays the same Idempotency-Key and returns the original payment without creating a duplicate', async () => {
