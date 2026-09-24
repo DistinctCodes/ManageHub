@@ -6,6 +6,7 @@ import {
   Split,
   RefreshCw,
   LayoutDashboard,
+  Coins,
 } from "lucide-react";
 import { AdminProviders } from "@/lib/providers";
 import { cn } from "@/lib/utils";
@@ -17,6 +18,7 @@ export const metadata: Metadata = {
 const nav = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/accounts", label: "Ledger accounts", icon: Landmark },
+  { href: "/admin/credits", label: "Credits & payments", icon: Coins },
   { href: "/admin/integrity", label: "Integrity check", icon: Scale },
   { href: "/admin/splits", label: "Revenue splits", icon: Split },
   { href: "/admin/settlements", label: "Settlement", icon: RefreshCw },

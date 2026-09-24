@@ -28,7 +28,11 @@ export function WalletLinkForm({
     formState: { errors },
   } = useForm<WalletLinkInput>({
     resolver: zodResolver(walletLinkSchema),
-    mode: "onChange",
+    // Validate as soon as the field is blurred (and live on every change
+    // after that), so a malformed address surfaces inline immediately
+    // instead of waiting for the server round-trip (issue #1814).
+    mode: "onTouched",
+    reValidateMode: "onChange",
   });
 
   return (
@@ -46,10 +50,14 @@ export function WalletLinkForm({
           <Input
             placeholder="Wallet address"
             aria-label="Wallet address"
+            aria-invalid={errors.address ? true : undefined}
+            aria-describedby={
+              errors.address ? "wallet-address-error" : undefined
+            }
             {...register("address")}
           />
           {errors.address && (
-            <p className="text-xs text-red-600 dark:text-red-400">
+            <p id="wallet-address-error" className="text-xs text-red-600 dark:text-red-400">
               {errors.address.message}
             </p>
           )}
@@ -59,10 +67,14 @@ export function WalletLinkForm({
           <Input
             placeholder="Signature"
             aria-label="Signature"
+            aria-invalid={errors.signature ? true : undefined}
+            aria-describedby={
+              errors.signature ? "wallet-signature-error" : undefined
+            }
             {...register("signature")}
           />
           {errors.signature && (
-            <p className="text-xs text-red-600 dark:text-red-400">
+            <p id="wallet-signature-error" className="text-xs text-red-600 dark:text-red-400">
               {errors.signature.message}
             </p>
           )}
