@@ -95,7 +95,71 @@ export interface SettlementBatchBreakdown {
  *     the same key, which the rail must dedupe on — so a crash between
  *     "submitted" and "recorded as submitted" cannot pay twice.
  *
- * And the rule those three exist to protect: **a submission is not a
+ * ## Interrupted mid-run
+ *
+ * `executeBatch` advances each payout through one deliberate step at a time:
+ * PENDING is submitted, SUBMITTED is polled, and only a fresh rail
+ * confirmation enters `confirmPayout` and posts the ledger drawdown. A
+ * process killed by a deploy can therefore leave one of the following
+ * concrete states. `runSettlement` always loads PENDING/IN_PROGRESS batches
+ * before it considers new work, so the next invocation advances the same
+ * batch rather than creating a competing one. The operator can inspect the
+ * resulting batch, payout statuses, attempts, errors, and on-chain
+ * references through the settlement breakdown endpoint.
+ *
+ * **(a) Killed after batch creation but before any payout submit.** The
+ * committed batch is PENDING, its payouts are PENDING, and the claimed
+ * ledger entries still carry the batch id; no off-platform payout drawdown
+ * has moved (a distribution's internal shares may already have been posted
+ * while the batch was created). The next run finds the open batch and
+ * attempts to submit those same payouts with their existing per-payout
+ * idempotency keys (or leaves them PENDING with a summary note when no payout
+ * rail is configured). The creation advisory lock (`pg_advisory_xact_lock`)
+ * and the account `pessimistic_write` lock make concurrent creation/claiming
+ * serialize, while `hasInFlightPayout` keeps the account out of a second
+ * batch. The operator
+ * sees the original batch move from PENDING to its next rail state, rather
+ * than a replacement batch, and no payout is double-paid because nothing
+ * reached the rail yet.
+ *
+ * **(b) Killed after a rail submission but before the status is recorded.**
+ * If the process dies between the rail call and the database update, the
+ * payout can still be PENDING with no on-chain reference recorded. The next
+ * run attempts to submit it again with the *same* idempotency key (or leaves
+ * it PENDING if no rail is configured); the rail's deduplication is the
+ * protection against paying the recipient twice. If
+ * the database update committed before the kill, the row is SUBMITTED and
+ * the next run polls it instead of submitting again. The operator sees a
+ * PENDING/SUBMITTED payout, its attempts and any recorded error, and can
+ * use the eventual rail reference once it is known; the payout's ledger
+ * drawdown remains unposted until confirmation.
+ *
+ * **(c) Killed after some payouts have confirmed.** Already-confirmed
+ * payouts have `confirmedAt` and a ledger transaction id, and their
+ * drawdown legs were committed by `confirmPayout`; remaining payouts are
+ * still PENDING or SUBMITTED and the batch is still open (or partially
+ * settled if the remaining legs have failed). The next run skips the
+ * CONFIRMED rows and advances only the outstanding rows. `hasInFlightPayout`
+ * still prevents a fresh batch for the same account while any remaining
+ * payout is in flight, and `finalizeBatch` stamps claimed entries as settled
+ * only when every payout is confirmed, so a partial run cannot claim that
+ * more money moved than actually did. The operator sees the confirmed
+ * on-chain references in the breakdown and a
+ * batch that continues from its existing status, with no duplicate drawdown.
+ *
+ * **(d) Killed between the ledger drawdown and the payout status update.**
+ * `confirmPayout` posts the drawdown and performs the status-guarded
+ * payout update in one database transaction. A kill before that transaction
+ * commits rolls both changes back, leaving the payout SUBMITTED and the
+ * balance owed; the next poll posts the drawdown once. A kill after commit
+ * leaves both the CONFIRMED status and the transaction together, and the
+ * status guard plus the unique `settlement:payout:<id>` reference make a
+ * later confirmation a no-op. The account row lock used while posting
+ * prevents a concurrent balance mutation, and the operator sees either the
+ * pre-confirmation state or the fully committed state, never a ledger
+ * drawdown that is missing its corresponding payout status.
+ *
+ * And the rule those guards exist to protect: **a submission is not a
  * settlement.** The ledger drawdown and the per-entry `settledAt` marker
  * are written only after the rail confirms the payout from fresh state. If
  * the on-chain leg fails, the ledger still shows the balance as owed —
