@@ -1,5 +1,5 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { BullModule } from '@nestjs/bull';
 import { CacheModule } from '@nestjs/cache-manager';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -17,6 +17,7 @@ import { AdminAuditModule } from './admin-audit/admin-audit.module';
 import { MetricsService } from './common/metrics.service';
 import { MetricsController } from './common/metrics.controller';
 import { RequestContextMiddleware } from './common/request-context.middleware';
+import { RequestDurationInterceptor } from './common/request-duration.interceptor';
 
 @Module({
   imports: [
@@ -91,6 +92,10 @@ import { RequestContextMiddleware } from './common/request-context.middleware';
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: RequestDurationInterceptor,
     },
   ],
 })
