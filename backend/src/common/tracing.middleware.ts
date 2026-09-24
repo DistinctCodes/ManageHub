@@ -16,7 +16,12 @@ export class TracingMiddleware implements NestMiddleware {
     // matched route when a later adapter supplies one, otherwise use the
     // pathname only; query strings are intentionally excluded from the span
     // name and target to avoid accidental high-cardinality or sensitive data.
-    const routePath = req.route?.path;
+    // `route` is populated by Express at dispatch time but is not part of the
+    // published Request typing, so it is read through a narrow local alias.
+    const matchedRoute = (req as Request & {
+      route?: { path?: unknown } | undefined;
+    }).route;
+    const routePath = matchedRoute?.path;
     const target =
       typeof routePath === 'string'
         ? routePath
