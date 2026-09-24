@@ -45,6 +45,13 @@ import { RequestContextMiddleware } from './common/request-context.middleware';
         database: config.get<string>('DATABASE_NAME'),
         autoLoadEntities: true,
         synchronize: false,
+        // Env-configurable pool bounds (issue #1778) — see
+        // src/database/data-source.ts for the matching CLI/migration
+        // DataSource and the defaults these fall back to.
+        extra: {
+          min: config.get<number>('DB_POOL_MIN', 2),
+          max: config.get<number>('DB_POOL_MAX', 10),
+        },
       }),
     }),
     // Backs the Soroban escrow submission queue (issue #1574) — see
