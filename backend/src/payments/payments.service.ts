@@ -11,6 +11,7 @@ import { In, Repository } from 'typeorm';
 import { RequestUser } from '../auth/interfaces/authenticated-request.interface';
 import { UserRole } from '../auth/enums/user-role.enum';
 import { MetricsService } from '../common/metrics.service';
+import { withSpan } from '../common/tracing';
 import { Payment } from './entities/payment.entity';
 import { InitiatePaymentDto } from './dto/initiate-payment.dto';
 import {
@@ -44,25 +45,37 @@ export class PaymentsService {
     idempotencyKey: string,
     dto: InitiatePaymentDto,
   ): Promise<Payment> {
-    if (!idempotencyKey) {
-      throw new BadRequestException('Idempotency-Key header is required');
-    }
+    return withSpan(
+      'payments.service.initiate',
+      async () => {
+        if (!idempotencyKey) {
+          throw new BadRequestException('Idempotency-Key header is required');
+        }
 
-    const existing = await this.findByIdempotencyKey(userId, idempotencyKey);
-    if (existing) {
-      return this.assertSamePayload(existing, dto);
-    }
+        const existing = await this.findByIdempotencyKey(
+          userId,
+          idempotencyKey,
+        );
+        if (existing) {
+          return this.assertSamePayload(existing, dto);
+        }
 
-    await this.assertBookingAvailable(dto.bookingId);
+        await this.assertBookingAvailable(dto.bookingId);
 
-    const payment = this.buildInitiatedPayment(userId, idempotencyKey, dto);
+        const payment = this.buildInitiatedPayment(userId, idempotencyKey, dto);
 
-    try {
-      const saved = await this.paymentRepository.save(payment);
-      return await this.progressToAwaitingConfirmation(saved);
-    } catch (error) {
-      return this.handleInsertConflict(error, userId, idempotencyKey);
-    }
+        try {
+          const saved = await this.paymentRepository.save(payment);
+          return await this.progressToAwaitingConfirmation(saved);
+        } catch (error) {
+          return this.handleInsertConflict(error, userId, idempotencyKey);
+        }
+      },
+      {
+        'payment.booking_id': dto.bookingId,
+        'payment.rail': dto.rail,
+      },
+    );
   }
 
   async findOne(id: string, currentUser: RequestUser): Promise<Payment> {
@@ -162,7 +175,14 @@ export class PaymentsService {
   private async progressToAwaitingConfirmation(
     payment: Payment,
   ): Promise<Payment> {
-    const result = await this.railRegistry.get(payment.rail).initiate(payment);
+    const result = await withSpan(
+      'payments.rail.initiate',
+      () => this.railRegistry.get(payment.rail).initiate(payment),
+      {
+        'payment.id': payment.id,
+        'payment.rail': payment.rail,
+      },
+    );
     payment.providerReference = result.providerReference;
     this.transitionStatus(payment, PaymentStatus.AWAITING_CONFIRMATION);
     return this.paymentRepository.save(payment);

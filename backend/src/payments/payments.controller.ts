@@ -23,6 +23,7 @@ import { InitiatePaymentDto } from './dto/initiate-payment.dto';
 import { PaymentResponseDto } from './dto/payment-response.dto';
 import { VerifyReturnResponseDto } from './dto/verify-return-response.dto';
 import { Throttle } from '@nestjs/throttler';
+import { withSpan } from '../common/tracing';
 
 @ApiTags('payments')
 @ApiBearerAuth()
@@ -48,12 +49,21 @@ export class PaymentsController {
     @Headers('idempotency-key') idempotencyKey: string,
     @Body() dto: InitiatePaymentDto,
   ): Promise<PaymentResponseDto> {
-    const payment = await this.paymentsService.initiate(
-      currentUser.id,
-      idempotencyKey,
-      dto,
+    return withSpan(
+      'payments.controller.initiate',
+      async () => {
+        const payment = await this.paymentsService.initiate(
+          currentUser.id,
+          idempotencyKey,
+          dto,
+        );
+        return PaymentResponseDto.fromEntity(payment);
+      },
+      {
+        'payment.booking_id': dto.bookingId,
+        'payment.rail': dto.rail,
+      },
     );
-    return PaymentResponseDto.fromEntity(payment);
   }
 
   @Get(':id')
@@ -92,13 +102,19 @@ export class PaymentsController {
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() currentUser: RequestUser,
   ): Promise<VerifyReturnResponseDto> {
-    const payment = await this.paymentsService.findOne(id, currentUser);
-    const { payment: updated, verified } =
-      await this.confirmationService.verifyOnReturn(payment);
+    return withSpan(
+      'payments.controller.verifyReturn',
+      async () => {
+        const payment = await this.paymentsService.findOne(id, currentUser);
+        const { payment: updated, verified } =
+          await this.confirmationService.verifyOnReturn(payment);
 
-    return {
-      payment: PaymentResponseDto.fromEntity(updated),
-      verified,
-    };
+        return {
+          payment: PaymentResponseDto.fromEntity(updated),
+          verified,
+        };
+      },
+      { 'payment.id': id },
+    );
   }
 }
