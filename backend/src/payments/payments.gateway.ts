@@ -22,6 +22,24 @@ function paymentRoom(paymentId: string): string {
  * finding out on next poll. Polling remains a documented fallback for
  * clients that can't hold a socket open — this gateway is additive, not a
  * replacement for GET /payments/:id.
+ *
+ * Client contract (issue #1812) — timeline a subscribing client should
+ * expect, and when it must fall back to polling:
+ *
+ *  - Fast path (checkout return): `verifyOnReturn` blocks at most
+ *    `PAYMENT_VERIFY_TIMEOUT_MS` (default 3000ms) against the rail, so a
+ *    terminal verdict is pushed within seconds of the transition committing.
+ *  - Webhook path: a provider confirmation event is applied and pushed in
+ *    real time the moment it is delivered.
+ *  - Reconciliation: unresolved payments are re-verified once they are
+ *    `PAYMENT_RECONCILE_DUE_AFTER_MINUTES` (default 5m) old and escalate to
+ *    `MANUAL_REVIEW` after `PAYMENT_MANUAL_REVIEW_AFTER_HOURS` (default 24h).
+ *
+ * A client that has subscribed but received no `payment:update` within 60
+ * seconds SHOULD start polling `GET /payments/:id` and keep polling until
+ * the payment reaches a terminal status. The socket is a latency
+ * optimization, never the outcome's delivery guarantee; a dropped socket is
+ * not a signal that the payment changed. See `payments/README.md`.
  */
 @WebSocketGateway({
   namespace: '/payments',
