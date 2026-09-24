@@ -55,7 +55,10 @@ export class PaymentConfirmationService {
   /**
    * Applies a confirmation outcome for the Payment matching
    * `providerReference`. Returns the (possibly unchanged) Payment, or null
-   * if no Payment matches the reference at all.
+   * if no Payment matches the reference at all. Scheduled confirmation
+   * checks are bounded by PAYMENT_CONFIRMATION_MAX_ATTEMPTS and
+   * PAYMENT_CONFIRMATION_MAX_PROVIDER_ERROR_STREAK; reaching either cap
+   * moves the payment to MANUAL_REVIEW before another poll is scheduled.
    */
   async apply(
     providerReference: string,
@@ -153,7 +156,11 @@ export class PaymentConfirmationService {
    *
    * Hard rule: `verified: false` (timeout, provider error, or a `pending`
    * response) NEVER implies a status change. Only an authoritative
-   * confirmed/failed response from the provider moves the Payment.
+   * confirmed/failed response from the provider moves the Payment. This
+   * method performs one bounded provider check per invocation; the total
+   * scheduled confirmation checks a payment may receive are capped by
+   * PAYMENT_CONFIRMATION_MAX_ATTEMPTS and
+   * PAYMENT_CONFIRMATION_MAX_PROVIDER_ERROR_STREAK in ReconciliationService.
    */
   async verifyOnReturn(
     payment: Payment,

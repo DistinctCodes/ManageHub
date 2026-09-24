@@ -10,6 +10,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { LessThan, Repository } from 'typeorm';
 import { Payment } from './entities/payment.entity';
+import { ReconciliationRun } from './entities/reconciliation-run.entity';
 import { PaymentStatus } from './enums/payment-status.enum';
 import { PaymentFailureReason } from './enums/payment-failure-reason.enum';
 import { ConfirmationSource } from './enums/confirmation-source.enum';
@@ -30,15 +31,28 @@ export interface ReconciliationSummary {
   providerErrors: number;
   escalatedToManualReview: number;
   expiredSwept: number;
+  /** Payments escalated specifically because the total-attempt cap tripped. */
+  attemptCapEscalations: number;
+  /** Payments escalated specifically because the provider-error streak cap tripped. */
+  providerErrorStreakCapEscalations: number;
 }
 
 export interface ReconciliationMetrics {
   manualReviewQueueDepth: number;
   alertThreshold: number;
   alerting: boolean;
+  confirmationMaxAttempts: number;
+  confirmationMaxProviderErrorStreak: number;
+  attemptCapEscalations: number;
+  providerErrorStreakCapEscalations: number;
 }
 
 type ReconcileOutcome = 'resolved' | 'pending' | 'provider_error' | 'escalated';
+type ReconciliationCap = 'attempt' | 'provider_error_streak';
+type ReconcileResult = {
+  outcome: ReconcileOutcome;
+  caps?: ReconciliationCap[];
+};
 
 /**
  * Scheduled reconciliation (issue #1572): treats provider truth as
@@ -65,9 +79,16 @@ export class ReconciliationService {
    */
   private isRunning = false;
 
+  private lastRunCapState = {
+    attemptCapEscalations: 0,
+    providerErrorStreakCapEscalations: 0,
+  };
+
   constructor(
     @InjectRepository(Payment)
     private readonly paymentRepository: Repository<Payment>,
+    @InjectRepository(ReconciliationRun)
+    private readonly runRepository: Repository<ReconciliationRun>,
     private readonly confirmationService: PaymentConfirmationService,
     private readonly railRegistry: PaymentRailRegistry,
     private readonly gateway: PaymentsGateway,
@@ -87,11 +108,20 @@ export class ReconciliationService {
     }
 
     this.isRunning = true;
+    const startedAt = new Date();
+    let run: ReconciliationRun | null = null;
     try {
-      const started = Date.now();
+      run = await this.startRunRecord(startedAt);
       const summary = await this.reconcileDueBatch();
-      this.metrics.recordReconciliationPass(Date.now() - started);
-      this.logger.log(withRequestId(`Reconciliation pass: ${JSON.stringify(summary)}`));
+      this.lastRunCapState = {
+        attemptCapEscalations: summary.attemptCapEscalations,
+        providerErrorStreakCapEscalations:
+          summary.providerErrorStreakCapEscalations,
+      };
+      this.metrics.recordReconciliationPass(Date.now() - startedAt.getTime());
+      this.logger.log(
+        withRequestId(`Reconciliation pass: ${JSON.stringify(summary)}`),
+      );
       const metrics = await this.getMetrics();
       this.metrics.setManualReviewDepth(metrics.manualReviewQueueDepth);
       if (metrics.alerting) {
@@ -101,8 +131,15 @@ export class ReconciliationService {
               `exceeds threshold ${metrics.alertThreshold}`,
           ),
         );
-        await this.sendManualReviewAlert(metrics.manualReviewQueueDepth, metrics.alertThreshold);
+        await this.sendManualReviewAlert(
+          metrics.manualReviewQueueDepth,
+          metrics.alertThreshold,
+        );
       }
+      await this.completeRunRecord(run, summary, startedAt);
+    } catch (error) {
+      await this.failRunRecord(run, error, startedAt);
+      throw error;
     } finally {
       this.isRunning = false;
     }
@@ -122,6 +159,10 @@ export class ReconciliationService {
       'PAYMENT_RECONCILE_MAX_BATCH',
       500,
     );
+    // MANUAL_REVIEW is deliberately excluded by the status predicate, and
+    // isDueForPoll repeats that exclusion as a defensive guard. A payment
+    // that has crossed a cap is therefore never selected on a later pass,
+    // even if a stale read briefly shows its previous AWAITING state.
     const awaiting = await this.paymentRepository.find({
       where: { status: PaymentStatus.AWAITING_CONFIRMATION },
       take: maxBatch,
@@ -134,15 +175,35 @@ export class ReconciliationService {
       providerErrors: 0,
       escalatedToManualReview: 0,
       expiredSwept,
+      attemptCapEscalations: 0,
+      providerErrorStreakCapEscalations: 0,
     };
 
     for (const payment of awaiting) {
+      // A row that was already at a cap when this process started (for
+      // example, data written by the pre-cap deployment) is escalated
+      // without making one more provider call. This preserves the hard cap
+      // instead of merely skipping it forever in AWAITING_CONFIRMATION.
+      const reachedCaps = this.getReachedCaps(payment);
+      if (reachedCaps.length > 0) {
+        if (await this.escalateCappedPayment(payment, reachedCaps)) {
+          summary.escalatedToManualReview++;
+          for (const cap of reachedCaps) {
+            if (cap === 'attempt') {
+              summary.attemptCapEscalations++;
+            } else {
+              summary.providerErrorStreakCapEscalations++;
+            }
+          }
+        }
+        continue;
+      }
       if (!this.isDueForPoll(payment, now)) {
         continue;
       }
       summary.candidates++;
-      const outcome = await this.reconcileOne(payment, now);
-      switch (outcome) {
+      const result = await this.reconcileOne(payment, now);
+      switch (result.outcome) {
         case 'resolved':
           summary.resolved++;
           break;
@@ -156,8 +217,20 @@ export class ReconciliationService {
           summary.escalatedToManualReview++;
           break;
       }
+      for (const cap of result.caps ?? []) {
+        if (cap === 'attempt') {
+          summary.attemptCapEscalations++;
+        } else {
+          summary.providerErrorStreakCapEscalations++;
+        }
+      }
     }
 
+    this.lastRunCapState = {
+      attemptCapEscalations: summary.attemptCapEscalations,
+      providerErrorStreakCapEscalations:
+        summary.providerErrorStreakCapEscalations,
+    };
     return summary;
   }
 
@@ -169,7 +242,12 @@ export class ReconciliationService {
         `Payment in status ${payment.status} is not awaiting confirmation`,
       );
     }
-    await this.reconcileOne(payment, new Date());
+    const reachedCaps = this.getReachedCaps(payment);
+    if (reachedCaps.length > 0) {
+      await this.escalateCappedPayment(payment, reachedCaps);
+    } else {
+      await this.reconcileOne(payment, new Date());
+    }
     return this.getPaymentOrThrow(paymentId);
   }
 
@@ -217,6 +295,20 @@ export class ReconciliationService {
     });
   }
 
+  /** Returns persisted reconciliation history, newest first, with a bounded take. */
+  async listRecentRuns(
+    limit: number | string = 50,
+  ): Promise<ReconciliationRun[]> {
+    const numericLimit = Number(limit);
+    const boundedLimit = Number.isFinite(numericLimit)
+      ? Math.min(Math.max(Math.floor(numericLimit), 1), 500)
+      : 50;
+    return this.runRepository.find({
+      order: { startedAt: 'DESC' },
+      take: boundedLimit,
+    });
+  }
+
   async getMetrics(): Promise<ReconciliationMetrics> {
     const manualReviewQueueDepth = await this.paymentRepository.count({
       where: { status: PaymentStatus.MANUAL_REVIEW },
@@ -229,7 +321,137 @@ export class ReconciliationService {
       manualReviewQueueDepth,
       alertThreshold,
       alerting: manualReviewQueueDepth > alertThreshold,
+      confirmationMaxAttempts: this.getConfirmationMaxAttempts(),
+      confirmationMaxProviderErrorStreak:
+        this.getConfirmationMaxProviderErrorStreak(),
+      attemptCapEscalations: this.lastRunCapState.attemptCapEscalations,
+      providerErrorStreakCapEscalations:
+        this.lastRunCapState.providerErrorStreakCapEscalations,
     };
+  }
+
+  private async startRunRecord(
+    startedAt: Date,
+  ): Promise<ReconciliationRun | null> {
+    try {
+      const run = this.runRepository.create({
+        startedAt,
+        finishedAt: null,
+        durationMs: null,
+        candidates: 0,
+        resolved: 0,
+        pending: 0,
+        providerErrors: 0,
+        escalatedToManualReview: 0,
+        expiredSwept: 0,
+        outcome: null,
+        error: null,
+        details: null,
+      });
+      return await this.runRepository.save(run);
+    } catch (error) {
+      this.logRunPersistenceFailure('create', error);
+      return null;
+    }
+  }
+
+  private async completeRunRecord(
+    run: ReconciliationRun | null,
+    summary: ReconciliationSummary,
+    startedAt: Date,
+  ): Promise<void> {
+    if (!run) {
+      return;
+    }
+    const finishedAt = new Date();
+    try {
+      await this.runRepository.update(run.id, {
+        candidates: summary.candidates,
+        resolved: summary.resolved,
+        pending: summary.pending,
+        providerErrors: summary.providerErrors,
+        escalatedToManualReview: summary.escalatedToManualReview,
+        expiredSwept: summary.expiredSwept,
+        finishedAt,
+        durationMs: finishedAt.getTime() - startedAt.getTime(),
+        outcome: 'succeeded',
+        error: null,
+        details: {
+          attemptCap: this.getConfirmationMaxAttempts(),
+          providerErrorStreakCap:
+            this.getConfirmationMaxProviderErrorStreak(),
+          attemptCapEscalations: summary.attemptCapEscalations,
+          providerErrorStreakCapEscalations:
+            summary.providerErrorStreakCapEscalations,
+        },
+      });
+    } catch (error) {
+      this.logRunPersistenceFailure('complete', error);
+    }
+  }
+
+  private async failRunRecord(
+    run: ReconciliationRun | null,
+    error: unknown,
+    startedAt: Date,
+  ): Promise<void> {
+    if (!run) {
+      return;
+    }
+    const finishedAt = new Date();
+    try {
+      await this.runRepository.update(run.id, {
+        finishedAt,
+        durationMs: finishedAt.getTime() - startedAt.getTime(),
+        outcome: 'failed',
+        error:
+          error instanceof Error
+            ? error.message
+            : String(error ?? 'Unknown error'),
+        details: {
+          phase: 'reconciliation',
+          attemptCap: this.getConfirmationMaxAttempts(),
+          providerErrorStreakCap:
+            this.getConfirmationMaxProviderErrorStreak(),
+        },
+      });
+    } catch (persistenceError) {
+      this.logRunPersistenceFailure('failure', persistenceError);
+    }
+  }
+
+  private logRunPersistenceFailure(
+    operation: 'create' | 'complete' | 'failure',
+    error: unknown,
+  ): void {
+    this.logger.warn(
+      withRequestId(
+        `Unable to ${operation} reconciliation run record: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      ),
+    );
+  }
+
+  private getConfirmationMaxAttempts(): number {
+    return this.readPositiveIntegerConfig(
+      'PAYMENT_CONFIRMATION_MAX_ATTEMPTS',
+      20,
+    );
+  }
+
+  private getConfirmationMaxProviderErrorStreak(): number {
+    return this.readPositiveIntegerConfig(
+      'PAYMENT_CONFIRMATION_MAX_PROVIDER_ERROR_STREAK',
+      10,
+    );
+  }
+
+  private readPositiveIntegerConfig(key: string, fallback: number): number {
+    const configured = Number(this.config.get<number>(key, fallback));
+    return Number.isFinite(configured) && configured > 0
+      ? Math.floor(configured)
+      : fallback;
   }
 
   private async sendManualReviewAlert(
@@ -311,7 +533,7 @@ export class ReconciliationService {
   private async reconcileOne(
     payment: Payment,
     now: Date,
-  ): Promise<ReconcileOutcome> {
+  ): Promise<ReconcileResult> {
     if (!payment.providerReference) {
       this.logger.warn(
         `Payment ${payment.id} is AWAITING_CONFIRMATION with no providerReference`,
@@ -371,7 +593,63 @@ export class ReconciliationService {
         : {}),
     });
 
-    return 'resolved';
+    return { outcome: 'resolved' };
+  }
+
+  private getReachedCaps(payment: Payment): ReconciliationCap[] {
+    const caps: ReconciliationCap[] = [];
+    if (
+      payment.reconciliationAttempts >= this.getConfirmationMaxAttempts()
+    ) {
+      caps.push('attempt');
+    }
+    if (
+      payment.providerErrorStreak >=
+      this.getConfirmationMaxProviderErrorStreak()
+    ) {
+      caps.push('provider_error_streak');
+    }
+    return caps;
+  }
+
+  private async escalateCappedPayment(
+    payment: Payment,
+    caps: ReconciliationCap[],
+  ): Promise<boolean> {
+    const fresh = await this.getPaymentOrThrow(payment.id);
+    if (fresh.status !== PaymentStatus.AWAITING_CONFIRMATION) {
+      return false;
+    }
+    assertValidTransition(fresh.status, PaymentStatus.MANUAL_REVIEW);
+    const maxAttempts = this.getConfirmationMaxAttempts();
+    const maxProviderErrorStreak =
+      this.getConfirmationMaxProviderErrorStreak();
+    const capDescriptions: string[] = [];
+    if (caps.includes('attempt')) {
+      capDescriptions.push(
+        `attempt cap ${maxAttempts} reached (${fresh.reconciliationAttempts} total reconciliation attempts)`,
+      );
+    }
+    if (caps.includes('provider_error_streak')) {
+      capDescriptions.push(
+        `provider-error streak cap ${maxProviderErrorStreak} reached (${fresh.providerErrorStreak} consecutive provider errors)`,
+      );
+    }
+    const description = capDescriptions.join('; ');
+    fresh.status = PaymentStatus.MANUAL_REVIEW;
+    fresh.manualReviewReason =
+      `Confirmation polling stopped: ${description}; ` +
+      `total reconciliation attempts: ${fresh.reconciliationAttempts}; ` +
+      `provider error streak: ${fresh.providerErrorStreak}.`;
+    this.logger.warn(
+      withRequestId(
+        `ALERT: payment ${fresh.id} reached a confirmation polling cap ` +
+          `(${description})`,
+      ),
+    );
+    await this.paymentRepository.save(fresh);
+    this.gateway.emitPaymentUpdate(fresh.id, fresh.status);
+    return true;
   }
 
   /**
@@ -383,17 +661,26 @@ export class ReconciliationService {
    * provider error — a provider-side outage must never mass-flag every
    * in-flight payment after a single bad run. Only an attempt that
    * successfully reached the provider (and got "still pending") can push
-   * an old-enough payment into MANUAL_REVIEW.
+   * an old-enough payment into MANUAL_REVIEW or trip the total-attempt cap.
+   * The provider-error streak cap is the deliberate exception: a long,
+   * bounded streak on one payment is evidence that this payment needs a
+   * human, whereas one failed run is evidence only that a provider may be
+   * experiencing a broad outage. If a provider-error attempt happens to
+   * reach the total-attempt cap first, the next scheduler pass escalates
+   * the already-capped row without making another provider call.
    */
   private async recordAttempt(
     payment: Payment,
     now: Date,
     opts: { providerError: boolean },
-  ): Promise<ReconcileOutcome> {
+  ): Promise<ReconcileResult> {
     const attempts = payment.reconciliationAttempts + 1;
     const providerErrorStreak = opts.providerError
       ? payment.providerErrorStreak + 1
       : 0;
+    const maxAttempts = this.getConfirmationMaxAttempts();
+    const maxProviderErrorStreak =
+      this.getConfirmationMaxProviderErrorStreak();
 
     await this.paymentRepository.update(payment.id, {
       reconciliationAttempts: attempts,
@@ -401,25 +688,68 @@ export class ReconciliationService {
       lastReconciledAt: now,
     });
 
+    const caps: ReconciliationCap[] = [];
+    if (attempts >= maxAttempts) {
+      caps.push('attempt');
+    }
+    if (providerErrorStreak >= maxProviderErrorStreak) {
+      caps.push('provider_error_streak');
+    }
+
     const manualReviewAfterHours = this.config.get<number>(
       'PAYMENT_MANUAL_REVIEW_AFTER_HOURS',
       24,
     );
     const ageMs = now.getTime() - payment.createdAt.getTime();
+    const attemptCapReached = caps.includes('attempt');
+    const providerErrorStreakCapReached =
+      caps.includes('provider_error_streak');
     const shouldEscalate =
-      !opts.providerError && ageMs >= manualReviewAfterHours * 3_600_000;
+      providerErrorStreakCapReached ||
+      (!opts.providerError &&
+        (attemptCapReached ||
+          ageMs >= manualReviewAfterHours * 3_600_000));
 
     if (!shouldEscalate) {
-      return opts.providerError ? 'provider_error' : 'pending';
+      return {
+        outcome: opts.providerError ? 'provider_error' : 'pending',
+        caps: [],
+      };
     }
 
     const fresh = await this.getPaymentOrThrow(payment.id);
     assertValidTransition(fresh.status, PaymentStatus.MANUAL_REVIEW);
     fresh.status = PaymentStatus.MANUAL_REVIEW;
-    fresh.manualReviewReason = `Unresolved after ${attempts} reconciliation attempts (${(ageMs / 3_600_000).toFixed(1)}h old)`;
+    if (caps.length > 0) {
+      const capDescriptions: string[] = [];
+      if (caps.includes('attempt')) {
+        capDescriptions.push(
+          `attempt cap ${maxAttempts} reached (${attempts} total reconciliation attempts)`,
+        );
+      }
+      if (caps.includes('provider_error_streak')) {
+        capDescriptions.push(
+          `provider-error streak cap ${maxProviderErrorStreak} reached (${providerErrorStreak} consecutive provider errors)`,
+        );
+      }
+      fresh.manualReviewReason =
+        `Confirmation polling stopped: ${capDescriptions.join('; ')}; ` +
+        `total reconciliation attempts: ${attempts}; ` +
+        `provider error streak: ${providerErrorStreak}.`;
+      this.logger.warn(
+        withRequestId(
+          `ALERT: payment ${payment.id} reached a confirmation polling cap ` +
+            `(${capDescriptions.join('; ')})`,
+        ),
+      );
+    } else {
+      fresh.manualReviewReason =
+        `Unresolved after ${attempts} reconciliation attempts ` +
+        `(${(ageMs / 3_600_000).toFixed(1)}h old)`;
+    }
     await this.paymentRepository.save(fresh);
     this.gateway.emitPaymentUpdate(fresh.id, fresh.status);
-    return 'escalated';
+    return { outcome: 'escalated', caps };
   }
 
   /**
@@ -428,6 +758,16 @@ export class ReconciliationService {
    * often instead of every single cron tick.
    */
   private isDueForPoll(payment: Payment, now: Date): boolean {
+    if (payment.status !== PaymentStatus.AWAITING_CONFIRMATION) {
+      return false;
+    }
+    if (
+      payment.reconciliationAttempts >= this.getConfirmationMaxAttempts() ||
+      payment.providerErrorStreak >=
+        this.getConfirmationMaxProviderErrorStreak()
+    ) {
+      return false;
+    }
     const dueAfterMinutes = this.config.get<number>(
       'PAYMENT_RECONCILE_DUE_AFTER_MINUTES',
       5,

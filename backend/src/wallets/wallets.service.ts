@@ -84,15 +84,43 @@ export class WalletsService {
     }
   }
 
+  /**
+   * PostgreSQL uses READ COMMITTED by default (unless a connection overrides
+   * it), so the account lookup and a bare ledger aggregate would otherwise
+   * be two independent statement snapshots. This transaction takes the same
+   * `pessimistic_write` row lock as fundCustodialWallet before reading the
+   * aggregate, and runs the aggregate through that transaction's EntityManager.
+   * `pessimistic_write` is chosen over a share/read lock for consistency over
+   * maximum read concurrency: it is the same lock fundCustodialWallet takes,
+   * so the two operations cannot pass one another. Against writers in this
+   * service, the lock serializes the read either
+   * before the writer (it sees the pre-write committed ledger) or after it
+   * (it waits for the writer's commit and sees the post-write ledger), never
+   * a partially applied application.
+   *
+   * This guarantee does not cover writers outside WalletsService that insert
+   * wallet_ledger_entries without first taking the wallet_accounts row lock
+   * (direct SQL, another service, or a future debit path). The current
+   * repository has no settlement/credit wallet-debit path; fundCustodialWallet
+   * is the only ledger writer and uses this lock, but any new writer must
+   * participate in the same locking protocol.
+   */
   async getWalletStatus(userId: string): Promise<WalletStatusView> {
-    const account = await this.walletAccountRepository.findOne({
-      where: { userId },
-    });
-    if (!account) {
-      return { account: null, balance: 0, currency: LEDGER_ASSET };
-    }
-    const balance = await this.getBalance(account.id);
-    return { account, balance, currency: LEDGER_ASSET };
+    return this.walletAccountRepository.manager.transaction(
+      async (manager) => {
+        const account = await manager
+          .getRepository(WalletAccount)
+          .createQueryBuilder('wallet_account')
+          .setLock('pessimistic_write')
+          .where('wallet_account.user_id = :userId', { userId })
+          .getOne();
+        if (!account) {
+          return { account: null, balance: 0, currency: LEDGER_ASSET };
+        }
+        const balance = await this.getBalance(manager, account.id);
+        return { account, balance, currency: LEDGER_ASSET };
+      },
+    );
   }
 
   /**
@@ -275,8 +303,13 @@ export class WalletsService {
     return repository.save(account);
   }
 
-  private async getBalance(walletAccountId: string): Promise<number> {
-    const result = await this.ledgerRepository
+  /** Runs the ledger aggregate through the caller's locked transaction manager. */
+  private async getBalance(
+    manager: EntityManager,
+    walletAccountId: string,
+  ): Promise<number> {
+    const result = await manager
+      .getRepository(WalletLedgerEntry)
       .createQueryBuilder('entry')
       .select(
         `COALESCE(SUM(CASE WHEN entry.type = 'CREDIT' THEN entry.amount ELSE -entry.amount END), 0)`,

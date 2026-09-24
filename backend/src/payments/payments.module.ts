@@ -6,6 +6,7 @@ import { BullModule } from '@nestjs/bull';
 import { Payment } from './entities/payment.entity';
 import { ConfirmationEvent } from './entities/confirmation-event.entity';
 import { Refund } from './entities/refund.entity';
+import { ReconciliationRun } from './entities/reconciliation-run.entity';
 import { PaymentsService } from './payments.service';
 import { PaymentConfirmationService } from './payment-confirmation.service';
 import { ReconciliationService } from './reconciliation.service';
@@ -39,7 +40,12 @@ import {
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Payment, ConfirmationEvent, Refund]),
+    TypeOrmModule.forFeature([
+      Payment,
+      ConfirmationEvent,
+      Refund,
+      ReconciliationRun,
+    ]),
     WalletsModule,
     AdminAuditModule,
     BullModule.registerQueue({ name: SOROBAN_ESCROW_QUEUE }),

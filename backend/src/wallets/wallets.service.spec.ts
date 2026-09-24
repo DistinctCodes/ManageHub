@@ -311,27 +311,145 @@ describe('WalletsService', () => {
   });
 
   describe('getWalletStatus', () => {
+    function makeStatusManager(
+      account: WalletAccount | null,
+      balance: number,
+      events: string[] = [],
+    ) {
+      const accountQueryBuilder: any = {
+        setLock: jest.fn(() => {
+          events.push('account-lock');
+          return accountQueryBuilder;
+        }),
+        where: jest.fn(() => {
+          events.push('account-where');
+          return accountQueryBuilder;
+        }),
+        getOne: jest.fn(async () => {
+          events.push('account-read');
+          return account;
+        }),
+      };
+      const ledgerQueryBuilder: any = {
+        select: jest.fn(() => ledgerQueryBuilder),
+        where: jest.fn(() => ledgerQueryBuilder),
+        getRawOne: jest.fn(async () => {
+          events.push('ledger-aggregate');
+          return { balance: String(balance) };
+        }),
+      };
+      const accountRepository = {
+        createQueryBuilder: jest.fn(() => accountQueryBuilder),
+      };
+      const ledgerRepository = {
+        createQueryBuilder: jest.fn(() => ledgerQueryBuilder),
+      };
+      const manager = {
+        getRepository: jest.fn((entity: unknown) =>
+          entity === WalletAccount ? accountRepository : ledgerRepository,
+        ),
+      };
+      return { manager, accountQueryBuilder, ledgerQueryBuilder };
+    }
+
     it('reports an unprovisioned wallet as such, with a zero balance', async () => {
-      walletAccountRepository.findOne.mockResolvedValueOnce(null);
+      const { manager } = makeStatusManager(null, 0);
+      transaction.mockImplementationOnce((cb: any) => cb(manager));
 
       const status = await service.getWalletStatus('user-1');
 
       expect(status).toEqual({ account: null, balance: 0, currency: 'XLM' });
+      expect(transaction).toHaveBeenCalledTimes(1);
     });
 
     it('sums the ledger to compute the balance for a provisioned wallet', async () => {
       const account = makeAccount();
-      walletAccountRepository.findOne.mockResolvedValueOnce(account);
-      const queryBuilder = {
-        select: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        getRawOne: jest.fn().mockResolvedValue({ balance: '5000' }),
-      };
-      ledgerRepository.createQueryBuilder.mockReturnValue(queryBuilder);
+      const { manager, accountQueryBuilder, ledgerQueryBuilder } =
+        makeStatusManager(account, 5000);
+      transaction.mockImplementationOnce((cb: any) => cb(manager));
 
       const status = await service.getWalletStatus('user-1');
 
       expect(status).toEqual({ account, balance: 5000, currency: 'XLM' });
+      expect(accountQueryBuilder.setLock).toHaveBeenCalledWith(
+        'pessimistic_write',
+      );
+      expect(ledgerQueryBuilder.getRawOne).toHaveBeenCalledTimes(1);
+    });
+
+    it('serializes concurrent balance reads around an interleaved writer', async () => {
+      const account = makeAccount();
+      const events: string[] = [];
+      let balance = 100;
+      let releaseFirstAggregate!: () => void;
+      let firstAggregateStarted!: () => void;
+      const firstAggregateStartedPromise = new Promise<void>((resolve) => {
+        firstAggregateStarted = resolve;
+      });
+      const firstAggregateRelease = new Promise<void>((resolve) => {
+        releaseFirstAggregate = resolve;
+      });
+      const { manager, ledgerQueryBuilder } = makeStatusManager(
+        account,
+        balance,
+        events,
+      );
+      ledgerQueryBuilder.getRawOne.mockImplementation(async () => {
+        const snapshot = balance;
+        events.push(`ledger-aggregate:${snapshot}`);
+        const aggregateCount = events.filter((event) =>
+          event.startsWith('ledger-aggregate:'),
+        ).length;
+        if (aggregateCount === 1) {
+          firstAggregateStarted();
+          await firstAggregateRelease;
+        }
+        return { balance: String(snapshot) };
+      });
+
+      let queue = Promise.resolve();
+      const enqueue = (work: () => Promise<unknown>) => {
+        const run = queue.then(work);
+        queue = run.then(
+          () => undefined,
+          () => undefined,
+        );
+        return run;
+      };
+      transaction.mockImplementation((cb: any) => enqueue(() => cb(manager)));
+      const interleaveWrite = () =>
+        enqueue(async () => {
+          events.push('writer-lock');
+          balance = 200;
+          events.push('writer-commit');
+        });
+
+      const first = service.getWalletStatus('user-1');
+      await firstAggregateStartedPromise;
+      const write = interleaveWrite();
+      const second = service.getWalletStatus('user-1');
+      releaseFirstAggregate();
+      const [firstStatus, secondStatus] = await Promise.all([
+        first,
+        write,
+        second,
+      ]);
+
+      expect(firstStatus.balance).toBe(100);
+      expect(secondStatus.balance).toBe(200);
+      expect(events).toEqual([
+        'account-lock',
+        'account-where',
+        'account-read',
+        'ledger-aggregate:100',
+        'writer-lock',
+        'writer-commit',
+        'account-lock',
+        'account-where',
+        'account-read',
+        'ledger-aggregate:200',
+      ]);
+      expect(transaction).toHaveBeenCalledTimes(2);
     });
   });
 
