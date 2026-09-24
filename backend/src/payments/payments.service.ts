@@ -19,6 +19,10 @@ import {
 } from './enums/payment-status.enum';
 import { assertValidTransition } from './payment-state-machine';
 import { PaymentRailRegistry } from './payment-rail-registry';
+import { PaymentRail } from './enums/payment-rail.enum';
+import type { PaymentInitiationResult } from './interfaces/payment-rail-adapter.interface';
+import { createPaymentProviderCircuitBreaker } from './utils/circuit-breaker';
+import type { PaymentProviderCircuitBreaker } from './utils/circuit-breaker';
 
 const USER_IDEMPOTENCY_KEY_CONSTRAINT = 'uq_payments_user_id_idempotency_key';
 const BOOKING_NON_TERMINAL_CONSTRAINT = 'uq_payments_booking_id_non_terminal';
@@ -31,6 +35,11 @@ const BLOCKING_STATUSES_FOR_NEW_PAYMENT = [
 
 @Injectable()
 export class PaymentsService {
+  private readonly breakers = new Map<
+    string,
+    PaymentProviderCircuitBreaker<[Payment], PaymentInitiationResult>
+  >();
+
   constructor(
     @InjectRepository(Payment)
     private readonly paymentRepository: Repository<Payment>,
@@ -159,10 +168,35 @@ export class PaymentsService {
     });
   }
 
+  /**
+   * Breakers are created lazily and kept per rail so one provider's outage
+   * cannot suppress traffic to a healthy rail. Opossum closes a breaker after
+   * a successful half-open action, so no manual reset is needed.
+   */
+  private getBreaker(
+    rail: PaymentRail,
+  ): PaymentProviderCircuitBreaker<[Payment], PaymentInitiationResult> {
+    let breaker = this.breakers.get(rail);
+    if (breaker) {
+      return breaker;
+    }
+
+    const railAdapter = this.railRegistry.get(rail);
+    const action = (paymentToInitiate: Payment) =>
+      railAdapter.initiate(paymentToInitiate);
+    breaker = createPaymentProviderCircuitBreaker(
+      action,
+      this.config,
+      rail.toLowerCase(),
+    );
+    this.breakers.set(rail, breaker);
+    return breaker;
+  }
+
   private async progressToAwaitingConfirmation(
     payment: Payment,
   ): Promise<Payment> {
-    const result = await this.railRegistry.get(payment.rail).initiate(payment);
+    const result = await this.getBreaker(payment.rail).fire(payment);
     payment.providerReference = result.providerReference;
     this.transitionStatus(payment, PaymentStatus.AWAITING_CONFIRMATION);
     return this.paymentRepository.save(payment);

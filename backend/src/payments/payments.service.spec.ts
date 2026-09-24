@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { Payment } from './entities/payment.entity';
@@ -66,7 +67,9 @@ describe('PaymentsService', () => {
       initiate: jest.fn().mockResolvedValue({ providerReference: 'ref-1' }),
     };
     railRegistry = { get: jest.fn().mockReturnValue(railAdapter) };
-    config = { get: jest.fn().mockReturnValue(30) };
+    config = {
+      get: jest.fn((_key: string, defaultValue: unknown) => defaultValue),
+    };
     metrics = { recordPaymentTransition: jest.fn() };
     service = new PaymentsService(
       repository as any,
@@ -84,7 +87,7 @@ describe('PaymentsService', () => {
       expect(repository.save).not.toHaveBeenCalled();
     });
 
-    it('creates a new INITIATED payment then progresses it to AWAITING_CONFIRMATION', async () => {
+    it('routes a successful provider initiation through the per-rail breaker and progresses it to AWAITING_CONFIRMATION', async () => {
       repository.findOne.mockResolvedValueOnce(null); // no existing idempotency-key row
       repository.findOne.mockResolvedValueOnce(null); // booking is free
 
@@ -94,6 +97,32 @@ describe('PaymentsService', () => {
       expect(result.providerReference).toBe('ref-1');
       expect(railAdapter.initiate).toHaveBeenCalledTimes(1);
       expect(repository.save).toHaveBeenCalledTimes(2);
+    });
+
+    it('opens the rail breaker and returns 503 without retrying the provider', async () => {
+      repository.findOne.mockResolvedValue(null);
+      railAdapter.initiate.mockRejectedValue(new Error('provider unavailable'));
+
+      for (let attempt = 0; attempt < 10; attempt += 1) {
+        await expect(
+          service.initiate(
+            `user-${attempt}`,
+            `key-${attempt}`,
+            makeDto({ bookingId: `booking-${attempt}` }),
+          ),
+        ).rejects.toThrow('provider unavailable');
+      }
+
+      expect(railAdapter.initiate).toHaveBeenCalledTimes(10);
+
+      await expect(
+        service.initiate(
+          'user-10',
+          'key-10',
+          makeDto({ bookingId: 'booking-10' }),
+        ),
+      ).rejects.toThrow(ServiceUnavailableException);
+      expect(railAdapter.initiate).toHaveBeenCalledTimes(10);
     });
 
     it('replays the same Idempotency-Key and returns the original payment without creating a duplicate', async () => {
