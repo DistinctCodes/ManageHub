@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
+import { withSpan } from '../../common/tracing';
 import { Queue } from 'bull';
 import { Payment } from '../entities/payment.entity';
 import {
@@ -43,16 +44,25 @@ export class SorobanRailAdapter implements PaymentRailAdapter {
   ) {}
 
   async initiate(payment: Payment): Promise<PaymentInitiationResult> {
-    const escrowId = deriveEscrowId(payment.id);
-    await this.queue.add(
-      'submit',
-      { kind: 'create', paymentId: payment.id },
-      { jobId: `create:${payment.id}`, attempts: 1 },
+    return withSpan(
+      'soroban-rail.initiate',
+      async () => {
+        const escrowId = deriveEscrowId(payment.id);
+        await this.queue.add(
+          'submit',
+          { kind: 'create', paymentId: payment.id },
+          { jobId: `create:${payment.id}`, attempts: 1 },
+        );
+        return {
+          providerReference: escrowId.toString('hex'),
+          metadata: { rail: 'soroban', escrowId: escrowId.toString('hex') },
+        };
+      },
+      {
+        'payment.id': payment.id,
+        'payment.booking_id': payment.bookingId,
+      },
     );
-    return {
-      providerReference: escrowId.toString('hex'),
-      metadata: { rail: 'soroban', escrowId: escrowId.toString('hex') },
-    };
   }
 
   verifyWebhookSignature(_input: WebhookSignatureInput): boolean {
@@ -85,20 +95,25 @@ export class SorobanRailAdapter implements PaymentRailAdapter {
   async verifyByReference(
     providerReference: string,
   ): Promise<PaymentVerificationResult> {
-    const escrowId = Buffer.from(providerReference, 'hex');
-    const status = await this.contractClient.getEscrowStatus(
-      this.sorobanConfig.treasuryPublicKey,
-      escrowId,
+    return withSpan(
+      'soroban-rail.verifyByReference',
+      async (): Promise<PaymentVerificationResult> => {
+        const escrowId = Buffer.from(providerReference, 'hex');
+        const status = await this.contractClient.getEscrowStatus(
+          this.sorobanConfig.treasuryPublicKey,
+          escrowId,
+        );
+        switch (status) {
+          case EscrowStatus.LOCKED:
+          case EscrowStatus.RELEASED:
+            return { outcome: 'confirmed' };
+          case EscrowStatus.REFUNDED:
+            return { outcome: 'failed' };
+          case EscrowStatus.NOT_FOUND:
+            return { outcome: 'pending' };
+        }
+      },
     );
-    switch (status) {
-      case EscrowStatus.LOCKED:
-      case EscrowStatus.RELEASED:
-        return { outcome: 'confirmed' };
-      case EscrowStatus.REFUNDED:
-        return { outcome: 'failed' };
-      case EscrowStatus.NOT_FOUND:
-        return { outcome: 'pending' };
-    }
   }
 
   async refund(providerReference: string, _amount: number): Promise<void> {

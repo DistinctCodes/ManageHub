@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common';
+import { withSpan } from '../../common/tracing';
 import { SorobanRpc } from '@stellar/stellar-sdk';
 import { retryWithBackoff } from '../utils/retry-with-backoff';
 
@@ -40,25 +41,35 @@ export class SorobanRpcClient {
   }
 
   getAccount(publicKey: string): Promise<any> {
-    return this.withFailover((server) => server.getAccount(publicKey));
+    return withSpan('soroban.rpc.get-account', () =>
+      this.withFailover((server) => server.getAccount(publicKey)),
+    );
   }
 
   simulateTransaction(tx: any): Promise<any> {
-    return this.withFailover((server) => server.simulateTransaction(tx));
+    return withSpan('soroban.rpc.simulate-transaction', () =>
+      this.withFailover((server) => server.simulateTransaction(tx)),
+    );
   }
 
   sendTransaction(tx: any): Promise<any> {
-    return this.withFailover(async (server) => {
-      const result = await server.sendTransaction(tx);
-      if (RETRYABLE_SEND_STATUSES.has(result?.status)) {
-        throw new TransientRpcError(`sendTransaction status ${result.status}`);
-      }
-      return result;
-    });
+    return withSpan('soroban.rpc.send-transaction', () =>
+      this.withFailover(async (server) => {
+        const result = await server.sendTransaction(tx);
+        if (RETRYABLE_SEND_STATUSES.has(result?.status)) {
+          throw new TransientRpcError(
+            `sendTransaction status ${result.status}`,
+          );
+        }
+        return result;
+      }),
+    );
   }
 
   getTransaction(hash: string): Promise<any> {
-    return this.withFailover((server) => server.getTransaction(hash));
+    return withSpan('soroban.rpc.get-transaction', () =>
+      this.withFailover((server) => server.getTransaction(hash)),
+    );
   }
 
   private async withFailover<T>(
