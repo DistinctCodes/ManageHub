@@ -42,6 +42,11 @@ export class MetricsService {
     this.incrementCounter('managehub_settlement_payout_failures_total', {});
   }
 
+  /** Counts a detected tenant credit-usage anomaly by metered resource. */
+  recordCreditUsageSpike(resource: string): void {
+    this.incrementCounter('managehub_credit_usage_spikes_total', { resource });
+  }
+
   renderPrometheus(): string {
     const lines: string[] = [];
     this.appendCounters(lines);

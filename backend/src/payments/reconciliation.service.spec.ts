@@ -112,12 +112,58 @@ function makePaymentRepository(seed: Payment[]) {
   };
 }
 
+function makeRunRepository(seed: any[] = []) {
+  const rows = [...seed];
+  let sequence = rows.length;
+
+  return {
+    create: jest.fn((entity: any) => ({ id: `run-${++sequence}`, ...entity })),
+    save: jest.fn(async (entity: any) => {
+      const row = { ...entity };
+      if (!row.id) {
+        row.id = `run-${++sequence}`;
+      }
+      const index = rows.findIndex((candidate) => candidate.id === row.id);
+      if (index >= 0) {
+        rows[index] = { ...rows[index], ...row };
+      } else {
+        rows.push(row);
+      }
+      return { ...row };
+    }),
+    update: jest.fn(async (id: string, partial: any) => {
+      const index = rows.findIndex((candidate) => candidate.id === id);
+      if (index >= 0) {
+        rows[index] = { ...rows[index], ...partial };
+      }
+      return { affected: index >= 0 ? 1 : 0 };
+    }),
+    find: jest.fn(async (options?: { order?: any; take?: number }) => {
+      let result = [...rows];
+      if (options?.order?.startedAt === 'DESC') {
+        result.sort(
+          (left, right) =>
+            new Date(right.startedAt).getTime() -
+            new Date(left.startedAt).getTime(),
+        );
+      }
+      if (options?.take) {
+        result = result.slice(0, options.take);
+      }
+      return result.map((row) => ({ ...row }));
+    }),
+    _rows: rows,
+  };
+}
+
 function makeConfigService(overrides: Record<string, number> = {}) {
   const values: Record<string, number> = {
     PAYMENT_RECONCILE_DUE_AFTER_MINUTES: 5,
     PAYMENT_RECONCILE_BACKOFF_BASE_MINUTES: 5,
     PAYMENT_RECONCILE_BACKOFF_MAX_MINUTES: 60,
     PAYMENT_MANUAL_REVIEW_AFTER_HOURS: 24,
+    PAYMENT_CONFIRMATION_MAX_ATTEMPTS: 20,
+    PAYMENT_CONFIRMATION_MAX_PROVIDER_ERROR_STREAK: 10,
     PAYMENT_VERIFY_TIMEOUT_MS: 3000,
     PAYMENT_RECONCILE_MAX_BATCH: 500,
     PAYMENT_MANUAL_REVIEW_ALERT_THRESHOLD: 20,
@@ -152,18 +198,21 @@ describe('ReconciliationService', () => {
   function build(
     seed: Payment[],
     configOverrides: Record<string, number> = {},
+    runSeed: any[] = [],
   ) {
     const paymentRepository = makePaymentRepository(seed);
+    const runRepository = makeRunRepository(runSeed);
     const config = makeConfigService(configOverrides);
-      const service = new ReconciliationService(
-        paymentRepository as any,
-        confirmationService as any,
-        railRegistry as any,
-        gateway as any,
-        config as any,
-        metrics as any,
-      );
-    return { service, paymentRepository };
+    const service = new ReconciliationService(
+      paymentRepository as any,
+      runRepository as any,
+      confirmationService as any,
+      railRegistry as any,
+      gateway as any,
+      config as any,
+      metrics as any,
+    );
+    return { service, paymentRepository, runRepository };
   }
 
   const minutesAgo = (n: number, from: Date = new Date()) =>
@@ -235,6 +284,111 @@ describe('ReconciliationService', () => {
 
       expect(summary.candidates).toBe(1);
       expect(summary.pending).toBe(1);
+    });
+  });
+
+  describe('reconcileDueBatch — confirmation polling caps', () => {
+    it('continues polling a payment that is below the attempt cap', async () => {
+      const now = new Date();
+      const payment = makePayment({
+        createdAt: minutesAgo(10, now),
+        reconciliationAttempts: 1,
+      });
+      railAdapter.verifyByReference.mockResolvedValue({ outcome: 'pending' });
+
+      const { service } = build([payment], {
+        PAYMENT_CONFIRMATION_MAX_ATTEMPTS: 3,
+      });
+      const summary = await service.reconcileDueBatch(now);
+
+      expect(summary.candidates).toBe(1);
+      expect(summary.pending).toBe(1);
+      expect(railAdapter.verifyByReference).toHaveBeenCalledWith(
+        payment.providerReference,
+      );
+    });
+
+    it('escalates at the attempt cap and never polls the capped payment again', async () => {
+      const now = new Date();
+      const payment = makePayment({
+        createdAt: minutesAgo(10, now),
+        reconciliationAttempts: 2,
+      });
+      railAdapter.verifyByReference.mockResolvedValue({ outcome: 'pending' });
+
+      const { service, paymentRepository } = build([payment], {
+        PAYMENT_CONFIRMATION_MAX_ATTEMPTS: 3,
+      });
+      const first = await service.reconcileDueBatch(now);
+
+      expect(first.escalatedToManualReview).toBe(1);
+      expect(first.attemptCapEscalations).toBe(1);
+      const updated = await paymentRepository.findOne({
+        where: { id: payment.id },
+      });
+      expect(updated!.status).toBe(PaymentStatus.MANUAL_REVIEW);
+      expect(updated!.manualReviewReason).toMatch(/attempt cap 3/);
+      expect(updated!.manualReviewReason).toMatch(
+        /3 total reconciliation attempts/,
+      );
+
+      const second = await service.reconcileDueBatch(
+        new Date(now.getTime() + 60_000),
+      );
+      expect(second.candidates).toBe(0);
+      expect(railAdapter.verifyByReference).toHaveBeenCalledTimes(1);
+    });
+
+    it('escalates a pre-capped AWAITING_CONFIRMATION row without another poll', async () => {
+      const now = new Date();
+      const payment = makePayment({
+        createdAt: minutesAgo(10, now),
+        reconciliationAttempts: 3,
+      });
+      const { service, paymentRepository } = build([payment], {
+        PAYMENT_CONFIRMATION_MAX_ATTEMPTS: 3,
+      });
+
+      const summary = await service.reconcileDueBatch(now);
+
+      expect(summary.candidates).toBe(0);
+      expect(summary.escalatedToManualReview).toBe(1);
+      expect(railAdapter.verifyByReference).not.toHaveBeenCalled();
+      const updated = await paymentRepository.findOne({
+        where: { id: payment.id },
+      });
+      expect(updated!.status).toBe(PaymentStatus.MANUAL_REVIEW);
+    });
+
+    it('escalates at the provider-error-streak cap even on the erroring attempt', async () => {
+      const now = new Date();
+      const payment = makePayment({
+        createdAt: hoursAgo(48, now),
+        reconciliationAttempts: 2,
+        providerErrorStreak: 2,
+      });
+      railAdapter.verifyByReference.mockRejectedValue(
+        new Error('provider unreachable'),
+      );
+
+      const { service, paymentRepository } = build([payment], {
+        PAYMENT_CONFIRMATION_MAX_PROVIDER_ERROR_STREAK: 3,
+      });
+      const summary = await service.reconcileDueBatch(now);
+
+      expect(summary.providerErrors).toBe(1);
+      expect(summary.escalatedToManualReview).toBe(1);
+      expect(summary.providerErrorStreakCapEscalations).toBe(1);
+      const updated = await paymentRepository.findOne({
+        where: { id: payment.id },
+      });
+      expect(updated!.status).toBe(PaymentStatus.MANUAL_REVIEW);
+      expect(updated!.manualReviewReason).toMatch(
+        /provider-error streak cap 3/,
+      );
+      expect(updated!.manualReviewReason).toMatch(
+        /3 consecutive provider errors/,
+      );
     });
   });
 
@@ -405,6 +559,43 @@ describe('ReconciliationService', () => {
       expect(railAdapter.verifyByReference).toHaveBeenCalledTimes(500);
     });
 
+    it('persists a started run and completes it with the pass summary', async () => {
+      railAdapter.verifyByReference.mockResolvedValue({ outcome: 'pending' });
+      const payment = makePayment({ createdAt: minutesAgo(10) });
+      const { service, runRepository } = build([payment]);
+
+      await service.handleCron();
+
+      expect(runRepository.save).toHaveBeenCalledTimes(1);
+      expect(runRepository.update).toHaveBeenCalledWith(
+        'run-1',
+        expect.objectContaining({
+          outcome: 'succeeded',
+          candidates: 1,
+          pending: 1,
+          finishedAt: expect.any(Date),
+          durationMs: expect.any(Number),
+        }),
+      );
+    });
+
+    it('marks a failed pass without masking the original error and resets the guard', async () => {
+      const { service, paymentRepository, runRepository } = build([]);
+      paymentRepository.find.mockRejectedValueOnce(new Error('database unavailable'));
+
+      await expect(service.handleCron()).rejects.toThrow('database unavailable');
+      expect(runRepository.update).toHaveBeenCalledWith(
+        'run-1',
+        expect.objectContaining({
+          outcome: 'failed',
+          error: 'database unavailable',
+          finishedAt: expect.any(Date),
+        }),
+      );
+
+      await expect(service.handleCron()).resolves.toBeUndefined();
+    });
+
     it('skips a cron tick that fires while the previous pass is still running', async () => {
       const now = new Date();
       const payment = makePayment({ createdAt: minutesAgo(10, now) });
@@ -560,6 +751,31 @@ describe('ReconciliationService', () => {
       expect(result.map((p) => p.id)).toEqual(['p1']);
     });
 
+    it('lists recent reconciliation runs newest first with a bounded limit', async () => {
+      const { service, runRepository } = build(
+        [],
+        {},
+        [
+          {
+            id: 'run-old',
+            startedAt: new Date('2025-01-01T00:00:00.000Z'),
+          },
+          {
+            id: 'run-new',
+            startedAt: new Date('2025-01-02T00:00:00.000Z'),
+          },
+        ],
+      );
+
+      const result = await service.listRecentRuns(1);
+
+      expect(result.map((run) => run.id)).toEqual(['run-new']);
+      expect(runRepository.find).toHaveBeenCalledWith({
+        order: { startedAt: 'DESC' },
+        take: 1,
+      });
+    });
+
     it('getMetrics reports the manual-review queue depth and alerting flag', async () => {
       const payments = Array.from({ length: 25 }, (_, i) =>
         makePayment({ id: `p${i}`, status: PaymentStatus.MANUAL_REVIEW }),
@@ -570,6 +786,8 @@ describe('ReconciliationService', () => {
       expect(metrics.manualReviewQueueDepth).toBe(25);
       expect(metrics.alertThreshold).toBe(20);
       expect(metrics.alerting).toBe(true);
+      expect(metrics.confirmationMaxAttempts).toBe(20);
+      expect(metrics.confirmationMaxProviderErrorStreak).toBe(10);
     });
   });
 });

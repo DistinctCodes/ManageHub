@@ -1,9 +1,14 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { MoreThanOrEqual, Repository } from 'typeorm';
 import { MeteredUsageEvent } from './entities/metered-usage-event.entity';
 import { MeteredResource } from './enums/metered-resource.enum';
 import { CreditsService } from './credits.service';
+import { MetricsService } from '../common/metrics.service';
+import { withRequestId } from '../common/request-context';
+import { createTransport } from 'nodemailer';
+import Handlebars from 'handlebars';
 
 const POSTGRES_UNIQUE_VIOLATION = '23505';
 
@@ -46,10 +51,14 @@ export interface RecordUsageResult {
  */
 @Injectable()
 export class MeteredUsageService {
+  private readonly logger = new Logger(MeteredUsageService.name);
+
   constructor(
     @InjectRepository(MeteredUsageEvent)
     private readonly usageRepository: Repository<MeteredUsageEvent>,
     private readonly credits: CreditsService,
+    private readonly config: ConfigService,
+    private readonly metrics: MetricsService,
   ) {}
 
   async recordUsage(input: RecordUsageInput): Promise<RecordUsageResult> {
@@ -95,8 +104,9 @@ export class MeteredUsageService {
       actorId: input.actorId ?? null,
     });
 
+    let event: MeteredUsageEvent;
     try {
-      const event = await this.usageRepository.save(
+      event = await this.usageRepository.save(
         this.usageRepository.create({
           userId: input.userId,
           resource: input.resource,
@@ -108,7 +118,6 @@ export class MeteredUsageService {
           ledgerTransactionId: charge.transaction.id,
         }),
       );
-      return { event, charged: charge.posted };
     } catch (error) {
       // Two deliveries of the same meter reading raced. The ledger already
       // deduped the charge, so the loser just reports the winner's event.
@@ -122,6 +131,233 @@ export class MeteredUsageService {
       }
       throw error;
     }
+
+    // Detection is deliberately after both durable writes. A detector,
+    // metrics, or email failure is observational only and must never undo
+    // the charge or make the caller retry a successfully recorded event.
+    if (charge.posted) {
+      try {
+        await this.detectUsageSpike(event);
+      } catch (error) {
+        this.logger.warn(
+          withRequestId(
+            `Unable to evaluate credit usage spike for ${input.userId}: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          ),
+        );
+      }
+    }
+
+    return { event, charged: charge.posted };
+  }
+
+  /**
+   * Detects a tenant-level usage spike after the new event is durable.
+   *
+   * The comparison is deliberately tenant-wide rather than resource-wide:
+   * an integration bug can move several metered resources at once, and a
+   * shared tenant total catches that pattern. The current window is the
+   * configured number of minutes (default 60) ending at the new event and
+   * includes that event. The baseline is the average total of the immediately
+   * preceding equal-length windows that contain at least one prior event;
+   * requiring at
+   * least CREDITS_USAGE_SPIKE_MIN_SAMPLES prior events (default 3) keeps a new
+   * tenant from producing a meaningless percentage. The absolute minimum
+   * amount (default 10,000 minor units) suppresses alerts for tiny tenants
+   * where normal rounding or one small event would otherwise look like a
+   * large ratio. A spike therefore needs
+   * all three signals: enough history, a meaningful absolute total, and a
+   * total at least CREDITS_USAGE_SPIKE_MULTIPLIER (default 5.0) times the
+   * baseline.
+   *
+   * This method is observational. Its caller catches every failure after
+   * the charge, and the SMTP implementation below is independently
+   * best-effort, so neither an alert problem nor a provider outage can roll
+   * back usage accounting.
+   */
+  private async detectUsageSpike(event: MeteredUsageEvent): Promise<void> {
+    const windowMinutes = this.getUsageSpikeWindowMinutes();
+    const multiplier = this.getUsageSpikeMultiplier();
+    const minimumAmount = this.getUsageSpikeMinimumAmount();
+    const minimumSamples = this.getUsageSpikeMinimumSamples();
+    const windowMs = windowMinutes * 60_000;
+    const baselineWindowCount = Math.max(3, minimumSamples);
+    const eventTime =
+      event.createdAt instanceof Date
+        ? new Date(event.createdAt.getTime())
+        : new Date();
+    const currentWindowStart = eventTime.getTime() - windowMs;
+    const historyStart = currentWindowStart - windowMs * baselineWindowCount;
+    const history = await this.usageRepository.find({
+      where: {
+        userId: event.userId,
+        createdAt: MoreThanOrEqual(new Date(historyStart)),
+      },
+      order: { createdAt: 'ASC' },
+    });
+
+    const relevantHistory = (history ?? []).filter((candidate) => {
+      const timestamp = candidate.createdAt.getTime();
+      return timestamp >= historyStart && timestamp <= eventTime.getTime();
+    });
+    const priorEvents = relevantHistory.filter(
+      (candidate) => candidate.createdAt.getTime() < currentWindowStart,
+    );
+    if (priorEvents.length < minimumSamples) {
+      return;
+    }
+
+    const priorWindowTotals = new Map<number, number>();
+    for (const priorEvent of priorEvents) {
+      const windowIndex = Math.floor(
+        (currentWindowStart - priorEvent.createdAt.getTime()) / windowMs,
+      );
+      if (windowIndex >= 0 && windowIndex < baselineWindowCount) {
+        priorWindowTotals.set(
+          windowIndex,
+          (priorWindowTotals.get(windowIndex) ?? 0) + priorEvent.amount,
+        );
+      }
+    }
+    const observedPriorWindowTotals = [...priorWindowTotals.values()];
+    if (observedPriorWindowTotals.length === 0) {
+      return;
+    }
+    const baselineAverage =
+      observedPriorWindowTotals.reduce((sum, total) => sum + total, 0) /
+      observedPriorWindowTotals.length;
+
+    const currentEvents = relevantHistory.filter(
+      (candidate) => candidate.createdAt.getTime() >= currentWindowStart,
+    );
+    if (!currentEvents.some((candidate) => candidate.id === event.id)) {
+      currentEvents.push(event);
+    }
+    const windowTotal = currentEvents.reduce(
+      (sum, candidate) => sum + candidate.amount,
+      0,
+    );
+    if (
+      windowTotal < minimumAmount ||
+      windowTotal < baselineAverage * multiplier
+    ) {
+      return;
+    }
+
+    const eventAmount = event.amount;
+    this.logger.warn(
+      withRequestId(
+        `ALERT: credit usage spike tenantId=${event.userId} ` +
+          `resource=${event.resource} eventAmount=${eventAmount} ` +
+          `windowTotal=${windowTotal} baselineAverage=${baselineAverage.toFixed(2)} ` +
+          `multiplier=${multiplier} threshold=${minimumAmount}`,
+      ),
+    );
+    this.metrics.recordCreditUsageSpike(event.resource);
+    await this.sendUsageSpikeAlert({
+      tenantId: event.userId,
+      resource: event.resource,
+      eventAmount,
+      windowTotal,
+      baselineAverage,
+      multiplier,
+      minimumAmount,
+    });
+  }
+
+  private async sendUsageSpikeAlert(input: {
+    tenantId: string;
+    resource: string;
+    eventAmount: number;
+    windowTotal: number;
+    baselineAverage: number;
+    multiplier: number;
+    minimumAmount: number;
+  }): Promise<void> {
+    try {
+      const host = this.config.get<string>('SMTP_HOST');
+      const user = this.config.get<string>('SMTP_USER');
+      const pass = this.config.get<string>('SMTP_PASS');
+      const from = this.config.get<string>('SMTP_FROM_EMAIL');
+      const supportEmail = this.config.get<string>('SUPPORT_EMAIL');
+      if (!host || !user || !pass || !from || !supportEmail) {
+        return;
+      }
+
+      const transport = createTransport({
+        host,
+        port: this.config.get<number>('SMTP_PORT', 587),
+        secure: this.config.get<string>('SMTP_SECURE', 'false') === 'true',
+        auth: { user, pass },
+      });
+      const template = Handlebars.compile(
+        '{{company}} credit usage spike alert: tenant {{tenantId}} recorded {{windowTotal}} minor units for {{resource}} in the current {{windowMinutes}} minute window (event {{eventAmount}}, baseline {{baselineAverage}}, multiplier {{multiplier}}, minimum {{minimumAmount}}). Please investigate.',
+      );
+      await transport.sendMail({
+        from,
+        to: supportEmail,
+        subject: `${this.config.get<string>('COMPANY_NAME', 'ManageHub')} credit usage spike alert`,
+        text: template({
+          company: this.config.get<string>('COMPANY_NAME', 'ManageHub'),
+          tenantId: input.tenantId,
+          resource: input.resource,
+          windowMinutes: this.getUsageSpikeWindowMinutes(),
+          eventAmount: input.eventAmount,
+          windowTotal: input.windowTotal,
+          baselineAverage: input.baselineAverage.toFixed(2),
+          multiplier: input.multiplier,
+          minimumAmount: input.minimumAmount,
+        }),
+      });
+    } catch (error) {
+      this.logger.warn(
+        withRequestId(
+          `Unable to send credit usage spike alert email: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        ),
+      );
+    }
+  }
+
+  private getUsageSpikeWindowMinutes(): number {
+    return this.readPositiveNumberConfig(
+      'CREDITS_USAGE_SPIKE_WINDOW_MINUTES',
+      60,
+    );
+  }
+
+  private getUsageSpikeMultiplier(): number {
+    return this.readPositiveNumberConfig(
+      'CREDITS_USAGE_SPIKE_MULTIPLIER',
+      5.0,
+    );
+  }
+
+  private getUsageSpikeMinimumAmount(): number {
+    return this.readPositiveNumberConfig(
+      'CREDITS_USAGE_SPIKE_MIN_AMOUNT',
+      10_000,
+    );
+  }
+
+  private getUsageSpikeMinimumSamples(): number {
+    return this.readPositiveIntegerConfig(
+      'CREDITS_USAGE_SPIKE_MIN_SAMPLES',
+      3,
+    );
+  }
+
+  private readPositiveNumberConfig(key: string, fallback: number): number {
+    const configured = Number(this.config.get<number>(key, fallback));
+    return Number.isFinite(configured) && configured > 0
+      ? configured
+      : fallback;
+  }
+
+  private readPositiveIntegerConfig(key: string, fallback: number): number {
+    return Math.floor(this.readPositiveNumberConfig(key, fallback));
   }
 
   async listForUser(userId: string, limit = 100): Promise<MeteredUsageEvent[]> {

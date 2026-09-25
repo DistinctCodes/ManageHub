@@ -6,6 +6,7 @@ import { BullModule } from '@nestjs/bull';
 import { Payment } from './entities/payment.entity';
 import { ConfirmationEvent } from './entities/confirmation-event.entity';
 import { Refund } from './entities/refund.entity';
+import { ReconciliationRun } from './entities/reconciliation-run.entity';
 import { PaymentWebhookDeadLetter } from './entities/payment-webhook-dead-letter.entity';
 import { PaymentsService } from './payments.service';
 import { PaymentConfirmationService } from './payment-confirmation.service';
@@ -46,6 +47,7 @@ import {
       Payment,
       ConfirmationEvent,
       Refund,
+      ReconciliationRun,
       PaymentWebhookDeadLetter,
     ]),
     WalletsModule,

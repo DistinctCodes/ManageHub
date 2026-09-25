@@ -5,11 +5,13 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -24,6 +26,7 @@ import { RefundsService } from './refunds.service';
 import { AdminActionLogService } from '../admin-audit/admin-action-log.service';
 import { AdminActionType } from '../admin-audit/admin-action-type.enum';
 import { PaymentResponseDto } from './dto/payment-response.dto';
+import { ReconciliationRunResponseDto } from './dto/reconciliation-run-response.dto';
 import { ResolvePaymentManuallyDto } from './dto/resolve-payment-manually.dto';
 import { VoidPaymentDto } from './dto/void-payment.dto';
 import { CreateRefundDto } from './dto/create-refund.dto';
@@ -67,6 +70,26 @@ export class PaymentsAdminController {
   })
   getMetrics() {
     return this.reconciliationService.getMetrics();
+  }
+
+  @Get('reconciliation-runs')
+  @ApiOperation({
+    summary: 'List persisted reconciliation runs, newest first',
+    description:
+      'Returns the most recent reconciliation run records. The optional limit is clamped to 1–500 and defaults to 50.',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Number of runs to return (1–500, default 50)',
+  })
+  @ApiResponse({ status: 200, type: [ReconciliationRunResponseDto] })
+  async listReconciliationRuns(
+    @Query('limit') limit?: string,
+  ): Promise<ReconciliationRunResponseDto[]> {
+    const runs = await this.reconciliationService.listRecentRuns(limit ?? 50);
+    return runs.map((run) => ReconciliationRunResponseDto.fromEntity(run));
   }
 
   @Post(':id/force-reconcile')
