@@ -14,6 +14,7 @@ import { WalletsModule } from './wallets/wallets.module';
 import { CreditsModule } from './credits/credits.module';
 import { RetentionModule } from './retention/retention.module';
 import { AdminAuditModule } from './admin-audit/admin-audit.module';
+import { HealthModule } from './health/health.module';
 import { MetricsService } from './common/metrics.service';
 import { MetricsController } from './common/metrics.controller';
 import { RequestContextMiddleware } from './common/request-context.middleware';
@@ -77,6 +78,7 @@ import { TracingMiddleware } from './common/tracing.middleware';
     // Structured audit trail for admin actions (issue #1612). Consumed by
     // the payments and credits admin controllers; read via /admin/audit.
     AdminAuditModule,
+    HealthModule,
   ],
   controllers: [AppController, MetricsController],
   providers: [
