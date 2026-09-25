@@ -1,6 +1,8 @@
 import { Test } from '@nestjs/testing';
+import { Reflector } from '@nestjs/core';
 import { MetricsController } from './metrics.controller';
 import { MetricsService } from './metrics.service';
+import { MetricsAuthGuard } from './metrics-auth.guard';
 
 describe('MetricsController', () => {
   let controller: MetricsController;
@@ -36,5 +38,13 @@ describe('MetricsController', () => {
     const body = controller.scrape();
     expect(body).toContain('managehub_manual_review_queue_depth 3');
     expect(service.renderPrometheus).toHaveBeenCalled();
+  });
+
+  it('is gated by MetricsAuthGuard (issue #1781)', () => {
+    const guards = new Reflector().get('__guards__', MetricsController) as
+      | unknown[]
+      | undefined;
+    expect(guards).toBeDefined();
+    expect(guards).toContainEqual(MetricsAuthGuard);
   });
 });

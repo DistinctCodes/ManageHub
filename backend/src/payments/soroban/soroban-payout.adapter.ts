@@ -7,7 +7,7 @@ import {
   PayoutStatus,
   PayoutSubmission,
   SubmitPayoutInput,
-} from '../../credits/interfaces/external-payout-rail.interface';
+} from '../../credits/interfaces';
 import { EscrowContractClient } from './escrow-contract.client';
 import { EscrowStatus } from './escrow-status.enum';
 import { SorobanConfig } from './soroban-config';

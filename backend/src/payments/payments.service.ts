@@ -12,6 +12,7 @@ import { In, Repository } from 'typeorm';
 import { RequestUser } from '../auth/interfaces/authenticated-request.interface';
 import { UserRole } from '../auth/enums/user-role.enum';
 import { MetricsService } from '../common/metrics.service';
+import { withSpan } from '../common/tracing';
 import { Payment } from './entities/payment.entity';
 import { InitiatePaymentDto } from './dto/initiate-payment.dto';
 import {
@@ -25,6 +26,9 @@ import {
   PaymentRailResolution,
 } from './payment-rail-registry';
 import { withRequestId } from '../common/request-context';
+import type { PaymentInitiationResult } from './interfaces/payment-rail-adapter.interface';
+import { createPaymentProviderCircuitBreaker } from './utils/circuit-breaker';
+import type { PaymentProviderCircuitBreaker } from './utils/circuit-breaker';
 
 const USER_IDEMPOTENCY_KEY_CONSTRAINT = 'uq_payments_user_id_idempotency_key';
 const BOOKING_NON_TERMINAL_CONSTRAINT = 'uq_payments_booking_id_non_terminal';
@@ -38,6 +42,10 @@ const BLOCKING_STATUSES_FOR_NEW_PAYMENT = [
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
+  private readonly breakers = new Map<
+    string,
+    PaymentProviderCircuitBreaker<[Payment], PaymentInitiationResult>
+  >();
 
   constructor(
     @InjectRepository(Payment)
@@ -52,31 +60,43 @@ export class PaymentsService {
     idempotencyKey: string,
     dto: InitiatePaymentDto,
   ): Promise<Payment> {
-    if (!idempotencyKey) {
-      throw new BadRequestException('Idempotency-Key header is required');
-    }
+    return withSpan(
+      'payments.service.initiate',
+      async () => {
+        if (!idempotencyKey) {
+          throw new BadRequestException('Idempotency-Key header is required');
+        }
 
-    const existing = await this.findByIdempotencyKey(userId, idempotencyKey);
-    if (existing) {
-      return this.assertSamePayload(existing, dto);
-    }
+        const existing = await this.findByIdempotencyKey(
+          userId,
+          idempotencyKey,
+        );
+        if (existing) {
+          return this.assertSamePayload(existing, dto);
+        }
 
-    await this.assertBookingAvailable(dto.bookingId);
+        await this.assertBookingAvailable(dto.bookingId);
 
-    const resolution = this.railRegistry.resolve(dto.rail);
-    const payment = this.buildInitiatedPayment(
-      userId,
-      idempotencyKey,
-      dto,
-      resolution,
+        const resolution = this.railRegistry.resolve(dto.rail);
+        const payment = this.buildInitiatedPayment(
+          userId,
+          idempotencyKey,
+          dto,
+          resolution,
+        );
+
+        try {
+          const saved = await this.paymentRepository.save(payment);
+          return await this.progressToAwaitingConfirmation(saved, resolution);
+        } catch (error) {
+          return this.handleInsertConflict(error, userId, idempotencyKey);
+        }
+      },
+      {
+        'payment.booking_id': dto.bookingId,
+        'payment.rail': dto.rail,
+      },
     );
-
-    try {
-      const saved = await this.paymentRepository.save(payment);
-      return await this.progressToAwaitingConfirmation(saved, resolution);
-    } catch (error) {
-      return this.handleInsertConflict(error, userId, idempotencyKey);
-    }
   }
 
   async findOne(id: string, currentUser: RequestUser): Promise<Payment> {
@@ -196,6 +216,31 @@ export class PaymentsService {
   }
 
   /**
+   * Breakers are created lazily and kept per rail so one provider's outage
+   * cannot suppress traffic to a healthy rail. Opossum closes a breaker after
+   * a successful half-open action, so no manual reset is needed.
+   */
+  private getBreaker(
+    rail: PaymentRail,
+  ): PaymentProviderCircuitBreaker<[Payment], PaymentInitiationResult> {
+    let breaker = this.breakers.get(rail);
+    if (breaker) {
+      return breaker;
+    }
+
+    const railAdapter = this.railRegistry.get(rail);
+    const action = (paymentToInitiate: Payment) =>
+      railAdapter.initiate(paymentToInitiate);
+    breaker = createPaymentProviderCircuitBreaker(
+      action,
+      this.config,
+      rail.toLowerCase(),
+    );
+    this.breakers.set(rail, breaker);
+    return breaker;
+  }
+
+  /**
    * This is the only point where failover may change a Payment's rail. The
    * rail persisted here is the rail whose adapter actually received the
    * initiation call; the requested rail is retained in metadata for audit and
@@ -203,6 +248,12 @@ export class PaymentsService {
    * reconciliation, and refund paths must continue to use strict
    * `get(payment.rail)` — they must never re-resolve or rewrite a stored
    * Payment's rail, or confirmation could be delivered to the wrong adapter.
+   *
+   * The provider call itself is wrapped in a per-rail circuit breaker and a
+   * tracing span: the breaker is keyed by the actual (possibly fallback)
+   * rail, so an unhealthy provider only trips its own breaker, and the
+   * breaker's own `railRegistry.get(rail)` lookup stays consistent with the
+   * rail already persisted on `payment` above.
    */
   private async progressToAwaitingConfirmation(
     payment: Payment,
@@ -226,7 +277,14 @@ export class PaymentsService {
       );
     }
 
-    const result = await resolution.adapter.initiate(payment);
+    const result = await withSpan(
+      'payments.rail.initiate',
+      () => this.getBreaker(payment.rail).fire(payment),
+      {
+        'payment.id': payment.id,
+        'payment.rail': payment.rail,
+      },
+    );
     payment.providerReference = result.providerReference;
     this.transitionStatus(payment, PaymentStatus.AWAITING_CONFIRMATION);
     return this.paymentRepository.save(payment);

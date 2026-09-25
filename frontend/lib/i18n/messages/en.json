@@ -1,0 +1,14 @@
+{
+  "common": {
+    "appName": "ManageHub",
+    "loading": "Loading...",
+    "cancel": "Cancel",
+    "save": "Save"
+  },
+  "navigation": {
+    "home": "Home",
+    "wallet": "Wallet",
+    "payments": "Payments",
+    "credits": "Credits"
+  }
+}

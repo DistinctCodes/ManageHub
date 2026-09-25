@@ -5,6 +5,23 @@ interface MetricSample {
   value: number;
 }
 
+interface HistogramSample {
+  labels: Record<string, string>;
+  count: number;
+  sum: number;
+  // Cumulative bucket counts, one per HISTOGRAM_BUCKETS_SECONDS entry plus a
+  // trailing +Inf bucket — Prometheus's `le` (less-than-or-equal) convention.
+  buckets: number[];
+}
+
+// Bucket upper bounds, in seconds, for the per-endpoint latency histogram
+// (issue #1780). Covers fast in-process handlers (5ms) up to slow
+// downstream-dependent ones (10s); a request slower than that only counts
+// against the +Inf bucket.
+const HISTOGRAM_BUCKETS_SECONDS = [
+  0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10,
+];
+
 @Injectable()
 export class MetricsService {
   private readonly counters = new Map<string, MetricSample[]>();
@@ -13,6 +30,7 @@ export class MetricsService {
     string,
     { count: number; sum: number; labels: Record<string, string> }
   >();
+  private readonly histograms = new Map<string, HistogramSample[]>();
 
   recordPaymentTransition(from: string, to: string): void {
     this.incrementCounter('managehub_payment_status_transitions_total', {
@@ -42,11 +60,35 @@ export class MetricsService {
     this.incrementCounter('managehub_settlement_payout_failures_total', {});
   }
 
+  /**
+   * Records one HTTP request's duration for the per-route/method latency
+   * histogram (issue #1780) — lets p95/p99 regressions on a specific
+   * endpoint be caught, which a plain request counter can't show.
+   */
+  recordHttpRequestDuration(
+    route: string,
+    method: string,
+    statusCode: number,
+    durationMs: number,
+  ): void {
+    this.observeHistogram(
+      'managehub_http_request_duration_seconds',
+      { route, method, status_code: String(statusCode) },
+      durationMs / 1000,
+    );
+  }
+
+  /** Counts a detected tenant credit-usage anomaly by metered resource. */
+  recordCreditUsageSpike(resource: string): void {
+    this.incrementCounter('managehub_credit_usage_spikes_total', { resource });
+  }
+
   renderPrometheus(): string {
     const lines: string[] = [];
     this.appendCounters(lines);
     this.appendGauges(lines);
     this.appendSummaries(lines);
+    this.appendHistograms(lines);
     return `${lines.join('\n')}\n`;
   }
 
@@ -97,6 +139,34 @@ export class MetricsService {
     });
   }
 
+  private observeHistogram(
+    name: string,
+    labels: Record<string, string>,
+    valueSeconds: number,
+  ): void {
+    const series = this.histograms.get(name) ?? [];
+    let sample = series.find((item) => this.sameLabels(item.labels, labels));
+    if (!sample) {
+      sample = {
+        labels,
+        count: 0,
+        sum: 0,
+        buckets: new Array(HISTOGRAM_BUCKETS_SECONDS.length + 1).fill(0),
+      };
+      series.push(sample);
+      this.histograms.set(name, series);
+    }
+    sample.count += 1;
+    sample.sum += valueSeconds;
+    HISTOGRAM_BUCKETS_SECONDS.forEach((bound, index) => {
+      if (valueSeconds <= bound) {
+        sample!.buckets[index] += 1;
+      }
+    });
+    // +Inf bucket always includes every observation.
+    sample.buckets[HISTOGRAM_BUCKETS_SECONDS.length] += 1;
+  }
+
   private appendCounters(lines: string[]): void {
     for (const [name, series] of this.counters.entries()) {
       lines.push(`# TYPE ${name} counter`);
@@ -120,6 +190,28 @@ export class MetricsService {
       lines.push(`# TYPE ${name} summary`);
       lines.push(`${name}_count${this.formatLabels(summary.labels)} ${summary.count}`);
       lines.push(`${name}_sum${this.formatLabels(summary.labels)} ${summary.sum}`);
+    }
+  }
+
+  private appendHistograms(lines: string[]): void {
+    for (const [name, series] of this.histograms.entries()) {
+      lines.push(`# TYPE ${name} histogram`);
+      for (const sample of series) {
+        HISTOGRAM_BUCKETS_SECONDS.forEach((bound, index) => {
+          lines.push(
+            `${name}_bucket${this.formatLabels({ ...sample.labels, le: String(bound) })} ${sample.buckets[index]}`,
+          );
+        });
+        lines.push(
+          `${name}_bucket${this.formatLabels({ ...sample.labels, le: '+Inf' })} ${sample.buckets[HISTOGRAM_BUCKETS_SECONDS.length]}`,
+        );
+        lines.push(
+          `${name}_sum${this.formatLabels(sample.labels)} ${sample.sum}`,
+        );
+        lines.push(
+          `${name}_count${this.formatLabels(sample.labels)} ${sample.count}`,
+        );
+      }
     }
   }
 

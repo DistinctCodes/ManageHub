@@ -14,6 +14,9 @@ import {
 import {
   ApiBearerAuth,
   ApiOperation,
+  ApiParam,
+  ApiProduces,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -61,6 +64,9 @@ import {
   SettlementBatchBreakdownResponseDto,
   SettlementBatchResponseDto,
 } from './dto/settlement-response.dto';
+import { LedgerIntegrityResponseDto } from './dto/ledger-integrity-response.dto';
+import { PaymentSweepResponseDto } from './dto/payment-sweep-response.dto';
+import { SettlementRunResponseDto } from './dto/settlement-run-response.dto';
 
 /**
  * Admin surface for the credit ledger (issue #1575): account policy,
@@ -89,6 +95,7 @@ export class CreditsAdminController {
 
   @Get('accounts')
   @ApiOperation({ summary: 'List ledger accounts' })
+  @ApiQuery({ name: 'currency', required: false, type: String })
   @ApiResponse({ status: 200, type: [LedgerAccountResponseDto] })
   async listAccounts(
     @Query('currency') currency?: string,
@@ -101,6 +108,9 @@ export class CreditsAdminController {
 
   @Get('accounts/export')
   @ApiOperation({ summary: 'Export ledger accounts as xlsx' })
+  @ApiQuery({ name: 'currency', required: false, type: String })
+  @ApiProduces('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+  @ApiResponse({ status: 200, description: 'xlsx workbook stream' })
   async exportAccounts(
     @Query('currency') currency: string | undefined,
     @Res({ passthrough: true }) res: Response,
@@ -165,6 +175,7 @@ export class CreditsAdminController {
   }
 
   @Patch('accounts/:id')
+  @ApiParam({ name: 'id', type: String, format: 'uuid' })
   @ApiOperation({
     summary: 'Update an account’s policy (overdraft, payout address, freeze)',
     description:
@@ -190,6 +201,8 @@ export class CreditsAdminController {
 
   @Get('balances/:userId')
   @ApiOperation({ summary: 'A member’s credit balance' })
+  @ApiParam({ name: 'userId', type: String, format: 'uuid' })
+  @ApiQuery({ name: 'currency', required: false, type: String })
   @ApiResponse({ status: 200, type: CreditBalanceResponseDto })
   async getBalance(
     @Param('userId', ParseUUIDPipe) userId: string,
@@ -227,8 +240,14 @@ export class CreditsAdminController {
       'reports drift, plus any transaction whose debits and credits do not ' +
       'cancel. Both lists empty is the healthy state.',
   })
-  checkIntegrity(@Query('currency') currency?: string) {
-    return this.ledger.checkIntegrity(currency);
+  @ApiQuery({ name: 'currency', required: false, type: String })
+  @ApiResponse({ status: 200, type: LedgerIntegrityResponseDto })
+  async checkIntegrity(
+    @Query('currency') currency?: string,
+  ): Promise<LedgerIntegrityResponseDto> {
+    return LedgerIntegrityResponseDto.fromView(
+      await this.ledger.checkIntegrity(currency),
+    );
   }
 
   // ── revenue splits ─────────────────────────────────────────────────────
@@ -264,6 +283,7 @@ export class CreditsAdminController {
   }
 
   @Get('splits/:id')
+  @ApiParam({ name: 'id', type: String, format: 'uuid' })
   @ApiOperation({ summary: 'Get one revenue split config' })
   @ApiResponse({ status: 200, type: RevenueSplitConfigResponseDto })
   async getSplit(
@@ -274,6 +294,7 @@ export class CreditsAdminController {
   }
 
   @Put('splits/:id/recipients')
+  @ApiParam({ name: 'id', type: String, format: 'uuid' })
   @ApiOperation({
     summary: 'Replace a config’s recipients',
     description:
@@ -290,6 +311,7 @@ export class CreditsAdminController {
   }
 
   @Post('splits/:id/active')
+  @ApiParam({ name: 'id', type: String, format: 'uuid' })
   @ApiOperation({ summary: 'Activate or deactivate a config' })
   @ApiResponse({ status: 200, type: RevenueSplitConfigResponseDto })
   async setActive(
@@ -329,6 +351,7 @@ export class CreditsAdminController {
   // ── payment integration ────────────────────────────────────────────────
 
   @Post('payments/:paymentId/split-config')
+  @ApiParam({ name: 'paymentId', type: String, format: 'uuid' })
   @ApiOperation({
     summary: 'Attach a revenue split config to a payment',
     description:
@@ -350,6 +373,7 @@ export class CreditsAdminController {
   }
 
   @Post('payments/:paymentId/top-up')
+  @ApiParam({ name: 'paymentId', type: String, format: 'uuid' })
   @ApiOperation({
     summary: 'Mark a payment as funding the payer’s credit balance',
     description:
@@ -368,8 +392,11 @@ export class CreditsAdminController {
   @ApiOperation({
     summary: 'Run the confirmed-payment credit sweep immediately',
   })
-  sweepPayments() {
-    return this.paymentCredits.sweepConfirmedPayments();
+  @ApiResponse({ status: 200, type: PaymentSweepResponseDto })
+  async sweepPayments(): Promise<PaymentSweepResponseDto> {
+    return PaymentSweepResponseDto.fromView(
+      await this.paymentCredits.sweepConfirmedPayments(),
+    );
   }
 
   // ── settlement ─────────────────────────────────────────────────────────
@@ -382,8 +409,11 @@ export class CreditsAdminController {
       'Safe to call at any time — the same guarantees the scheduled job ' +
       'relies on.',
   })
-  runSettlement() {
-    return this.settlement.runSettlement();
+  @ApiResponse({ status: 200, type: SettlementRunResponseDto })
+  async runSettlement(): Promise<SettlementRunResponseDto> {
+    return SettlementRunResponseDto.fromView(
+      await this.settlement.runSettlement(),
+    );
   }
 
   @Post('settlement/batches')
@@ -413,6 +443,11 @@ export class CreditsAdminController {
 
   @Get('settlement/batches')
   @ApiOperation({ summary: 'List settlement batches, newest first' })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    enum: SettlementBatchStatus,
+  })
   @ApiResponse({ status: 200, type: [SettlementBatchResponseDto] })
   async listBatches(
     @Query('status') status?: SettlementBatchStatus,
@@ -422,6 +457,7 @@ export class CreditsAdminController {
   }
 
   @Get('settlement/batches/:id')
+  @ApiParam({ name: 'id', type: String, format: 'uuid' })
   @ApiOperation({
     summary: 'Full breakdown of one batch',
     description:
@@ -437,6 +473,7 @@ export class CreditsAdminController {
   }
 
   @Post('settlement/batches/:id/execute')
+  @ApiParam({ name: 'id', type: String, format: 'uuid' })
   @ApiOperation({
     summary: 'Advance one batch by a step (submit pending, poll submitted)',
   })
@@ -457,6 +494,7 @@ export class CreditsAdminController {
   }
 
   @Post('settlement/batches/:id/retry')
+  @ApiParam({ name: 'id', type: String, format: 'uuid' })
   @ApiOperation({
     summary: 'Re-queue a batch’s failed payouts',
     description:
@@ -480,6 +518,7 @@ export class CreditsAdminController {
   }
 
   @Post('settlement/batches/:id/abandon')
+  @ApiParam({ name: 'id', type: String, format: 'uuid' })
   @ApiOperation({
     summary: 'Give up on a batch and release its unsettled claims',
     description:

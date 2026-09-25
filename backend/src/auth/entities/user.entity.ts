@@ -23,6 +23,16 @@ export class User {
   @Column({ type: 'enum', enum: UserRole, default: UserRole.USER })
   role: UserRole;
 
+  /**
+   * Timestamp of the most recent successful password login. This is written
+   * only by AuthService.login after password comparison succeeds — never on
+   * registration and never for an unknown account or a bad password. A
+   * failed attempt must not alter the account's own security history, and
+   * must not update the row before authentication has succeeded.
+   */
+  @Column({ type: 'timestamptz', name: 'last_login_at', nullable: true })
+  lastLoginAt: Date | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

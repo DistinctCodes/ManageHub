@@ -1,5 +1,5 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { BullModule } from '@nestjs/bull';
 import { CacheModule } from '@nestjs/cache-manager';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -14,9 +14,12 @@ import { WalletsModule } from './wallets/wallets.module';
 import { CreditsModule } from './credits/credits.module';
 import { RetentionModule } from './retention/retention.module';
 import { AdminAuditModule } from './admin-audit/admin-audit.module';
+import { HealthModule } from './health/health.module';
 import { MetricsService } from './common/metrics.service';
 import { MetricsController } from './common/metrics.controller';
 import { RequestContextMiddleware } from './common/request-context.middleware';
+import { RequestDurationInterceptor } from './common/request-duration.interceptor';
+import { TracingMiddleware } from './common/tracing.middleware';
 
 @Module({
   imports: [
@@ -45,6 +48,13 @@ import { RequestContextMiddleware } from './common/request-context.middleware';
         database: config.get<string>('DATABASE_NAME'),
         autoLoadEntities: true,
         synchronize: false,
+        // Env-configurable pool bounds (issue #1778) — see
+        // src/database/data-source.ts for the matching CLI/migration
+        // DataSource and the defaults these fall back to.
+        extra: {
+          min: config.get<number>('DB_POOL_MIN', 2),
+          max: config.get<number>('DB_POOL_MAX', 10),
+        },
       }),
     }),
     // Backs the Soroban escrow submission queue (issue #1574) — see
@@ -76,6 +86,7 @@ import { RequestContextMiddleware } from './common/request-context.middleware';
     // Structured audit trail for admin actions (issue #1612). Consumed by
     // the payments and credits admin controllers; read via /admin/audit.
     AdminAuditModule,
+    HealthModule,
   ],
   controllers: [AppController, MetricsController],
   providers: [
@@ -85,10 +96,18 @@ import { RequestContextMiddleware } from './common/request-context.middleware';
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
     },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: RequestDurationInterceptor,
+    },
   ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(RequestContextMiddleware).forRoutes('*');
+    // RequestContextMiddleware must run first so the tracing root span and
+    // every downstream log prefix share the same request-id context.
+    consumer
+      .apply(RequestContextMiddleware, TracingMiddleware)
+      .forRoutes('*');
   }
 }
