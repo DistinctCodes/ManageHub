@@ -28,6 +28,45 @@ export interface CreditStatement {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
+export interface CreditsApiErrorBody {
+  statusCode?: number;
+  message?: string;
+  requestId?: string;
+  path?: string;
+  timestamp?: string;
+  code?: string;
+  [key: string]: unknown;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export class CreditsApiError extends Error {
+  readonly status: number;
+  readonly statusCode: number;
+  readonly code: string | null;
+  readonly requestId: string | null;
+  readonly responseBody: unknown;
+
+  constructor(statusCode: number, responseBody: unknown) {
+    const body = isRecord(responseBody) ? responseBody : null;
+    const message =
+      typeof body?.message === "string"
+        ? body.message
+        : `Request failed (${statusCode})`;
+
+    super(message);
+    this.name = "CreditsApiError";
+    this.status = statusCode;
+    this.statusCode = statusCode;
+    this.code = typeof body?.code === "string" ? body.code : null;
+    this.requestId =
+      typeof body?.requestId === "string" ? body.requestId : null;
+    this.responseBody = responseBody;
+  }
+}
+
 async function creditsFetch<T>(
   path: string,
   accessToken: string,
@@ -43,8 +82,8 @@ async function creditsFetch<T>(
   });
 
   if (!response.ok) {
-    const body = await response.json().catch(() => null);
-    throw new Error(body?.message ?? `Request failed (${response.status})`);
+    const body: unknown = await response.json().catch(() => null);
+    throw new CreditsApiError(response.status, body);
   }
 
   if (response.status === 204) {
