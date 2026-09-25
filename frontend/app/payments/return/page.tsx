@@ -1,14 +1,14 @@
 "use client";
 
 /**
- * /payments/return — provider redirect landing page (FE-103)
+ * /payments/return ï¿½ provider redirect landing page (FE-103)
  *
  * Payment providers redirect the user back to this page after a 3DS / hosted-
  * checkout session.  The page:
  *
  *  1. Reads `paymentId` (and optional `status` / `provider` tokens) from the
  *     query string the provider appended to the return URL.
- *  2. Calls POST /payments/:id/verify-return — the backend's documented
+ *  2. Calls POST /payments/:id/verify-return ï¿½ the backend's documented
  *     "synchronous fast path" that resolves immediately when the provider
  *     webhook has already landed.
  *  3. If verify-return resolves quickly (< FAST_PATH_TIMEOUT_MS) the result is
@@ -28,6 +28,7 @@ import type { Payment } from "@/lib/payments-api";
 import { useSessionStore } from "@/lib/stores/session-store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { getProviderReturnErrorMessage } from "@/lib/payment-return-errors";
 
 // -- tuning constants ---------------------------------------------------------
 
@@ -85,10 +86,15 @@ export default function PaymentReturnPage() {
 
   const paymentId =
     searchParams.get("paymentId") ?? searchParams.get("payment_id") ?? "";
+  const providerErrorMessage = getProviderReturnErrorMessage(searchParams);
 
-  const [phase, setPhase] = useState<Phase>(paymentId ? "fast-path" : "no-id");
+  const [phase, setPhase] = useState<Phase>(
+    providerErrorMessage ? "error" : paymentId ? "fast-path" : "no-id",
+  );
   const [payment, setPayment] = useState<Payment | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string>("");
+  const [errorMessage, setErrorMessage] = useState<string>(
+    providerErrorMessage ?? "",
+  );
   const [pollCount, setPollCount] = useState(0);
 
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -150,7 +156,7 @@ export default function PaymentReturnPage() {
   // -- fast path -----------------------------------------------------------
 
   useEffect(() => {
-    if (!paymentId || !accessToken) return;
+    if (providerErrorMessage || !paymentId || !accessToken) return;
 
     const ctrl = new AbortController();
     abortRef.current = ctrl;
@@ -169,7 +175,7 @@ export default function PaymentReturnPage() {
         if (result.verified || terminalStatus(result.payment.status)) {
           setPhase("success");
         } else {
-          // Not yet in a terminal state — fall through to polling
+          // Not yet in a terminal state ï¿½ fall through to polling
           startPolling(paymentId, accessToken as string);
         }
       })
@@ -189,9 +195,39 @@ export default function PaymentReturnPage() {
       ctrl.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paymentId, accessToken]);
+  }, [paymentId, accessToken, providerErrorMessage]);
 
   // -- render --------------------------------------------------------------
+
+  if (providerErrorMessage) {
+    return (
+      <main className="mx-auto max-w-lg px-4 py-16">
+        <h1 className="text-2xl font-semibold mb-6">Payment verification</h1>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base text-red-600 dark:text-red-400">
+              Payment could not be completed
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4" role="alert">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              {providerErrorMessage}
+            </p>
+            <div className="flex gap-3">
+              <Button asChild size="sm">
+                <Link href={paymentId ? `/payments/${paymentId}` : "/payments"}>
+                  View payment
+                </Link>
+              </Button>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/payments">Back to payments</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </main>
+    );
+  }
 
   if (!accessToken) {
     return (
