@@ -3,6 +3,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/http-exception.filter';
+import { HttpLoggingInterceptor } from './common/http-logging.interceptor';
 import { randomUUID } from 'crypto';
 import { NextFunction, Request, Response } from 'express';
 import { initTracing } from './common/tracing';
@@ -32,6 +33,8 @@ async function bootstrap() {
     }
     next();
   });
+
+  app.useGlobalInterceptors(new HttpLoggingInterceptor());
 
   app.useGlobalPipes(
     new ValidationPipe({

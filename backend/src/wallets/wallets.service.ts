@@ -7,9 +7,10 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'crypto';
-import { EntityManager, Repository } from 'typeorm';
+import { EntityManager, IsNull, Repository } from 'typeorm';
 import { Keypair, StrKey } from '@stellar/stellar-sdk';
 import { WalletAccount } from './entities/wallet-account.entity';
+import { WalletKeyAccessLog } from './entities/wallet-key-access-log.entity';
 import { WalletLedgerEntry } from './entities/wallet-ledger-entry.entity';
 import { WalletLinkChallenge } from './entities/wallet-link-challenge.entity';
 import { WalletCustodyType } from './enums/wallet-custody-type.enum';
@@ -55,13 +56,24 @@ export class WalletsService {
    * (user_id) is the actual source of truth. A keypair is only ever
    * generated and persisted by the transaction that wins that constraint —
    * the loser recovers here without ever provisioning key material.
+   *
+   * A soft-deleted account still occupies `uq_wallet_accounts_user_id`, so
+   * this is the one provisioning path that intentionally includes deleted
+   * rows. It revives the existing account instead of attempting a second
+   * insert (and therefore instead of surfacing a misleading unique-key
+   * error). Existing key material is retained during that logical
+   * reactivation: replacing it would destroy the audit trail and is not
+   * needed to make the same account usable again.
    */
   async provisionCustodialWallet(userId: string): Promise<WalletAccount> {
     const existing = await this.walletAccountRepository.findOne({
       where: { userId },
+      withDeleted: true,
     });
     if (existing) {
-      return existing;
+      return existing.deletedAt
+        ? this.reviveDeletedAccount(existing)
+        : existing;
     }
 
     try {
@@ -75,9 +87,12 @@ export class WalletsService {
       ) {
         const winner = await this.walletAccountRepository.findOne({
           where: { userId },
+          withDeleted: true,
         });
         if (winner) {
-          return winner;
+          return winner.deletedAt
+            ? this.reviveDeletedAccount(winner)
+            : winner;
         }
       }
       throw error;
@@ -86,13 +101,61 @@ export class WalletsService {
 
   async getWalletStatus(userId: string): Promise<WalletStatusView> {
     const account = await this.walletAccountRepository.findOne({
-      where: { userId },
+      where: { userId, deletedAt: IsNull() },
     });
-    if (!account) {
+    if (!account || account.deletedAt) {
       return { account: null, balance: 0, currency: LEDGER_ASSET };
     }
     const balance = await this.getBalance(account.id);
     return { account, balance, currency: LEDGER_ASSET };
+  }
+
+  /**
+   * Logically retires a wallet account without destroying its financial or
+   * security history. The account update and the corresponding append-only
+   * access-log entry share one transaction: either both commit or neither
+   * does. This is intentionally not a repository delete, because the
+   * ledger rows and key-access history remain necessary for audit and
+   * compliance. The marker alone controls visibility; the prior status is
+   * preserved for a later, explicit provisioning revival. `reason` is
+   * required and is retained in the append-only access-log row. Repeating
+   * the operation for an already-soft-deleted account is an idempotent
+   * no-op rather than a second audit event.
+   */
+  async softDeleteWallet(
+    userId: string,
+    reason: string,
+  ): Promise<WalletAccount> {
+    if (!reason?.trim()) {
+      throw new BadRequestException('Wallet deletion reason is required');
+    }
+
+    return this.walletAccountRepository.manager.transaction(async (manager) => {
+      const accountRepository = manager.getRepository(WalletAccount);
+      const account = await accountRepository.findOne({
+        where: { userId },
+        withDeleted: true,
+      });
+      if (!account) {
+        throw new NotFoundException('No wallet found for this user');
+      }
+      if (account.deletedAt) {
+        return account;
+      }
+
+      account.deletedAt = new Date();
+      const saved = await accountRepository.save(account);
+      const accessLogRepository = manager.getRepository(WalletKeyAccessLog);
+      await accessLogRepository.save(
+        accessLogRepository.create({
+          walletAccountId: account.id,
+          actor: 'SYSTEM',
+          reason: reason.trim(),
+          successful: true,
+        }),
+      );
+      return saved;
+    });
   }
 
   /**
@@ -108,9 +171,13 @@ export class WalletsService {
     reason: string,
   ): Promise<Buffer> {
     const account = await this.walletAccountRepository.findOne({
-      where: { userId },
+      where: { userId, deletedAt: IsNull() },
     });
-    if (!account || account.custodyType !== WalletCustodyType.CUSTODIAL) {
+    if (
+      !account ||
+      account.deletedAt ||
+      account.custodyType !== WalletCustodyType.CUSTODIAL
+    ) {
       throw new BadRequestException(
         'User has no custodial wallet to sign with',
       );
@@ -147,10 +214,13 @@ export class WalletsService {
           .getRepository(WalletAccount)
           .createQueryBuilder('wallet_account')
           .setLock('pessimistic_write')
-          .where('wallet_account.user_id = :userId', { userId })
+          .where(
+            'wallet_account.user_id = :userId AND wallet_account.deleted_at IS NULL',
+            { userId },
+          )
           .getOne();
 
-        if (!account) {
+        if (!account || account.deletedAt) {
           throw new NotFoundException('No wallet found for this user');
         }
         if (account.custodyType !== WalletCustodyType.CUSTODIAL) {
@@ -241,6 +311,14 @@ export class WalletsService {
     } catch (error) {
       if (
         this.isUniqueViolation(error) &&
+        this.violatedConstraint(error) === WALLET_ACCOUNT_USER_ID_CONSTRAINT
+      ) {
+        throw new ConflictException(
+          'This wallet account is unavailable; reprovision it before linking an external wallet',
+        );
+      }
+      if (
+        this.isUniqueViolation(error) &&
         this.violatedConstraint(error) === WALLET_ACCOUNT_ADDRESS_CONSTRAINT
       ) {
         throw new ConflictException(
@@ -249,6 +327,13 @@ export class WalletsService {
       }
       throw error;
     }
+  }
+
+  private async reviveDeletedAccount(
+    account: WalletAccount,
+  ): Promise<WalletAccount> {
+    account.deletedAt = null;
+    return this.walletAccountRepository.save(account);
   }
 
   private async insertCustodialWallet(
@@ -275,6 +360,13 @@ export class WalletsService {
     return repository.save(account);
   }
 
+  /**
+   * Sums the append-only ledger for an account that has already passed the
+   * active-wallet lookup. There is intentionally no deleted-entry predicate:
+   * financial history remains auditable after an account-level soft delete,
+   * while the account lookup prevents a deleted wallet from exposing it as a
+   * current balance.
+   */
   private async getBalance(walletAccountId: string): Promise<number> {
     const result = await this.ledgerRepository
       .createQueryBuilder('entry')
@@ -289,6 +381,11 @@ export class WalletsService {
     return Number(result?.balance ?? 0);
   }
 
+  /**
+   * Claims a challenge row without a soft-delete predicate by design. Link
+   * challenges are short-lived append-only security records, not active
+   * wallet state; consumed challenges remain part of the audit history.
+   */
   private async claimChallenge(
     manager: EntityManager,
     userId: string,
@@ -345,8 +442,17 @@ export class WalletsService {
     const existing = await repository
       .createQueryBuilder('wallet_account')
       .setLock('pessimistic_write')
-      .where('wallet_account.user_id = :userId', { userId })
+      .where(
+        'wallet_account.user_id = :userId AND wallet_account.deleted_at IS NULL',
+        { userId },
+      )
       .getOne();
+
+    if (existing?.deletedAt) {
+      throw new ConflictException(
+        'This wallet account is soft-deleted; reprovision it before linking an external wallet',
+      );
+    }
 
     if (!existing) {
       return repository.save(

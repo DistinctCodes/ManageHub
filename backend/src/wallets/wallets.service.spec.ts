@@ -6,6 +6,7 @@ import {
 import { Keypair } from '@stellar/stellar-sdk';
 import { WalletsService } from './wallets.service';
 import { WalletAccount } from './entities/wallet-account.entity';
+import { WalletKeyAccessLog } from './entities/wallet-key-access-log.entity';
 import { WalletLedgerEntry } from './entities/wallet-ledger-entry.entity';
 import { WalletLinkChallenge } from './entities/wallet-link-challenge.entity';
 import { WalletCustodyType } from './enums/wallet-custody-type.enum';
@@ -27,6 +28,7 @@ function makeAccount(overrides: Partial<WalletAccount> = {}): WalletAccount {
     status: WalletStatus.ACTIVE,
     createdAt: new Date(),
     updatedAt: new Date(),
+    deletedAt: null,
     ...overrides,
   } as WalletAccount;
 }
@@ -68,6 +70,7 @@ describe('WalletsService', () => {
     transaction = jest.fn(async (cb: (m: any) => unknown) => cb(undefined));
     walletAccountRepository = {
       findOne: jest.fn(),
+      save: jest.fn(async (entity: any) => entity),
       manager: { transaction },
     };
     ledgerRepository = {
@@ -93,6 +96,19 @@ describe('WalletsService', () => {
       const result = await service.provisionCustodialWallet('user-1');
 
       expect(result).toBe(existing);
+      expect(transaction).not.toHaveBeenCalled();
+      expect(keyCustody.provisionKeypair).not.toHaveBeenCalled();
+    });
+
+    it('revives a soft-deleted wallet instead of hitting the user uniqueness constraint', async () => {
+      const existing = makeAccount({ deletedAt: new Date() });
+      walletAccountRepository.findOne.mockResolvedValueOnce(existing);
+
+      const result = await service.provisionCustodialWallet('user-1');
+
+      expect(result).toBe(existing);
+      expect(result.deletedAt).toBeNull();
+      expect(walletAccountRepository.save).toHaveBeenCalledWith(existing);
       expect(transaction).not.toHaveBeenCalled();
       expect(keyCustody.provisionKeypair).not.toHaveBeenCalled();
     });
@@ -319,6 +335,17 @@ describe('WalletsService', () => {
       expect(status).toEqual({ account: null, balance: 0, currency: 'XLM' });
     });
 
+    it('reports a soft-deleted wallet as absent without reading its balance', async () => {
+      walletAccountRepository.findOne.mockResolvedValueOnce(
+        makeAccount({ deletedAt: new Date() }),
+      );
+
+      const status = await service.getWalletStatus('user-1');
+
+      expect(status).toEqual({ account: null, balance: 0, currency: 'XLM' });
+      expect(ledgerRepository.createQueryBuilder).not.toHaveBeenCalled();
+    });
+
     it('sums the ledger to compute the balance for a provisioned wallet', async () => {
       const account = makeAccount();
       walletAccountRepository.findOne.mockResolvedValueOnce(account);
@@ -332,6 +359,47 @@ describe('WalletsService', () => {
       const status = await service.getWalletStatus('user-1');
 
       expect(status).toEqual({ account, balance: 5000, currency: 'XLM' });
+    });
+  });
+
+  describe('softDeleteWallet', () => {
+    it('stamps deletedAt and appends an audit row without removing the account', async () => {
+      const account = makeAccount();
+      const accountRepository = {
+        findOne: jest.fn().mockResolvedValue(account),
+        save: jest.fn(async (entity: any) => entity),
+        delete: jest.fn(),
+      };
+      const accessLogRepository = {
+        create: jest.fn((data: any) => ({ ...data })),
+        save: jest.fn(async (entity: any) => entity),
+      };
+      const manager = {
+        getRepository: jest.fn((entity: unknown) =>
+          entity === WalletKeyAccessLog ? accessLogRepository : accountRepository,
+        ),
+      };
+      transaction.mockImplementationOnce(async (cb: (m: any) => unknown) =>
+        cb(manager),
+      );
+
+      const result = await service.softDeleteWallet('user-1', 'account closed');
+
+      expect(result.deletedAt).toEqual(expect.any(Date));
+      expect(accountRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: account.id,
+          deletedAt: expect.any(Date),
+        }),
+      );
+      expect(accessLogRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          walletAccountId: account.id,
+          reason: 'account closed',
+          successful: true,
+        }),
+      );
+      expect(accountRepository.delete).not.toHaveBeenCalled();
     });
   });
 
@@ -356,6 +424,17 @@ describe('WalletsService', () => {
 
     it('rejects when the user has no custodial wallet', async () => {
       walletAccountRepository.findOne.mockResolvedValueOnce(null);
+
+      await expect(
+        service.signPayload('user-1', Buffer.from('x'), 'r'),
+      ).rejects.toThrow(BadRequestException);
+      expect(keyCustody.sign).not.toHaveBeenCalled();
+    });
+
+    it('rejects a soft-deleted wallet before it can sign', async () => {
+      walletAccountRepository.findOne.mockResolvedValueOnce(
+        makeAccount({ deletedAt: new Date() }),
+      );
 
       await expect(
         service.signPayload('user-1', Buffer.from('x'), 'r'),
