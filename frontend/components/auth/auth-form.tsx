@@ -14,15 +14,22 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const setAccessToken = useSessionStore((state) => state.setAccessToken);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [confirmationError, setConfirmationError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const isLogin = mode === "login";
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSubmitting(true);
     setError(null);
+    if (!isLogin && password !== confirmPassword) {
+      setConfirmationError(true);
+      return;
+    }
+    setConfirmationError(false);
+    setSubmitting(true);
     try {
       const result = isLogin
         ? await login(email.trim(), password)
@@ -45,7 +52,9 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+          <p className="text-sm text-red-600 dark:text-red-400" role="alert">
+            {error}
+          </p>
         )}
 
         <div>
@@ -77,11 +86,52 @@ export function AuthForm({ mode }: { mode: Mode }) {
             type="password"
             required
             minLength={isLogin ? 1 : 8}
+            autoComplete={isLogin ? "current-password" : "new-password"}
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              setConfirmationError(false);
+            }}
             className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-3 py-2 text-sm"
           />
         </div>
+
+        {!isLogin && (
+          <div>
+            <label
+              htmlFor="confirmPassword"
+              className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300"
+            >
+              Confirm password
+            </label>
+            <input
+              id="confirmPassword"
+              type="password"
+              required
+              minLength={8}
+              autoComplete="new-password"
+              value={confirmPassword}
+              onChange={(e) => {
+                setConfirmPassword(e.target.value);
+                setConfirmationError(false);
+              }}
+              aria-invalid={confirmationError}
+              aria-describedby={
+                confirmationError ? "confirm-password-error" : undefined
+              }
+              className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-3 py-2 text-sm"
+            />
+            {confirmationError && (
+              <p
+                id="confirm-password-error"
+                className="mt-1 text-sm text-red-600 dark:text-red-400"
+                role="alert"
+              >
+                Passwords do not match.
+              </p>
+            )}
+          </div>
+        )}
 
         <button
           type="submit"
