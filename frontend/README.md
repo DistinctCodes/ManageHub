@@ -1,3 +1,4 @@
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
@@ -15,6 +16,17 @@ bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+## Frontend foundations
+
+- Visit `/components` for the shared component catalog.
+- Run `npm run build:analyze` to opt into the Next bundle analyzer. The analyzer
+  is disabled for normal development and builds.
+- PWA metadata is exposed through `/manifest.webmanifest`; update
+  `app/manifest.ts` when icons or install behavior change.
+- New user-facing copy should be added to `lib/i18n/messages/<locale>.json`
+  and read through the helpers in `lib/i18n` so additional locales can be added
+  without rewriting route components.
 
 ## Running Tests
 
