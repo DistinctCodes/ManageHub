@@ -1,50 +1,39 @@
-// src/app/(dashboard)/admin/payments/metrics/page.tsx
-'use client';
+"use client";
 
-import React, { useEffect, useState } from 'react';
-import { 
-  BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, 
-  Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell 
-} from 'recharts';
-import { DollarSign, TrendingUp, AlertCircle, RefreshCw, Layers } from 'lucide-react';
-
-interface PaymentMetricsData {
-  totalVolume: number;
-  successfulTransactions: number;
-  failedTransactions: number;
-  dailyRevenue: { date: string; revenue: number; volume: number }[];
-  statusDistribution: { status: string; count: number }[];
-}
+import { useQuery } from "@tanstack/react-query";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
+import { DollarSign, TrendingUp, AlertCircle, RefreshCw, Layers } from "lucide-react";
+import {
+  fetchPaymentMetrics,
+  PAYMENT_METRICS_REFETCH_INTERVAL,
+} from "@/lib/payment-metrics";
 
 const COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444'];
 
 export default function AdminPaymentMetricsPage() {
-  const [data, setData] = useState<PaymentMetricsData | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const metrics = useQuery({
+    queryKey: ["payment-metrics"],
+    queryFn: ({ signal }) => fetchPaymentMetrics(signal),
+    refetchInterval: PAYMENT_METRICS_REFETCH_INTERVAL,
+    refetchIntervalInBackground: false,
+  });
+  const { data, error, isError, isFetching, isLoading, refetch } = metrics;
+  const errorMessage =
+    error instanceof Error ? error.message : "An unexpected error occurred.";
 
-  const fetchMetrics = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch('/payments/admin/metrics');
-      if (!response.ok) {
-        throw new Error('Failed to fetch payment admin metrics.');
-      }
-      const json = await response.json();
-      setData(json);
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchMetrics();
-  }, []);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex h-96 items-center justify-center">
         <RefreshCw className="h-8 w-8 animate-spin text-indigo-600" />
@@ -52,13 +41,17 @@ export default function AdminPaymentMetricsPage() {
     );
   }
 
-  if (error || !data) {
+  if (isError && !data) {
     return (
-      <div className="rounded-lg bg-red-50 p-4 border border-red-200 text-red-700 flex items-center gap-3">
+      <div className="rounded-lg bg-red-50 p-4 border border-red-200 text-red-700 flex items-center gap-3" role="alert">
         <AlertCircle className="h-5 w-5" />
-        <span>{error || 'No data available'}</span>
+        <span>{errorMessage}</span>
       </div>
     );
+  }
+
+  if (!data) {
+    return null;
   }
 
   return (
@@ -69,13 +62,21 @@ export default function AdminPaymentMetricsPage() {
           <p className="text-sm text-gray-500">Real-time administrative analytics for platform transactions.</p>
         </div>
         <button
-          onClick={fetchMetrics}
-          className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 shadow-sm"
+          type="button"
+          onClick={() => refetch()}
+          disabled={isFetching}
+          className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <RefreshCw className="h-4 w-4" />
-          Refresh
+          <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
+          {isFetching ? "Refreshing…" : "Refresh"}
         </button>
       </div>
+
+      {isError && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800" role="alert">
+          Showing the last successful snapshot. Refresh failed: {errorMessage}
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">

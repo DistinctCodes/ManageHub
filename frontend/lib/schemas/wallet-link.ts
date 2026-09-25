@@ -7,9 +7,17 @@ export const walletLinkSchema = z.object({
     .string()
     .trim()
     .min(1, "Wallet address is required")
-    .regex(
-      STELLAR_ADDRESS_REGEX,
-      "Address must be a valid Stellar public key (starts with G, 56 characters)",
+    // Accept either case from the user, but validate (and submit) the
+    // canonical uppercase form so a paste of a lowercased key isn't
+    // rejected client-side for the wrong reason. See #1814.
+    .toUpperCase()
+    .pipe(
+      z
+        .string()
+        .regex(
+          STELLAR_ADDRESS_REGEX,
+          "Address must be a valid Stellar public key (starts with G, 56 characters)",
+        ),
     ),
   signature: z
     .string()

@@ -1,11 +1,29 @@
 import * as Sentry from "@sentry/nextjs";
 
+export function getSampleRate(value: string | undefined, fallback: number): number {
+  if (!value) return fallback;
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 && parsed <= 1
+    ? parsed
+    : fallback;
+}
+
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
   environment: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT || process.env.NODE_ENV,
-  tracesSampleRate: 1.0,
-  replaysSessionSampleRate: 0.1,
-  replaysOnErrorSampleRate: 1.0,
+  tracesSampleRate: getSampleRate(
+    process.env.NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE,
+    1.0,
+  ),
+  replaysSessionSampleRate: getSampleRate(
+    process.env.NEXT_PUBLIC_SENTRY_REPLAYS_SESSION_SAMPLE_RATE,
+    0.1,
+  ),
+  replaysOnErrorSampleRate: getSampleRate(
+    process.env.NEXT_PUBLIC_SENTRY_REPLAYS_ON_ERROR_SAMPLE_RATE,
+    1.0,
+  ),
   integrations: [
     Sentry.replayIntegration({
       maskAllText: true,

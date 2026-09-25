@@ -54,6 +54,12 @@ export class EnvelopeKeyManagementService implements KeyManagementService {
     ]);
   }
 
+  /**
+   * Key lifecycle policy and the read-old/write-new migration procedure are
+   * documented in the [rotation runbook](./README.md). Never edit
+   * WALLET_KMS_MASTER_KEY in place: introduce a new kmsKeyId and migrate the
+   * wrapped data keys instead.
+   */
   private getMasterKey(): Buffer {
     const configured = this.config.get<string>('WALLET_KMS_MASTER_KEY');
     if (!configured) {

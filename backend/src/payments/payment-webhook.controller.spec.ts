@@ -17,6 +17,9 @@ describe('PaymentWebhookController', () => {
     apply: jest.Mock;
     logRejectedWebhook: jest.Mock;
   };
+  let deadLetterService: {
+    enqueue: jest.Mock;
+  };
   let controller: PaymentWebhookController;
 
   beforeEach(() => {
@@ -28,9 +31,13 @@ describe('PaymentWebhookController', () => {
       apply: jest.fn(),
       logRejectedWebhook: jest.fn(),
     };
+    deadLetterService = {
+      enqueue: jest.fn(),
+    };
     controller = new PaymentWebhookController(
       railAdapter as any,
       confirmationService as any,
+      deadLetterService as any,
     );
   });
 
@@ -48,6 +55,15 @@ describe('PaymentWebhookController', () => {
     expect(confirmationService.logRejectedWebhook).toHaveBeenCalledWith(
       expect.any(String),
       'invalid_signature',
+    );
+    expect(deadLetterService.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reason: 'invalid_signature',
+        rawPayload: JSON.stringify({
+          providerReference: 'ref-1',
+          outcome: 'confirmed',
+        }),
+      }),
     );
     expect(confirmationService.apply).not.toHaveBeenCalled();
   });
@@ -67,7 +83,38 @@ describe('PaymentWebhookController', () => {
       expect.any(String),
       'malformed_payload',
     );
+    expect(deadLetterService.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reason: 'malformed_payload',
+        errorMessage: 'bad shape',
+      }),
+    );
     expect(confirmationService.apply).not.toHaveBeenCalled();
+  });
+
+  it('dead-letters a well-formed webhook whose apply step throws', async () => {
+    railAdapter.verifyWebhookSignature.mockReturnValueOnce(true);
+    railAdapter.parseWebhookPayload.mockReturnValueOnce({
+      providerReference: 'ref-1',
+      outcome: 'confirmed',
+    });
+    confirmationService.apply.mockRejectedValueOnce(
+      new Error('database unavailable'),
+    );
+    const req = makeRequest({
+      providerReference: 'ref-1',
+      outcome: 'confirmed',
+    });
+
+    await expect(controller.sandbox(req, 'good-sig')).rejects.toThrow();
+
+    expect(deadLetterService.enqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reason: 'process_error',
+        providerReference: 'ref-1',
+        errorMessage: 'database unavailable',
+      }),
+    );
   });
 
   it('applies a validly signed, well-formed webhook', async () => {
@@ -93,5 +140,6 @@ describe('PaymentWebhookController', () => {
       ConfirmationSource.WEBHOOK,
       expect.any(String),
     );
+    expect(deadLetterService.enqueue).not.toHaveBeenCalled();
   });
 });

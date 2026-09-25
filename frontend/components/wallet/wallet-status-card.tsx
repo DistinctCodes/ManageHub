@@ -115,9 +115,22 @@ export function WalletStatusCard() {
 
   if (loading) {
     return (
-      <Card>
-        <CardContent aria-live="polite" role="status">
-          Loading your wallet...
+      <Card aria-busy="true">
+        <div aria-live="polite" role="status" className="sr-only">
+          Loading your wallet status...
+        </div>
+        {/* Skeleton mirrors the loaded card's layout (header row, balance,
+            supporting text, advanced disclosure, and action button) so the
+            swap to the real content doesn't cause a layout jump. */}
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div className="h-5 w-28 animate-pulse rounded bg-gray-200 dark:bg-gray-800" />
+          <div className="h-5 w-16 animate-pulse rounded bg-gray-200 dark:bg-gray-800" />
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="h-8 w-44 animate-pulse rounded bg-gray-200 dark:bg-gray-800" />
+          <div className="h-4 w-full max-w-72 animate-pulse rounded bg-gray-200 dark:bg-gray-800" />
+          <div className="h-4 w-40 animate-pulse rounded bg-gray-200 dark:bg-gray-800" />
+          <div className="h-9 w-32 animate-pulse rounded-md bg-gray-200 dark:bg-gray-800" />
         </CardContent>
       </Card>
     );

@@ -9,10 +9,13 @@ import {
   installGracefulShutdown,
   resolveGracefulShutdownTimeout,
 } from './common/graceful-shutdown';
+import { HttpLoggingInterceptor } from './common/http-logging.interceptor';
 import { randomUUID } from 'crypto';
 import { NextFunction, Request, Response } from 'express';
+import { initTracing } from './common/tracing';
 
 async function bootstrap() {
+  initTracing();
   // rawBody is needed by the payment webhook controller to verify HMAC
   // signatures against the exact bytes the provider signed, not a
   // re-serialized copy of the parsed JSON body.
@@ -36,6 +39,8 @@ async function bootstrap() {
     }
     next();
   });
+
+  app.useGlobalInterceptors(new HttpLoggingInterceptor());
 
   app.useGlobalPipes(
     new ValidationPipe({

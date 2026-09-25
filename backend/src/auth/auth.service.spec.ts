@@ -16,6 +16,7 @@ describe('AuthService', () => {
       role: UserRole.USER,
       ...entity,
     })),
+    update: jest.fn(),
   };
   const jwtService = {
     signAsync: jest.fn(async (payload) => `jwt:${payload.sub}:${payload.role}`),
@@ -51,25 +52,41 @@ describe('AuthService', () => {
     ).rejects.toThrow(ConflictException);
   });
 
-  it('logs in with a valid password', async () => {
-    const bcrypt = await import('bcrypt');
-    (bcrypt.compare as jest.Mock).mockResolvedValueOnce(true);
-    users.findOne.mockResolvedValueOnce({
-      id: 'user-1',
-      email: 'user@example.com',
-      passwordHash: 'hashed:password123',
-      role: UserRole.USER,
-    });
+  it(
+    'logs in with a valid password and stamps lastLoginAt before issuing a token',
+    async () => {
+      const bcrypt = await import('bcrypt');
+      (bcrypt.compare as jest.Mock).mockResolvedValueOnce(true);
+      users.findOne.mockResolvedValueOnce({
+        id: 'user-1',
+        email: 'user@example.com',
+        passwordHash: 'hashed:password123',
+        role: UserRole.USER,
+        lastLoginAt: null,
+      });
 
-    const result = await service.login({
-      email: 'user@example.com',
-      password: 'password123',
-    });
+      const result = await service.login({
+        email: 'user@example.com',
+        password: 'password123',
+      });
 
-    expect(result.accessToken).toBe('jwt:user-1:user');
+      expect(result.accessToken).toBe('jwt:user-1:user');
+      expect(users.update).toHaveBeenCalledWith('user-1', {
+        lastLoginAt: expect.any(Date),
+      });
+    },
+  );
+
+  it('rejects an unknown account without changing any row', async () => {
+    users.findOne.mockResolvedValueOnce(null);
+
+    await expect(
+      service.login({ email: 'missing@example.com', password: 'password123' }),
+    ).rejects.toThrow(UnauthorizedException);
+    expect(users.update).not.toHaveBeenCalled();
   });
 
-  it('rejects an invalid password', async () => {
+  it('rejects an invalid password without changing the account', async () => {
     const bcrypt = await import('bcrypt');
     (bcrypt.compare as jest.Mock).mockResolvedValueOnce(false);
     users.findOne.mockResolvedValueOnce({
@@ -77,10 +94,33 @@ describe('AuthService', () => {
       email: 'user@example.com',
       passwordHash: 'hashed:password123',
       role: UserRole.USER,
+      lastLoginAt: null,
     });
 
     await expect(
       service.login({ email: 'user@example.com', password: 'wrong' }),
     ).rejects.toThrow(UnauthorizedException);
+    expect(users.update).not.toHaveBeenCalled();
   });
+
+  it(
+    'fails the login when the successful-login stamp cannot be persisted',
+    async () => {
+      const bcrypt = await import('bcrypt');
+      (bcrypt.compare as jest.Mock).mockResolvedValueOnce(true);
+      users.findOne.mockResolvedValueOnce({
+        id: 'user-1',
+        email: 'user@example.com',
+        passwordHash: 'hashed:password123',
+        role: UserRole.USER,
+        lastLoginAt: null,
+      });
+      users.update.mockRejectedValueOnce(new Error('database unavailable'));
+
+      await expect(
+        service.login({ email: 'user@example.com', password: 'password123' }),
+      ).rejects.toThrow('database unavailable');
+      expect(jwtService.signAsync).not.toHaveBeenCalled();
+    },
+  );
 });

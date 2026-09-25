@@ -32,6 +32,7 @@ import {
   scValToNative,
   xdr,
 } from '@stellar/stellar-sdk';
+import { withSpan } from '../../common/tracing';
 import { SorobanRpcClient } from './soroban-rpc-client';
 import { EscrowStatus } from './escrow-status.enum';
 
@@ -90,13 +91,15 @@ export class EscrowContractClient {
   }
 
   async submit(signedTx: any): Promise<{ hash: string }> {
-    const result = await this.rpc.sendTransaction(signedTx);
-    if (result.status === 'ERROR') {
-      throw new EscrowSubmissionError(
-        result.errorResult ? JSON.stringify(result.errorResult) : 'unknown',
-      );
-    }
-    return { hash: result.hash };
+    return withSpan('soroban.escrow-contract.submit', async () => {
+      const result = await this.rpc.sendTransaction(signedTx);
+      if (result.status === 'ERROR') {
+        throw new EscrowSubmissionError(
+          result.errorResult ? JSON.stringify(result.errorResult) : 'unknown',
+        );
+      }
+      return { hash: result.hash };
+    });
   }
 
   /**
@@ -129,16 +132,18 @@ export class EscrowContractClient {
     sourceAccountPublicKey: string,
     escrowId: Buffer,
   ): Promise<EscrowStatus> {
-    const tx = await this.build(sourceAccountPublicKey, 'get_status', [
-      nativeToScVal(escrowId, { type: 'bytes' }),
-    ]);
-    const sim = await this.rpc.simulateTransaction(tx);
-    if (SorobanRpc.Api.isSimulationError(sim)) {
-      return EscrowStatus.NOT_FOUND;
-    }
-    const retval = sim.result?.retval ?? sim.results?.[0]?.retval;
-    const raw = Number(scValToNative(retval));
-    return EscrowContractClient.mapRawStatus(raw);
+    return withSpan('soroban.escrow-contract.get-status', async () => {
+      const tx = await this.build(sourceAccountPublicKey, 'get_status', [
+        nativeToScVal(escrowId, { type: 'bytes' }),
+      ]);
+      const sim = await this.rpc.simulateTransaction(tx);
+      if (SorobanRpc.Api.isSimulationError(sim)) {
+        return EscrowStatus.NOT_FOUND;
+      }
+      const retval = sim.result?.retval ?? sim.results?.[0]?.retval;
+      const raw = Number(scValToNative(retval));
+      return EscrowContractClient.mapRawStatus(raw);
+    });
   }
 
   private static mapRawStatus(raw: number): EscrowStatus {

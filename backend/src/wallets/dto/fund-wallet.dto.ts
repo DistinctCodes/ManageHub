@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsPositive, IsString } from 'class-validator';
+import {
+  IsInt,
+  IsNotEmpty,
+  IsPositive,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 
 export class FundWalletDto {
   @ApiProperty({
@@ -12,5 +18,7 @@ export class FundWalletDto {
 
   @ApiProperty({ description: 'Why this wallet is being funded — audited' })
   @IsString()
+  @IsNotEmpty()
+  @MaxLength(500)
   reason: string;
 }

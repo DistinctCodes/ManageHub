@@ -36,6 +36,17 @@ export class AuthService {
     return this.issueToken(user);
   }
 
+  /**
+   * Authenticates a password login and records the successful-login marker.
+   *
+   * The write is awaited inline rather than fired and forgotten: a login
+   * must not succeed while its security timestamp is still unrecorded, or
+   * monitoring could miss the authentication event. If persisting the stamp
+   * fails, the error propagates and no token is issued; that explicit failure
+   * is safer than silently authenticating a user without an audit record.
+   * The field is written only after the password comparison succeeds, so a
+   * failed lookup or bad password leaves the user's row untouched.
+   */
   async login(dto: LoginDto): Promise<AuthResponseDto> {
     const email = dto.email.trim().toLowerCase();
     const user = await this.users.findOne({ where: { email } });
@@ -48,6 +59,9 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    const lastLoginAt = new Date();
+    await this.users.update(user.id, { lastLoginAt });
+    user.lastLoginAt = lastLoginAt;
     return this.issueToken(user);
   }
 
