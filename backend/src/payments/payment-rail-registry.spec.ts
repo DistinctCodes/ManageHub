@@ -33,4 +33,59 @@ describe('PaymentRailRegistry', () => {
       /SOROBAN_ENABLED/,
     );
   });
+
+  it('resolves an available requested rail without using a fallback', () => {
+    const sandbox = {} as any;
+    const config = {
+      get: jest.fn((key: string) =>
+        key === 'PAYMENT_RAIL_FAILOVER'
+          ? 'STELLAR_CUSTODIAL=FIAT,FIAT='
+          : undefined,
+      ),
+    };
+    const registry = new PaymentRailRegistry(
+      sandbox,
+      undefined,
+      config as any,
+    );
+
+    expect(registry.resolve(PaymentRail.FIAT)).toEqual({
+      adapter: sandbox,
+      rail: PaymentRail.FIAT,
+      usedFallback: false,
+    });
+  });
+
+  it('uses the first explicitly configured available fallback', () => {
+    const sandbox = {} as any;
+    const config = {
+      get: jest.fn((key: string) =>
+        key === 'PAYMENT_RAIL_FAILOVER'
+          ? 'STELLAR_CUSTODIAL=FIAT,FIAT='
+          : undefined,
+      ),
+    };
+    const registry = new PaymentRailRegistry(
+      sandbox,
+      undefined,
+      config as any,
+    );
+
+    expect(registry.resolve(PaymentRail.STELLAR_CUSTODIAL)).toEqual({
+      adapter: sandbox,
+      rail: PaymentRail.FIAT,
+      usedFallback: true,
+    });
+  });
+
+  it('keeps the strict stored-rail error when no fallback is configured', () => {
+    const sandbox = {} as any;
+    const registry = new PaymentRailRegistry(sandbox, undefined);
+
+    expect(registry.isAvailable(PaymentRail.FIAT)).toBe(true);
+    expect(registry.isAvailable(PaymentRail.STELLAR_CUSTODIAL)).toBe(false);
+    expect(() => registry.resolve(PaymentRail.STELLAR_CUSTODIAL)).toThrow(
+      /SOROBAN_ENABLED/,
+    );
+  });
 });

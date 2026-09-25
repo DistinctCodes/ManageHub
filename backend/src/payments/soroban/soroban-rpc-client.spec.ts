@@ -1,4 +1,8 @@
-import { SorobanRpcClient, SorobanRpcServerLike } from './soroban-rpc-client';
+import {
+  SorobanRpcClient,
+  SorobanRpcServerLike,
+  SorobanRpcTimeoutError,
+} from './soroban-rpc-client';
 
 function makeServer(overrides: Partial<SorobanRpcServerLike> = {}): SorobanRpcServerLike {
   return {
@@ -68,6 +72,46 @@ describe('SorobanRpcClient', () => {
 
     await expect(client.simulateTransaction({} as any)).rejects.toThrow(
       'down-2',
+    );
+  });
+
+  it('abandons a hung endpoint after the timeout and fails over', async () => {
+    const primary = makeServer({
+      getAccount: jest.fn(() => new Promise(() => {})),
+    });
+    const secondary = makeServer({
+      getAccount: jest.fn().mockResolvedValue({ id: 'account-from-secondary' }),
+    });
+    const client = new SorobanRpcClient([primary, secondary], 5);
+
+    await expect(client.getAccount('GADDR')).resolves.toEqual({
+      id: 'account-from-secondary',
+    });
+    expect(primary.getAccount).toHaveBeenCalledTimes(2);
+    expect(secondary.getAccount).toHaveBeenCalledWith('GADDR');
+  });
+
+  it('leaves a response that arrives within the budget unaffected', async () => {
+    const primary = makeServer({
+      getTransaction: jest.fn().mockResolvedValue({ status: 'SUCCESS' }),
+    });
+    const secondary = makeServer();
+    const client = new SorobanRpcClient([primary, secondary], 50);
+
+    await expect(client.getTransaction('hash-1')).resolves.toEqual({
+      status: 'SUCCESS',
+    });
+    expect(secondary.getTransaction).not.toHaveBeenCalled();
+  });
+
+  it('surfaces the timeout error when every endpoint hangs', async () => {
+    const server = makeServer({
+      simulateTransaction: jest.fn(() => new Promise(() => {})),
+    });
+    const client = new SorobanRpcClient([server], 5);
+
+    await expect(client.simulateTransaction({} as any)).rejects.toBeInstanceOf(
+      SorobanRpcTimeoutError,
     );
   });
 });

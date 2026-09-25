@@ -31,8 +31,10 @@ import { EscrowSubmissionProcessor } from './soroban/escrow-submission.processor
 import { EscrowContractClient } from './soroban/escrow-contract.client';
 import { createLazy } from './soroban/lazy-initialization';
 import {
+  DEFAULT_SOROBAN_RPC_TIMEOUT_MS,
   SorobanRpcClient,
   createSorobanRpcServer,
+  parseSorobanRpcTimeoutMs,
 } from './soroban/soroban-rpc-client';
 import {
   ESCROW_CONTRACT_CLIENT,
@@ -81,18 +83,29 @@ import {
     },
     {
       provide: SorobanRpcClient,
-      inject: [SOROBAN_CONFIG],
+      inject: [SOROBAN_CONFIG, ConfigService],
       // Resolve a lazy proxy while keeping the disabled case a literal null;
       // the RPC SDK servers and SorobanRpcClient constructor are not touched
       // until a consumer actually accesses the client.
-      useFactory: (sorobanConfig: ReturnType<typeof loadSorobanConfig>) => {
+      useFactory: (
+        sorobanConfig: ReturnType<typeof loadSorobanConfig>,
+        config: ConfigService,
+      ) => {
         if (!sorobanConfig) {
           return null;
         }
-        const config = sorobanConfig;
+        const timeoutMs = parseSorobanRpcTimeoutMs(
+          config.get<unknown>(
+            'SOROBAN_RPC_TIMEOUT_MS',
+            DEFAULT_SOROBAN_RPC_TIMEOUT_MS,
+          ),
+        );
         return createLazy(
           () =>
-            new SorobanRpcClient(config.rpcUrls.map(createSorobanRpcServer)),
+            new SorobanRpcClient(
+              sorobanConfig.rpcUrls.map(createSorobanRpcServer),
+              timeoutMs,
+            ),
         );
       },
     },

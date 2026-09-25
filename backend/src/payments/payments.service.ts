@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -18,9 +19,13 @@ import {
   NON_TERMINAL_PAYMENT_STATUSES,
   PaymentStatus,
 } from './enums/payment-status.enum';
-import { assertValidTransition } from './payment-state-machine';
-import { PaymentRailRegistry } from './payment-rail-registry';
 import { PaymentRail } from './enums/payment-rail.enum';
+import { assertValidTransition } from './payment-state-machine';
+import {
+  PaymentRailRegistry,
+  PaymentRailResolution,
+} from './payment-rail-registry';
+import { withRequestId } from '../common/request-context';
 import type { PaymentInitiationResult } from './interfaces/payment-rail-adapter.interface';
 import { createPaymentProviderCircuitBreaker } from './utils/circuit-breaker';
 import type { PaymentProviderCircuitBreaker } from './utils/circuit-breaker';
@@ -36,6 +41,7 @@ const BLOCKING_STATUSES_FOR_NEW_PAYMENT = [
 
 @Injectable()
 export class PaymentsService {
+  private readonly logger = new Logger(PaymentsService.name);
   private readonly breakers = new Map<
     string,
     PaymentProviderCircuitBreaker<[Payment], PaymentInitiationResult>
@@ -71,11 +77,17 @@ export class PaymentsService {
 
         await this.assertBookingAvailable(dto.bookingId);
 
-        const payment = this.buildInitiatedPayment(userId, idempotencyKey, dto);
+        const resolution = this.railRegistry.resolve(dto.rail);
+        const payment = this.buildInitiatedPayment(
+          userId,
+          idempotencyKey,
+          dto,
+          resolution,
+        );
 
         try {
           const saved = await this.paymentRepository.save(payment);
-          return await this.progressToAwaitingConfirmation(saved);
+          return await this.progressToAwaitingConfirmation(saved, resolution);
         } catch (error) {
           return this.handleInsertConflict(error, userId, idempotencyKey);
         }
@@ -132,7 +144,7 @@ export class PaymentsService {
       existing.bookingId === dto.bookingId &&
       existing.amount === dto.amount &&
       existing.currency === dto.currency.toUpperCase() &&
-      existing.rail === dto.rail;
+      this.requestedRailFor(existing) === dto.rail;
 
     if (!samePayload) {
       throw new ConflictException(
@@ -140,6 +152,22 @@ export class PaymentsService {
       );
     }
     return existing;
+  }
+
+  /**
+   * Returns the rail the caller originally requested, even when initiation
+   * persisted a fallback rail. Without this lookup an idempotency replay of
+   * the original request would look like a different payload and be rejected.
+   */
+  private requestedRailFor(payment: Payment): PaymentRail {
+    const requestedRail = payment.metadata?.requestedRail;
+    const isKnownRail =
+      requestedRail === PaymentRail.FIAT ||
+      requestedRail === PaymentRail.STELLAR_CUSTODIAL ||
+      requestedRail === PaymentRail.STELLAR_EXTERNAL;
+    return isKnownRail && requestedRail !== payment.rail
+      ? requestedRail
+      : payment.rail;
   }
 
   private async assertBookingAvailable(bookingId: string): Promise<void> {
@@ -162,21 +190,27 @@ export class PaymentsService {
     userId: string,
     idempotencyKey: string,
     dto: InitiatePaymentDto,
+    resolution: PaymentRailResolution,
   ): Payment {
     const ttlMinutes = this.config.get<number>(
       'PAYMENT_INITIATED_TTL_MINUTES',
       30,
     );
+    const requestedRail = dto.rail;
+    const usedFallback =
+      resolution.usedFallback && resolution.rail !== requestedRail;
     return this.paymentRepository.create({
       bookingId: dto.bookingId,
       userId,
       amount: dto.amount,
       currency: dto.currency.toUpperCase(),
-      rail: dto.rail,
+      rail: resolution.rail,
       provider: dto.provider ?? null,
       status: PaymentStatus.INITIATED,
       idempotencyKey,
-      metadata: dto.metadata ?? null,
+      metadata: usedFallback
+        ? { ...(dto.metadata ?? {}), requestedRail }
+        : dto.metadata ?? null,
       expiresAt: new Date(Date.now() + ttlMinutes * 60_000),
     });
   }
@@ -206,9 +240,43 @@ export class PaymentsService {
     return breaker;
   }
 
+  /**
+   * This is the only point where failover may change a Payment's rail. The
+   * rail persisted here is the rail whose adapter actually received the
+   * initiation call; the requested rail is retained in metadata for audit and
+   * idempotency replay. Once this method has selected a rail, webhook,
+   * reconciliation, and refund paths must continue to use strict
+   * `get(payment.rail)` — they must never re-resolve or rewrite a stored
+   * Payment's rail, or confirmation could be delivered to the wrong adapter.
+   *
+   * The provider call itself is wrapped in a per-rail circuit breaker and a
+   * tracing span: the breaker is keyed by the actual (possibly fallback)
+   * rail, so an unhealthy provider only trips its own breaker, and the
+   * breaker's own `railRegistry.get(rail)` lookup stays consistent with the
+   * rail already persisted on `payment` above.
+   */
   private async progressToAwaitingConfirmation(
     payment: Payment,
+    resolution: PaymentRailResolution = this.railRegistry.resolve(
+      payment.rail,
+    ),
   ): Promise<Payment> {
+    const requestedRail = this.requestedRailFor(payment);
+    if (resolution.usedFallback && resolution.rail !== requestedRail) {
+      payment.rail = resolution.rail;
+      payment.metadata = {
+        ...(payment.metadata ?? {}),
+        requestedRail,
+      };
+      this.logger.warn(
+        withRequestId(
+          `Payment ${payment.id} requested rail ${requestedRail} but rail ` +
+            `${resolution.rail} is being used because the requested adapter ` +
+            'is unavailable',
+        ),
+      );
+    }
+
     const result = await withSpan(
       'payments.rail.initiate',
       () => this.getBreaker(payment.rail).fire(payment),

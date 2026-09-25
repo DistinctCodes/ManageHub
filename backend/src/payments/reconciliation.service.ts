@@ -20,7 +20,10 @@ import { PaymentsGateway } from './payments.gateway';
 import { PaymentRailRegistry } from './payment-rail-registry';
 import { withTimeout } from './utils/with-timeout';
 import { MetricsService } from '../common/metrics.service';
-import { withRequestId } from '../common/request-context';
+import {
+  outboundRequestHeaders,
+  withRequestId,
+} from '../common/request-context';
 import { createTransport } from 'nodemailer';
 import Handlebars from 'handlebars';
 
@@ -454,6 +457,13 @@ export class ReconciliationService {
       : fallback;
   }
 
+  /**
+   * Sends the manual-review alert over SMTP. Nodemailer accepts custom
+   * message headers, so the active request id is attached as both correlation
+   * names accepted by this backend's request middleware. Providers that do
+   * not expose a custom-header API cannot receive this metadata; the message
+   * remains useful without it, but no placeholder id is invented.
+   */
   private async sendManualReviewAlert(
     depth: number,
     threshold: number,
@@ -482,6 +492,7 @@ export class ReconciliationService {
         from,
         to: supportEmail,
         subject: `${this.config.get<string>('COMPANY_NAME', 'ManageHub')} manual review queue alert`,
+        headers: outboundRequestHeaders(),
         text: template({
           company: this.config.get<string>('COMPANY_NAME', 'ManageHub'),
           depth,

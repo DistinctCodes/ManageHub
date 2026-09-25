@@ -2,7 +2,9 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import * as nodemailer from 'nodemailer';
 import { FindOperator } from 'typeorm';
+import { runWithRequestContext } from '../common/request-context';
 import { ReconciliationService } from './reconciliation.service';
 import { Payment } from './entities/payment.entity';
 import { PaymentRail } from './enums/payment-rail.enum';
@@ -156,8 +158,8 @@ function makeRunRepository(seed: any[] = []) {
   };
 }
 
-function makeConfigService(overrides: Record<string, number> = {}) {
-  const values: Record<string, number> = {
+function makeConfigService(overrides: Record<string, number | string> = {}) {
+  const values: Record<string, number | string> = {
     PAYMENT_RECONCILE_DUE_AFTER_MINUTES: 5,
     PAYMENT_RECONCILE_BACKOFF_BASE_MINUTES: 5,
     PAYMENT_RECONCILE_BACKOFF_MAX_MINUTES: 60,
@@ -170,7 +172,9 @@ function makeConfigService(overrides: Record<string, number> = {}) {
     ...overrides,
   };
   return {
-    get: jest.fn((key: string, fallback?: number) => values[key] ?? fallback),
+    get: jest.fn(
+      (key: string, fallback?: number | string) => values[key] ?? fallback,
+    ),
   };
 }
 
@@ -197,7 +201,7 @@ describe('ReconciliationService', () => {
 
   function build(
     seed: Payment[],
-    configOverrides: Record<string, number> = {},
+    configOverrides: Record<string, number | string> = {},
     runSeed: any[] = [],
   ) {
     const paymentRepository = makePaymentRepository(seed);
@@ -645,6 +649,41 @@ describe('ReconciliationService', () => {
       await service.handleCron();
 
       expect(metrics.recordReconciliationPass).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('outbound request correlation', () => {
+    it('attaches the active request id to manual-review SMTP alerts', async () => {
+      const sendMail = jest.fn().mockResolvedValue(undefined);
+      const createTransport = jest
+        .spyOn(nodemailer, 'createTransport')
+        .mockReturnValue({ sendMail } as any);
+      const { service } = build([], {
+        SMTP_HOST: 'smtp.example.test',
+        SMTP_PORT: 587,
+        SMTP_SECURE: 'false',
+        SMTP_USER: 'alerts@example.test',
+        SMTP_PASS: 'secret',
+        SMTP_FROM_EMAIL: 'alerts@example.test',
+        SUPPORT_EMAIL: 'support@example.test',
+      });
+
+      try {
+        await runWithRequestContext({ requestId: 'request-smtp-1' }, () =>
+          (service as any).sendManualReviewAlert(21, 20),
+        );
+
+        expect(sendMail).toHaveBeenCalledWith(
+          expect.objectContaining({
+            headers: {
+              'x-request-id': 'request-smtp-1',
+              'x-correlation-id': 'request-smtp-1',
+            },
+          }),
+        );
+      } finally {
+        createTransport.mockRestore();
+      }
     });
   });
 
