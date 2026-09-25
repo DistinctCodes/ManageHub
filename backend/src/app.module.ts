@@ -1,5 +1,5 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { BullModule } from '@nestjs/bull';
 import { CacheModule } from '@nestjs/cache-manager';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -18,6 +18,7 @@ import { HealthModule } from './health/health.module';
 import { MetricsService } from './common/metrics.service';
 import { MetricsController } from './common/metrics.controller';
 import { RequestContextMiddleware } from './common/request-context.middleware';
+import { RequestDurationInterceptor } from './common/request-duration.interceptor';
 import { TracingMiddleware } from './common/tracing.middleware';
 
 @Module({
@@ -47,6 +48,13 @@ import { TracingMiddleware } from './common/tracing.middleware';
         database: config.get<string>('DATABASE_NAME'),
         autoLoadEntities: true,
         synchronize: false,
+        // Env-configurable pool bounds (issue #1778) — see
+        // src/database/data-source.ts for the matching CLI/migration
+        // DataSource and the defaults these fall back to.
+        extra: {
+          min: config.get<number>('DB_POOL_MIN', 2),
+          max: config.get<number>('DB_POOL_MAX', 10),
+        },
       }),
     }),
     // Backs the Soroban escrow submission queue (issue #1574) — see
@@ -87,6 +95,10 @@ import { TracingMiddleware } from './common/tracing.middleware';
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: RequestDurationInterceptor,
     },
   ],
 })
