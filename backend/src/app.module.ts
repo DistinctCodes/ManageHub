@@ -14,10 +14,12 @@ import { WalletsModule } from './wallets/wallets.module';
 import { CreditsModule } from './credits/credits.module';
 import { RetentionModule } from './retention/retention.module';
 import { AdminAuditModule } from './admin-audit/admin-audit.module';
+import { HealthModule } from './health/health.module';
 import { MetricsService } from './common/metrics.service';
 import { MetricsController } from './common/metrics.controller';
 import { RequestContextMiddleware } from './common/request-context.middleware';
 import { RequestDurationInterceptor } from './common/request-duration.interceptor';
+import { TracingMiddleware } from './common/tracing.middleware';
 
 @Module({
   imports: [
@@ -84,6 +86,7 @@ import { RequestDurationInterceptor } from './common/request-duration.intercepto
     // Structured audit trail for admin actions (issue #1612). Consumed by
     // the payments and credits admin controllers; read via /admin/audit.
     AdminAuditModule,
+    HealthModule,
   ],
   controllers: [AppController, MetricsController],
   providers: [
@@ -101,6 +104,10 @@ import { RequestDurationInterceptor } from './common/request-duration.intercepto
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(RequestContextMiddleware).forRoutes('*');
+    // RequestContextMiddleware must run first so the tracing root span and
+    // every downstream log prefix share the same request-id context.
+    consumer
+      .apply(RequestContextMiddleware, TracingMiddleware)
+      .forRoutes('*');
   }
 }

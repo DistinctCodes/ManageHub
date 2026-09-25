@@ -2,8 +2,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Sliders, ArrowUpRight, RefreshCw, AlertCircle } from 'lucide-react';
-import { useToast } from './ToastProvider';
+import { Sliders, ArrowUpRight, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function AdminCreditsManagement() {
   const [userId, setUserId] = useState('');
@@ -12,7 +12,6 @@ export default function AdminCreditsManagement() {
   const [paymentId, setPaymentId] = useState('');
   const [topUpAmount, setTopUpAmount] = useState('');
   const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
 
   const handleManualAdjustment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,12 +23,12 @@ export default function AdminCreditsManagement() {
         body: JSON.stringify({ userId, amount: parseFloat(adjustmentAmount), reason: adjustmentReason }),
       });
       if (!res.ok) throw new Error('Failed to process manual adjustment.');
-      toast('Success', 'Manual credit adjustment applied successfully.', 'success');
+      toast.success('Manual credit adjustment applied successfully.');
       setUserId('');
       setAdjustmentAmount('');
       setAdjustmentReason('');
     } catch (err: any) {
-      toast('Error', err.message, 'error');
+      toast.error(err.message);
     } finally {
       setLoading(false);
     }
@@ -45,11 +44,11 @@ export default function AdminCreditsManagement() {
         body: JSON.stringify({ amount: parseFloat(topUpAmount) }),
       });
       if (!res.ok) throw new Error('Failed to trigger payment top-up.');
-      toast('Success', 'Payment top-up triggered successfully.', 'success');
+      toast.success('Payment top-up triggered successfully.');
       setPaymentId('');
       setTopUpAmount('');
     } catch (err: any) {
-      toast('Error', err.message, 'error');
+      toast.error(err.message);
     } finally {
       setLoading(false);
     }
@@ -63,9 +62,9 @@ export default function AdminCreditsManagement() {
         method: 'POST',
       });
       if (!res.ok) throw new Error('Failed to execute payment sweep.');
-      toast('Success', 'Payment sweep executed successfully.', 'success');
+      toast.success('Payment sweep executed successfully.');
     } catch (err: any) {
-      toast('Error', err.message, 'error');
+      toast.error(err.message);
     } finally {
       setLoading(false);
     }

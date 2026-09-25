@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsEnum,
   IsInt,
+  IsNotEmpty,
   IsObject,
   IsOptional,
   IsPositive,
@@ -38,6 +39,7 @@ export class InitiatePaymentDto {
   })
   @IsOptional()
   @IsString()
+  @IsNotEmpty()
   provider?: string;
 
   @ApiPropertyOptional({ type: 'object' })

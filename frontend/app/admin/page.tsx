@@ -1,5 +1,12 @@
 import Link from "next/link";
-import { Landmark, Scale, Split, RefreshCw, ClipboardList } from "lucide-react";
+import {
+  Landmark,
+  Scale,
+  Split,
+  RefreshCw,
+  ClipboardList,
+  Coins,
+} from "lucide-react";
 import { Card } from "@/components/admin/ui";
 
 const cards = [
@@ -9,6 +16,13 @@ const cards = [
     description:
       "Browse and manage credit-ledger accounts — balances, policy, freezing, payout addresses.",
     icon: Landmark,
+  },
+  {
+    href: "/admin/credits",
+    title: "Credits & payments",
+    description:
+      "Manual credit adjustments, payment top-ups, and the global sweep operation.",
+    icon: Coins,
   },
   {
     href: "/admin/integrity",

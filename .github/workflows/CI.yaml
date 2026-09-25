@@ -73,8 +73,24 @@ jobs:
       - name: Unit tests
         run: npm run test
 
+      # npm audit is the blocking gate for critical advisories in the
+      # direct+transitive npm advisory database. OSV below is advisory-only
+      # and provides broader OSV coverage, including transitive packages.
       - name: Dependency audit
         run: npm audit --audit-level=critical
+
+      # Keep this advisory while the team baselines existing findings. The
+      # follow-up plan is to require a clean OSV result (or an approved
+      # exception) after the findings are triaged, then remove
+      # continue-on-error. The action runs from the workspace root, so the
+      # backend lockfile is named explicitly even though run steps default to
+      # backend/.
+      - name: Dependency vulnerability scan (osv-scanner, advisory-only)
+        continue-on-error: true
+        uses: google/osv-scanner-action/osv-scanner-action@v2.6.0
+        with:
+          scan-args: |-
+            --lockfile=backend/package-lock.json
 
   # ─────────────────────────────────────────────
   # FRONTEND — Next.js

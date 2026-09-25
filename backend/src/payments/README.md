@@ -147,6 +147,49 @@ and available as `PAYMENT_WEBHOOK_CONTRACT_VERSION` in
    up by `providerReference` and no-ops on an already-terminal payment, so
    duplicate or replay webhooks are harmless by construction.
 
+### Realtime status push contract (issue #1812)
+
+`PaymentsGateway` (`/payments` namespace; `payments.gateway.ts`) is a
+**best-effort, additive** push channel — `GET /payments/:id` stays
+authoritative and remains the fallback path every client is expected to keep.
+
+The timeline a subscribing client should expect:
+
+| Path                | When an update is pushed                                                        |
+| ------------------- | ------------------------------------------------------------------------------- |
+| Fast path (return)  | `verifyOnReturn` blocks at most `PAYMENT_VERIFY_TIMEOUT_MS` (default `3000` ms) |
+|                      | against the rail, then transitions + pushes the verdict immediately after commit.|
+| Webhook             | Real time: the provider's event is applied and pushed the moment it lands.       |
+| Reconciliation      | Unresolved payments are re-verified once `PAYMENT_RECONCILE_DUE_AFTER_MINUTES`  |
+|                      | (default `5` min) old, on an exponential backoff, and escalate to `MANUAL_REVIEW`|
+|                      | after `PAYMENT_MANUAL_REVIEW_AFTER_HOURS` (default `24` h).                      |
+
+**Client expectation:** subscribe to the payment's room (`subscribe` →
+`subscribed`). If no `payment:update` arrives within **60 seconds**, the
+client should start polling `GET /payments/:id` and keep polling until the
+payment reaches a terminal status. A connecting/dropped socket is *not* a
+payment-state signal — the push is a latency optimization, not a delivery
+guarantee.
+
+### Dead-letter handling for failed webhooks (issue #1811)
+
+Webhooks that never make it through processing are not silently dropped.
+`PaymentWebhookController` writes each failed delivery to the
+`payment_webhook_dead_letters` table (`PaymentWebhookDeadLetter`) so an
+operator (or a later admin surface) can review and replay them:
+
+| `reason`            | Trigger                                                                            |
+| ------------------- | ---------------------------------------------------------------------------------- |
+| `invalid_signature` | HMAC signature check failed — payload discarded before parsing.                    |
+| `malformed_payload` | Payload parsed but failed contract validation (`validateWebhookPayload`).          |
+| `process_error`     | `apply` threw while processing a validly signed, well-formed webhook.              |
+
+Every dead-letter row stores the raw payload hash, the raw payload body
+(retained for manual inspection), a reason, an optional error message, and a
+`reviewed` flag for tracking manual triage. Invalid/malformed deliveries are
+still audit-logged via `ConfirmationEvent` as before — the dead-letter table
+is the visible manual-review bucket, not a replacement for the event log.
+
 ### Adding a new rail
 
 Implement `PaymentRailAdapter` and add a `@Post('webhooks/<rail>')` handler.

@@ -4,6 +4,7 @@ import {
   Headers,
   HttpCode,
   HttpStatus,
+  InternalServerErrorException,
   Post,
   Req,
   UnauthorizedException,
@@ -17,6 +18,7 @@ import {
   validateWebhookPayload,
 } from './webhook-contract';
 import { PaymentConfirmationService } from './payment-confirmation.service';
+import { PaymentWebhookDeadLetterService } from './payment-webhook-dead-letter.service';
 
 interface RawBodyRequest extends Request {
   rawBody?: Buffer;
@@ -38,6 +40,7 @@ export class PaymentWebhookController {
   constructor(
     private readonly railAdapter: SandboxRailAdapter,
     private readonly confirmationService: PaymentConfirmationService,
+    private readonly deadLetterService: PaymentWebhookDeadLetterService,
   ) {}
 
   @Post('sandbox')
@@ -75,6 +78,7 @@ export class PaymentWebhookController {
   ): Promise<{ received: boolean; contractVersion: string }> {
     const rawBody = req.rawBody ?? Buffer.from(JSON.stringify(req.body ?? {}));
     const rawPayloadHash = PaymentConfirmationService.hashPayload(rawBody);
+    const rawPayloadText = rawBody.toString('utf8');
 
     const isValid = this.railAdapter.verifyWebhookSignature({
       rawBody,
@@ -85,6 +89,11 @@ export class PaymentWebhookController {
         rawPayloadHash,
         'invalid_signature',
       );
+      await this.deadLetterService.enqueue({
+        rawPayloadHash,
+        rawPayload: rawPayloadText,
+        reason: 'invalid_signature',
+      });
       throw new UnauthorizedException('Invalid webhook signature');
     }
 
@@ -93,21 +102,43 @@ export class PaymentWebhookController {
       payload = this.railAdapter.parseWebhookPayload(rawBody);
       validateWebhookPayload(payload);
     } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Malformed webhook payload';
       await this.confirmationService.logRejectedWebhook(
         rawPayloadHash,
         'malformed_payload',
       );
-      throw new BadRequestException(
-        err instanceof Error ? err.message : 'Malformed webhook payload',
-      );
+      await this.deadLetterService.enqueue({
+        rawPayloadHash,
+        rawPayload: rawPayloadText,
+        reason: 'malformed_payload',
+        errorMessage: message,
+      });
+      throw new BadRequestException(message);
     }
 
-    await this.confirmationService.apply(
-      payload.providerReference,
-      payload.outcome,
-      ConfirmationSource.WEBHOOK,
-      rawPayloadHash,
-    );
+    try {
+      await this.confirmationService.apply(
+        payload.providerReference,
+        payload.outcome,
+        ConfirmationSource.WEBHOOK,
+        rawPayloadHash,
+      );
+    } catch (err) {
+      // A validly signed, well-formed webhook that still failed to apply
+      // must not vanish (issue #1811) — send it to the dead-letter queue
+      // for manual review before surfacing the error to the provider.
+      await this.deadLetterService.enqueue({
+        rawPayloadHash,
+        rawPayload: rawPayloadText,
+        providerReference: payload.providerReference,
+        reason: 'process_error',
+        errorMessage: err instanceof Error ? err.message : String(err),
+      });
+      throw new InternalServerErrorException(
+        'Webhook received but processing failed; queued for manual review',
+      );
+    }
 
     return {
       received: true,

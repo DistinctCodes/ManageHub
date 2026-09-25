@@ -8,7 +8,9 @@ import {
   IsString,
   IsUUID,
   Length,
+  MaxLength,
   Min,
+  NotEquals,
 } from 'class-validator';
 import { LedgerAccountKind } from '../enums/ledger-account-kind.enum';
 
@@ -55,6 +57,7 @@ export class CreateLedgerAccountDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(255)
   label?: string;
 }
 
@@ -70,6 +73,7 @@ export class UpdateLedgerAccountDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(255)
   externalPayoutAddress?: string;
 
   @ApiPropertyOptional({
@@ -82,6 +86,7 @@ export class UpdateLedgerAccountDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(255)
   label?: string;
 }
 
@@ -98,6 +103,7 @@ export class AdjustCreditsDto {
     example: -500,
   })
   @IsInt()
+  @NotEquals(0)
   delta: number;
 
   @ApiPropertyOptional({ example: 'USD' })

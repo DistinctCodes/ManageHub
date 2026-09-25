@@ -15,11 +15,11 @@ export interface RetentionSummary {
 /**
  * Scheduled data-retention job (issue BE-144).
  *
- * Both `wallet_key_access_log` (one row per key-decrypt operation) and
- * `metered_usage_events` (one row per metered usage charge) grow without
- * bound and are only ever appended. This job deletes rows older than a
- * configurable window so neither table can grow forever. The policy is
- * documented in `src/retention/README.md`.
+ * Both `wallet_key_access_log` (one row per key-access or wallet lifecycle
+ * audit event) and `metered_usage_events` (one row per metered usage
+ * charge) grow without bound and are only ever appended. This job deletes
+ * rows older than a configurable window so neither table can grow forever.
+ * The policy is documented in `src/retention/README.md`.
  */
 @Injectable()
 export class RetentionService {

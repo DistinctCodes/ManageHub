@@ -6,8 +6,11 @@ import { BullModule } from '@nestjs/bull';
 import { Payment } from './entities/payment.entity';
 import { ConfirmationEvent } from './entities/confirmation-event.entity';
 import { Refund } from './entities/refund.entity';
+import { ReconciliationRun } from './entities/reconciliation-run.entity';
+import { PaymentWebhookDeadLetter } from './entities/payment-webhook-dead-letter.entity';
 import { PaymentsService } from './payments.service';
 import { PaymentConfirmationService } from './payment-confirmation.service';
+import { PaymentWebhookDeadLetterService } from './payment-webhook-dead-letter.service';
 import { ReconciliationService } from './reconciliation.service';
 import { RefundsService } from './refunds.service';
 import { PaymentRailRegistry } from './payment-rail-registry';
@@ -26,6 +29,7 @@ import { SorobanPayoutAdapter } from './soroban/soroban-payout.adapter';
 import { EXTERNAL_PAYOUT_RAIL } from '../credits/credits.tokens';
 import { EscrowSubmissionProcessor } from './soroban/escrow-submission.processor';
 import { EscrowContractClient } from './soroban/escrow-contract.client';
+import { createLazy } from './soroban/lazy-initialization';
 import {
   SorobanRpcClient,
   createSorobanRpcServer,
@@ -39,7 +43,13 @@ import {
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Payment, ConfirmationEvent, Refund]),
+    TypeOrmModule.forFeature([
+      Payment,
+      ConfirmationEvent,
+      Refund,
+      ReconciliationRun,
+      PaymentWebhookDeadLetter,
+    ]),
     WalletsModule,
     AdminAuditModule,
     BullModule.registerQueue({ name: SOROBAN_ESCROW_QUEUE }),
@@ -52,6 +62,7 @@ import {
   providers: [
     PaymentsService,
     PaymentConfirmationService,
+    PaymentWebhookDeadLetterService,
     ReconciliationService,
     RefundsService,
     PaymentRailRegistry,
@@ -71,27 +82,44 @@ import {
     {
       provide: SorobanRpcClient,
       inject: [SOROBAN_CONFIG],
-      useFactory: (sorobanConfig: ReturnType<typeof loadSorobanConfig>) =>
-        sorobanConfig
-          ? new SorobanRpcClient(
-              sorobanConfig.rpcUrls.map(createSorobanRpcServer),
-            )
-          : null,
+      // Resolve a lazy proxy while keeping the disabled case a literal null;
+      // the RPC SDK servers and SorobanRpcClient constructor are not touched
+      // until a consumer actually accesses the client.
+      useFactory: (sorobanConfig: ReturnType<typeof loadSorobanConfig>) => {
+        if (!sorobanConfig) {
+          return null;
+        }
+        const config = sorobanConfig;
+        return createLazy(
+          () =>
+            new SorobanRpcClient(config.rpcUrls.map(createSorobanRpcServer)),
+        );
+      },
     },
     {
       provide: ESCROW_CONTRACT_CLIENT,
       inject: [SOROBAN_CONFIG, SorobanRpcClient],
+      // The contract client is lazy for the same reason as the RPC client;
+      // its constructor only stores dependencies, so the first real method
+      // call is the first point at which either SDK-backed object is built.
       useFactory: (
         sorobanConfig: ReturnType<typeof loadSorobanConfig>,
         rpcClient: SorobanRpcClient | null,
-      ) =>
-        sorobanConfig && rpcClient
-          ? new EscrowContractClient(
-              rpcClient,
-              sorobanConfig.contractId,
-              sorobanConfig.networkPassphrase,
-            )
-          : null,
+      ) => {
+        const config = sorobanConfig;
+        const client = rpcClient;
+        if (!config || !client) {
+          return null;
+        }
+        return createLazy(
+          () =>
+            new EscrowContractClient(
+              client,
+              config.contractId,
+              config.networkPassphrase,
+            ),
+        );
+      },
     },
     {
       provide: SOROBAN_RAIL_ADAPTER,

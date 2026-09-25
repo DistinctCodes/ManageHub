@@ -1,16 +1,71 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/http-exception.filter';
-import { randomUUID } from 'crypto';
-import { NextFunction, Request, Response } from 'express';
+import { isOriginAllowed, resolveAllowedOrigins } from './common/cors';
+import {
+  GracefulShutdownServer,
+  installGracefulShutdown,
+  resolveGracefulShutdownTimeout,
+} from './common/graceful-shutdown';
+import { HttpLoggingInterceptor } from './common/http-logging.interceptor';
+import { NextFunction, Request, Response, json, urlencoded } from 'express';
+import { initTracing } from './common/tracing';
+import { StructuredLoggerService } from './common/structured-logger.service';
+import { StructuredRequestLoggerMiddleware } from './common/structured-request-logger.middleware';
+
+interface RawBodyRequest extends Request {
+  rawBody?: Buffer;
+}
 
 async function bootstrap() {
-  // rawBody is needed by the payment webhook controller to verify HMAC
-  // signatures against the exact bytes the provider signed, not a
-  // re-serialized copy of the parsed JSON body.
-  const app = await NestFactory.create(AppModule, { rawBody: true });
+  initTracing();
+
+  /**
+   * Production deployments use newline-delimited JSON logs so they can be
+   * indexed directly by a log aggregator. LOG_JSON=true is an explicit
+   * override for other environments; development keeps Nest's readable logger.
+   */
+  const structuredLoggingEnabled =
+    process.env.NODE_ENV === 'production' || process.env.LOG_JSON === 'true';
+  const structuredLogger = structuredLoggingEnabled
+    ? new StructuredLoggerService()
+    : undefined;
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    rawBody: true,
+    bodyParser: false,
+    ...(structuredLogger ? { logger: structuredLogger } : {}),
+  });
+
+  if (structuredLoggingEnabled) {
+    const requestLogger = new StructuredRequestLoggerMiddleware();
+    app.use((req, res, next) => requestLogger.use(req, res, next));
+  }
+
+  const requestBodyLimit = process.env.REQUEST_BODY_LIMIT ?? '1mb';
+  const captureRawBody = (
+    req: Request,
+    _res: Response,
+    buf: Buffer,
+  ): void => {
+    (req as RawBodyRequest).rawBody = Buffer.from(buf);
+  };
+
+  /**
+   * Nest's implicit body parsers have no configured request-size bound, so
+   * register both parsers explicitly. The verify callback preserves the exact
+   * bytes for webhook HMAC verification while REQUEST_BODY_LIMIT caps memory.
+   */
+  app.use(json({ limit: requestBodyLimit, verify: captureRawBody }));
+  app.use(
+    urlencoded({
+      extended: true,
+      limit: requestBodyLimit,
+      verify: captureRawBody,
+    }),
+  );
 
   app.use((req: Request, res: Response, next: NextFunction) => {
     res.setHeader('x-dns-prefetch-control', 'off');
@@ -31,6 +86,8 @@ async function bootstrap() {
     next();
   });
 
+  app.useGlobalInterceptors(new HttpLoggingInterceptor());
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -39,6 +96,37 @@ async function bootstrap() {
     }),
   );
   app.useGlobalFilters(new AllExceptionsFilter());
+
+  const logger = new Logger('Bootstrap');
+  const allowedOrigins = resolveAllowedOrigins(process.env);
+  if (process.env.NODE_ENV === 'production' && allowedOrigins.length === 0) {
+    logger.warn(
+      'CORS_ORIGINS is unset or empty in production; all cross-origin requests will be denied.',
+    );
+  }
+
+  app.enableCors({
+    origin: (origin, callback) => {
+      if (isOriginAllowed(origin, allowedOrigins)) {
+        callback(null, true);
+        return;
+      }
+
+      const rejection = `CORS origin "${origin}" is not allowlisted`;
+      logger.warn(rejection);
+      callback(new Error(rejection), false);
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'Idempotency-Key',
+      'X-Payment-Signature',
+      'X-Request-Id',
+      'X-Correlation-Id',
+    ],
+  });
 
   const config = new DocumentBuilder()
     .setTitle('ManageHub API')
@@ -73,5 +161,15 @@ async function bootstrap() {
 
   const port = process.env.PORT ?? 6000;
   await app.listen(port);
+
+  const server = app.getHttpServer() as GracefulShutdownServer;
+  installGracefulShutdown({
+    app,
+    server,
+    logger,
+    timeoutMs: resolveGracefulShutdownTimeout(
+      process.env.GRACEFUL_SHUTDOWN_TIMEOUT_MS,
+    ),
+  });
 }
 bootstrap();
