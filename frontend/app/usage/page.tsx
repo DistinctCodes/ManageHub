@@ -2,14 +2,12 @@
 
 import { Card, CardHeader, StatusBadge } from "@/components/app-ui";
 import { listMyUsage, type MeteredUsageEvent } from "@/lib/payments-api";
+import { formatCurrency } from "@/lib/utils";
 import Cookies from "js-cookie";
 import { useQuery } from "@tanstack/react-query";
 
 function formatMoney(amount: number, currency: string) {
-  return new Intl.NumberFormat(undefined, {
-    style: "currency",
-    currency: currency || "USD",
-  }).format(amount / 100);
+  return formatCurrency(amount / 100, currency || "USD");
 }
 
 export default function UsagePage() {
