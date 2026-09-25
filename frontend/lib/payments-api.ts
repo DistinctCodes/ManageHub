@@ -1,3 +1,5 @@
+import * as Sentry from "@sentry/nextjs";
+
 export type PaymentRail = "FIAT" | "STELLAR_CUSTODIAL" | "STELLAR_EXTERNAL";
 
 export type PaymentStatus =
@@ -85,6 +87,47 @@ export interface RequestRefundResponse {
 }
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
+const TRANSIENT_RETRY_DELAY_MS = 250;
+const RETRYABLE_STATUS_CODES = new Set([408, 425, 429, 500, 502, 503, 504]);
+
+function isRetryableMethod(init: RequestInit): boolean {
+  return (init.method ?? "GET").toUpperCase() === "GET";
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === "AbortError";
+}
+
+function waitForRetry(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, TRANSIENT_RETRY_DELAY_MS));
+}
+
+async function fetchWithRetry(
+  url: string,
+  init: RequestInit,
+): Promise<Response> {
+  const retryable = isRetryableMethod(init);
+
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      const response = await fetch(url, init);
+      if (
+        !retryable ||
+        attempt >= 1 ||
+        !RETRYABLE_STATUS_CODES.has(response.status)
+      ) {
+        return response;
+      }
+      await response.body?.cancel();
+    } catch (error) {
+      if (!retryable || attempt >= 1 || isAbortError(error)) {
+        throw error;
+      }
+    }
+
+    await waitForRetry();
+  }
+}
 
 async function apiFetch<T>(
   path: string,
@@ -92,7 +135,7 @@ async function apiFetch<T>(
   init?: RequestInit,
   idempotencyKey?: string,
 ): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const requestInit: RequestInit = {
     ...init,
     headers: {
       "Content-Type": "application/json",
@@ -100,13 +143,14 @@ async function apiFetch<T>(
       ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
       ...init?.headers,
     },
-  });
+  };
+  const response = await fetchWithRetry(`${API_BASE_URL}${path}`, requestInit);
 
   if (!response.ok) {
     const body = await response.json().catch(() => null);
     const errorMessage = body?.message ?? `Request failed (${response.status})`;
     const error = new Error(errorMessage);
-    
+
     Sentry.captureException(error, {
       tags: {
         api: "payments",
@@ -118,7 +162,7 @@ async function apiFetch<T>(
         responseBody: body,
       },
     });
-    
+
     throw error;
   }
 
