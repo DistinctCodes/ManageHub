@@ -7,8 +7,11 @@ import {
 } from 'typeorm';
 
 /**
- * Append-only audit trail: one row per decrypt operation performed by
- * KeyCustodyService, regardless of outcome. Never contains key material.
+ * Append-only security audit trail: one row per key-access attempt and
+ * wallet-account lifecycle event (including a logical soft deletion),
+ * regardless of outcome. Never contains key material and intentionally has
+ * no `deletedAt` column: hiding an audit row would defeat the retention and
+ * compliance purpose of this table.
  */
 @Entity('wallet_key_access_log')
 export class WalletKeyAccessLog {
@@ -23,7 +26,9 @@ export class WalletKeyAccessLog {
   @Column({ type: 'varchar', name: 'actor' })
   actor: string;
 
-  /** Why the key was decrypted — e.g. 'custodial-funding-signature'. */
+  /**
+   * Why the key was accessed or the wallet was retired — e.g. 'account closed'.
+   */
   @Column({ type: 'varchar' })
   reason: string;
 

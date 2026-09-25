@@ -10,7 +10,12 @@ export class AppController {
     private readonly metrics: MetricsService,
   ) {}
 
-  @Get('health')
+  /**
+   * Legacy combined dependency view retained for operators that used the old
+   * health route. Orchestrator probes use the dedicated liveness and readiness
+   * routes in HealthController, so this route must not shadow `/health`.
+   */
+  @Get('health/dependencies')
   async getHealth(@Res({ passthrough: true }) res: Response) {
     const health = await this.appService.getHealth();
     if (health.status !== 'ok') {

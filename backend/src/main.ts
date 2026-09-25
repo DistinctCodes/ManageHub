@@ -1,12 +1,21 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/http-exception.filter';
+import { isOriginAllowed, resolveAllowedOrigins } from './common/cors';
+import {
+  GracefulShutdownServer,
+  installGracefulShutdown,
+  resolveGracefulShutdownTimeout,
+} from './common/graceful-shutdown';
+import { HttpLoggingInterceptor } from './common/http-logging.interceptor';
 import { randomUUID } from 'crypto';
 import { NextFunction, Request, Response } from 'express';
+import { initTracing } from './common/tracing';
 
 async function bootstrap() {
+  initTracing();
   // rawBody is needed by the payment webhook controller to verify HMAC
   // signatures against the exact bytes the provider signed, not a
   // re-serialized copy of the parsed JSON body.
@@ -31,6 +40,8 @@ async function bootstrap() {
     next();
   });
 
+  app.useGlobalInterceptors(new HttpLoggingInterceptor());
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -39,6 +50,37 @@ async function bootstrap() {
     }),
   );
   app.useGlobalFilters(new AllExceptionsFilter());
+
+  const logger = new Logger('Bootstrap');
+  const allowedOrigins = resolveAllowedOrigins(process.env);
+  if (process.env.NODE_ENV === 'production' && allowedOrigins.length === 0) {
+    logger.warn(
+      'CORS_ORIGINS is unset or empty in production; all cross-origin requests will be denied.',
+    );
+  }
+
+  app.enableCors({
+    origin: (origin, callback) => {
+      if (isOriginAllowed(origin, allowedOrigins)) {
+        callback(null, true);
+        return;
+      }
+
+      const rejection = `CORS origin "${origin}" is not allowlisted`;
+      logger.warn(rejection);
+      callback(new Error(rejection), false);
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'Idempotency-Key',
+      'X-Payment-Signature',
+      'X-Request-Id',
+      'X-Correlation-Id',
+    ],
+  });
 
   const config = new DocumentBuilder()
     .setTitle('ManageHub API')
@@ -73,5 +115,15 @@ async function bootstrap() {
 
   const port = process.env.PORT ?? 6000;
   await app.listen(port);
+
+  const server = app.getHttpServer() as GracefulShutdownServer;
+  installGracefulShutdown({
+    app,
+    server,
+    logger,
+    timeoutMs: resolveGracefulShutdownTimeout(
+      process.env.GRACEFUL_SHUTDOWN_TIMEOUT_MS,
+    ),
+  });
 }
 bootstrap();
