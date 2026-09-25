@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { login, register } from "@/lib/auth-api";
+import { getSafeReturnTo } from "@/lib/auth-redirect";
 import { useSessionStore } from "@/lib/stores/session-store";
 
 type Mode = "login" | "register";
@@ -28,8 +29,10 @@ export function AuthForm({ mode }: { mode: Mode }) {
         ? await login(email.trim(), password)
         : await register(email.trim(), password);
       setAccessToken(result.accessToken);
-      const next = searchParams.get("next");
-      router.push(next && next.startsWith("/") ? next : "/wallet");
+      const returnTo = getSafeReturnTo(
+        searchParams.get("returnTo") ?? searchParams.get("next"),
+      );
+      router.push(returnTo);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
