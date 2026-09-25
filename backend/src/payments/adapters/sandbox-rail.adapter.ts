@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHmac, timingSafeEqual, randomUUID } from 'crypto';
 import { Payment } from '../entities/payment.entity';
+import { withSpan } from '../../common/tracing';
 import {
   PaymentInitiationResult,
   PaymentRailAdapter,
@@ -25,10 +26,14 @@ export class SandboxRailAdapter implements PaymentRailAdapter {
   constructor(private readonly config: ConfigService) {}
 
   async initiate(payment: Payment): Promise<PaymentInitiationResult> {
-    return {
-      providerReference: `sandbox_${randomUUID()}`,
-      metadata: { sandbox: true, bookingId: payment.bookingId },
-    };
+    return withSpan(
+      'sandbox-rail.initiate',
+      async () => ({
+        providerReference: `sandbox_${randomUUID()}`,
+        metadata: { sandbox: true, bookingId: payment.bookingId },
+      }),
+      { 'payment.booking_id': payment.bookingId },
+    );
   }
 
   verifyWebhookSignature({
@@ -74,13 +79,18 @@ export class SandboxRailAdapter implements PaymentRailAdapter {
   async verifyByReference(
     providerReference: string,
   ): Promise<PaymentVerificationResult> {
-    if (providerReference.startsWith('sandbox_fail_')) {
-      return { outcome: 'failed' };
-    }
-    if (providerReference.startsWith('sandbox_pending_')) {
-      return { outcome: 'pending' };
-    }
-    return { outcome: 'confirmed' };
+    return withSpan(
+      'sandbox-rail.verifyByReference',
+      async (): Promise<PaymentVerificationResult> => {
+        if (providerReference.startsWith('sandbox_fail_')) {
+          return { outcome: 'failed' };
+        }
+        if (providerReference.startsWith('sandbox_pending_')) {
+          return { outcome: 'pending' };
+        }
+        return { outcome: 'confirmed' };
+      },
+    );
   }
 
   private static isOutcome(

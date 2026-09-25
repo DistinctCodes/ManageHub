@@ -6,6 +6,7 @@ import {
 import { Keypair } from '@stellar/stellar-sdk';
 import { WalletsService } from './wallets.service';
 import { WalletAccount } from './entities/wallet-account.entity';
+import { WalletKeyAccessLog } from './entities/wallet-key-access-log.entity';
 import { WalletLedgerEntry } from './entities/wallet-ledger-entry.entity';
 import { WalletLinkChallenge } from './entities/wallet-link-challenge.entity';
 import { WalletCustodyType } from './enums/wallet-custody-type.enum';
@@ -27,6 +28,7 @@ function makeAccount(overrides: Partial<WalletAccount> = {}): WalletAccount {
     status: WalletStatus.ACTIVE,
     createdAt: new Date(),
     updatedAt: new Date(),
+    deletedAt: null,
     ...overrides,
   } as WalletAccount;
 }
@@ -68,6 +70,7 @@ describe('WalletsService', () => {
     transaction = jest.fn(async (cb: (m: any) => unknown) => cb(undefined));
     walletAccountRepository = {
       findOne: jest.fn(),
+      save: jest.fn(async (entity: any) => entity),
       manager: { transaction },
     };
     ledgerRepository = {
@@ -93,6 +96,19 @@ describe('WalletsService', () => {
       const result = await service.provisionCustodialWallet('user-1');
 
       expect(result).toBe(existing);
+      expect(transaction).not.toHaveBeenCalled();
+      expect(keyCustody.provisionKeypair).not.toHaveBeenCalled();
+    });
+
+    it('revives a soft-deleted wallet instead of hitting the user uniqueness constraint', async () => {
+      const existing = makeAccount({ deletedAt: new Date() });
+      walletAccountRepository.findOne.mockResolvedValueOnce(existing);
+
+      const result = await service.provisionCustodialWallet('user-1');
+
+      expect(result).toBe(existing);
+      expect(result.deletedAt).toBeNull();
+      expect(walletAccountRepository.save).toHaveBeenCalledWith(existing);
       expect(transaction).not.toHaveBeenCalled();
       expect(keyCustody.provisionKeypair).not.toHaveBeenCalled();
     });
@@ -311,27 +327,197 @@ describe('WalletsService', () => {
   });
 
   describe('getWalletStatus', () => {
+    function makeStatusManager(
+      account: WalletAccount | null,
+      balance: number,
+      events: string[] = [],
+    ) {
+      const accountQueryBuilder: any = {
+        setLock: jest.fn(() => {
+          events.push('account-lock');
+          return accountQueryBuilder;
+        }),
+        where: jest.fn(() => {
+          events.push('account-where');
+          return accountQueryBuilder;
+        }),
+        getOne: jest.fn(async () => {
+          events.push('account-read');
+          return account;
+        }),
+      };
+      const ledgerQueryBuilder: any = {
+        select: jest.fn(() => ledgerQueryBuilder),
+        where: jest.fn(() => ledgerQueryBuilder),
+        getRawOne: jest.fn(async () => {
+          events.push('ledger-aggregate');
+          return { balance: String(balance) };
+        }),
+      };
+      const accountRepository = {
+        createQueryBuilder: jest.fn(() => accountQueryBuilder),
+      };
+      const ledgerRepository = {
+        createQueryBuilder: jest.fn(() => ledgerQueryBuilder),
+      };
+      const manager = {
+        getRepository: jest.fn((entity: unknown) =>
+          entity === WalletAccount ? accountRepository : ledgerRepository,
+        ),
+      };
+      return { manager, accountQueryBuilder, ledgerQueryBuilder };
+    }
+
     it('reports an unprovisioned wallet as such, with a zero balance', async () => {
-      walletAccountRepository.findOne.mockResolvedValueOnce(null);
+      const { manager } = makeStatusManager(null, 0);
+      transaction.mockImplementationOnce((cb: any) => cb(manager));
 
       const status = await service.getWalletStatus('user-1');
 
       expect(status).toEqual({ account: null, balance: 0, currency: 'XLM' });
+      expect(transaction).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports a soft-deleted wallet as absent without reading its balance', async () => {
+      walletAccountRepository.findOne.mockResolvedValueOnce(
+        makeAccount({ deletedAt: new Date() }),
+      );
+
+      const status = await service.getWalletStatus('user-1');
+
+      expect(status).toEqual({ account: null, balance: 0, currency: 'XLM' });
+      expect(ledgerRepository.createQueryBuilder).not.toHaveBeenCalled();
     });
 
     it('sums the ledger to compute the balance for a provisioned wallet', async () => {
       const account = makeAccount();
-      walletAccountRepository.findOne.mockResolvedValueOnce(account);
-      const queryBuilder = {
-        select: jest.fn().mockReturnThis(),
-        where: jest.fn().mockReturnThis(),
-        getRawOne: jest.fn().mockResolvedValue({ balance: '5000' }),
-      };
-      ledgerRepository.createQueryBuilder.mockReturnValue(queryBuilder);
+      const { manager, accountQueryBuilder, ledgerQueryBuilder } =
+        makeStatusManager(account, 5000);
+      transaction.mockImplementationOnce((cb: any) => cb(manager));
 
       const status = await service.getWalletStatus('user-1');
 
       expect(status).toEqual({ account, balance: 5000, currency: 'XLM' });
+      expect(accountQueryBuilder.setLock).toHaveBeenCalledWith(
+        'pessimistic_write',
+      );
+      expect(ledgerQueryBuilder.getRawOne).toHaveBeenCalledTimes(1);
+    });
+
+    it('serializes concurrent balance reads around an interleaved writer', async () => {
+      const account = makeAccount();
+      const events: string[] = [];
+      let balance = 100;
+      let releaseFirstAggregate!: () => void;
+      let firstAggregateStarted!: () => void;
+      const firstAggregateStartedPromise = new Promise<void>((resolve) => {
+        firstAggregateStarted = resolve;
+      });
+      const firstAggregateRelease = new Promise<void>((resolve) => {
+        releaseFirstAggregate = resolve;
+      });
+      const { manager, ledgerQueryBuilder } = makeStatusManager(
+        account,
+        balance,
+        events,
+      );
+      ledgerQueryBuilder.getRawOne.mockImplementation(async () => {
+        const snapshot = balance;
+        events.push(`ledger-aggregate:${snapshot}`);
+        const aggregateCount = events.filter((event) =>
+          event.startsWith('ledger-aggregate:'),
+        ).length;
+        if (aggregateCount === 1) {
+          firstAggregateStarted();
+          await firstAggregateRelease;
+        }
+        return { balance: String(snapshot) };
+      });
+
+      let queue = Promise.resolve();
+      const enqueue = (work: () => Promise<unknown>) => {
+        const run = queue.then(work);
+        queue = run.then(
+          () => undefined,
+          () => undefined,
+        );
+        return run;
+      };
+      transaction.mockImplementation((cb: any) => enqueue(() => cb(manager)));
+      const interleaveWrite = () =>
+        enqueue(async () => {
+          events.push('writer-lock');
+          balance = 200;
+          events.push('writer-commit');
+        });
+
+      const first = service.getWalletStatus('user-1');
+      await firstAggregateStartedPromise;
+      const write = interleaveWrite();
+      const second = service.getWalletStatus('user-1');
+      releaseFirstAggregate();
+      const [firstStatus, secondStatus] = await Promise.all([
+        first,
+        write,
+        second,
+      ]);
+
+      expect(firstStatus.balance).toBe(100);
+      expect(secondStatus.balance).toBe(200);
+      expect(events).toEqual([
+        'account-lock',
+        'account-where',
+        'account-read',
+        'ledger-aggregate:100',
+        'writer-lock',
+        'writer-commit',
+        'account-lock',
+        'account-where',
+        'account-read',
+        'ledger-aggregate:200',
+      ]);
+      expect(transaction).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('softDeleteWallet', () => {
+    it('stamps deletedAt and appends an audit row without removing the account', async () => {
+      const account = makeAccount();
+      const accountRepository = {
+        findOne: jest.fn().mockResolvedValue(account),
+        save: jest.fn(async (entity: any) => entity),
+        delete: jest.fn(),
+      };
+      const accessLogRepository = {
+        create: jest.fn((data: any) => ({ ...data })),
+        save: jest.fn(async (entity: any) => entity),
+      };
+      const manager = {
+        getRepository: jest.fn((entity: unknown) =>
+          entity === WalletKeyAccessLog ? accessLogRepository : accountRepository,
+        ),
+      };
+      transaction.mockImplementationOnce(async (cb: (m: any) => unknown) =>
+        cb(manager),
+      );
+
+      const result = await service.softDeleteWallet('user-1', 'account closed');
+
+      expect(result.deletedAt).toEqual(expect.any(Date));
+      expect(accountRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: account.id,
+          deletedAt: expect.any(Date),
+        }),
+      );
+      expect(accessLogRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          walletAccountId: account.id,
+          reason: 'account closed',
+          successful: true,
+        }),
+      );
+      expect(accountRepository.delete).not.toHaveBeenCalled();
     });
   });
 
@@ -356,6 +542,17 @@ describe('WalletsService', () => {
 
     it('rejects when the user has no custodial wallet', async () => {
       walletAccountRepository.findOne.mockResolvedValueOnce(null);
+
+      await expect(
+        service.signPayload('user-1', Buffer.from('x'), 'r'),
+      ).rejects.toThrow(BadRequestException);
+      expect(keyCustody.sign).not.toHaveBeenCalled();
+    });
+
+    it('rejects a soft-deleted wallet before it can sign', async () => {
+      walletAccountRepository.findOne.mockResolvedValueOnce(
+        makeAccount({ deletedAt: new Date() }),
+      );
 
       await expect(
         service.signPayload('user-1', Buffer.from('x'), 'r'),

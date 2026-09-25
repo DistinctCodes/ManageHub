@@ -8,10 +8,7 @@ import { LedgerTransactionKind } from './enums/ledger-transaction-kind.enum';
 import { SettlementBatchMode } from './enums/settlement-batch-mode.enum';
 import { SettlementBatchStatus } from './enums/settlement-batch-status.enum';
 import { SettlementPayoutStatus } from './enums/settlement-payout-status.enum';
-import {
-  PayoutStatus,
-  SubmitPayoutInput,
-} from './interfaces/external-payout-rail.interface';
+import { PayoutStatus, SubmitPayoutInput } from './interfaces';
 import {
   createLedgerHarness,
   fakeConfigService,
@@ -646,5 +643,54 @@ describe('SettlementService — admin visibility and recovery', () => {
     expect(second.entriesSettled).toBe(1);
     const resumed = await settlement.getBatch(batch!.id);
     expect(resumed.status).toBe(SettlementBatchStatus.SETTLED);
+  });
+
+  it('resumes an interrupted SUBMITTED payout without recreating work or double-posting', async () => {
+    const { credits, settlement, harness, rail, credit } = build();
+    const operator = await payableOperator(credits);
+    await credit(operator.id, 1000, 'movement-1');
+    const batch = await settlement.createNetPayableBatch('USD');
+    const originalPayout = (
+      await harness.payouts.find({ where: { batchId: batch!.id } })
+    )[0];
+
+    // The process stops after submission has been recorded but before the
+    // next run can poll the rail.
+    await settlement.executeBatch(batch!.id);
+    const submitted = (
+      await harness.payouts.find({ where: { batchId: batch!.id } })
+    )[0];
+    expect(submitted.status).toBe(SettlementPayoutStatus.SUBMITTED);
+    expect(submitted.id).toBe(originalPayout.id);
+
+    rail!.setStatus('confirmed');
+    const resumed = await settlement.runSettlement();
+
+    expect(resumed.batchesCreated).toBe(0);
+    expect(resumed.payoutsConfirmed).toBe(1);
+    expect(harness.payouts.rows).toHaveLength(1);
+    const confirmed = (
+      await harness.payouts.find({ where: { batchId: batch!.id } })
+    )[0];
+    expect(confirmed.id).toBe(originalPayout.id);
+    expect(confirmed.status).toBe(SettlementPayoutStatus.CONFIRMED);
+    expect(rail!.submissions).toHaveLength(1);
+
+    const settlementTransactions = harness.transactions.rows.filter(
+      (transaction) => transaction.kind === LedgerTransactionKind.SETTLEMENT,
+    );
+    expect(settlementTransactions).toHaveLength(1);
+    expect(harness.balanceOf(operator.id)).toBe(0);
+
+    // A further pass is also a no-op: it neither creates another payout nor
+    // posts the drawdown again.
+    const afterSettlement = await settlement.runSettlement();
+    expect(afterSettlement.batchesCreated).toBe(0);
+    expect(afterSettlement.payoutsConfirmed).toBe(0);
+    expect(
+      harness.transactions.rows.filter(
+        (transaction) => transaction.kind === LedgerTransactionKind.SETTLEMENT,
+      ),
+    ).toHaveLength(1);
   });
 });
