@@ -31,7 +31,7 @@ import { SettlementPayoutStatus } from './enums/settlement-payout-status.enum';
 import { LedgerService } from './ledger.service';
 import { RevenueSplitService } from './revenue-split.service';
 import { EXTERNAL_PAYOUT_RAIL } from './credits.tokens';
-import { ExternalPayoutRail } from './interfaces/external-payout-rail.interface';
+import { ExternalPayoutRail } from './interfaces';
 import { MetricsService } from '../common/metrics.service';
 import { withRequestId } from '../common/request-context';
 
@@ -158,7 +158,9 @@ export class SettlementService implements OnModuleInit {
     }
     const summary = await this.runSettlement();
     this.metrics.recordReconciliationPass(Date.now() - started);
-    this.logger.log(withRequestId(`Settlement pass: ${JSON.stringify(summary)}`));
+    this.logger.log(
+      withRequestId(`Settlement pass: ${JSON.stringify(summary)}`),
+    );
   }
 
   /**
