@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { Logger, ValidationPipe } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/http-exception.filter';
@@ -10,16 +11,61 @@ import {
   resolveGracefulShutdownTimeout,
 } from './common/graceful-shutdown';
 import { HttpLoggingInterceptor } from './common/http-logging.interceptor';
-import { randomUUID } from 'crypto';
-import { NextFunction, Request, Response } from 'express';
+import { NextFunction, Request, Response, json, urlencoded } from 'express';
 import { initTracing } from './common/tracing';
+import { StructuredLoggerService } from './common/structured-logger.service';
+import { StructuredRequestLoggerMiddleware } from './common/structured-request-logger.middleware';
+
+interface RawBodyRequest extends Request {
+  rawBody?: Buffer;
+}
 
 async function bootstrap() {
   initTracing();
-  // rawBody is needed by the payment webhook controller to verify HMAC
-  // signatures against the exact bytes the provider signed, not a
-  // re-serialized copy of the parsed JSON body.
-  const app = await NestFactory.create(AppModule, { rawBody: true });
+
+  /**
+   * Production deployments use newline-delimited JSON logs so they can be
+   * indexed directly by a log aggregator. LOG_JSON=true is an explicit
+   * override for other environments; development keeps Nest's readable logger.
+   */
+  const structuredLoggingEnabled =
+    process.env.NODE_ENV === 'production' || process.env.LOG_JSON === 'true';
+  const structuredLogger = structuredLoggingEnabled
+    ? new StructuredLoggerService()
+    : undefined;
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    rawBody: true,
+    bodyParser: false,
+    ...(structuredLogger ? { logger: structuredLogger } : {}),
+  });
+
+  if (structuredLoggingEnabled) {
+    const requestLogger = new StructuredRequestLoggerMiddleware();
+    app.use((req, res, next) => requestLogger.use(req, res, next));
+  }
+
+  const requestBodyLimit = process.env.REQUEST_BODY_LIMIT ?? '1mb';
+  const captureRawBody = (
+    req: Request,
+    _res: Response,
+    buf: Buffer,
+  ): void => {
+    (req as RawBodyRequest).rawBody = Buffer.from(buf);
+  };
+
+  /**
+   * Nest's implicit body parsers have no configured request-size bound, so
+   * register both parsers explicitly. The verify callback preserves the exact
+   * bytes for webhook HMAC verification while REQUEST_BODY_LIMIT caps memory.
+   */
+  app.use(json({ limit: requestBodyLimit, verify: captureRawBody }));
+  app.use(
+    urlencoded({
+      extended: true,
+      limit: requestBodyLimit,
+      verify: captureRawBody,
+    }),
+  );
 
   app.use((req: Request, res: Response, next: NextFunction) => {
     res.setHeader('x-dns-prefetch-control', 'off');

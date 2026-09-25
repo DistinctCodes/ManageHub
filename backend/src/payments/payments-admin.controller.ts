@@ -11,6 +11,7 @@ import {
 import {
   ApiBearerAuth,
   ApiOperation,
+  ApiParam,
   ApiQuery,
   ApiResponse,
   ApiTags,
@@ -26,6 +27,7 @@ import { RefundsService } from './refunds.service';
 import { AdminActionLogService } from '../admin-audit/admin-action-log.service';
 import { AdminActionType } from '../admin-audit/admin-action-type.enum';
 import { PaymentResponseDto } from './dto/payment-response.dto';
+import { ReconciliationMetricsResponseDto } from './dto/reconciliation-metrics-response.dto';
 import { ReconciliationRunResponseDto } from './dto/reconciliation-run-response.dto';
 import { ResolvePaymentManuallyDto } from './dto/resolve-payment-manually.dto';
 import { VoidPaymentDto } from './dto/void-payment.dto';
@@ -68,8 +70,11 @@ export class PaymentsAdminController {
     summary:
       'Reconciliation metrics — manual-review queue depth and alert status',
   })
-  getMetrics() {
-    return this.reconciliationService.getMetrics();
+  @ApiResponse({ status: 200, type: ReconciliationMetricsResponseDto })
+  async getMetrics(): Promise<ReconciliationMetricsResponseDto> {
+    return ReconciliationMetricsResponseDto.fromView(
+      await this.reconciliationService.getMetrics(),
+    );
   }
 
   @Get('reconciliation-runs')
@@ -93,6 +98,7 @@ export class PaymentsAdminController {
   }
 
   @Post(':id/force-reconcile')
+  @ApiParam({ name: 'id', type: String, format: 'uuid' })
   @ApiOperation({
     summary:
       'Immediately re-verify one payment against the provider, bypassing the due-schedule',
@@ -106,6 +112,7 @@ export class PaymentsAdminController {
   }
 
   @Post(':id/resolve-manually')
+  @ApiParam({ name: 'id', type: String, format: 'uuid' })
   @ApiOperation({
     summary:
       'Resolve a MANUAL_REVIEW payment by hand (reason required, audited)',
@@ -132,6 +139,7 @@ export class PaymentsAdminController {
   }
 
   @Post(':id/void')
+  @ApiParam({ name: 'id', type: String, format: 'uuid' })
   @ApiOperation({
     summary:
       'Void a MANUAL_REVIEW payment without resolving it (reason required, audited)',
@@ -154,6 +162,7 @@ export class PaymentsAdminController {
   }
 
   @Post(':id/refunds')
+  @ApiParam({ name: 'id', type: String, format: 'uuid' })
   @ApiOperation({
     summary:
       'Issue a (partial) refund against a CONFIRMED/PARTIALLY_REFUNDED payment',
