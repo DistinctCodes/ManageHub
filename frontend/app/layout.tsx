@@ -21,6 +21,7 @@ export const metadata: Metadata = {
   },
   description:
     "Smart Hub & Workspace Management System for modern teams. Streamline operations, manage resources, and boost productivity with our comprehensive management platform.",
+  themeColor: "#0f172a",
   keywords: [
     "workspace management",
     "hub management",
