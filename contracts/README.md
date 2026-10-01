@@ -84,3 +84,8 @@ as workspace members in [`Cargo.toml`](Cargo.toml) as they are developed.
 
 - [`SECURITY.md`](SECURITY.md) — trust model and pre-deployment checklist (CT-68).
 - [`UPGRADE.md`](UPGRADE.md) — contract upgrade/migration path (CT-69).
+
+## Gas & Fee Estimation
+
+- [`GAS_AND_FEE_ESTIMATION.md`](GAS_AND_FEE_ESTIMATION.md) — Resource footprints (CPU, memory, ledger read/writes) and safety buffer guidelines for backend integrators calling `payment_escrow` and `revenue_distribution`.
+
