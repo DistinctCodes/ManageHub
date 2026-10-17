@@ -114,6 +114,7 @@ describe('PaymentConfirmationService', () => {
       expect(paymentsService.transitionStatus).toHaveBeenCalledWith(
         payment,
         PaymentStatus.CONFIRMED,
+        'webhook',
       );
       expect(gateway.emitPaymentUpdate).toHaveBeenCalledWith(
         payment.id,

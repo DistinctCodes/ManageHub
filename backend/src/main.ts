@@ -1,10 +1,12 @@
 import { NestFactory } from '@nestjs/core';
 import { Logger, ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/http-exception.filter';
 import { isOriginAllowed, resolveAllowedOrigins } from './common/cors';
+import { WsCorsIoAdapter } from './common/ws-cors.io-adapter';
 import {
   GracefulShutdownServer,
   installGracefulShutdown,
@@ -45,6 +47,13 @@ async function bootstrap() {
     const requestLogger = new StructuredRequestLoggerMiddleware();
     app.use((req, res, next) => requestLogger.use(req, res, next));
   }
+
+  // The websocket gateway must share the HTTP API's CORS_ORIGINS allowlist
+  // (issue #1943). The IoAdapter is installed here, after ConfigModule has
+  // loaded `.env` but before app.init() discovers gateways — setting it in
+  // an onModuleInit hook would be too late because Nest connects gateways in
+  // registerWsModule(), which runs before lifecycle hooks.
+  app.useWebSocketAdapter(new WsCorsIoAdapter(app, app.get(ConfigService)));
 
   // Behind a reverse proxy/load balancer, TRUST_PROXY makes Express take the
   // client IP from X-Forwarded-For so the shared (Redis) rate limiter keys

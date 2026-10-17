@@ -1,5 +1,43 @@
 import { UnprocessableEntityException } from '@nestjs/common';
+import { currentRequestId } from '../common/request-context';
 import { PaymentStatus } from './enums/payment-status.enum';
+
+/**
+ * Where a rejected state transition originated. Used only for the incident
+ * record (issue #1941) — see `assertValidTransition`.
+ */
+export type PaymentTransitionSource =
+  | 'webhook'
+  | 'reconciliation'
+  | 'admin'
+  | 'refund'
+  | 'verify_return'
+  | 'api';
+
+/**
+ * Minimal structural types so this pure module never needs to import the
+ * concrete Nest Logger/MetricsService (keeps the state machine unit-testable
+ * and free of framework wiring). Both are optional: callers that have no
+ * logger/metrics simply get the throw with no incident record.
+ */
+interface RejectedTransitionLogger {
+  warn(message: string, context?: Record<string, unknown>): void;
+}
+
+interface RejectedTransitionMetrics {
+  recordRejectedPaymentTransition(
+    from: string,
+    to: string,
+    source: string,
+  ): void;
+}
+
+export interface RejectedTransitionContext {
+  paymentId?: string;
+  source?: PaymentTransitionSource;
+  logger?: RejectedTransitionLogger;
+  metrics?: RejectedTransitionMetrics;
+}
 
 /**
  * The single source of truth for legal Payment status transitions.
@@ -48,13 +86,37 @@ export function canTransition(from: PaymentStatus, to: PaymentStatus): boolean {
   return ALLOWED_TRANSITIONS[from]?.includes(to) ?? false;
 }
 
+/**
+ * Throws when `from -> to` is illegal, recording one structured warning and
+ * incrementing a metric first (issue #1941) so a refused transition (e.g. a
+ * webhook retry hitting a terminal payment) leaves an incident trail with the
+ * payment id, both states, the origin of the attempt, and the active request
+ * id. The record is emitted only when a logger/metrics sink is supplied — the
+ * transition guard itself stays a pure, dependency-free check.
+ */
 export function assertValidTransition(
   from: PaymentStatus,
   to: PaymentStatus,
+  context: RejectedTransitionContext = {},
 ): void {
-  if (!canTransition(from, to)) {
-    throw new UnprocessableEntityException(
-      `Illegal payment status transition: ${from} -> ${to}`,
-    );
+  if (canTransition(from, to)) {
+    return;
   }
+  const requestId = currentRequestId();
+  const { paymentId, source, logger, metrics } = context;
+  metrics?.recordRejectedPaymentTransition(
+    from,
+    to,
+    source ?? 'api',
+  );
+  logger?.warn(`Rejected illegal payment state transition: ${from} -> ${to}`, {
+    paymentId,
+    from,
+    to,
+    source: source ?? 'api',
+    requestId,
+  });
+  throw new UnprocessableEntityException(
+    `Illegal payment status transition: ${from} -> ${to}`,
+  );
 }

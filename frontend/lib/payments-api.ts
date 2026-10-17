@@ -90,6 +90,11 @@ export interface RequestRefundResponse {
   refund: Refund;
 }
 
+export interface ManualReviewPage {
+  items: Payment[];
+  total: number;
+}
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 const TRANSIENT_RETRY_DELAY_MS = 250;
 const RETRYABLE_STATUS_CODES = new Set([408, 425, 429, 500, 502, 503, 504]);
@@ -213,8 +218,17 @@ export function listMyUsage(accessToken: string): Promise<MeteredUsageEvent[]> {
 
 export function listManualReviewPayments(
   accessToken: string,
-): Promise<Payment[]> {
-  return apiFetch<Payment[]>("/payments/admin/manual-review", accessToken);
+  limit = 25,
+  offset = 0,
+): Promise<ManualReviewPage> {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+  });
+  return apiFetch<ManualReviewPage>(
+    `/payments/admin/manual-review?${params.toString()}`,
+    accessToken,
+  );
 }
 
 // ── admin payment actions (FE-104 / FE-106) ──────────────────────────────

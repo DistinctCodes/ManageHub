@@ -27,6 +27,8 @@ import { RefundsService } from './refunds.service';
 import { AdminActionLogService } from '../admin-audit/admin-action-log.service';
 import { AdminActionType } from '../admin-audit/admin-action-type.enum';
 import { PaymentResponseDto } from './dto/payment-response.dto';
+import { ListManualReviewQueryDto } from './dto/list-manual-review-query.dto';
+import { ManualReviewPageResponseDto } from './dto/manual-review-page-response.dto';
 import { ReconciliationMetricsResponseDto } from './dto/reconciliation-metrics-response.dto';
 import { ReconciliationRunResponseDto } from './dto/reconciliation-run-response.dto';
 import { ResolvePaymentManuallyDto } from './dto/resolve-payment-manually.dto';
@@ -57,12 +59,22 @@ export class PaymentsAdminController {
 
   @Get('manual-review')
   @ApiOperation({
-    summary: 'List payments awaiting manual review, oldest first',
+    summary: 'List payments awaiting manual review, oldest first (paginated)',
+    description:
+      'Returns one page of the MANUAL_REVIEW queue. `limit` is clamped to 1–100 and defaults to 25; `offset` defaults to 0. The response carries the full queue `total` so a client can page through it.',
   })
-  @ApiResponse({ status: 200, type: [PaymentResponseDto] })
-  async listManualReview(): Promise<PaymentResponseDto[]> {
-    const payments = await this.reconciliationService.listManualReview();
-    return payments.map((payment) => PaymentResponseDto.fromEntity(payment));
+  @ApiResponse({ status: 200, type: ManualReviewPageResponseDto })
+  async listManualReview(
+    @Query() query: ListManualReviewQueryDto,
+  ): Promise<ManualReviewPageResponseDto> {
+    const { items, total } = await this.reconciliationService.listManualReview(
+      query.limit,
+      query.offset,
+    );
+    return {
+      items: items.map((payment) => PaymentResponseDto.fromEntity(payment)),
+      total,
+    };
   }
 
   @Get('metrics')
