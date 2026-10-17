@@ -15,7 +15,7 @@ import { CreditsModule } from './credits/credits.module';
 import { RetentionModule } from './retention/retention.module';
 import { AdminAuditModule } from './admin-audit/admin-audit.module';
 import { HealthModule } from './health/health.module';
-import { MetricsService } from './common/metrics.service';
+import { MetricsModule } from './common/metrics.module';
 import { MetricsController } from './common/metrics.controller';
 import { RequestContextMiddleware } from './common/request-context.middleware';
 import { RequestDurationInterceptor } from './common/request-duration.interceptor';
@@ -87,11 +87,12 @@ import { TracingMiddleware } from './common/tracing.middleware';
     // the payments and credits admin controllers; read via /admin/audit.
     AdminAuditModule,
     HealthModule,
+    // Process-wide metrics registry shared with /metrics (issue #1948).
+    MetricsModule,
   ],
   controllers: [AppController, MetricsController],
   providers: [
     AppService,
-    MetricsService,
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
@@ -106,8 +107,6 @@ export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
     // RequestContextMiddleware must run first so the tracing root span and
     // every downstream log prefix share the same request-id context.
-    consumer
-      .apply(RequestContextMiddleware, TracingMiddleware)
-      .forRoutes('*');
+    consumer.apply(RequestContextMiddleware, TracingMiddleware).forRoutes('*');
   }
 }

@@ -1,79 +1,134 @@
-// backend/src/wallets/wallets.controller.spec.ts
-import { Test, TestingModule } from '@nestjs/testing';
 import { WalletsController } from './wallets.controller';
 import { WalletsService } from './wallets.service';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { RolesGuard } from '../../common/guards/roles.guard';
-import { ExecutionContext } from '@nestjs/common';
-import { UserRole } from '../../users/entities/user.entity';
+import { WalletLinkIdempotencyService } from './wallet-link-idempotency.service';
+import { WalletCustodyType } from './enums/wallet-custody-type.enum';
+import { WalletStatus } from './enums/wallet-status.enum';
 
 describe('WalletsController', () => {
   let controller: WalletsController;
-  let walletsService: WalletsService;
+  let walletsService: jest.Mocked<
+    Pick<
+      WalletsService,
+      | 'getWalletStatus'
+      | 'provisionCustodialWallet'
+      | 'createLinkChallenge'
+      | 'verifyAndLinkExternalWallet'
+      | 'fundCustodialWallet'
+    >
+  >;
+  let idempotency: { run: jest.Mock };
 
-  const mockWalletsService = {
-    getWalletProfile: jest.fn().mockResolvedValue({ id: 'wallet-1' }),
-    provisionWallet: jest.fn().mockResolvedValue({ provisioned: true }),
-    generateLinkChallenge: jest.fn().mockResolvedValue({ challenge: 'sig-nonce' }),
-    verifyLinkChallenge: jest.fn().mockResolvedValue({ linked: true }),
-    fundWallet: jest.fn().mockResolvedValue({ funded: true }),
+  const user = { id: 'user-1', role: 'USER' } as any;
+
+  const statusView = {
+    account: {
+      address: 'GADDRESS',
+      custodyType: WalletCustodyType.EXTERNAL,
+      status: WalletStatus.ACTIVE,
+    },
+    balance: 0,
+    currency: 'XLM',
   };
 
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [WalletsController],
-      providers: [
-        { provide: WalletsService, useValue: mockWalletsService },
-      ],
-    })
-      .overrideGuard(JwtAuthGuard)
-      .useValue({
-        canActivate: (context: ExecutionContext) => {
-          const req = context.switchToHttp().getRequest();
-          req.user = { id: 'admin-1', role: UserRole.ADMIN };
-          return true;
-        },
-      })
-      .overrideGuard(RolesGuard)
-      .useValue({
-        canActivate: (context: ExecutionContext) => {
-          const req = context.switchToHttp().getRequest();
-          return req.user?.role === UserRole.ADMIN;
-        },
-      })
-      .compile();
-
-    controller = module.get<WalletsController>(WalletsController);
-    walletsService = module.get<WalletsService>(WalletsService);
+  beforeEach(() => {
+    walletsService = {
+      getWalletStatus: jest.fn().mockResolvedValue(statusView),
+      provisionCustodialWallet: jest.fn().mockResolvedValue(undefined),
+      createLinkChallenge: jest.fn().mockResolvedValue({
+        nonce: 'n-1',
+        expiresAt: new Date(),
+        message: 'ManageHub wallet link\n...',
+      }),
+      verifyAndLinkExternalWallet: jest.fn().mockResolvedValue(undefined),
+      fundCustodialWallet: jest.fn().mockResolvedValue(undefined),
+    };
+    // Pass-through by default; individual tests assert the arguments.
+    idempotency = {
+      run: jest.fn(async (_u, _k, _b, work: () => Promise<unknown>) => work()),
+    };
+    controller = new WalletsController(
+      walletsService as any,
+      idempotency as unknown as WalletLinkIdempotencyService,
+    );
   });
 
-  it('should be defined', () => {
-    expect(controller).toBeDefined();
+  it('returns the current wallet status', async () => {
+    const result = await controller.getMine(user);
+    expect(walletsService.getWalletStatus).toHaveBeenCalledWith('user-1');
+    expect(result.walletAddress).toBe('GADDRESS');
+    expect(result.custodyType).toBe(WalletCustodyType.EXTERNAL);
   });
 
-  it('should retrieve wallet profile and provision wallets', async () => {
-    const profile = await controller.getWalletProfile({ user: { id: 'user-1' } } as any);
-    expect(walletsService.getWalletProfile).toHaveBeenCalledWith('user-1');
-    expect(profile).toEqual({ id: 'wallet-1' });
+  it('provisions a wallet through the idempotency wrapper', async () => {
+    const result = await controller.provision(user, 'idem-provision-1');
 
-    const provisionRes = await controller.provisionWallet({ user: { id: 'user-1' } } as any);
-    expect(walletsService.provisionWallet).toHaveBeenCalledWith('user-1');
-    expect(provisionRes).toEqual({ provisioned: true });
+    expect(idempotency.run).toHaveBeenCalledWith(
+      'user-1',
+      'idem-provision-1',
+      { operation: 'provision' },
+      expect.any(Function),
+    );
+    expect(walletsService.provisionCustodialWallet).toHaveBeenCalledWith(
+      'user-1',
+    );
+    expect(result.provisioned).toBe(true);
   });
 
-  it('should handle link challenge generation and verification', async () => {
-    const challengeRes = await controller.generateLinkChallenge({ user: { id: 'user-1' } } as any);
-    expect(walletsService.generateLinkChallenge).toHaveBeenCalledWith('user-1');
-    expect(challengeRes).toEqual({ challenge: 'sig-nonce' });
-
-    const verifyRes = await controller.verifyLinkChallenge({ user: { id: 'user-1' } } as any, { signature: '0xabc' } as any);
-    expect(walletsService.verifyLinkChallenge).toHaveBeenCalledWith('user-1', expect.any(Object));
-    expect(verifyRes).toEqual({ linked: true });
+  it('forwards the requested address to the challenge and returns the message', async () => {
+    const result = await controller.requestChallenge(user, {
+      address: 'GADDRESS',
+    });
+    expect(walletsService.createLinkChallenge).toHaveBeenCalledWith(
+      'user-1',
+      'GADDRESS',
+    );
+    expect(result.message).toContain('ManageHub wallet link');
   });
 
-  it('should enforce admin guard on wallet funding route', async () => {
-    const fundRes = await controller.fundWallet({ address: 'G123', amount: 100 } as any);
-    expect(walletsService.fundWallet).toHaveBeenCalledWith('G123', 100);
-    expect(fundRes).toEqual({ funded: true });
+  it('verifies a link through the idempotency wrapper, keyed by the request body', async () => {
+    const dto = { nonce: 'n-1', address: 'GADDRESS', signature: 'sig' };
+    await controller.verifyLink(user, dto, 'idem-verify-1');
+
+    expect(idempotency.run).toHaveBeenCalledWith(
+      'user-1',
+      'idem-verify-1',
+      { operation: 'link/verify', ...dto },
+      expect.any(Function),
+    );
+    expect(walletsService.verifyAndLinkExternalWallet).toHaveBeenCalledWith(
+      'user-1',
+      'n-1',
+      'GADDRESS',
+      'sig',
+    );
+  });
+
+  it('replays the cached response instead of linking twice for a repeated key', async () => {
+    const cached = { provisioned: true as const };
+    idempotency.run.mockResolvedValueOnce(cached);
+
+    const result = await controller.verifyLink(
+      user,
+      { nonce: 'n-1', address: 'GADDRESS', signature: 'sig' },
+      'idem-verify-1',
+    );
+
+    expect(result).toBe(cached);
+    expect(walletsService.verifyAndLinkExternalWallet).not.toHaveBeenCalled();
+  });
+
+  it('funds a wallet with the acting admin id', async () => {
+    const admin = { id: 'admin-1', role: 'ADMIN' } as any;
+    await controller.fund(
+      '11111111-1111-4111-8111-111111111111',
+      { amount: 100, reason: 'top-up' } as any,
+      admin,
+    );
+    expect(walletsService.fundCustodialWallet).toHaveBeenCalledWith(
+      '11111111-1111-4111-8111-111111111111',
+      100,
+      'top-up',
+      'admin-1',
+    );
   });
 });

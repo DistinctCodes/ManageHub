@@ -41,11 +41,7 @@ export class KeyCustodyService {
     const dataKey = randomBytes(32);
 
     const secretIv = randomBytes(12);
-    const secretCipher = createCipheriv(
-      DATA_KEY_ALGORITHM,
-      dataKey,
-      secretIv,
-    );
+    const secretCipher = createCipheriv(DATA_KEY_ALGORITHM, dataKey, secretIv);
     const encryptedSecret = Buffer.concat([
       secretCipher.update(Buffer.from(keypair.secret(), 'utf8')),
       secretCipher.final(),
@@ -143,7 +139,7 @@ export class KeyCustodyService {
         actor,
         reason,
         successful,
-        }),
+      }),
     );
   }
 

@@ -13,9 +13,27 @@ payment domain model — `WalletAccount#userId` is the same id space as
   the public `walletAddress` is exposed via the API.
 - **External** — `WalletsService.createLinkChallenge` /
   `verifyAndLinkExternalWallet` implement challenge-response linking: the
-  server issues a single-use nonce, the user signs it with their own
-  wallet (e.g. Freighter), the server verifies the signature against the
-  claimed public key. The server never has custody here.
+  server issues a single-use nonce, the user signs a structured message with
+  their own wallet (e.g. Freighter), the server verifies the signature against
+  the claimed public key. The server never has custody here.
+
+The signed message is built by `buildWalletLinkMessage`
+(`link-message.util.ts`) and is domain-separated and single-use:
+
+```
+ManageHub wallet link
+user:<userId>
+[address:<claimedAddress>]
+nonce:<nonce>
+expires:<ISO timestamp>
+```
+
+The bare nonce is no longer accepted, so a signature harvested from another
+flow cannot be replayed here. `POST /wallets/link/challenge` may optionally
+include `address`; when present the message names it, the challenge stores it,
+and `verify` rejects any request whose address does not match — so verifying a
+message issued for a different address is refused before the challenge is
+consumed (#1946).
 
 A user starts with at most one `wallet_accounts` row. Linking an external
 wallet when the user already has a custodial one **upgrades** that row in
@@ -38,6 +56,20 @@ If the KMS/decrypt step fails, `sign()` throws a clean
 `InternalServerErrorException` — there is no fallback to an unencrypted
 path.
 
+## Master-key rotation
+
+The envelope master is versioned. `EnvelopeKeyManagementService` reads a key
+registry — `WALLET_KMS_MASTER_KEY` (registered under
+`WALLET_KMS_DEFAULT_KEY_ID`, default `local-master-key-v1`) plus a JSON
+`WALLET_KMS_MASTER_KEYS` map of additional `{ "<keyId>": "<base64>" }` masters
+— and both wraps under `WALLET_KMS_ACTIVE_KEY_ID` and unwraps by each row's
+`kmsKeyId`. Old rows therefore keep working while new writes move to a new
+key. Admins run `POST /wallets/admin/key-rotation` (`KeyRotationService`,
+`RotateKeysDto`) to re-wrap `wallet_key_material` data keys from an old
+`kmsKeyId` to a new one; it is idempotent and resumable and publishes
+progress on `/metrics`. See
+[`key-custody/README.md`](./key-custody/README.md) for the runbook.
+
 ## Funding
 
 `WalletsService.fundCustodialWallet` (admin-only) records a
@@ -58,3 +90,14 @@ re-reading instead of erroring. A custodial keypair is only ever generated
 can never provision two keypairs for one user. Challenge consumption is
 guarded by a row lock (`claimChallenge`) so a captured signature can't be
 replayed to link twice.
+
+`POST /wallets/provision` and `POST /wallets/link/verify` also accept an
+optional `Idempotency-Key` header (#1947). When present,
+`WalletLinkIdempotencyService` keys the response by (user, key) in Redis with
+a TTL and replays it for an identical retry — so a client that times out and
+retries gets its original response instead of failing on an already-consumed
+challenge. Reusing a key with a *different* request body is rejected with
+`422`, and a concurrent identical request waits on a short Redis lock. The
+cache is best-effort: if Redis is unreachable the request still runs and only
+a warning is logged, since the DB's unique constraints remain the source of
+truth.

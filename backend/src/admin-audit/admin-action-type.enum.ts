@@ -47,6 +47,14 @@ export enum AdminActionType {
   SPLIT_CONFIG_DEACTIVATE = 'split_config_deactivate',
 
   /**
+   * Recorded by `POST /wallets/admin/key-rotation` (via
+   * `KeyRotationService`) once per re-wrapped custodial key-material row.
+   * The target is the `WalletKeyMaterial` id and `detail` is
+   * `WALLET_KEY_ROTATION: <oldKmsKeyId> -> <newKmsKeyId> (wallet <id>)`.
+   */
+  KEY_MATERIAL_ROTATED = 'key_material_rotated',
+
+  /**
    * Recorded by `POST /payments/admin/:id/resolve-manually` when an operator
    * resolves a MANUAL_REVIEW payment to CONFIRMED or FAILED using the
    * supplied reason. The target is the Payment id and `detail` is
