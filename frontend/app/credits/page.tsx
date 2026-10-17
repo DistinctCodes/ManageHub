@@ -32,20 +32,20 @@ export default function CreditsPage() {
     );
   }
 
-  return <CreditsInner token={token} />;
+  return <CreditsInner />;
 }
 
-function CreditsInner({ token }: { token: string }) {
+function CreditsInner() {
   const [page, setPage] = useState(1);
 
   const balance = useQuery({
     queryKey: ["credit-balance"],
-    queryFn: () => getCreditBalance(token),
+    queryFn: () => getCreditBalance(),
   });
 
   const statement = useQuery({
     queryKey: ["credit-statement", page],
-    queryFn: () => getCreditStatement(token, page, PAGE_SIZE),
+    queryFn: () => getCreditStatement(undefined, page, PAGE_SIZE),
   });
 
   const totalPages = statement.data

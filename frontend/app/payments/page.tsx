@@ -39,7 +39,7 @@ export default function PaymentsPage() {
     error,
   } = useQuery({
     queryKey: ["payments", "list"],
-    queryFn: () => getPayments(accessToken as string),
+    queryFn: () => getPayments(),
     enabled: Boolean(accessToken),
   });
 

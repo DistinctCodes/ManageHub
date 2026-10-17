@@ -31,7 +31,7 @@ function PaymentRow({ payment }: { payment: Payment }) {
     if (!token) return;
     setBusy(true);
     try {
-      await requestRefund(token, payment.id, Number(amount), reason);
+      await requestRefund(undefined, payment.id, Number(amount), reason);
       toast.success("Refund request submitted");
       setReason("");
       await queryClient.invalidateQueries({ queryKey: ["manual-review"] });
@@ -94,7 +94,7 @@ export default function AdminRefundPage() {
   const token = typeof window !== "undefined" ? Cookies.get("accessToken") : null;
   const { data, isLoading, error } = useQuery({
     queryKey: ["manual-review"],
-    queryFn: () => listManualReviewPayments(token!),
+    queryFn: () => listManualReviewPayments(),
     enabled: !!token,
   });
 

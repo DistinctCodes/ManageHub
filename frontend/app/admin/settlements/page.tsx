@@ -13,7 +13,7 @@ import {
   StatusBadge,
   Button,
 } from "@/components/admin/ui";
-import { RequireAdmin, useAdminToken } from "@/components/admin/require-admin";
+import { RequireAdmin } from "@/components/admin/require-admin";
 import { SettlementVolumeChart } from "@/components/admin/settlement-volume-chart";
 
 const STATUSES: Array<{ value: SettlementBatchStatus | ""; label: string }> = [
@@ -27,16 +27,14 @@ const STATUSES: Array<{ value: SettlementBatchStatus | ""; label: string }> = [
 ];
 
 export default function SettlementsPage() {
-  const token = useAdminToken();
-
   return (
     <RequireAdmin>
-      <SettlementsInner token={token as string} />
+      <SettlementsInner />
     </RequireAdmin>
   );
 }
 
-function SettlementsInner({ token }: { token: string }) {
+function SettlementsInner() {
   const queryClient = useQueryClient();
   const status =
     typeof window !== "undefined"
@@ -46,11 +44,11 @@ function SettlementsInner({ token }: { token: string }) {
   const batches = useQuery({
     queryKey: ["settlement-batches", status],
     queryFn: () =>
-      listBatches(token, (status || undefined) as SettlementBatchStatus | undefined),
+      listBatches(undefined, (status || undefined) as SettlementBatchStatus | undefined),
   });
 
   const run = useMutation({
-    mutationFn: () => runSettlement(token),
+    mutationFn: () => runSettlement(),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settlement-batches"] });
       toast.success("Settlement pass completed");

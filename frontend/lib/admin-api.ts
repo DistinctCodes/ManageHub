@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  getApiErrorMessage,
-  getRequestId,
-  reportApiError,
-} from "@/lib/api-report";
+import { request } from "@/lib/http";
 
 export type LedgerAccountKind =
   | "USER"
@@ -155,49 +151,27 @@ export interface SettlementBatchBreakdown {
   onChainReferences: Array<{ payoutId: string; reference: string }>;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
+interface AdminRequestInit {
+  method?: string;
+  body?: unknown;
+}
 
 async function adminFetch<T>(
   path: string,
-  accessToken: string,
-  init?: RequestInit,
+  accessToken: string | undefined,
+  init?: AdminRequestInit,
 ): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  return request<T>(path, {
+    service: "admin",
+    accessToken,
     ...init,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`,
-      ...init?.headers,
-    },
   });
-
-  if (!response.ok) {
-    const body = await response.json().catch(() => null);
-    const error = new Error(
-      getApiErrorMessage(body, `Admin request failed (${response.status})`),
-    );
-
-    reportApiError({
-      api: "admin",
-      method: init?.method ?? "GET",
-      pathTemplate: path,
-      status: response.status,
-      requestId: getRequestId(response),
-    });
-
-    throw error;
-  }
-
-  if (response.status === 204) {
-    return undefined as T;
-  }
-  return response.json() as Promise<T>;
 }
 
 // ── ledger accounts (FE-111) ─────────────────────────────────────────────
 
 export function listAccounts(
-  accessToken: string,
+  accessToken?: string,
   currency?: string,
 ): Promise<LedgerAccount[]> {
   const query = currency ? `?currency=${encodeURIComponent(currency)}` : "";
@@ -205,30 +179,30 @@ export function listAccounts(
 }
 
 export function createAccount(
-  accessToken: string,
-  input: CreateLedgerAccountInput,
+  accessToken?: string,
+  input?: CreateLedgerAccountInput,
 ): Promise<LedgerAccount> {
   return adminFetch<LedgerAccount>("/credits/admin/accounts", accessToken, {
     method: "POST",
-    body: JSON.stringify(input),
+    body: input,
   });
 }
 
 export function updateAccount(
-  accessToken: string,
-  id: string,
-  input: UpdateLedgerAccountInput,
+  accessToken?: string,
+  id?: string,
+  input?: UpdateLedgerAccountInput,
 ): Promise<LedgerAccount> {
   return adminFetch<LedgerAccount>(`/credits/admin/accounts/${id}`, accessToken, {
     method: "PATCH",
-    body: JSON.stringify(input),
+    body: input,
   });
 }
 
 // ── ledger integrity (FE-112) ────────────────────────────────────────────
 
 export function checkIntegrity(
-  accessToken: string,
+  accessToken?: string,
   currency?: string,
 ): Promise<LedgerIntegrityReport> {
   const query = currency ? `?currency=${encodeURIComponent(currency)}` : "";
@@ -240,13 +214,13 @@ export function checkIntegrity(
 
 // ── revenue splits (FE-113) ──────────────────────────────────────────────
 
-export function listSplits(accessToken: string): Promise<RevenueSplitConfig[]> {
+export function listSplits(accessToken?: string): Promise<RevenueSplitConfig[]> {
   return adminFetch<RevenueSplitConfig[]>("/credits/admin/splits", accessToken);
 }
 
 export function createSplit(
-  accessToken: string,
-  input: {
+  accessToken?: string,
+  input?: {
     name: string;
     description?: string;
     recipients: SplitRecipientInput[];
@@ -254,55 +228,55 @@ export function createSplit(
 ): Promise<RevenueSplitConfig> {
   return adminFetch<RevenueSplitConfig>("/credits/admin/splits", accessToken, {
     method: "POST",
-    body: JSON.stringify(input),
+    body: input,
   });
 }
 
 export function setSplitActive(
-  accessToken: string,
-  id: string,
-  active: boolean,
+  accessToken?: string,
+  id?: string,
+  active?: boolean,
 ): Promise<RevenueSplitConfig> {
   return adminFetch<RevenueSplitConfig>(
     `/credits/admin/splits/${id}/active`,
     accessToken,
-    { method: "POST", body: JSON.stringify({ active }) },
+    { method: "POST", body: { active } },
   );
 }
 
 export function replaceSplitRecipients(
-  accessToken: string,
-  id: string,
-  recipients: SplitRecipientInput[],
+  accessToken?: string,
+  id?: string,
+  recipients?: SplitRecipientInput[],
 ): Promise<RevenueSplitConfig> {
   return adminFetch<RevenueSplitConfig>(
     `/credits/admin/splits/${id}/recipients`,
     accessToken,
-    { method: "PUT", body: JSON.stringify({ recipients }) },
+    { method: "PUT", body: { recipients } },
   );
 }
 
 export function previewSplit(
-  accessToken: string,
-  configId: string,
-  amount: number,
+  accessToken?: string,
+  configId?: string,
+  amount?: number,
 ): Promise<SplitPreview> {
   return adminFetch<SplitPreview>("/credits/admin/splits/preview", accessToken, {
     method: "POST",
-    body: JSON.stringify({ configId, amount }),
+    body: { configId, amount },
   });
 }
 
 // ── settlement (FE-114) ──────────────────────────────────────────────────
 
-export function runSettlement(accessToken: string): Promise<unknown> {
+export function runSettlement(accessToken?: string): Promise<unknown> {
   return adminFetch<unknown>("/credits/admin/settlement/run", accessToken, {
     method: "POST",
   });
 }
 
 export function listBatches(
-  accessToken: string,
+  accessToken?: string,
   status?: SettlementBatchStatus,
 ): Promise<SettlementBatch[]> {
   const query = status ? `?status=${encodeURIComponent(status)}` : "";
@@ -313,8 +287,8 @@ export function listBatches(
 }
 
 export function getBatchBreakdown(
-  accessToken: string,
-  id: string,
+  accessToken?: string,
+  id?: string,
 ): Promise<SettlementBatchBreakdown> {
   return adminFetch<SettlementBatchBreakdown>(
     `/credits/admin/settlement/batches/${id}`,
@@ -323,8 +297,8 @@ export function getBatchBreakdown(
 }
 
 export function executeBatch(
-  accessToken: string,
-  id: string,
+  accessToken?: string,
+  id?: string,
 ): Promise<SettlementBatch> {
   return adminFetch<SettlementBatch>(
     `/credits/admin/settlement/batches/${id}/execute`,
@@ -334,8 +308,8 @@ export function executeBatch(
 }
 
 export function retryBatch(
-  accessToken: string,
-  id: string,
+  accessToken?: string,
+  id?: string,
 ): Promise<SettlementBatch> {
   return adminFetch<SettlementBatch>(
     `/credits/admin/settlement/batches/${id}/retry`,
@@ -345,13 +319,13 @@ export function retryBatch(
 }
 
 export function abandonBatch(
-  accessToken: string,
-  id: string,
-  reason: string,
+  accessToken?: string,
+  id?: string,
+  reason?: string,
 ): Promise<SettlementBatch> {
   return adminFetch<SettlementBatch>(
     `/credits/admin/settlement/batches/${id}/abandon`,
     accessToken,
-    { method: "POST", body: JSON.stringify({ reason }) },
+    { method: "POST", body: { reason } },
   );
 }

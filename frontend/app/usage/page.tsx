@@ -14,7 +14,7 @@ export default function UsagePage() {
   const token = typeof window !== "undefined" ? Cookies.get("accessToken") : null;
   const { data, isLoading, error } = useQuery({
     queryKey: ["my-usage"],
-    queryFn: () => listMyUsage(token!),
+    queryFn: () => listMyUsage(),
     enabled: !!token,
   });
 

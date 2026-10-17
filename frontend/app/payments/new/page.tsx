@@ -25,7 +25,7 @@ export default function NewPaymentPage() {
     setSubmitting(true);
     try {
       const payment = await initiatePayment(
-        token,
+        undefined,
         {
           bookingId,
           amount: Number(amount),

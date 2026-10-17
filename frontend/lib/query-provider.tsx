@@ -1,5 +1,6 @@
 "use client";
 
+/* eslint-disable local-filenames/no-components-in-lib -- legacy site-wide provider wrapper, kept next to its consumers */
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 import { useState } from "react";

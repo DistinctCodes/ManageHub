@@ -16,24 +16,22 @@ import {
   SecondaryButton,
   inputClass,
 } from "@/components/admin/ui";
-import { RequireAdmin, useAdminToken } from "@/components/admin/require-admin";
+import { RequireAdmin } from "@/components/admin/require-admin";
 
 export default function SplitsPage() {
-  const token = useAdminToken();
-
   return (
     <RequireAdmin>
-      <SplitsInner token={token as string} />
+      <SplitsInner />
     </RequireAdmin>
   );
 }
 
-function SplitsInner({ token }: { token: string }) {
+function SplitsInner() {
   const [showCreate, setShowCreate] = useState(false);
 
   const splits = useQuery({
     queryKey: ["revenue-splits"],
-    queryFn: () => listSplits(token),
+    queryFn: () => listSplits(),
   });
 
   return (
@@ -55,7 +53,7 @@ function SplitsInner({ token }: { token: string }) {
       </div>
 
       {showCreate && (
-        <CreateSplitForm token={token} onDone={() => setShowCreate(false)} />
+        <CreateSplitForm onDone={() => setShowCreate(false)} />
       )}
 
       <Card>
@@ -104,7 +102,7 @@ function SplitsInner({ token }: { token: string }) {
   );
 }
 
-function CreateSplitForm({ token, onDone }: { token: string; onDone: () => void }) {
+function CreateSplitForm({ onDone }: { onDone: () => void }) {
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -130,7 +128,7 @@ function CreateSplitForm({ token, onDone }: { token: string; onDone: () => void 
 
   const create = useMutation({
     mutationFn: () =>
-      createSplit(token, {
+      createSplit(undefined, {
         name,
         description: description || undefined,
         recipients: recipients.map((r) => ({

@@ -19,26 +19,24 @@ import {
   Button,
   inputClass,
 } from "@/components/admin/ui";
-import { RequireAdmin, useAdminToken } from "@/components/admin/require-admin";
+import { RequireAdmin } from "@/components/admin/require-admin";
 
 export default function SplitDetailPage() {
-  const token = useAdminToken();
-
   return (
     <RequireAdmin>
-      <SplitDetailInner token={token as string} />
+      <SplitDetailInner />
     </RequireAdmin>
   );
 }
 
-function SplitDetailInner({ token }: { token: string }) {
+function SplitDetailInner() {
   const params = useParams<{ id: string }>();
   const id = params.id;
   const queryClient = useQueryClient();
 
   const configs = useQuery({
     queryKey: ["revenue-splits"],
-    queryFn: () => listSplits(token),
+    queryFn: () => listSplits(),
   });
   const split = configs.data?.find((c) => c.id === id);
 
@@ -46,12 +44,12 @@ function SplitDetailInner({ token }: { token: string }) {
 
   const preview = useQuery({
     queryKey: ["split-preview", id, amount],
-    queryFn: () => previewSplit(token, id, Number(amount) || 0),
+    queryFn: () => previewSplit(undefined, id, Number(amount) || 0),
     enabled: !!split && Number(amount) > 0,
   });
 
   const toggleActive = useMutation({
-    mutationFn: () => setSplitActive(token, id, !split?.active),
+    mutationFn: () => setSplitActive(undefined, id, !split?.active),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["revenue-splits"] });
       toast.success(`Config ${split?.active ? "deactivated" : "activated"}`);

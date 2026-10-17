@@ -32,7 +32,7 @@ export default function AdminChargePage() {
     setBusy(true);
     try {
       const res = await chargeCredits(
-        token,
+        undefined,
         {
           userId,
           amount: Number(amount),

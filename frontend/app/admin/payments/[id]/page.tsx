@@ -25,13 +25,12 @@ import {
   StatusBadge,
   Button,
 } from "@/components/admin/ui";
-import { RequireAdmin, useAdminToken } from "@/components/admin/require-admin";
+import { RequireAdmin } from "@/components/admin/require-admin";
 
 export default function AdminPaymentDetailPage() {
-  const token = useAdminToken();
   return (
     <RequireAdmin>
-      <PaymentDetailInner token={token as string} />
+      <PaymentDetailInner />
     </RequireAdmin>
   );
 }
@@ -107,7 +106,7 @@ function ConfirmDialog({
 
 type Action = "reconcile" | "resolve" | "void" | null;
 
-function PaymentDetailInner({ token }: { token: string }) {
+function PaymentDetailInner() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -119,7 +118,7 @@ function PaymentDetailInner({ token }: { token: string }) {
     error,
   } = useQuery({
     queryKey: ["payment", id],
-    queryFn: () => getPayment(id, token),
+    queryFn: () => getPayment(id),
   });
 
   const invalidate = () => {
@@ -128,7 +127,7 @@ function PaymentDetailInner({ token }: { token: string }) {
   };
 
   const reconcile = useMutation({
-    mutationFn: () => forceReconcilePayment(token, id),
+    mutationFn: () => forceReconcilePayment(undefined, id),
     onSuccess: () => {
       invalidate();
       toast.success("Payment force-reconciled.");
@@ -138,7 +137,7 @@ function PaymentDetailInner({ token }: { token: string }) {
 
   const resolve = useMutation({
     mutationFn: (resolution: string) =>
-      resolvePaymentManually(token, id, resolution),
+      resolvePaymentManually(undefined, id, resolution),
     onSuccess: () => {
       invalidate();
       toast.success("Payment resolved manually.");
@@ -147,7 +146,7 @@ function PaymentDetailInner({ token }: { token: string }) {
   });
 
   const voidMut = useMutation({
-    mutationFn: (reason: string) => voidPayment(token, id, reason),
+    mutationFn: (reason: string) => voidPayment(undefined, id, reason),
     onSuccess: () => {
       invalidate();
       toast.success("Payment voided.");

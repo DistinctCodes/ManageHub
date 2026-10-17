@@ -1,8 +1,4 @@
-import {
-  getApiErrorMessage,
-  getRequestId,
-  reportApiError,
-} from "@/lib/api-report";
+import { request } from "@/lib/http";
 
 export type WalletCustodyType = "CUSTODIAL" | "EXTERNAL";
 export type WalletStatus = "PENDING" | "ACTIVE" | "DISABLED";
@@ -21,36 +17,21 @@ export interface LinkChallengeResponse {
   expiresAt: string;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
+interface WalletRequestInit {
+  method?: string;
+  body?: unknown;
+}
 
-async function walletFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...init?.headers,
-    },
-    credentials: "same-origin",
+async function walletFetch<T>(
+  path: string,
+  init?: WalletRequestInit,
+): Promise<T> {
+  return request<T>(path, {
+    service: "wallet",
+    method: init?.method,
+    body: init?.body,
+    fallbackMessage: (status) => `Wallet request failed (${status})`,
   });
-
-  if (!response.ok) {
-    const body = await response.json().catch(() => null);
-    const error = new Error(
-      getApiErrorMessage(body, `Wallet request failed (${response.status})`),
-    );
-
-    reportApiError({
-      api: "wallet",
-      method: init?.method ?? "GET",
-      pathTemplate: path,
-      status: response.status,
-      requestId: getRequestId(response),
-    });
-
-    throw error;
-  }
-
-  return response.json() as Promise<T>;
 }
 
 export function getWalletStatus(): Promise<WalletStatusResponse> {
@@ -76,6 +57,6 @@ export function verifyLinkChallenge(params: {
 }): Promise<WalletStatusResponse> {
   return walletFetch<WalletStatusResponse>("/wallets/link/verify", {
     method: "POST",
-    body: JSON.stringify(params),
+    body: params,
   });
 }

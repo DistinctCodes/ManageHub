@@ -121,7 +121,7 @@ export default function PaymentReturnPage() {
   // -- polling loop --------------------------------------------------------
 
   const startPolling = useCallback(
-    (id: string, token: string) => {
+    (id: string) => {
       let attempt = 0;
       setPhase("polling");
 
@@ -129,7 +129,7 @@ export default function PaymentReturnPage() {
         attempt += 1;
         setPollCount(attempt);
 
-        getPayment(id, token)
+        getPayment(id)
           .then((p) => {
             setPayment(p);
             if (terminalStatus(p.status)) {
@@ -164,10 +164,10 @@ export default function PaymentReturnPage() {
     // Arm the timeout that triggers the polling fallback
     const timeoutId = setTimeout(() => {
       ctrl.abort();
-      startPolling(paymentId, accessToken as string);
+      startPolling(paymentId);
     }, FAST_PATH_TIMEOUT_MS);
 
-    verifyPaymentReturn(accessToken as string, paymentId)
+    verifyPaymentReturn(paymentId)
       .then((result) => {
         clearTimeout(timeoutId);
         if (ctrl.signal.aborted) return; // timeout already fired, ignore
@@ -175,8 +175,8 @@ export default function PaymentReturnPage() {
         if (result.verified || terminalStatus(result.payment.status)) {
           setPhase("success");
         } else {
-          // Not yet in a terminal state � fall through to polling
-          startPolling(paymentId, accessToken as string);
+          // Not yet in a terminal state, fall through to polling
+          startPolling(paymentId);
         }
       })
       .catch((err: unknown) => {
@@ -187,7 +187,7 @@ export default function PaymentReturnPage() {
           "[verify-return] fast path failed, falling back to polling:",
           err,
         );
-        startPolling(paymentId, accessToken as string);
+        startPolling(paymentId);
       });
 
     return () => {

@@ -1,8 +1,4 @@
-import {
-  getApiErrorMessage,
-  getRequestId,
-  reportApiError,
-} from "@/lib/api-report";
+import { request } from "@/lib/http";
 
 export type UserRole = "MEMBER" | "ADMIN" | "SUPER_ADMIN";
 
@@ -17,38 +13,19 @@ export interface AuthResponse {
   user: AuthUser;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
-
 async function authRequest<T>(
   path: string,
   body: { email: string; password: string },
 ): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  return request<T>(path, {
+    service: "auth",
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    const errorBody = await response.json().catch(() => null);
-    const fallbackMessage =
-      response.status === 401
+    body,
+    fallbackMessage: (status) =>
+      status === 401
         ? "Invalid credentials"
-        : `Authentication failed (${response.status})`;
-    const error = new Error(getApiErrorMessage(errorBody, fallbackMessage));
-
-    reportApiError({
-      api: "auth",
-      method: "POST",
-      pathTemplate: path,
-      status: response.status,
-      requestId: getRequestId(response),
-    });
-
-    throw error;
-  }
-
-  return response.json() as Promise<T>;
+        : `Authentication failed (${status})`,
+  });
 }
 
 export function login(email: string, password: string): Promise<AuthResponse> {

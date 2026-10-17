@@ -21,19 +21,17 @@ import {
   Field,
   inputClass,
 } from "@/components/admin/ui";
-import { RequireAdmin, useAdminToken } from "@/components/admin/require-admin";
+import { RequireAdmin } from "@/components/admin/require-admin";
 
 export default function BatchDetailPage() {
-  const token = useAdminToken();
-
   return (
     <RequireAdmin>
-      <BatchDetailInner token={token as string} />
+      <BatchDetailInner />
     </RequireAdmin>
   );
 }
 
-function BatchDetailInner({ token }: { token: string }) {
+function BatchDetailInner() {
   const params = useParams<{ id: string }>();
   const id = params.id;
   const queryClient = useQueryClient();
@@ -41,24 +39,24 @@ function BatchDetailInner({ token }: { token: string }) {
 
   const detail = useQuery({
     queryKey: ["settlement-batch", id],
-    queryFn: () => getBatchBreakdown(token, id),
+    queryFn: () => getBatchBreakdown(undefined, id),
   });
 
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: ["settlement-batch", id] });
 
   const execute = useMutation({
-    mutationFn: () => executeBatch(token, id),
+    mutationFn: () => executeBatch(undefined, id),
     onSuccess: invalidate,
     onError: (err) => toast.error(err.message),
   });
   const retry = useMutation({
-    mutationFn: () => retryBatch(token, id),
+    mutationFn: () => retryBatch(undefined, id),
     onSuccess: invalidate,
     onError: (err) => toast.error(err.message),
   });
   const abandon = useMutation({
-    mutationFn: () => abandonBatch(token, id, abandonReason),
+    mutationFn: () => abandonBatch(undefined, id, abandonReason),
     onSuccess: () => {
       toast.success("Batch abandoned");
       invalidate();
