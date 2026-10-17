@@ -6,6 +6,12 @@ import { Wallet, ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight } from "
 import Cookies from "js-cookie";
 import { getCreditBalance, getCreditStatement } from "@/lib/credits-api";
 import type { CreditStatementEntry } from "@/lib/credits-api";
+import { formatCurrency, fromMinorUnits } from "@/lib/utils";
+
+// Credit balances and statement amounts arrive as integer minor units.
+function formatMinorAmount(amount: number, currency: string): string {
+  return formatCurrency(fromMinorUnits(amount, currency), currency);
+}
 
 const PAGE_SIZE = 20;
 
@@ -68,7 +74,7 @@ function CreditsInner({ token }: { token: string }) {
             ) : (
               <>
                 <p className="mt-2 text-4xl font-bold tracking-tight">
-                  {balance.data!.balance.toLocaleString(undefined, {
+                  {fromMinorUnits(balance.data!.balance, balance.data!.currency).toLocaleString(undefined, {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
                   })}
@@ -78,7 +84,7 @@ function CreditsInner({ token }: { token: string }) {
                 </p>
                 {balance.data!.overdraftLimit > 0 && (
                   <p className="mt-1 text-xs text-blue-200">
-                    Overdraft limit: {balance.data!.overdraftLimit.toLocaleString()} {balance.data!.currency}
+                    Overdraft limit: {formatMinorAmount(balance.data!.overdraftLimit, balance.data!.currency)}
                   </p>
                 )}
               </>
@@ -143,10 +149,7 @@ function CreditsInner({ token }: { token: string }) {
                     }`}
                   >
                     {entry.direction === "CREDIT" ? "+" : "−"}
-                    {entry.amount.toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                    })}{" "}
-                    {entry.currency}
+                    {formatMinorAmount(entry.amount, entry.currency)}
                   </p>
                 </li>
               ))}

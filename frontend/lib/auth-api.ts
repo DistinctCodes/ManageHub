@@ -3,6 +3,7 @@ import {
   getRequestId,
   reportApiError,
 } from "@/lib/api-report";
+import { getApiBaseUrl } from "@/lib/env";
 
 export type UserRole = "MEMBER" | "ADMIN" | "SUPER_ADMIN";
 
@@ -17,13 +18,11 @@ export interface AuthResponse {
   user: AuthUser;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
-
 async function authRequest<T>(
   path: string,
   body: { email: string; password: string },
 ): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),

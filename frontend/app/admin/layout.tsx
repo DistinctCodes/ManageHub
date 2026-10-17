@@ -8,7 +8,7 @@ import {
   LayoutDashboard,
   Coins,
 } from "lucide-react";
-import { AdminProviders } from "@/lib/providers";
+import { Providers } from "@/lib/providers/providers";
 import { AdminBreadcrumbs } from "@/components/admin/admin-breadcrumbs";
 import { cn } from "@/lib/utils";
 
@@ -31,7 +31,7 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <AdminProviders>
+    <Providers>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
         <header className="border-b border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
           <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
@@ -60,7 +60,7 @@ export default function AdminLayout({
           </main>
         </div>
       </div>
-    </AdminProviders>
+    </Providers>
   );
 }
 

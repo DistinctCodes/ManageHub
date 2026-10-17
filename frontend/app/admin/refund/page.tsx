@@ -18,6 +18,7 @@ import Cookies from "js-cookie";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
+import { formatCurrency, fromMinorUnits } from "@/lib/utils";
 
 function PaymentRow({ payment }: { payment: Payment }) {
   const queryClient = useQueryClient();
@@ -50,7 +51,7 @@ function PaymentRow({ payment }: { payment: Payment }) {
             {payment.id}
           </p>
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            {payment.currency} {payment.amount} ·{" "}
+            {formatCurrency(fromMinorUnits(payment.amount, payment.currency), payment.currency)} ·{" "}
             {new Date(payment.createdAt).toLocaleString()}
           </p>
         </div>

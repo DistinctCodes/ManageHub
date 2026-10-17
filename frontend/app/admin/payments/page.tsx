@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ClipboardList, ExternalLink } from "lucide-react";
 import { listManualReviewPayments } from "@/lib/payments-api";
 import type { Payment } from "@/lib/payments-api";
+import { formatCurrency, fromMinorUnits } from "@/lib/utils";
 import {
   Card,
   CardHeader,
@@ -13,6 +14,11 @@ import {
   StatusBadge,
 } from "@/components/admin/ui";
 import { RequireAdmin, useAdminToken } from "@/components/admin/require-admin";
+
+// Payment amounts arrive as integer minor units.
+function formatAmount(amount: number, currency: string): string {
+  return formatCurrency(fromMinorUnits(amount, currency), currency);
+}
 
 const PAGE_SIZE = 25;
 
@@ -99,7 +105,7 @@ function ManualReviewInner({ token }: { token: string }) {
                       <StatusBadge status={p.status} />
                     </td>
                     <td className="px-5 py-3 text-right tabular-nums">
-                      {p.amount.toLocaleString()} {p.currency}
+                      {formatAmount(p.amount, p.currency)}
                     </td>
                     <td className="px-5 py-3 max-w-xs truncate text-gray-500 dark:text-gray-400">
                       {p.manualReviewReason ?? "—"}

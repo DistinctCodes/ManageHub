@@ -2,12 +2,13 @@
 
 import { Card, CardHeader, StatusBadge } from "@/components/app-ui";
 import { listMyUsage, type MeteredUsageEvent } from "@/lib/payments-api";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, fromMinorUnits } from "@/lib/utils";
 import Cookies from "js-cookie";
 import { useQuery } from "@tanstack/react-query";
 
+// Usage event amounts (and per-unit prices) arrive as integer minor units.
 function formatMoney(amount: number, currency: string) {
-  return formatCurrency(amount / 100, currency || "USD");
+  return formatCurrency(fromMinorUnits(amount, currency), currency || "USD");
 }
 
 export default function UsagePage() {

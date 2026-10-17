@@ -3,6 +3,7 @@ import {
   getRequestId,
   reportApiError,
 } from "@/lib/api-report";
+import { getApiBaseUrl } from "@/lib/env";
 
 export type WalletCustodyType = "CUSTODIAL" | "EXTERNAL";
 export type WalletStatus = "PENDING" | "ACTIVE" | "DISABLED";
@@ -21,10 +22,8 @@ export interface LinkChallengeResponse {
   expiresAt: string;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
-
 async function walletFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",

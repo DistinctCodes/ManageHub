@@ -9,6 +9,7 @@ import {
 } from "@/components/app-ui";
 import { RequireAdmin } from "@/components/admin/require-admin";
 import { chargeCredits, type ChargeCreditsResponse } from "@/lib/payments-api";
+import { formatCurrency, fromMinorUnits } from "@/lib/utils";
 import Cookies from "js-cookie";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -114,7 +115,7 @@ export default function AdminChargePage() {
           <div className="mt-6 rounded-md border border-gray-200 p-4 text-sm dark:border-gray-800">
             <p className="font-medium text-gray-900 dark:text-gray-50">
               {result.posted ? "Posted" : "Already applied (not posted)"} — new
-              balance {result.balanceAfter} {result.currency}
+              balance {formatCurrency(fromMinorUnits(result.balanceAfter, result.currency), result.currency)}
             </p>
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
               Transaction {result.transaction.id} ({result.transaction.kind})

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { getPayments } from "@/lib/payments-api";
 import { useSessionStore } from "@/lib/stores/session-store";
+import { formatCurrency, fromMinorUnits } from "@/lib/utils";
 import {
   Card,
   CardContent,
@@ -12,8 +13,9 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
+// Payment amounts arrive as integer minor units.
 function formatAmount(amount: number, currency: string): string {
-  return `${amount.toFixed(2)} ${currency}`;
+  return formatCurrency(fromMinorUnits(amount, currency), currency);
 }
 
 function statusTone(status: string): string {

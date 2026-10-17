@@ -3,6 +3,7 @@ import {
   getRequestId,
   reportApiError,
 } from "@/lib/api-report";
+import { getApiBaseUrl } from "@/lib/env";
 
 export type PaymentRail = "FIAT" | "STELLAR_CUSTODIAL" | "STELLAR_EXTERNAL";
 
@@ -95,7 +96,6 @@ export interface ManualReviewPage {
   total: number;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 const TRANSIENT_RETRY_DELAY_MS = 250;
 const RETRYABLE_STATUS_CODES = new Set([408, 425, 429, 500, 502, 503, 504]);
 
@@ -153,7 +153,7 @@ async function apiFetch<T>(
       ...init?.headers,
     },
   };
-  const response = await fetchWithRetry(`${API_BASE_URL}${path}`, requestInit);
+  const response = await fetchWithRetry(`${getApiBaseUrl()}${path}`, requestInit);
 
   if (!response.ok) {
     const body = await response.json().catch(() => null);

@@ -5,6 +5,7 @@ import {
   getRequestId,
   reportApiError,
 } from "@/lib/api-report";
+import { getApiBaseUrl } from "@/lib/env";
 
 export type LedgerAccountKind =
   | "USER"
@@ -155,14 +156,12 @@ export interface SettlementBatchBreakdown {
   onChainReferences: Array<{ payoutId: string; reference: string }>;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
-
 async function adminFetch<T>(
   path: string,
   accessToken: string,
   init?: RequestInit,
 ): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
