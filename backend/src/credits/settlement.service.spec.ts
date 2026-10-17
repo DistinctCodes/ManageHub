@@ -8,7 +8,10 @@ import { LedgerTransactionKind } from './enums/ledger-transaction-kind.enum';
 import { SettlementBatchMode } from './enums/settlement-batch-mode.enum';
 import { SettlementBatchStatus } from './enums/settlement-batch-status.enum';
 import { SettlementPayoutStatus } from './enums/settlement-payout-status.enum';
-import { PayoutStatus, SubmitPayoutInput } from './interfaces';
+import {
+  PayoutStatus,
+  SubmitPayoutInput,
+} from './interfaces/external-payout-rail.interface';
 import {
   createLedgerHarness,
   fakeConfigService,

@@ -67,6 +67,18 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # No non-test backend module may be reachable only from its own spec
+      # (issue #1949). scripts/check-dead-modules.js walks the import graph
+      # from the entrypoints and fails the job on any orphan module.
+      - name: Dead module check
+        run: npm run dead-modules
+
+      # Reject a package.json that declares dependencies which nothing in
+      # src/ or scripts/ imports, or that imports a package it does not
+      # declare (issue #1952).
+      - name: Dependency hygiene (depcheck)
+        run: npm run depcheck
+
       - name: Build (TypeScript check)
         run: npm run build
 
