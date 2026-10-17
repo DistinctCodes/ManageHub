@@ -1,11 +1,8 @@
-# Rust toolchain pinned to match soroban-sdk 21.7.4's own toolchain
-# (https://github.com/stellar/rs-soroban-sdk/blob/v21.7.4/rust-toolchain.toml).
+# Pinned Rust toolchain for the contracts workspace (#1889).
 #
-# rustup reads this file automatically when any cargo command is run from
-# inside the contracts/ directory, ensuring every developer and CI runner
-# uses exactly the same compiler version without manual setup.
-
+# Upgrade cadence: review this pin at the start of each quarter, and whenever a
+# new stable Rust release affects soroban-sdk support. Record every bump in
+# contracts/CHANGELOG.md so integrators can follow along.
 [toolchain]
-channel = "stable"
+channel = "1.79.0"
 targets = ["wasm32-unknown-unknown"]
-components = ["rustc", "cargo", "rustfmt", "clippy", "rust-src"]
