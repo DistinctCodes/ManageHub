@@ -40,13 +40,15 @@ function paymentRoom(paymentId: string): string {
  * the payment reaches a terminal status. The socket is a latency
  * optimization, never the outcome's delivery guarantee; a dropped socket is
  * not a signal that the payment changed. See `payments/README.md`.
+ *
+ * CORS is deliberately NOT configured here: decorator arguments are
+ * evaluated at import time (before ConfigModule loads `.env`) and only
+ * accept a fixed origin. The `WsCorsIoAdapter` installed at bootstrap owns
+ * the origin allowlist and reads the same `CORS_ORIGINS` the HTTP API uses
+ * (issue #1943).
  */
 @WebSocketGateway({
   namespace: '/payments',
-  cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-    credentials: true,
-  },
 })
 export class PaymentsGateway
   implements OnGatewayConnection, OnGatewayDisconnect

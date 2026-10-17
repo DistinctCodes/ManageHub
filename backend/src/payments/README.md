@@ -57,7 +57,9 @@ mass-flag every in-flight payment.
 
 ### Admin recovery actions (`PaymentsAdminController`, `ADMIN` role only)
 
-- `GET /payments/admin/manual-review` — the review queue, oldest first.
+- `GET /payments/admin/manual-review` — the review queue, oldest first,
+  paginated via `limit` (1–100, default 25) and `offset` (default 0); the
+  response is `{ items, total }`.
 - `GET /payments/admin/metrics` — manual-review queue depth + alert status.
 - `POST /payments/admin/:id/force-reconcile` — reconcile one payment now,
   bypassing the backoff schedule.
@@ -99,6 +101,24 @@ scheduled job logs a `WARN`-level alert when it does. This is a
 log-based signal by design — this module doesn't assume any particular
 metrics/observability backend is wired up yet.
 
+Each reconciliation run also records ledger/provider drift on `/metrics`
+(issue #1942) as:
+
+- `managehub_reconciliation_mismatch_count` (gauge) — mismatches detected by
+  the **most recent** run. A mismatch is any payment whose stored status the
+  run found out of line with the authoritative source: one the provider had
+  already settled (resolved), one past its TTL (expired-swept), or one
+  escalated to `MANUAL_REVIEW`.
+- `managehub_reconciliation_mismatches_total` (counter) — cumulative
+  mismatches across all runs.
+
+**Alert threshold:** page when `managehub_reconciliation_mismatch_count` is
+non-zero on consecutive runs, or when
+`rate(managehub_reconciliation_mismatches_total[1h])` climbs — a single
+non-zero sample can be a normal webhook-vs-poll race, but sustained drift
+means the webhook/confirmation path is failing and payments are only being
+settled by the reconciler.
+
 ## Webhook payload contract
 
 Every payment rail adapter maps its provider-specific confirmation event
@@ -133,19 +153,27 @@ and available as `PAYMENT_WEBHOOK_CONTRACT_VERSION` in
 
 1. **Transport authenticity** — each rail has a dedicated controller
    (`/payments/webhooks/<rail>`) that authenticates the caller at the
-   transport level (the sandbox rail uses an HMAC-SHA256 signature over the
-   raw body, secret `PAYMENT_WEBHOOK_SECRET`). A bad signature is rejected
-   with `401` before any parsing.
-2. **Per-rail mapping** — the rail adapter's `parseWebhookPayload(rawBody)`
+   transport level (the sandbox rail uses an HMAC-SHA256 signature over
+   `timestamp + '.' + rawBody`, secret `PAYMENT_WEBHOOK_SECRET`). A bad
+   signature is rejected with `401` before any parsing.
+2. **Timestamp tolerance (issue #1938)** — the signed timestamp
+   (`x-payment-timestamp`, epoch ms) must be within
+   `PAYMENT_WEBHOOK_TOLERANCE_SECONDS` (default `300`) of the server clock;
+   a request outside the window is rejected with `401` and logged as
+   `replay`.
+3. **Per-rail mapping** — the rail adapter's `parseWebhookPayload(rawBody)`
    maps the provider's native event fields into the normalized shape, so
    provider-specific field names/layouts never leak past the adapter.
-3. **Contract validation** — the controller then runs
+4. **Contract validation** — the controller then runs
    `validateWebhookPayload` on the normalized payload. Malformed/missing
    fields → `400` with a field-specific message (logged as
    `malformed_payload`).
-4. **Idempotency** — `PaymentConfirmationService.apply` looks the payment
-   up by `providerReference` and no-ops on an already-terminal payment, so
-   duplicate or replay webhooks are harmless by construction.
+5. **Idempotency** — the event id (`x-payment-event-id`, falling back to the
+   payload hash) is claimed in Redis with a TTL; a duplicate inside the
+   window is acknowledged without being applied twice. Independently,
+   `PaymentConfirmationService.apply` looks the payment up by
+   `providerReference` and no-ops on an already-terminal payment, so
+   duplicate or replay webhooks remain harmless by construction.
 
 ### Realtime status push contract (issue #1812)
 
@@ -181,6 +209,7 @@ operator (or a later admin surface) can review and replay them:
 | `reason`            | Trigger                                                                            |
 | ------------------- | ---------------------------------------------------------------------------------- |
 | `invalid_signature` | HMAC signature check failed — payload discarded before parsing.                    |
+| `replay`            | Signed timestamp outside `PAYMENT_WEBHOOK_TOLERANCE_SECONDS` (issue #1938).         |
 | `malformed_payload` | Payload parsed but failed contract validation (`validateWebhookPayload`).          |
 | `process_error`     | `apply` threw while processing a validly signed, well-formed webhook.              |
 

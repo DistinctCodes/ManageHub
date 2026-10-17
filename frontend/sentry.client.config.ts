@@ -9,6 +9,26 @@ export function getSampleRate(value: string | undefined, fallback: number): numb
     : fallback;
 }
 
+// Keys whose values must never be sent to Sentry.
+const SENSITIVE_KEY_PATTERN =
+  /password|passwd|secret|token|signature|authorization|credential|api[-_]?key|private[-_]?key/i;
+
+function scrubValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(scrubValue);
+  }
+  if (value && typeof value === "object") {
+    const scrubbed: Record<string, unknown> = {};
+    for (const [key, entry] of Object.entries(value)) {
+      scrubbed[key] = SENSITIVE_KEY_PATTERN.test(key)
+        ? "[Redacted]"
+        : scrubValue(entry);
+    }
+    return scrubbed;
+  }
+  return value;
+}
+
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
   environment: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT || process.env.NODE_ENV,
@@ -41,6 +61,23 @@ Sentry.init({
           stack: error.stack,
         },
       };
+    }
+    // Second line of defence: never ship request bodies, and redact any
+    // sensitive fields (passwords, tokens, signatures, secrets) that may
+    // have leaked into extra, contexts or request headers.
+    if (event.request) {
+      delete event.request.data;
+      if (event.request.headers) {
+        event.request.headers = scrubValue(
+          event.request.headers,
+        ) as Record<string, string>;
+      }
+    }
+    if (event.extra) {
+      event.extra = scrubValue(event.extra) as typeof event.extra;
+    }
+    if (event.contexts) {
+      event.contexts = scrubValue(event.contexts) as typeof event.contexts;
     }
     return event;
   },

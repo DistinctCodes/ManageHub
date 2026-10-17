@@ -7,6 +7,7 @@ import { withRequestId } from '../common/request-context';
 export type WebhookDeadLetterReason =
   | 'invalid_signature'
   | 'malformed_payload'
+  | 'replay'
   | 'process_error';
 
 /**

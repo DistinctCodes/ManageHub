@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { DataSource } from 'typeorm';
+import { buildDatabaseSslOptions } from './database-ssl';
 
 // Pool bounds are env-configurable (issue #1778) so staging/prod can be
 // tuned without a code change. node-postgres (the underlying driver) reads
@@ -24,10 +25,12 @@ export const AppDataSource = new DataSource({
   entities: [__dirname + '/../**/*.entity{.ts,.js}'],
   migrations: [__dirname + '/migrations/*{.ts,.js}'],
   synchronize: false,
+  // TLS for managed Postgres (issue #1956) — same builder as the app
+  // configuration in src/app.module.ts, so the migration CLI and the
+  // running API always negotiate the same connection security.
+  ssl: buildDatabaseSslOptions(process.env),
   extra: {
     min: DB_POOL_MIN,
     max: DB_POOL_MAX,
   },
 });
-
-export default AppDataSource;

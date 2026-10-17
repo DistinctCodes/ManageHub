@@ -24,6 +24,17 @@ export class User {
   role: UserRole;
 
   /**
+   * Invalidation counter embedded in every issued JWT (issue #1965).
+   * `JwtTokenVerifierService` rejects any token whose `tokenVersion` claim
+   * does not match this row, so bumping the value revokes every token
+   * already in circulation for the user. It is raised on logout, on a
+   * password change and on a role change — a copied token cannot outlive
+   * the event that should have ended its session.
+   */
+  @Column({ type: 'int', name: 'token_version', default: 0 })
+  tokenVersion: number;
+
+  /**
    * Timestamp of the most recent successful password login. This is written
    * only by AuthService.login after password comparison succeeds — never on
    * registration and never for an unknown account or a bad password. A

@@ -113,12 +113,12 @@ export default function AdminRefundPage() {
               <p className="text-sm text-gray-500">Loading…</p>
             ) : error ? (
               <p className="text-sm text-red-600">{(error as Error).message}</p>
-            ) : data && data.length === 0 ? (
+            ) : data && data.items.length === 0 ? (
               <p className="text-sm text-gray-500">
                 No payments found in manual review.
               </p>
             ) : (
-              (data ?? []).map((payment) => (
+              (data?.items ?? []).map((payment) => (
                 <PaymentRow key={payment.id} payment={payment} />
               ))
             )}

@@ -19,6 +19,7 @@ import {
 } from './webhook-contract';
 import { PaymentConfirmationService } from './payment-confirmation.service';
 import { PaymentWebhookDeadLetterService } from './payment-webhook-dead-letter.service';
+import { WebhookReplayService } from './webhook-replay.service';
 
 interface RawBodyRequest extends Request {
   rawBody?: Buffer;
@@ -41,6 +42,7 @@ export class PaymentWebhookController {
     private readonly railAdapter: SandboxRailAdapter,
     private readonly confirmationService: PaymentConfirmationService,
     private readonly deadLetterService: PaymentWebhookDeadLetterService,
+    private readonly replay: WebhookReplayService,
   ) {}
 
   @Post('sandbox')
@@ -75,6 +77,8 @@ export class PaymentWebhookController {
   async sandbox(
     @Req() req: RawBodyRequest,
     @Headers('x-payment-signature') signature?: string,
+    @Headers('x-payment-timestamp') timestamp?: string,
+    @Headers('x-payment-event-id') eventId?: string,
   ): Promise<{ received: boolean; contractVersion: string }> {
     const rawBody = req.rawBody ?? Buffer.from(JSON.stringify(req.body ?? {}));
     const rawPayloadHash = PaymentConfirmationService.hashPayload(rawBody);
@@ -83,6 +87,7 @@ export class PaymentWebhookController {
     const isValid = this.railAdapter.verifyWebhookSignature({
       rawBody,
       signatureHeader: signature,
+      timestamp,
     });
     if (!isValid) {
       await this.confirmationService.logRejectedWebhook(
@@ -95,6 +100,24 @@ export class PaymentWebhookController {
         reason: 'invalid_signature',
       });
       throw new UnauthorizedException('Invalid webhook signature');
+    }
+
+    // Timestamp tolerance (issue #1938): the signature covers
+    // `timestamp + '.' + body`, so a captured request re-sent once the
+    // window has passed is a replay and must be refused.
+    if (!this.replay.isWithinTolerance(Number(timestamp))) {
+      await this.confirmationService.logRejectedWebhook(
+        rawPayloadHash,
+        'replay',
+      );
+      await this.deadLetterService.enqueue({
+        rawPayloadHash,
+        rawPayload: rawPayloadText,
+        reason: 'replay',
+      });
+      throw new UnauthorizedException(
+        'Webhook timestamp outside tolerance window',
+      );
     }
 
     let payload;
@@ -115,6 +138,18 @@ export class PaymentWebhookController {
         errorMessage: message,
       });
       throw new BadRequestException(message);
+    }
+
+    // Idempotency (issue #1938): the event id (or the payload hash when the
+    // provider sends none) is claimed in Redis. A duplicate inside the
+    // window is acknowledged without being applied a second time.
+    const idempotencyKey = eventId ?? rawPayloadHash;
+    const firstSeen = await this.replay.claimEvent(idempotencyKey);
+    if (!firstSeen) {
+      return {
+        received: true,
+        contractVersion: PAYMENT_WEBHOOK_CONTRACT_VERSION,
+      };
     }
 
     try {

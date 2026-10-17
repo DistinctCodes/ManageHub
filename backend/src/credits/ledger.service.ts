@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, In, Repository } from 'typeorm';
+import { assertCurrencyCode } from '../common/currency-code';
 import { LedgerAccount } from './entities/ledger-account.entity';
 import { LedgerEntry } from './entities/ledger-entry.entity';
 import { LedgerTransaction } from './entities/ledger-transaction.entity';
@@ -238,7 +239,7 @@ export class LedgerService {
     input: CreateAccountInput,
     manager?: EntityManager,
   ): Promise<LedgerAccount> {
-    const currency = input.currency.toUpperCase();
+    const currency = assertCurrencyCode(input.currency);
     const existing = await this.findAccount({ ...input, currency }, manager);
     if (existing) {
       return existing;
@@ -667,13 +668,7 @@ export class LedgerService {
       );
     }
 
-    const currency = input.currency?.toUpperCase();
-    if (!currency || currency.length !== 3) {
-      throw new BadRequestException(
-        `Ledger transaction currency must be a 3-letter code, got ${input.currency}`,
-      );
-    }
-
+    const currency = assertCurrencyCode(input.currency);
     return { ...input, currency, reference: input.reference.trim() };
   }
 

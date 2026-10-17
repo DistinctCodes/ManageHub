@@ -15,11 +15,17 @@ import { CreditsModule } from './credits/credits.module';
 import { RetentionModule } from './retention/retention.module';
 import { AdminAuditModule } from './admin-audit/admin-audit.module';
 import { HealthModule } from './health/health.module';
-import { MetricsService } from './common/metrics.service';
+import { MetricsModule } from './common/metrics.module';
 import { MetricsController } from './common/metrics.controller';
 import { RequestContextMiddleware } from './common/request-context.middleware';
 import { RequestDurationInterceptor } from './common/request-duration.interceptor';
+import { NoCacheInterceptor } from './common/no-cache.interceptor';
 import { TracingMiddleware } from './common/tracing.middleware';
+import {
+  createThrottlerRedisClient,
+  RedisThrottlerStorage,
+} from './common/redis-throttler.storage';
+import { buildDatabaseSslOptions } from './database/database-ssl';
 
 @Module({
   imports: [
@@ -31,12 +37,33 @@ import { TracingMiddleware } from './common/tracing.middleware';
     }),
     // Powers ReconciliationService's @Cron job (issue #1572).
     ScheduleModule.forRoot(),
-    ThrottlerModule.forRoot([
-      {
-        ttl: 60_000,
-        limit: 100,
-      },
-    ]),
+    // Rate limiting (issue #1955): the default throttler storage keeps
+    // counters in per-process memory, which multiplies the effective limit
+    // by the replica count and resets counters on every deploy. Counters
+    // now live in the same Redis instance Bull uses (REDIS_*), so every
+    // replica shares one counter per client. A Redis outage fails open
+    // (requests allowed, warning logged) and never blocks app boot.
+    // Behind a proxy, set TRUST_PROXY so the counter is keyed on the real
+    // client IP — see src/common/trust-proxy.ts.
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        throttlers: [
+          {
+            ttl: 60_000,
+            limit: 100,
+          },
+        ],
+        storage: new RedisThrottlerStorage(
+          createThrottlerRedisClient({
+            host: config.get<string>('REDIS_HOST', 'localhost'),
+            port: config.get<number>('REDIS_PORT', 6379),
+            password: config.get<string>('REDIS_PASSWORD') || undefined,
+            db: config.get<number>('REDIS_DB', 0),
+          }),
+        ),
+      }),
+    }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
@@ -48,6 +75,14 @@ import { TracingMiddleware } from './common/tracing.middleware';
         database: config.get<string>('DATABASE_NAME'),
         autoLoadEntities: true,
         synchronize: false,
+        // TLS for managed Postgres (issue #1956) — the shared builder below
+        // is also used by src/database/data-source.ts so the migration CLI
+        // connects with identical settings; a misconfigured CA fails fast.
+        ssl: buildDatabaseSslOptions({
+          NODE_ENV: process.env.NODE_ENV,
+          DATABASE_SSL: config.get<string>('DATABASE_SSL'),
+          DATABASE_SSL_CA: config.get<string>('DATABASE_SSL_CA'),
+        }),
         // Env-configurable pool bounds (issue #1778) — see
         // src/database/data-source.ts for the matching CLI/migration
         // DataSource and the defaults these fall back to.
@@ -87,11 +122,12 @@ import { TracingMiddleware } from './common/tracing.middleware';
     // the payments and credits admin controllers; read via /admin/audit.
     AdminAuditModule,
     HealthModule,
+    // Process-wide metrics registry shared with /metrics (issue #1948).
+    MetricsModule,
   ],
   controllers: [AppController, MetricsController],
   providers: [
     AppService,
-    MetricsService,
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
@@ -100,14 +136,16 @@ import { TracingMiddleware } from './common/tracing.middleware';
       provide: APP_INTERCEPTOR,
       useClass: RequestDurationInterceptor,
     },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: NoCacheInterceptor,
+    },
   ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
     // RequestContextMiddleware must run first so the tracing root span and
     // every downstream log prefix share the same request-id context.
-    consumer
-      .apply(RequestContextMiddleware, TracingMiddleware)
-      .forRoutes('*');
+    consumer.apply(RequestContextMiddleware, TracingMiddleware).forRoutes('*');
   }
 }

@@ -1,14 +1,15 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import {
-  IsInt,
   IsNotEmpty,
   IsObject,
   IsOptional,
-  IsPositive,
   IsString,
   IsUUID,
-  Length,
 } from 'class-validator';
+import { IsCurrencyCode } from '../../common/currency-code.decorator';
+import { transformCurrencyCode } from '../../common/currency-code';
+import { MinorUnits } from '../../payments/utils/minor-units.decorator';
 
 export class ChargeCreditsDto {
   @ApiProperty({ description: 'The member whose credit balance is charged' })
@@ -19,8 +20,7 @@ export class ChargeCreditsDto {
     description: 'Amount in minor units (e.g. cents) — never a float',
     example: 250,
   })
-  @IsInt()
-  @IsPositive()
+  @MinorUnits()
   amount: number;
 
   @ApiPropertyOptional({
@@ -29,8 +29,9 @@ export class ChargeCreditsDto {
     example: 'USD',
   })
   @IsOptional()
+  @Transform(transformCurrencyCode)
   @IsString()
-  @Length(3, 3)
+  @IsCurrencyCode()
   currency?: string;
 
   @ApiProperty({

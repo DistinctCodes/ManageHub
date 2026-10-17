@@ -47,6 +47,14 @@ export enum AdminActionType {
   SPLIT_CONFIG_DEACTIVATE = 'split_config_deactivate',
 
   /**
+   * Recorded by `POST /wallets/admin/key-rotation` (via
+   * `KeyRotationService`) once per re-wrapped custodial key-material row.
+   * The target is the `WalletKeyMaterial` id and `detail` is
+   * `WALLET_KEY_ROTATION: <oldKmsKeyId> -> <newKmsKeyId> (wallet <id>)`.
+   */
+  KEY_MATERIAL_ROTATED = 'key_material_rotated',
+
+  /**
    * Recorded by `POST /payments/admin/:id/resolve-manually` when an operator
    * resolves a MANUAL_REVIEW payment to CONFIRMED or FAILED using the
    * supplied reason. The target is the Payment id and `detail` is
@@ -60,4 +68,13 @@ export enum AdminActionType {
    * is the Payment id and `detail` is the required operator reason.
    */
   PAYMENT_VOID = 'payment_void',
+
+  /**
+   * Recorded by `GET /admin/audit/actions/export` when an operator exports
+   * the audit trail as CSV. The target is `AdminActionLog`, `targetId` is
+   * null (the export is not scoped to one entry), and `detail` is
+   * `exported=<rowCount>` so the audit trail records that the trail itself
+   * was read.
+   */
+  AUDIT_EXPORT = 'audit_export',
 }
