@@ -20,6 +20,10 @@ vi.mock("@/lib/stores/session-store", () => ({
     selector({ accessToken: "token" }),
 }));
 
+vi.mock("@/lib/stores/use-session-hydration", () => ({
+  useSessionHydration: () => true,
+}));
+
 vi.mock("@/lib/payments-api", () => ({
   verifyPaymentReturn: mocks.verifyPaymentReturn,
   getPayment: mocks.getPayment,

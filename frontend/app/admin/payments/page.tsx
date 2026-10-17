@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -12,12 +12,13 @@ import {
   Badge,
   StatusBadge,
 } from "@/components/admin/ui";
-import { RequireAdmin, useAdminToken } from "@/components/admin/require-admin";
+import { RequireAdmin } from "@/components/admin/require-admin";
+import { useSessionToken } from "@/lib/stores/use-session-hydration";
 
 const PAGE_SIZE = 25;
 
 export default function AdminManualReviewPage() {
-  const token = useAdminToken();
+  const token = useSessionToken();
   return (
     <RequireAdmin>
       <ManualReviewInner token={token as string} />

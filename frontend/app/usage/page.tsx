@@ -1,9 +1,12 @@
 "use client";
 
-import { Card, CardHeader, StatusBadge } from "@/components/app-ui";
+import { CardHeader, StatusBadge } from "@/components/app-ui";
 import { listMyUsage, type MeteredUsageEvent } from "@/lib/payments-api";
 import { formatCurrency } from "@/lib/utils";
-import Cookies from "js-cookie";
+import {
+  useSessionHydration,
+  useSessionToken,
+} from "@/lib/stores/use-session-hydration";
 import { useQuery } from "@tanstack/react-query";
 
 function formatMoney(amount: number, currency: string) {
@@ -11,11 +14,12 @@ function formatMoney(amount: number, currency: string) {
 }
 
 export default function UsagePage() {
-  const token = typeof window !== "undefined" ? Cookies.get("accessToken") : null;
+  const hydrated = useSessionHydration();
+  const token = useSessionToken();
   const { data, isLoading, error } = useQuery({
     queryKey: ["my-usage"],
     queryFn: () => listMyUsage(token!),
-    enabled: !!token,
+    enabled: Boolean(token),
   });
 
   return (
@@ -23,7 +27,9 @@ export default function UsagePage() {
       <Card>
         <CardHeader title="Usage history" description="Your metered usage, newest first." />
         <div className="px-5 py-4">
-          {!token ? (
+          {!hydrated ? (
+            <p className="text-sm text-gray-500">Checking your session...</p>
+          ) : !token ? (
             <p className="text-sm text-amber-600">Sign in to view usage.</p>
           ) : isLoading ? (
             <p className="text-sm text-gray-500">Loading…</p>

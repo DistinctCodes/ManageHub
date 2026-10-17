@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { getPayments } from "@/lib/payments-api";
 import { useSessionStore } from "@/lib/stores/session-store";
+import { useSessionHydration } from "@/lib/stores/use-session-hydration";
 import {
   Card,
   CardContent,
@@ -31,6 +32,7 @@ function statusTone(status: string): string {
 }
 
 export default function PaymentsPage() {
+  const hydrated = useSessionHydration();
   const accessToken = useSessionStore((state) => state.accessToken);
 
   const {
@@ -42,6 +44,19 @@ export default function PaymentsPage() {
     queryFn: () => getPayments(accessToken as string),
     enabled: Boolean(accessToken),
   });
+
+  if (!hydrated) {
+    // Before hydration the token is deliberately null (issue #1983), so
+    // render the same neutral state the server did and avoid a mismatch.
+    return (
+      <main className="mx-auto max-w-3xl px-4 py-10">
+        <h1 className="text-2xl font-semibold mb-6">Payments</h1>
+        <p className="text-sm text-gray-600 dark:text-gray-400">
+          Checking your session...
+        </p>
+      </main>
+    );
+  }
 
   if (!accessToken) {
     return (

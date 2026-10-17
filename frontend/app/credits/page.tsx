@@ -3,18 +3,26 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Wallet, ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight } from "lucide-react";
-import Cookies from "js-cookie";
+import {
+  useSessionHydration,
+  useSessionToken,
+} from "@/lib/stores/use-session-hydration";
 import { getCreditBalance, getCreditStatement } from "@/lib/credits-api";
 import type { CreditStatementEntry } from "@/lib/credits-api";
 
 const PAGE_SIZE = 20;
 
-function useAccessToken(): string | null {
-  return Cookies.get("accessToken") ?? null;
-}
-
 export default function CreditsPage() {
-  const token = useAccessToken();
+  const hydrated = useSessionHydration();
+  const token = useSessionToken();
+
+  if (!hydrated) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <p className="text-sm text-gray-500">Checking your session...</p>
+      </div>
+    );
+  }
 
   if (!token) {
     return (

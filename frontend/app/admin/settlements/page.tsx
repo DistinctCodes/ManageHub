@@ -13,7 +13,8 @@ import {
   StatusBadge,
   Button,
 } from "@/components/admin/ui";
-import { RequireAdmin, useAdminToken } from "@/components/admin/require-admin";
+import { RequireAdmin } from "@/components/admin/require-admin";
+import { useSessionToken } from "@/lib/stores/use-session-hydration";
 import { SettlementVolumeChart } from "@/components/admin/settlement-volume-chart";
 
 const STATUSES: Array<{ value: SettlementBatchStatus | ""; label: string }> = [
@@ -27,7 +28,7 @@ const STATUSES: Array<{ value: SettlementBatchStatus | ""; label: string }> = [
 ];
 
 export default function SettlementsPage() {
-  const token = useAdminToken();
+  const token = useSessionToken();
 
   return (
     <RequireAdmin>

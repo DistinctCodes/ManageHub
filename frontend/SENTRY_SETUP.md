@@ -47,8 +47,23 @@ Reference `.env.example` for all required variables.
 After setting the DSN, Sentry will automatically:
 - Initialize on client and server
 - Capture unhandled exceptions
-- Record session replays for errors
 - Report API failures with context
+
+## Sampling Defaults (issue #1987)
+
+- **Traces**: `NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE` defaults to `1.0` in
+  development but only `0.1` in production, so one forgotten deployment
+  cannot exhaust the quota. Set the variable explicitly to change this
+  (values outside [0, 1] fall back to the default). The server and edge
+  configs share the same helper (`lib/sentry-sampling.ts`).
+- **Session replays are opt-in only**: both
+  `NEXT_PUBLIC_SENTRY_REPLAYS_SESSION_SAMPLE_RATE` and
+  `NEXT_PUBLIC_SENTRY_REPLAYS_ON_ERROR_SAMPLE_RATE` default to `0`. Enable
+  them explicitly (e.g. `0.1` / `1.0`) if you want recording; the replay
+  integration still masks all text and blocks all media whenever it runs.
+- **Non-Error rejections** never crash the `beforeSend` hook anymore: thrown
+  strings, `undefined` or plain objects are reported as `NonError` events
+  with a stringified message instead of being dropped.
 
 ## Error Context
 Errors are tagged with:

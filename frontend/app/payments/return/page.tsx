@@ -26,6 +26,7 @@ import Link from "next/link";
 import { verifyPaymentReturn, getPayment } from "@/lib/payments-api";
 import type { Payment } from "@/lib/payments-api";
 import { useSessionStore } from "@/lib/stores/session-store";
+import { useSessionHydration } from "@/lib/stores/use-session-hydration";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getProviderReturnErrorMessage } from "@/lib/payment-return-errors";
@@ -82,6 +83,7 @@ function statusTone(status: string): string {
 export default function PaymentReturnPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const hydrated = useSessionHydration();
   const accessToken = useSessionStore((state) => state.accessToken);
 
   const paymentId =
@@ -223,6 +225,23 @@ export default function PaymentReturnPage() {
                 <Link href="/payments">Back to payments</Link>
               </Button>
             </div>
+          </CardContent>
+        </Card>
+      </main>
+    );
+  }
+
+  if (!hydrated) {
+    // Pre-hydration the token is null (issue #1983); render the neutral
+    // state the server rendered so the markup cannot mismatch.
+    return (
+      <main className="mx-auto max-w-lg px-4 py-16">
+        <h1 className="text-2xl font-semibold mb-6">Verifying Payment</h1>
+        <Card>
+          <CardContent className="py-6">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Checking your session...
+            </p>
           </CardContent>
         </Card>
       </main>

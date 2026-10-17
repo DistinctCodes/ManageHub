@@ -1,18 +1,24 @@
 "use client";
 
-import Cookies from "js-cookie";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ShieldAlert } from "lucide-react";
+import { Loader2, ShieldAlert } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { buildReturnTo, getSafeReturnTo } from "@/lib/auth-redirect";
+import { useSessionHydration } from "@/lib/stores/use-session-hydration";
+import { useSessionStore } from "@/lib/stores/session-store";
 
-export function useAdminToken(): string | null {
-  return Cookies.get("accessToken") ?? null;
-}
-
+/**
+ * The token comes from the session store, which is hydrated once inside a
+ * client effect (issue #1983): no cookie is read during render, so the
+ * server-rendered markup and the first client render agree, and the gate
+ * re-renders reactively when the token changes (for example after sign-out
+ * in another tab). The former `useAdminToken` (a plain per-render cookie
+ * read) is replaced by `useSessionToken` from use-session-hydration.
+ */
 export function RequireAdmin({ children }: { children: React.ReactNode }) {
-  const token = useAdminToken();
+  const hydrated = useSessionHydration();
+  const token = useSessionStore((state) => state.accessToken);
   const pathname = usePathname();
   const router = useRouter();
   const [returnTo, setReturnTo] = useState(pathname);
@@ -23,10 +29,22 @@ export function RequireAdmin({ children }: { children: React.ReactNode }) {
       buildReturnTo(pathname, window.location.search.replace(/^\?/, "")),
     );
     setReturnTo(currentReturnTo);
-    if (!token) {
+    if (hydrated && !token) {
       router.replace(`/login?returnTo=${encodeURIComponent(currentReturnTo)}`);
     }
-  }, [pathname, router, token]);
+  }, [pathname, router, token, hydrated]);
+
+  if (!hydrated) {
+    return (
+      <div
+        className="flex items-center justify-center gap-2 px-6 py-12 text-sm text-gray-500 dark:text-gray-400"
+        role="status"
+      >
+        <Loader2 className="h-4 w-4 animate-spin" />
+        Checking your session...
+      </div>
+    );
+  }
 
   if (!token) {
     return (

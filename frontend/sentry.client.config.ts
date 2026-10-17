@@ -1,13 +1,12 @@
 import * as Sentry from "@sentry/nextjs";
+import {
+  defaultTracesSampleRate,
+  getSampleRate,
+} from "@/lib/sentry-sampling";
 
-export function getSampleRate(value: string | undefined, fallback: number): number {
-  if (!value) return fallback;
-
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed >= 0 && parsed <= 1
-    ? parsed
-    : fallback;
-}
+// Re-exported so tooling and tests can treat this config as the single entry
+// point for the client sampling behavior.
+export { defaultTracesSampleRate, getSampleRate };
 
 // Keys whose values must never be sent to Sentry.
 const SENSITIVE_KEY_PATTERN =
@@ -29,20 +28,53 @@ function scrubValue(value: unknown): unknown {
   return value;
 }
 
+/**
+ * Describes the original exception for the event's `contexts.error` without
+ * assuming it is an `Error` (issue #1987): rejected strings, `undefined`,
+ * thrown objects that are not Errors or promise rejection reasons arrived at
+ * the old cast and crashed this hook, silently dropping the whole event.
+ * Anything that is not a real Error is labelled `NonError` and stringified as
+ * safely as possible - it must never throw here.
+ */
+export function describeException(original: unknown): {
+  name: string;
+  message: string;
+  stack?: string;
+} {
+  if (original instanceof Error) {
+    return {
+      name: original.name,
+      message: original.message,
+      stack: original.stack,
+    };
+  }
+  if (typeof original === "string") {
+    return { name: "NonError", message: original };
+  }
+  try {
+    return { name: "NonError", message: JSON.stringify(original) ?? "" };
+  } catch {
+    return { name: "NonError", message: String(original) };
+  }
+}
+
 Sentry.init({
   dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
   environment: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT || process.env.NODE_ENV,
   tracesSampleRate: getSampleRate(
     process.env.NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE,
-    1.0,
+    defaultTracesSampleRate(),
   ),
+  // Replays are opt-in only (issue #1987): no env var, no replay. Recording
+  // every session by default is a privacy and quota decision that belongs to
+  // the people deploying the app, not the default configuration.
   replaysSessionSampleRate: getSampleRate(
     process.env.NEXT_PUBLIC_SENTRY_REPLAYS_SESSION_SAMPLE_RATE,
-    0.1,
+    0,
   ),
   replaysOnErrorSampleRate: getSampleRate(
     process.env.NEXT_PUBLIC_SENTRY_REPLAYS_ON_ERROR_SAMPLE_RATE,
-    1.0,
+    0,
   ),
   integrations: [
     Sentry.replayIntegration({
@@ -52,14 +84,11 @@ Sentry.init({
   ],
   beforeSend(event, hint) {
     if (event.exception) {
-      const error = hint.originalException as Error;
+      const original =
+        hint && typeof hint === "object" ? hint.originalException : undefined;
       event.contexts = {
         ...event.contexts,
-        error: {
-          message: error.message,
-          name: error.name,
-          stack: error.stack,
-        },
+        error: describeException(original),
       };
     }
     // Second line of defence: never ship request bodies, and redact any

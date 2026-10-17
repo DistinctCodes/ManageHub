@@ -16,10 +16,11 @@ import {
   SecondaryButton,
   inputClass,
 } from "@/components/admin/ui";
-import { RequireAdmin, useAdminToken } from "@/components/admin/require-admin";
+import { RequireAdmin } from "@/components/admin/require-admin";
+import { useSessionToken } from "@/lib/stores/use-session-hydration";
 
 export default function SplitsPage() {
-  const token = useAdminToken();
+  const token = useSessionToken();
 
   return (
     <RequireAdmin>

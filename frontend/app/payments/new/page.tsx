@@ -2,12 +2,14 @@
 
 import { Button, Card, CardHeader, Field, inputClass } from "@/components/app-ui";
 import { initiatePayment, type PaymentRail } from "@/lib/payments-api";
-import Cookies from "js-cookie";
+import { useSessionToken } from "@/lib/stores/use-session-hydration";
 import { useState } from "react";
 import { toast } from "sonner";
 
 export default function NewPaymentPage() {
-  const [token] = useState(() => Cookies.get("accessToken"));
+  // Token comes from the hydrated session store (issue #1983): no cookie is
+  // read during the initial render, which would diverge from the SSR output.
+  const token = useSessionToken();
   const [bookingId, setBookingId] = useState("");
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState("USD");
