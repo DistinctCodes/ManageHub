@@ -140,7 +140,6 @@ async function fetchWithRetry(
 
 async function apiFetch<T>(
   path: string,
-  accessToken: string,
   init?: RequestInit,
   idempotencyKey?: string,
 ): Promise<T> {
@@ -148,14 +147,21 @@ async function apiFetch<T>(
     ...init,
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`,
       ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
       ...init?.headers,
     },
+    // The backend authorizes via its HttpOnly `accessToken` cookie (issue
+    // #1975); no bearer header is threaded from the client.
+    credentials: "include",
   };
   const response = await fetchWithRetry(`${API_BASE_URL}${path}`, requestInit);
 
   if (!response.ok) {
+    if (response.status === 401) {
+      // A rejected session must send the user to login, not leave the stale
+      // state in place (issue #1977).
+      expireSession();
+    }
     const body = await response.json().catch(() => null);
     const error = new Error(
       getApiErrorMessage(body, `Request failed (${response.status})`),
@@ -181,43 +187,39 @@ async function apiFetch<T>(
 // ── payments (FE-102) ────────────────────────────────────────────────────
 
 export function initiatePayment(
-  accessToken: string,
   input: InitiatePaymentInput,
   idempotencyKey: string,
 ): Promise<Payment> {
-  return apiFetch<Payment>("/payments/initiate", accessToken, {
+  return apiFetch<Payment>("/payments/initiate", {
     method: "POST",
     body: JSON.stringify(input),
   }, idempotencyKey);
 }
 
-export function getPayments(accessToken: string): Promise<Payment[]> {
-  return apiFetch<Payment[]>("/payments", accessToken);
+export function getPayments(): Promise<Payment[]> {
+  return apiFetch<Payment[]>("/payments");
 }
 
-export function getPayment(id: string, accessToken: string): Promise<Payment> {
-  return apiFetch<Payment>(`/payments/${id}`, accessToken);
+export function getPayment(id: string): Promise<Payment> {
+  return apiFetch<Payment>(`/payments/${id}`);
 }
 
 export function verifyPaymentReturn(
-  accessToken: string,
   id: string,
 ): Promise<{ payment: Payment; verified: boolean }> {
   return apiFetch<{ payment: Payment; verified: boolean }>(
     `/payments/${id}/verify-return`,
-    accessToken,
     { method: "POST" },
   );
 }
 
 // ── metered usage (FE-109) ───────────────────────────────────────────────
 
-export function listMyUsage(accessToken: string): Promise<MeteredUsageEvent[]> {
-  return apiFetch<MeteredUsageEvent[]>("/credits/usage", accessToken);
+export function listMyUsage(): Promise<MeteredUsageEvent[]> {
+  return apiFetch<MeteredUsageEvent[]>("/credits/usage");
 }
 
 export function listManualReviewPayments(
-  accessToken: string,
   limit = 25,
   offset = 0,
 ): Promise<ManualReviewPage> {
@@ -227,43 +229,36 @@ export function listManualReviewPayments(
   });
   return apiFetch<ManualReviewPage>(
     `/payments/admin/manual-review?${params.toString()}`,
-    accessToken,
   );
 }
 
 // ── admin payment actions (FE-104 / FE-106) ──────────────────────────────
 
 export function forceReconcilePayment(
-  accessToken: string,
   id: string,
 ): Promise<Payment> {
   return apiFetch<Payment>(
     `/payments/admin/${id}/force-reconcile`,
-    accessToken,
     { method: "POST" },
   );
 }
 
 export function resolvePaymentManually(
-  accessToken: string,
   id: string,
   resolution: string,
 ): Promise<Payment> {
   return apiFetch<Payment>(
     `/payments/admin/${id}/resolve-manually`,
-    accessToken,
     { method: "POST", body: JSON.stringify({ resolution }) },
   );
 }
 
 export function voidPayment(
-  accessToken: string,
   id: string,
   reason: string,
 ): Promise<Payment> {
   return apiFetch<Payment>(
     `/payments/admin/${id}/void`,
-    accessToken,
     { method: "POST", body: JSON.stringify({ reason }) },
   );
 }
@@ -271,14 +266,12 @@ export function voidPayment(
 // ── refunds (FE-107) ─────────────────────────────────────────────────────
 
 export function requestRefund(
-  accessToken: string,
   paymentId: string,
   amount: number,
   reason: string,
 ): Promise<RequestRefundResponse> {
   return apiFetch<RequestRefundResponse>(
     `/payments/admin/${paymentId}/refunds`,
-    accessToken,
     { method: "POST", body: JSON.stringify({ amount, reason }) },
   );
 }
@@ -286,7 +279,6 @@ export function requestRefund(
 // ── charge credits (FE-110) ──────────────────────────────────────────────
 
 export function chargeCredits(
-  accessToken: string,
   input: {
     userId: string;
     amount: number;
@@ -296,7 +288,7 @@ export function chargeCredits(
     metadata?: Record<string, unknown>;
   },
 ): Promise<ChargeCreditsResponse> {
-  return apiFetch<ChargeCreditsResponse>("/credits/charge", accessToken, {
+  return apiFetch<ChargeCreditsResponse>("/credits/charge", {
     method: "POST",
     body: JSON.stringify(input),
   });

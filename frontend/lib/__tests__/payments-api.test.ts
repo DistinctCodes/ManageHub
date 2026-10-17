@@ -33,7 +33,7 @@ describe("payments-api retries", () => {
       .mockRejectedValueOnce(new TypeError("Network unavailable"))
       .mockResolvedValueOnce(jsonResponse(200, []));
 
-    const resultPromise = getPayments("access-token");
+    const resultPromise = getPayments();
     await Promise.resolve();
     await vi.advanceTimersByTimeAsync(250);
 
@@ -42,7 +42,6 @@ describe("payments-api retries", () => {
     const [url, init] = fetchMock.mock.calls[0];
     expect(String(url)).toContain("/payments");
     expect(init.headers).toMatchObject({
-      Authorization: "Bearer access-token",
       "Content-Type": "application/json",
     });
   });
@@ -52,7 +51,7 @@ describe("payments-api retries", () => {
       .mockResolvedValueOnce(jsonResponse(503, { message: "Unavailable" }))
       .mockResolvedValueOnce(jsonResponse(200, []));
 
-    const resultPromise = getPayments("access-token");
+    const resultPromise = getPayments();
     await Promise.resolve();
     await vi.advanceTimersByTimeAsync(250);
 
@@ -65,7 +64,6 @@ describe("payments-api retries", () => {
 
     await expect(
       initiatePayment(
-        "access-token",
         {
           bookingId: "booking-1",
           amount: 100,

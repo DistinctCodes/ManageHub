@@ -5,22 +5,20 @@ import { CheckCircle2, AlertTriangle } from "lucide-react";
 import { checkIntegrity, type LedgerIntegrityReport } from "@/lib/admin-api";
 import { Card, CardHeader, Button } from "@/components/admin/ui";
 import { IntegrityResults } from "@/components/admin/integrity-results";
-import { RequireAdmin, useAdminToken } from "@/components/admin/require-admin";
+import { RequireAdmin } from "@/components/admin/require-admin";
 
 export default function IntegrityPage() {
-  const token = useAdminToken();
-
   return (
     <RequireAdmin>
-      <IntegrityInner token={token as string} />
+      <IntegrityInner />
     </RequireAdmin>
   );
 }
 
-function IntegrityInner({ token }: { token: string }) {
+function IntegrityInner() {
   const report = useQuery({
     queryKey: ["ledger-integrity"],
-    queryFn: () => checkIntegrity(token),
+    queryFn: () => checkIntegrity(),
     refetchOnWindowFocus: false,
   });
 
