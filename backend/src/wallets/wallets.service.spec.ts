@@ -4,13 +4,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Keypair } from '@stellar/stellar-sdk';
-import { WalletsService } from './wallets.service';
+import { WalletStatusView, WalletsService } from './wallets.service';
 import { WalletAccount } from './entities/wallet-account.entity';
 import { WalletKeyAccessLog } from './entities/wallet-key-access-log.entity';
 import { WalletLedgerEntry } from './entities/wallet-ledger-entry.entity';
 import { WalletLinkChallenge } from './entities/wallet-link-challenge.entity';
 import { WalletCustodyType } from './enums/wallet-custody-type.enum';
 import { WalletStatus } from './enums/wallet-status.enum';
+import { buildWalletLinkMessage } from './link-message.util';
 
 function uniqueViolation(constraint: string) {
   return Object.assign(
@@ -41,6 +42,7 @@ function makeChallenge(
     userId: 'user-1',
     nonce: 'nonce-1',
     expiresAt: new Date(Date.now() + 60_000),
+    address: null,
     consumedAt: null,
     createdAt: new Date(),
     ...overrides,
@@ -149,9 +151,7 @@ describe('WalletsService', () => {
         create: jest.fn((data: any) => ({ ...data })),
         save: jest
           .fn()
-          .mockRejectedValueOnce(
-            uniqueViolation('uq_wallet_accounts_user_id'),
-          ),
+          .mockRejectedValueOnce(uniqueViolation('uq_wallet_accounts_user_id')),
       };
       const manager = { getRepository: jest.fn().mockReturnValue(accountRepo) };
       transaction.mockImplementationOnce(async (cb: (m: any) => unknown) =>
@@ -341,6 +341,7 @@ describe('WalletsService', () => {
           events.push('account-where');
           return accountQueryBuilder;
         }),
+        andWhere: jest.fn(() => accountQueryBuilder),
         getOne: jest.fn(async () => {
           events.push('account-read');
           return account;
@@ -379,14 +380,15 @@ describe('WalletsService', () => {
     });
 
     it('reports a soft-deleted wallet as absent without reading its balance', async () => {
-      walletAccountRepository.findOne.mockResolvedValueOnce(
-        makeAccount({ deletedAt: new Date() }),
-      );
+      // Soft-deleted accounts are filtered out by the query itself, so the
+      // lookup yields no account and the ledger is never aggregated.
+      const { manager, ledgerQueryBuilder } = makeStatusManager(null, 0);
+      transaction.mockImplementationOnce((cb: any) => cb(manager));
 
       const status = await service.getWalletStatus('user-1');
 
       expect(status).toEqual({ account: null, balance: 0, currency: 'XLM' });
-      expect(ledgerRepository.createQueryBuilder).not.toHaveBeenCalled();
+      expect(ledgerQueryBuilder.getRawOne).not.toHaveBeenCalled();
     });
 
     it('sums the ledger to compute the balance for a provisioned wallet', async () => {
@@ -435,7 +437,7 @@ describe('WalletsService', () => {
       });
 
       let queue = Promise.resolve();
-      const enqueue = (work: () => Promise<unknown>) => {
+      const enqueue = <T>(work: () => Promise<T>): Promise<T> => {
         const run = queue.then(work);
         queue = run.then(
           () => undefined,
@@ -456,11 +458,11 @@ describe('WalletsService', () => {
       const write = interleaveWrite();
       const second = service.getWalletStatus('user-1');
       releaseFirstAggregate();
-      const [firstStatus, secondStatus] = await Promise.all([
+      const [firstStatus, , secondStatus] = (await Promise.all([
         first,
         write,
         second,
-      ]);
+      ])) as [WalletStatusView, unknown, WalletStatusView];
 
       expect(firstStatus.balance).toBe(100);
       expect(secondStatus.balance).toBe(200);
@@ -494,7 +496,9 @@ describe('WalletsService', () => {
       };
       const manager = {
         getRepository: jest.fn((entity: unknown) =>
-          entity === WalletKeyAccessLog ? accessLogRepository : accountRepository,
+          entity === WalletKeyAccessLog
+            ? accessLogRepository
+            : accountRepository,
         ),
       };
       transaction.mockImplementationOnce(async (cb: (m: any) => unknown) =>
@@ -529,7 +533,11 @@ describe('WalletsService', () => {
       keyCustody.sign.mockResolvedValueOnce(signature);
       const payload = Buffer.from('tx-hash');
 
-      const result = await service.signPayload('user-1', payload, 'escrow-create');
+      const result = await service.signPayload(
+        'user-1',
+        payload,
+        'escrow-create',
+      );
 
       expect(result).toBe(signature);
       expect(keyCustody.sign).toHaveBeenCalledWith(
@@ -582,17 +590,61 @@ describe('WalletsService', () => {
   });
 
   describe('createLinkChallenge', () => {
-    it('issues a nonce with the configured TTL', async () => {
+    it('issues a nonce and the exact message to sign, with the configured TTL', async () => {
       config.get.mockReturnValue(120);
       const before = Date.now();
 
-      const { nonce, expiresAt } = await service.createLinkChallenge('user-1');
+      const { nonce, expiresAt, message } =
+        await service.createLinkChallenge('user-1');
 
       expect(nonce).toHaveLength(64); // 32 random bytes, hex-encoded
       expect(expiresAt.getTime()).toBeGreaterThanOrEqual(before + 120_000);
-      expect(challengeRepository.save).toHaveBeenCalledWith(
-        expect.objectContaining({ userId: 'user-1', nonce, consumedAt: null }),
+      expect(message).toBe(
+        buildWalletLinkMessage({ userId: 'user-1', nonce, expiresAt }),
       );
+      expect(message).toContain('ManageHub wallet link');
+      expect(message).toContain('user:user-1');
+      expect(message).toContain(`nonce:${nonce}`);
+      expect(message).toContain(`expires:${expiresAt.toISOString()}`);
+      expect(message).not.toContain('address:');
+      expect(challengeRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'user-1',
+          nonce,
+          consumedAt: null,
+          address: null,
+        }),
+      );
+    });
+
+    it('binds the challenge to the requested address and names it in the message', async () => {
+      config.get.mockReturnValue(300);
+      const keypair = Keypair.random();
+
+      const { nonce, expiresAt, message } = await service.createLinkChallenge(
+        'user-1',
+        keypair.publicKey(),
+      );
+
+      expect(message).toBe(
+        buildWalletLinkMessage({
+          userId: 'user-1',
+          address: keypair.publicKey(),
+          nonce,
+          expiresAt,
+        }),
+      );
+      expect(message).toContain(`address:${keypair.publicKey()}`);
+      expect(challengeRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ address: keypair.publicKey() }),
+      );
+    });
+
+    it('rejects an invalid address before creating a challenge', async () => {
+      await expect(
+        service.createLinkChallenge('user-1', 'not-a-stellar-address'),
+      ).rejects.toThrow(BadRequestException);
+      expect(challengeRepository.save).not.toHaveBeenCalled();
     });
   });
 
@@ -631,12 +683,18 @@ describe('WalletsService', () => {
       return { manager, accountRepo, challengeRepo };
     }
 
-    function signedNonce(nonce: string) {
-      const keypair = Keypair.random();
-      const signature = keypair
-        .sign(Buffer.from(nonce, 'utf8'))
-        .toString('base64');
-      return { address: keypair.publicKey(), signature };
+    /** The message the service will rebuild for this challenge. */
+    function messageFor(challenge: WalletLinkChallenge) {
+      return buildWalletLinkMessage({
+        userId: challenge.userId,
+        address: challenge.address,
+        nonce: challenge.nonce,
+        expiresAt: challenge.expiresAt,
+      });
+    }
+
+    function boundChallenge(keypair: Keypair) {
+      return makeChallenge({ address: keypair.publicKey() });
     }
 
     it('rejects a non-Stellar address before starting a transaction', async () => {
@@ -651,37 +709,147 @@ describe('WalletsService', () => {
       expect(transaction).not.toHaveBeenCalled();
     });
 
-    it('links a fresh external wallet given a valid signed challenge', async () => {
-      const challenge = makeChallenge();
-      const { address, signature } = signedNonce(challenge.nonce);
+    it('links a fresh external wallet given a valid signed message', async () => {
+      const keypair = Keypair.random();
+      const challenge = boundChallenge(keypair);
+      const signature = keypair
+        .sign(Buffer.from(messageFor(challenge), 'utf8'))
+        .toString('base64');
       const { manager, accountRepo } = makeLinkManager(challenge, null);
       transaction.mockImplementationOnce((cb: any) => cb(manager));
 
       const result = await service.verifyAndLinkExternalWallet(
         'user-1',
         challenge.nonce,
-        address,
+        keypair.publicKey(),
         signature,
       );
 
       expect(result.custodyType).toBe(WalletCustodyType.EXTERNAL);
-      expect(result.address).toBe(address);
+      expect(result.address).toBe(keypair.publicKey());
       expect(accountRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({ custodyType: WalletCustodyType.EXTERNAL }),
       );
     });
 
+    it('no longer links a wallet when the bare nonce is signed', async () => {
+      const keypair = Keypair.random();
+      const challenge = boundChallenge(keypair);
+      const bareNonceSignature = keypair
+        .sign(Buffer.from(challenge.nonce, 'utf8'))
+        .toString('base64');
+      const { manager, accountRepo } = makeLinkManager(challenge, null);
+      transaction.mockImplementationOnce((cb: any) => cb(manager));
+
+      await expect(
+        service.verifyAndLinkExternalWallet(
+          'user-1',
+          challenge.nonce,
+          keypair.publicKey(),
+          bareNonceSignature,
+        ),
+      ).rejects.toThrow(BadRequestException);
+      expect(accountRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('rejects a message signed for a different address', async () => {
+      const signer = Keypair.random();
+      const other = Keypair.random();
+      const challenge = boundChallenge(signer);
+      // The wallet signed the message naming a *different* address.
+      const wrongAddressMessage = buildWalletLinkMessage({
+        userId: challenge.userId,
+        address: other.publicKey(),
+        nonce: challenge.nonce,
+        expiresAt: challenge.expiresAt,
+      });
+      const signature = signer
+        .sign(Buffer.from(wrongAddressMessage, 'utf8'))
+        .toString('base64');
+      const { manager, accountRepo } = makeLinkManager(challenge, null);
+      transaction.mockImplementationOnce((cb: any) => cb(manager));
+
+      await expect(
+        service.verifyAndLinkExternalWallet(
+          'user-1',
+          challenge.nonce,
+          signer.publicKey(),
+          signature,
+        ),
+      ).rejects.toThrow(BadRequestException);
+      expect(accountRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('rejects a challenge issued for a different address without consuming it', async () => {
+      const bound = Keypair.random();
+      const attacker = Keypair.random();
+      const challenge = boundChallenge(bound);
+      const attackerMessage = buildWalletLinkMessage({
+        userId: challenge.userId,
+        address: attacker.publicKey(),
+        nonce: challenge.nonce,
+        expiresAt: challenge.expiresAt,
+      });
+      const signature = attacker
+        .sign(Buffer.from(attackerMessage, 'utf8'))
+        .toString('base64');
+      const { manager, accountRepo } = makeLinkManager(challenge, null);
+      transaction.mockImplementationOnce((cb: any) => cb(manager));
+
+      await expect(
+        service.verifyAndLinkExternalWallet(
+          'user-1',
+          challenge.nonce,
+          attacker.publicKey(),
+          signature,
+        ),
+      ).rejects.toThrow('different address');
+      expect(challenge.consumedAt).toBeNull();
+      expect(accountRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('rejects a message signed for a different user', async () => {
+      const keypair = Keypair.random();
+      const challenge = boundChallenge(keypair);
+      const wrongUserMessage = buildWalletLinkMessage({
+        userId: 'someone-else',
+        address: keypair.publicKey(),
+        nonce: challenge.nonce,
+        expiresAt: challenge.expiresAt,
+      });
+      const signature = keypair
+        .sign(Buffer.from(wrongUserMessage, 'utf8'))
+        .toString('base64');
+      const { manager, accountRepo } = makeLinkManager(challenge, null);
+      transaction.mockImplementationOnce((cb: any) => cb(manager));
+
+      await expect(
+        service.verifyAndLinkExternalWallet(
+          'user-1',
+          challenge.nonce,
+          keypair.publicKey(),
+          signature,
+        ),
+      ).rejects.toThrow(BadRequestException);
+      expect(accountRepo.save).not.toHaveBeenCalled();
+    });
+
     it('upgrades an existing custodial wallet to external on link', async () => {
-      const challenge = makeChallenge();
-      const { address, signature } = signedNonce(challenge.nonce);
-      const existing = makeAccount({ custodyType: WalletCustodyType.CUSTODIAL });
+      const keypair = Keypair.random();
+      const challenge = boundChallenge(keypair);
+      const signature = keypair
+        .sign(Buffer.from(messageFor(challenge), 'utf8'))
+        .toString('base64');
+      const existing = makeAccount({
+        custodyType: WalletCustodyType.CUSTODIAL,
+      });
       const { manager, accountRepo } = makeLinkManager(challenge, existing);
       transaction.mockImplementationOnce((cb: any) => cb(manager));
 
       const result = await service.verifyAndLinkExternalWallet(
         'user-1',
         challenge.nonce,
-        address,
+        keypair.publicKey(),
         signature,
       );
 
@@ -690,14 +858,14 @@ describe('WalletsService', () => {
         expect.objectContaining({
           id: existing.id,
           custodyType: WalletCustodyType.EXTERNAL,
-          address,
+          address: keypair.publicKey(),
         }),
       );
     });
 
     it('rejects an invalid signature without linking anything', async () => {
-      const challenge = makeChallenge();
-      const { address } = signedNonce(challenge.nonce);
+      const keypair = Keypair.random();
+      const challenge = boundChallenge(keypair);
       const { manager, accountRepo } = makeLinkManager(challenge, null);
       transaction.mockImplementationOnce((cb: any) => cb(manager));
 
@@ -705,7 +873,7 @@ describe('WalletsService', () => {
         service.verifyAndLinkExternalWallet(
           'user-1',
           challenge.nonce,
-          address,
+          keypair.publicKey(),
           Buffer.from('not-a-real-signature').toString('base64'),
         ),
       ).rejects.toThrow(BadRequestException);
@@ -713,8 +881,12 @@ describe('WalletsService', () => {
     });
 
     it('rejects a replayed (already-consumed) challenge', async () => {
-      const challenge = makeChallenge({ consumedAt: new Date() });
-      const { address, signature } = signedNonce(challenge.nonce);
+      const keypair = Keypair.random();
+      const challenge = boundChallenge(keypair);
+      challenge.consumedAt = new Date();
+      const signature = keypair
+        .sign(Buffer.from(messageFor(challenge), 'utf8'))
+        .toString('base64');
       const { manager, accountRepo } = makeLinkManager(challenge, null);
       transaction.mockImplementationOnce((cb: any) => cb(manager));
 
@@ -722,7 +894,7 @@ describe('WalletsService', () => {
         service.verifyAndLinkExternalWallet(
           'user-1',
           challenge.nonce,
-          address,
+          keypair.publicKey(),
           signature,
         ),
       ).rejects.toThrow(ConflictException);
@@ -730,10 +902,14 @@ describe('WalletsService', () => {
     });
 
     it('rejects an expired challenge', async () => {
+      const keypair = Keypair.random();
       const challenge = makeChallenge({
+        address: keypair.publicKey(),
         expiresAt: new Date(Date.now() - 1000),
       });
-      const { address, signature } = signedNonce(challenge.nonce);
+      const signature = keypair
+        .sign(Buffer.from(messageFor(challenge), 'utf8'))
+        .toString('base64');
       const { manager, accountRepo } = makeLinkManager(challenge, null);
       transaction.mockImplementationOnce((cb: any) => cb(manager));
 
@@ -741,7 +917,7 @@ describe('WalletsService', () => {
         service.verifyAndLinkExternalWallet(
           'user-1',
           challenge.nonce,
-          address,
+          keypair.publicKey(),
           signature,
         ),
       ).rejects.toThrow(BadRequestException);
@@ -749,8 +925,11 @@ describe('WalletsService', () => {
     });
 
     it('rejects an address already claimed by another account', async () => {
-      const challenge = makeChallenge();
-      const { address, signature } = signedNonce(challenge.nonce);
+      const keypair = Keypair.random();
+      const challenge = boundChallenge(keypair);
+      const signature = keypair
+        .sign(Buffer.from(messageFor(challenge), 'utf8'))
+        .toString('base64');
       const { manager } = makeLinkManager(
         challenge,
         null,
@@ -766,18 +945,21 @@ describe('WalletsService', () => {
         service.verifyAndLinkExternalWallet(
           'user-1',
           challenge.nonce,
-          address,
+          keypair.publicKey(),
           signature,
         ),
       ).rejects.toThrow(ConflictException);
     });
 
     it('is idempotent when re-linking the same already-linked address', async () => {
-      const challenge = makeChallenge();
-      const { address, signature } = signedNonce(challenge.nonce);
+      const keypair = Keypair.random();
+      const challenge = boundChallenge(keypair);
+      const signature = keypair
+        .sign(Buffer.from(messageFor(challenge), 'utf8'))
+        .toString('base64');
       const existing = makeAccount({
         custodyType: WalletCustodyType.EXTERNAL,
-        address,
+        address: keypair.publicKey(),
       });
       const { manager, accountRepo } = makeLinkManager(challenge, existing);
       transaction.mockImplementationOnce((cb: any) => cb(manager));
@@ -785,7 +967,7 @@ describe('WalletsService', () => {
       const result = await service.verifyAndLinkExternalWallet(
         'user-1',
         challenge.nonce,
-        address,
+        keypair.publicKey(),
         signature,
       );
 
@@ -794,8 +976,11 @@ describe('WalletsService', () => {
     });
 
     it('rejects linking a second, different external wallet over an existing link', async () => {
-      const challenge = makeChallenge();
-      const { address, signature } = signedNonce(challenge.nonce);
+      const keypair = Keypair.random();
+      const challenge = boundChallenge(keypair);
+      const signature = keypair
+        .sign(Buffer.from(messageFor(challenge), 'utf8'))
+        .toString('base64');
       const existing = makeAccount({
         custodyType: WalletCustodyType.EXTERNAL,
         address: 'GDIFFERENTEXTERNALADDRESSAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
@@ -807,7 +992,7 @@ describe('WalletsService', () => {
         service.verifyAndLinkExternalWallet(
           'user-1',
           challenge.nonce,
-          address,
+          keypair.publicKey(),
           signature,
         ),
       ).rejects.toThrow(ConflictException);

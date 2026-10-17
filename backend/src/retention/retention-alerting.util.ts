@@ -8,10 +8,7 @@ export interface RetentionFailureAlert {
 
 export type AlertSink = (alert: RetentionFailureAlert) => void;
 
-export function reportRetentionFailure(
-  error: unknown,
-  sink: AlertSink,
-): void {
+export function reportRetentionFailure(error: unknown, sink: AlertSink): void {
   const message = error instanceof Error ? error.message : String(error);
   sink({ job: 'retention', message, occurredAt: new Date() });
 }
