@@ -9,6 +9,7 @@ import {
   Coins,
 } from "lucide-react";
 import { AdminProviders } from "@/lib/providers";
+import { AdminBreadcrumbs } from "@/components/admin/admin-breadcrumbs";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -53,7 +54,10 @@ export default function AdminLayout({
               ))}
             </nav>
           </aside>
-          <main className="min-w-0 flex-1">{children}</main>
+          <main className="min-w-0 flex-1">
+            <AdminBreadcrumbs />
+            {children}
+          </main>
         </div>
       </div>
     </AdminProviders>

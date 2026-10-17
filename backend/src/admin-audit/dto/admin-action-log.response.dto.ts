@@ -21,6 +21,12 @@ export class AdminActionLogResponseDto {
   @ApiProperty({ nullable: true })
   detail: string | null;
 
+  @ApiProperty({ nullable: true, description: "Caller's IP address" })
+  ip: string | null;
+
+  @ApiProperty({ nullable: true, description: "Caller's User-Agent" })
+  userAgent: string | null;
+
   @ApiProperty()
   createdAt: Date;
 
@@ -32,6 +38,8 @@ export class AdminActionLogResponseDto {
     dto.targetType = log.targetType;
     dto.targetId = log.targetId;
     dto.detail = log.detail;
+    dto.ip = log.ip ?? null;
+    dto.userAgent = log.userAgent ?? null;
     dto.createdAt = log.createdAt;
     return dto;
   }

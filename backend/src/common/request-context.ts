@@ -2,6 +2,13 @@ import { AsyncLocalStorage } from 'async_hooks';
 
 export interface RequestContextState {
   requestId: string;
+  ip?: string | null;
+  userAgent?: string | null;
+}
+
+export interface RequestMetadataContext {
+  ip: string | null;
+  userAgent: string | null;
 }
 
 const requestContext = new AsyncLocalStorage<RequestContextState>();
@@ -15,6 +22,20 @@ export function runWithRequestContext<T>(
 
 export function currentRequestId(): string | undefined {
   return requestContext.getStore()?.requestId;
+}
+
+/**
+ * The caller's IP and User-Agent captured for the active request, if any.
+ * Returns nulls outside an HTTP request so callers (e.g. the admin audit
+ * trail) can persist the columns without inventing a value for background
+ * work.
+ */
+export function currentRequestMetadata(): RequestMetadataContext {
+  const store = requestContext.getStore();
+  return {
+    ip: store?.ip ?? null,
+    userAgent: store?.userAgent ?? null,
+  };
 }
 
 /**

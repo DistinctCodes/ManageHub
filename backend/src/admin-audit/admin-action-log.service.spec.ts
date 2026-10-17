@@ -1,5 +1,7 @@
 import { AdminActionLogService } from './admin-action-log.service';
 import { AdminActionType } from './admin-action-type.enum';
+import { runWithRequestContext } from '../common/request-context';
+import { Between, LessThanOrEqual, MoreThanOrEqual } from 'typeorm';
 
 function makeLogRepository(seed: any[] = []) {
   const rows = [...seed];
@@ -41,6 +43,99 @@ describe('AdminActionLogService', () => {
     expect(log.action).toBe('settlement_batch_execute');
     expect(log.targetId).toBe('batch-1');
     expect(log.detail).toBe('DISTRIBUTION');
+  });
+
+  it('captures IP and User-Agent from the active request context', async () => {
+    const repo = makeLogRepository();
+    const service = new AdminActionLogService(repo as any);
+
+    const log = await runWithRequestContext(
+      { requestId: 'req-1', ip: '203.0.113.7', userAgent: 'jest-agent' },
+      () =>
+        service.record({
+          actorId: 'actor-1',
+          action: AdminActionType.PAYMENT_VOID,
+          targetType: 'Payment',
+        }),
+    );
+
+    expect(log.ip).toBe('203.0.113.7');
+    expect(log.userAgent).toBe('jest-agent');
+  });
+
+  it('stores explicit metadata over the request context', async () => {
+    const repo = makeLogRepository();
+    const service = new AdminActionLogService(repo as any);
+
+    const log = await runWithRequestContext(
+      { requestId: 'req-1', ip: '203.0.113.7', userAgent: 'context-agent' },
+      () =>
+        service.record({
+          actorId: 'actor-1',
+          action: AdminActionType.PAYMENT_VOID,
+          targetType: 'Payment',
+          ip: '198.51.100.4',
+          userAgent: 'explicit-agent',
+        }),
+    );
+
+    expect(log.ip).toBe('198.51.100.4');
+    expect(log.userAgent).toBe('explicit-agent');
+  });
+
+  it('records null metadata outside a request context', async () => {
+    const repo = makeLogRepository();
+    const service = new AdminActionLogService(repo as any);
+
+    const log = await service.record({
+      actorId: 'actor-1',
+      action: AdminActionType.PAYMENT_VOID,
+      targetType: 'Payment',
+    });
+
+    expect(log.ip).toBeNull();
+    expect(log.userAgent).toBeNull();
+  });
+
+  it('caps and range-filters the export query', async () => {
+    const repo = makeLogRepository();
+    const service = new AdminActionLogService(repo as any);
+    const from = new Date('2025-01-01T00:00:00Z');
+    const to = new Date('2025-02-01T00:00:00Z');
+
+    await service.listForExport({
+      from,
+      to,
+      action: AdminActionType.PAYMENT_VOID,
+      limit: 10000,
+    });
+
+    expect(repo.find).toHaveBeenCalledWith({
+      where: { action: 'payment_void', createdAt: Between(from, to) },
+      order: { createdAt: 'DESC' },
+      take: 10000,
+    });
+  });
+
+  it('supports an open-ended export range', async () => {
+    const repo = makeLogRepository();
+    const service = new AdminActionLogService(repo as any);
+    const from = new Date('2025-01-01T00:00:00Z');
+
+    await service.listForExport({ from, limit: 50 });
+    expect(repo.find).toHaveBeenLastCalledWith({
+      where: { createdAt: MoreThanOrEqual(from) },
+      order: { createdAt: 'DESC' },
+      take: 50,
+    });
+
+    const to = new Date('2025-02-01T00:00:00Z');
+    await service.listForExport({ to, limit: 50 });
+    expect(repo.find).toHaveBeenLastCalledWith({
+      where: { createdAt: LessThanOrEqual(to) },
+      order: { createdAt: 'DESC' },
+      take: 50,
+    });
   });
 
   it('lists logs newest first', async () => {

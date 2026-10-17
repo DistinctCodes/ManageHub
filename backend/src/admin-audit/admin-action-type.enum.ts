@@ -68,4 +68,13 @@ export enum AdminActionType {
    * is the Payment id and `detail` is the required operator reason.
    */
   PAYMENT_VOID = 'payment_void',
+
+  /**
+   * Recorded by `GET /admin/audit/actions/export` when an operator exports
+   * the audit trail as CSV. The target is `AdminActionLog`, `targetId` is
+   * null (the export is not scoped to one entry), and `detail` is
+   * `exported=<rowCount>` so the audit trail records that the trail itself
+   * was read.
+   */
+  AUDIT_EXPORT = 'audit_export',
 }

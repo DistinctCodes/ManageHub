@@ -1,5 +1,6 @@
 import {
   currentRequestId,
+  currentRequestMetadata,
   outboundRequestHeaders,
   runWithRequestContext,
   withRequestId,
@@ -30,6 +31,19 @@ describe('request context', () => {
     );
 
     expect(headers).toEqual({});
+  });
+
+  it('exposes the captured request metadata inside a request', () => {
+    const metadata = runWithRequestContext(
+      { requestId: 'request-789', ip: '203.0.113.7', userAgent: 'jest' },
+      () => currentRequestMetadata(),
+    );
+
+    expect(metadata).toEqual({ ip: '203.0.113.7', userAgent: 'jest' });
+  });
+
+  it('returns null metadata outside a request context', () => {
+    expect(currentRequestMetadata()).toEqual({ ip: null, userAgent: null });
   });
 
   it('keeps the request id available to log formatting', () => {

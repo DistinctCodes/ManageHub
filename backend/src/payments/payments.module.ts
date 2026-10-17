@@ -11,6 +11,7 @@ import { PaymentWebhookDeadLetter } from './entities/payment-webhook-dead-letter
 import { PaymentsService } from './payments.service';
 import { PaymentConfirmationService } from './payment-confirmation.service';
 import { PaymentWebhookDeadLetterService } from './payment-webhook-dead-letter.service';
+import { WebhookReplayService } from './webhook-replay.service';
 import { ReconciliationService } from './reconciliation.service';
 import { RefundsService } from './refunds.service';
 import { PaymentRailRegistry } from './payment-rail-registry';
@@ -65,6 +66,7 @@ import {
     PaymentsService,
     PaymentConfirmationService,
     PaymentWebhookDeadLetterService,
+    WebhookReplayService,
     ReconciliationService,
     RefundsService,
     PaymentRailRegistry,

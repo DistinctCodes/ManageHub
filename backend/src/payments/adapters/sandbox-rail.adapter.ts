@@ -39,8 +39,9 @@ export class SandboxRailAdapter implements PaymentRailAdapter {
   verifyWebhookSignature({
     rawBody,
     signatureHeader,
+    timestamp,
   }: WebhookSignatureInput): boolean {
-    if (!signatureHeader) {
+    if (!signatureHeader || !timestamp) {
       return false;
     }
     const secret = this.config.get<string>('PAYMENT_WEBHOOK_SECRET');
@@ -48,7 +49,16 @@ export class SandboxRailAdapter implements PaymentRailAdapter {
       return false;
     }
 
-    const expected = createHmac('sha256', secret).update(rawBody).digest('hex');
+    // Sign `timestamp + '.' + body` (issue #1938): including the timestamp
+    // in the signed content means a captured request cannot be replayed
+    // outside the tolerance window without invalidating the signature.
+    const signedPayload = Buffer.concat([
+      Buffer.from(`${timestamp}.`, 'utf8'),
+      rawBody,
+    ]);
+    const expected = createHmac('sha256', secret)
+      .update(signedPayload)
+      .digest('hex');
     const expectedBuf = Buffer.from(expected, 'utf8');
     const providedBuf = Buffer.from(signatureHeader, 'utf8');
 

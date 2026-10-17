@@ -29,7 +29,7 @@ const COOKIE_OPTIONS: CookieOptions = {
   secure: process.env.NODE_ENV === 'production',
   path: '/',
   maxAge: 7 * 24 * 60 * 60 * 1000,
-};
+} as const;
 
 @ApiTags('auth')
 @Controller('auth')
