@@ -110,6 +110,44 @@ function makePaymentRepository(seed: Payment[]) {
       if (!options?.where) return rows.length;
       return rows.filter((p) => matchesWhere(p, options.where!)).length;
     }),
+    findAndCount: jest.fn(
+      async (options?: {
+        where?: Record<string, unknown> | Record<string, unknown>[];
+        order?: Record<string, 'ASC' | 'DESC'>;
+        take?: number;
+        skip?: number;
+      }) => {
+        let result = rows;
+        if (options?.where) {
+          const clauses = Array.isArray(options.where)
+            ? options.where
+            : [options.where];
+          result = rows.filter((p) =>
+            clauses.some((clause) => matchesWhere(p, clause)),
+          );
+        }
+        if (options?.order) {
+          result = [...result].sort((left, right) => {
+            for (const [key, direction] of Object.entries(options.order!)) {
+              const a = (left as unknown as Record<string, unknown>)[key];
+              const b = (right as unknown as Record<string, unknown>)[key];
+              if (a === b) continue;
+              const comparison =
+                a instanceof Date && b instanceof Date
+                  ? a.getTime() - b.getTime()
+                  : String(a).localeCompare(String(b));
+              return direction === 'DESC' ? -comparison : comparison;
+            }
+            return 0;
+          });
+        }
+        const total = result.length;
+        const skip = options?.skip ?? 0;
+        const take = options?.take ?? result.length;
+        result = result.slice(skip, skip + take);
+        return [result.map((p) => ({ ...p })), total];
+      },
+    ),
     _rows: rows,
   };
 }
@@ -186,6 +224,9 @@ describe('ReconciliationService', () => {
   let metrics: {
     recordReconciliationPass: jest.Mock;
     setManualReviewDepth: jest.Mock;
+    setReconciliationMismatchCount: jest.Mock;
+    recordReconciliationMismatches: jest.Mock;
+    recordRejectedPaymentTransition: jest.Mock;
   };
 
   beforeEach(() => {
@@ -196,6 +237,9 @@ describe('ReconciliationService', () => {
     metrics = {
       recordReconciliationPass: jest.fn(),
       setManualReviewDepth: jest.fn(),
+      setReconciliationMismatchCount: jest.fn(),
+      recordReconciliationMismatches: jest.fn(),
+      recordRejectedPaymentTransition: jest.fn(),
     };
   });
 
@@ -380,7 +424,9 @@ describe('ReconciliationService', () => {
       });
       const summary = await service.reconcileDueBatch(now);
 
-      expect(summary.providerErrors).toBe(1);
+      // The cap-tripping attempt is reported as an escalation rather than a
+      // plain provider error — a single outcome per candidate.
+      expect(summary.providerErrors).toBe(0);
       expect(summary.escalatedToManualReview).toBe(1);
       expect(summary.providerErrorStreakCapEscalations).toBe(1);
       const updated = await paymentRepository.findOne({
@@ -604,10 +650,15 @@ describe('ReconciliationService', () => {
       const now = new Date();
       const payment = makePayment({ createdAt: minutesAgo(10, now) });
       let releaseVerify!: (outcome: { outcome: 'confirmed' }) => void;
+      let notifyVerifyStarted!: () => void;
+      const verifyStarted = new Promise<void>((resolve) => {
+        notifyVerifyStarted = resolve;
+      });
       railAdapter.verifyByReference.mockImplementation(
         () =>
           new Promise((resolve) => {
             releaseVerify = resolve;
+            notifyVerifyStarted();
           }),
       );
       confirmationService.apply.mockResolvedValue({
@@ -617,10 +668,9 @@ describe('ReconciliationService', () => {
       const { service } = build([payment]);
 
       const firstPass = service.handleCron();
-      // Give the first pass's microtasks a chance to reach the pending
-      // provider call before the "overlapping" second tick fires.
-      await Promise.resolve();
-      await Promise.resolve();
+      // Wait deterministically until the first pass is blocked on the
+      // provider call before firing the "overlapping" second tick.
+      await verifyStarted;
 
       await service.handleCron();
 
@@ -787,7 +837,8 @@ describe('ReconciliationService', () => {
       const { service } = build([inReview, confirmed]);
 
       const result = await service.listManualReview();
-      expect(result.map((p) => p.id)).toEqual(['p1']);
+      expect(result.items.map((p) => p.id)).toEqual(['p1']);
+      expect(result.total).toBe(1);
     });
 
     it('lists recent reconciliation runs newest first with a bounded limit', async () => {
@@ -827,6 +878,89 @@ describe('ReconciliationService', () => {
       expect(metrics.alerting).toBe(true);
       expect(metrics.confirmationMaxAttempts).toBe(20);
       expect(metrics.confirmationMaxProviderErrorStreak).toBe(10);
+    });
+  });
+
+  describe('listManualReview pagination (issue #1944)', () => {
+    function seedReview(count: number): Payment[] {
+      const base = new Date('2025-01-01T00:00:00.000Z').getTime();
+      return Array.from({ length: count }, (_, i) =>
+        makePayment({
+          id: `p${String(i).padStart(3, '0')}`,
+          status: PaymentStatus.MANUAL_REVIEW,
+          updatedAt: new Date(base + i * 1_000),
+        }),
+      );
+    }
+
+    it('returns the first page with the full total and oldest-first ordering', async () => {
+      const { service } = build(seedReview(60));
+      const result = await service.listManualReview(25, 0);
+
+      expect(result.total).toBe(60);
+      expect(result.items).toHaveLength(25);
+      expect(result.items[0].id).toBe('p000');
+      expect(result.items[24].id).toBe('p024');
+    });
+
+    it('returns a short last page', async () => {
+      const { service } = build(seedReview(60));
+      const result = await service.listManualReview(25, 50);
+
+      expect(result.total).toBe(60);
+      expect(result.items).toHaveLength(10);
+      expect(result.items[0].id).toBe('p050');
+    });
+
+    it('returns an empty page for an out-of-range offset without changing the total', async () => {
+      const { service } = build(seedReview(60));
+      const result = await service.listManualReview(25, 1_000);
+
+      expect(result.total).toBe(60);
+      expect(result.items).toEqual([]);
+    });
+  });
+
+  describe('reconciliation mismatch metric (issue #1942)', () => {
+    it('records zero mismatches for a clean run where every candidate is still pending', async () => {
+      const now = new Date();
+      const payment = makePayment({ createdAt: minutesAgo(10, now) });
+      railAdapter.verifyByReference.mockResolvedValue({ outcome: 'pending' });
+
+      const { service } = build([payment]);
+      const summary = await service.reconcileDueBatch(now);
+
+      expect(summary.mismatches).toBe(0);
+      expect(metrics.setReconciliationMismatchCount).toHaveBeenCalledWith(0);
+      expect(metrics.recordReconciliationMismatches).toHaveBeenCalledWith(0);
+    });
+
+    it('counts resolved and expired-swept payments as mismatches', async () => {
+      const now = new Date();
+      const drifted = makePayment({
+        id: 'drifted',
+        createdAt: minutesAgo(10, now),
+        updatedAt: minutesAgo(10, now),
+      });
+      const expired = makePayment({
+        id: 'stale',
+        status: PaymentStatus.INITIATED,
+        expiresAt: minutesAgo(1, now),
+      });
+      confirmationService.apply.mockResolvedValue({
+        ...drifted,
+        status: PaymentStatus.CONFIRMED,
+      });
+      railAdapter.verifyByReference.mockResolvedValue({ outcome: 'confirmed' });
+
+      const { service } = build([drifted, expired]);
+      const summary = await service.reconcileDueBatch(now);
+
+      expect(summary.resolved).toBe(1);
+      expect(summary.expiredSwept).toBe(1);
+      expect(summary.mismatches).toBe(2);
+      expect(metrics.setReconciliationMismatchCount).toHaveBeenCalledWith(2);
+      expect(metrics.recordReconciliationMismatches).toHaveBeenCalledWith(2);
     });
   });
 });

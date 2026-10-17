@@ -50,6 +50,42 @@ export class MetricsService {
     this.setGauge('managehub_manual_review_queue_depth', {}, depth);
   }
 
+  /**
+   * Gauge for the number of ledger/provider-state mismatches a single
+   * reconciliation run detected (issue #1942). Reset on every run so a
+   * scrape always reflects the most recent pass; the companion counter
+   * below accumulates the running total for rate-based alerting.
+   */
+  setReconciliationMismatchCount(count: number): void {
+    this.setGauge('managehub_reconciliation_mismatch_count', {}, count);
+  }
+
+  /** Running total of mismatches detected across reconciliation runs (issue #1942). */
+  recordReconciliationMismatches(count: number): void {
+    this.incrementCounter(
+      'managehub_reconciliation_mismatches_total',
+      {},
+      count,
+    );
+  }
+
+  /**
+   * Counts a payment state transition that the state machine refused to
+   * apply (issue #1941), labelled by the states and the origin of the
+   * attempt, so an incident can be reconstructed from `/metrics` alone.
+   */
+  recordRejectedPaymentTransition(
+    from: string,
+    to: string,
+    source: string,
+  ): void {
+    this.incrementCounter('managehub_payment_rejected_transitions_total', {
+      from,
+      to,
+      source,
+    });
+  }
+
   recordSettlementPayoutAttempt(result: 'submitted' | 'confirmed' | 'failed'): void {
     this.incrementCounter('managehub_settlement_payout_attempts_total', {
       result,

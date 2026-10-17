@@ -15,6 +15,7 @@ import { PaymentStatus } from './enums/payment-status.enum';
 import { PaymentFailureReason } from './enums/payment-failure-reason.enum';
 import { ConfirmationSource } from './enums/confirmation-source.enum';
 import { assertValidTransition } from './payment-state-machine';
+import { DEFAULT_PAGE_SIZE } from './payments-admin-pagination.util';
 import { PaymentConfirmationService } from './payment-confirmation.service';
 import { PaymentsGateway } from './payments.gateway';
 import { PaymentRailRegistry } from './payment-rail-registry';
@@ -38,6 +39,13 @@ export interface ReconciliationSummary {
   attemptCapEscalations: number;
   /** Payments escalated specifically because the provider-error streak cap tripped. */
   providerErrorStreakCapEscalations: number;
+  /**
+   * Stored-state mismatches this run detected against the authoritative
+   * source (issue #1942) — every payment that was resolved, expired-swept, or
+   * escalated because the ledger/provider/TTL truth disagreed with the stored
+   * status. Feeds the `managehub_reconciliation_mismatch_count` gauge.
+   */
+  mismatches: number;
 }
 
 export interface ReconciliationMetrics {
@@ -180,6 +188,7 @@ export class ReconciliationService {
       expiredSwept,
       attemptCapEscalations: 0,
       providerErrorStreakCapEscalations: 0,
+      mismatches: 0,
     };
 
     for (const payment of awaiting) {
@@ -229,6 +238,15 @@ export class ReconciliationService {
       }
     }
 
+    // A "mismatch" is any payment whose stored status this run found to be
+    // out of line with the authoritative source (issue #1942): one the
+    // provider had already settled (resolved), one past its TTL
+    // (expired-swept), or one stuck long enough to need a human (escalated).
+    summary.mismatches =
+      summary.resolved + summary.escalatedToManualReview + summary.expiredSwept;
+    this.metrics.setReconciliationMismatchCount(summary.mismatches);
+    this.metrics.recordReconciliationMismatches(summary.mismatches);
+
     this.lastRunCapState = {
       attemptCapEscalations: summary.attemptCapEscalations,
       providerErrorStreakCapEscalations:
@@ -262,7 +280,12 @@ export class ReconciliationService {
   ): Promise<Payment> {
     this.assertReason(reason, 'resolve a payment manually');
     const payment = await this.getPaymentOrThrow(paymentId);
-    assertValidTransition(payment.status, resolution);
+    assertValidTransition(payment.status, resolution, {
+      paymentId,
+      source: 'admin',
+      logger: this.logger,
+      metrics: this.metrics,
+    });
 
     payment.status = resolution;
     payment.manualReviewReason = reason;
@@ -281,7 +304,12 @@ export class ReconciliationService {
   async void(paymentId: string, reason: string): Promise<Payment> {
     this.assertReason(reason, 'void a payment');
     const payment = await this.getPaymentOrThrow(paymentId);
-    assertValidTransition(payment.status, PaymentStatus.VOIDED);
+    assertValidTransition(payment.status, PaymentStatus.VOIDED, {
+      paymentId,
+      source: 'admin',
+      logger: this.logger,
+      metrics: this.metrics,
+    });
 
     payment.status = PaymentStatus.VOIDED;
     payment.manualReviewReason = reason;
@@ -291,11 +319,19 @@ export class ReconciliationService {
     return saved;
   }
 
-  async listManualReview(): Promise<Payment[]> {
-    return this.paymentRepository.find({
+  async listManualReview(
+    limit: number = DEFAULT_PAGE_SIZE,
+    offset: number = 0,
+  ): Promise<{ items: Payment[]; total: number }> {
+    const [items, total] = await this.paymentRepository.findAndCount({
       where: { status: PaymentStatus.MANUAL_REVIEW },
-      order: { updatedAt: 'ASC' },
+      // Oldest-first keeps the queue stable across pages; the id tiebreaker
+      // makes the ordering deterministic when two rows share an updatedAt.
+      order: { updatedAt: 'ASC', id: 'ASC' },
+      take: limit,
+      skip: offset,
     });
+    return { items, total };
   }
 
   /** Returns persisted reconciliation history, newest first, with a bounded take. */
@@ -531,7 +567,12 @@ export class ReconciliationService {
         payment.status === PaymentStatus.INITIATED
           ? PaymentFailureReason.ABANDONED
           : PaymentFailureReason.EXPIRED;
-      assertValidTransition(payment.status, PaymentStatus.EXPIRED);
+      assertValidTransition(payment.status, PaymentStatus.EXPIRED, {
+        paymentId: payment.id,
+        source: 'reconciliation',
+        logger: this.logger,
+        metrics: this.metrics,
+      });
       payment.status = PaymentStatus.EXPIRED;
       payment.failureReason = reason;
       await this.paymentRepository.save(payment);
@@ -631,7 +672,12 @@ export class ReconciliationService {
     if (fresh.status !== PaymentStatus.AWAITING_CONFIRMATION) {
       return false;
     }
-    assertValidTransition(fresh.status, PaymentStatus.MANUAL_REVIEW);
+    assertValidTransition(fresh.status, PaymentStatus.MANUAL_REVIEW, {
+      paymentId: fresh.id,
+      source: 'reconciliation',
+      logger: this.logger,
+      metrics: this.metrics,
+    });
     const maxAttempts = this.getConfirmationMaxAttempts();
     const maxProviderErrorStreak =
       this.getConfirmationMaxProviderErrorStreak();
@@ -729,7 +775,12 @@ export class ReconciliationService {
     }
 
     const fresh = await this.getPaymentOrThrow(payment.id);
-    assertValidTransition(fresh.status, PaymentStatus.MANUAL_REVIEW);
+    assertValidTransition(fresh.status, PaymentStatus.MANUAL_REVIEW, {
+      paymentId: fresh.id,
+      source: 'reconciliation',
+      logger: this.logger,
+      metrics: this.metrics,
+    });
     fresh.status = PaymentStatus.MANUAL_REVIEW;
     if (caps.length > 0) {
       const capDescriptions: string[] = [];

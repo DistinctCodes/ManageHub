@@ -29,5 +29,3 @@ export const AppDataSource = new DataSource({
     max: DB_POOL_MAX,
   },
 });
-
-export default AppDataSource;

@@ -57,7 +57,9 @@ mass-flag every in-flight payment.
 
 ### Admin recovery actions (`PaymentsAdminController`, `ADMIN` role only)
 
-- `GET /payments/admin/manual-review` — the review queue, oldest first.
+- `GET /payments/admin/manual-review` — the review queue, oldest first,
+  paginated via `limit` (1–100, default 25) and `offset` (default 0); the
+  response is `{ items, total }`.
 - `GET /payments/admin/metrics` — manual-review queue depth + alert status.
 - `POST /payments/admin/:id/force-reconcile` — reconcile one payment now,
   bypassing the backoff schedule.
@@ -98,6 +100,24 @@ and whether it exceeds `PAYMENT_MANUAL_REVIEW_ALERT_THRESHOLD`; the
 scheduled job logs a `WARN`-level alert when it does. This is a
 log-based signal by design — this module doesn't assume any particular
 metrics/observability backend is wired up yet.
+
+Each reconciliation run also records ledger/provider drift on `/metrics`
+(issue #1942) as:
+
+- `managehub_reconciliation_mismatch_count` (gauge) — mismatches detected by
+  the **most recent** run. A mismatch is any payment whose stored status the
+  run found out of line with the authoritative source: one the provider had
+  already settled (resolved), one past its TTL (expired-swept), or one
+  escalated to `MANUAL_REVIEW`.
+- `managehub_reconciliation_mismatches_total` (counter) — cumulative
+  mismatches across all runs.
+
+**Alert threshold:** page when `managehub_reconciliation_mismatch_count` is
+non-zero on consecutive runs, or when
+`rate(managehub_reconciliation_mismatches_total[1h])` climbs — a single
+non-zero sample can be a normal webhook-vs-poll race, but sustained drift
+means the webhook/confirmation path is failing and payments are only being
+settled by the reconciler.
 
 ## Webhook payload contract
 

@@ -1,7 +1,7 @@
 // Offset pagination helper for payments-admin.controller.ts list
 // endpoints, with a sane default page size to bound unbounded queries.
-const DEFAULT_PAGE_SIZE = 25;
-const MAX_PAGE_SIZE = 100;
+export const DEFAULT_PAGE_SIZE = 25;
+export const MAX_PAGE_SIZE = 100;
 
 export interface PaginationParams {
   offset: number;

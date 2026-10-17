@@ -20,7 +20,7 @@ import {
   PaymentStatus,
 } from './enums/payment-status.enum';
 import { PaymentRail } from './enums/payment-rail.enum';
-import { assertValidTransition } from './payment-state-machine';
+import { assertValidTransition, PaymentTransitionSource } from './payment-state-machine';
 import {
   PaymentRailRegistry,
   PaymentRailResolution,
@@ -118,10 +118,20 @@ export class PaymentsService {
   /**
    * The only sanctioned way to change Payment#status. Every write path in
    * this service must route through here so illegal transitions throw
-   * instead of silently corrupting state.
+   * instead of silently corrupting state. A refused transition is logged
+   * and counted (issue #1941) with the origin of the attempt.
    */
-  transitionStatus(payment: Payment, next: PaymentStatus): Payment {
-    assertValidTransition(payment.status, next);
+  transitionStatus(
+    payment: Payment,
+    next: PaymentStatus,
+    source: PaymentTransitionSource = 'api',
+  ): Payment {
+    assertValidTransition(payment.status, next, {
+      paymentId: payment.id,
+      source,
+      logger: this.logger,
+      metrics: this.metrics,
+    });
     this.metrics.recordPaymentTransition(payment.status, next);
     payment.status = next;
     return payment;
