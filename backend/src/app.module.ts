@@ -19,6 +19,7 @@ import { MetricsService } from './common/metrics.service';
 import { MetricsController } from './common/metrics.controller';
 import { RequestContextMiddleware } from './common/request-context.middleware';
 import { RequestDurationInterceptor } from './common/request-duration.interceptor';
+import { NoCacheInterceptor } from './common/no-cache.interceptor';
 import { TracingMiddleware } from './common/tracing.middleware';
 
 @Module({
@@ -99,6 +100,10 @@ import { TracingMiddleware } from './common/tracing.middleware';
     {
       provide: APP_INTERCEPTOR,
       useClass: RequestDurationInterceptor,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: NoCacheInterceptor,
     },
   ],
 })
