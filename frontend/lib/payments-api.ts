@@ -1,4 +1,8 @@
-import * as Sentry from "@sentry/nextjs";
+import {
+  getApiErrorMessage,
+  getRequestId,
+  reportApiError,
+} from "@/lib/api-report";
 
 export type PaymentRail = "FIAT" | "STELLAR_CUSTODIAL" | "STELLAR_EXTERNAL";
 
@@ -86,6 +90,11 @@ export interface RequestRefundResponse {
   refund: Refund;
 }
 
+export interface ManualReviewPage {
+  items: Payment[];
+  total: number;
+}
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 const TRANSIENT_RETRY_DELAY_MS = 250;
 const RETRYABLE_STATUS_CODES = new Set([408, 425, 429, 500, 502, 503, 504]);
@@ -148,19 +157,16 @@ async function apiFetch<T>(
 
   if (!response.ok) {
     const body = await response.json().catch(() => null);
-    const errorMessage = body?.message ?? `Request failed (${response.status})`;
-    const error = new Error(errorMessage);
+    const error = new Error(
+      getApiErrorMessage(body, `Request failed (${response.status})`),
+    );
 
-    Sentry.captureException(error, {
-      tags: {
-        api: "payments",
-        endpoint: path,
-        statusCode: response.status,
-      },
-      extra: {
-        requestBody: init?.body,
-        responseBody: body,
-      },
+    reportApiError({
+      api: "payments",
+      method: init?.method ?? "GET",
+      pathTemplate: path,
+      status: response.status,
+      requestId: getRequestId(response),
     });
 
     throw error;
@@ -212,8 +218,17 @@ export function listMyUsage(accessToken: string): Promise<MeteredUsageEvent[]> {
 
 export function listManualReviewPayments(
   accessToken: string,
-): Promise<Payment[]> {
-  return apiFetch<Payment[]>("/payments/admin/manual-review", accessToken);
+  limit = 25,
+  offset = 0,
+): Promise<ManualReviewPage> {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+  });
+  return apiFetch<ManualReviewPage>(
+    `/payments/admin/manual-review?${params.toString()}`,
+    accessToken,
+  );
 }
 
 // ── admin payment actions (FE-104 / FE-106) ──────────────────────────────

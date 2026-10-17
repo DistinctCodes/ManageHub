@@ -38,3 +38,6 @@ clean:
 
 audit:
 	bash scripts/audit_require_auth.sh
+
+dev:
+	docker compose up --build

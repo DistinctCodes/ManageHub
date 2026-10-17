@@ -6,6 +6,7 @@ import { MeteredUsageEvent } from './entities/metered-usage-event.entity';
 import { MeteredResource } from './enums/metered-resource.enum';
 import { CreditsService } from './credits.service';
 import { MetricsService } from '../common/metrics.service';
+import { assertCurrencyCode } from '../common/currency-code';
 import { withRequestId } from '../common/request-context';
 import { createTransport } from 'nodemailer';
 import Handlebars from 'handlebars';
@@ -83,7 +84,9 @@ export class MeteredUsageService {
     }
 
     const amount = input.units * input.unitPrice;
-    const currency = input.currency ?? this.credits.defaultCurrency();
+    const currency = assertCurrencyCode(
+      input.currency ?? this.credits.defaultCurrency(),
+    );
 
     // Charge first: the ledger is the thing that must not be wrong. If
     // recording the event below fails, a retry re-charges against the same
@@ -329,10 +332,7 @@ export class MeteredUsageService {
   }
 
   private getUsageSpikeMultiplier(): number {
-    return this.readPositiveNumberConfig(
-      'CREDITS_USAGE_SPIKE_MULTIPLIER',
-      5.0,
-    );
+    return this.readPositiveNumberConfig('CREDITS_USAGE_SPIKE_MULTIPLIER', 5.0);
   }
 
   private getUsageSpikeMinimumAmount(): number {
@@ -343,10 +343,7 @@ export class MeteredUsageService {
   }
 
   private getUsageSpikeMinimumSamples(): number {
-    return this.readPositiveIntegerConfig(
-      'CREDITS_USAGE_SPIKE_MIN_SAMPLES',
-      3,
-    );
+    return this.readPositiveIntegerConfig('CREDITS_USAGE_SPIKE_MIN_SAMPLES', 3);
   }
 
   private readPositiveNumberConfig(key: string, fallback: number): number {

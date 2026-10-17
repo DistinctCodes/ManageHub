@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { ClipboardList, ExternalLink } from "lucide-react";
@@ -13,6 +14,8 @@ import {
 } from "@/components/admin/ui";
 import { RequireAdmin, useAdminToken } from "@/components/admin/require-admin";
 
+const PAGE_SIZE = 25;
+
 export default function AdminManualReviewPage() {
   const token = useAdminToken();
   return (
@@ -23,11 +26,17 @@ export default function AdminManualReviewPage() {
 }
 
 function ManualReviewInner({ token }: { token: string }) {
-  const { data: payments, isLoading, error } = useQuery({
-    queryKey: ["manual-review-payments"],
-    queryFn: () => listManualReviewPayments(token),
+  const [offset, setOffset] = useState(0);
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["manual-review-payments", offset],
+    queryFn: () => listManualReviewPayments(token, PAGE_SIZE, offset),
     refetchInterval: 30_000,
   });
+
+  const payments = data?.items ?? [];
+  const total = data?.total ?? 0;
+  const hasPrevious = offset > 0;
+  const hasNext = offset + PAGE_SIZE < total;
 
   return (
     <div className="space-y-6">
@@ -46,7 +55,7 @@ function ManualReviewInner({ token }: { token: string }) {
 
       <Card>
         <CardHeader
-          title={isLoading ? "Loading…" : `${payments?.length ?? 0} payment${(payments?.length ?? 0) === 1 ? "" : "s"} awaiting review`}
+          title={isLoading ? "Loading…" : `${total} payment${total === 1 ? "" : "s"} awaiting review`}
           description="Auto-refreshes every 30 seconds."
         />
 
@@ -70,7 +79,7 @@ function ManualReviewInner({ token }: { token: string }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                {payments?.map((p: Payment) => (
+                {payments.map((p: Payment) => (
                   <tr
                     key={p.id}
                     className="hover:bg-gray-50 dark:hover:bg-gray-800/50"
@@ -108,7 +117,7 @@ function ManualReviewInner({ token }: { token: string }) {
                     </td>
                   </tr>
                 ))}
-                {!isLoading && (payments?.length ?? 0) === 0 && (
+                {!isLoading && payments.length === 0 && (
                   <tr>
                     <td
                       colSpan={8}
@@ -120,6 +129,33 @@ function ManualReviewInner({ token }: { token: string }) {
                 )}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {total > 0 && (
+          <div className="flex items-center justify-between border-t border-gray-200 px-5 py-3 text-sm dark:border-gray-800">
+            <span className="text-gray-500 dark:text-gray-400">
+              Showing {total === 0 ? 0 : offset + 1}–
+              {Math.min(offset + PAGE_SIZE, total)} of {total}
+            </span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setOffset((current) => Math.max(0, current - PAGE_SIZE))}
+                disabled={!hasPrevious}
+                className="rounded-md border border-gray-200 px-3 py-1 font-medium text-gray-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:text-gray-300"
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                onClick={() => setOffset((current) => current + PAGE_SIZE)}
+                disabled={!hasNext}
+                className="rounded-md border border-gray-200 px-3 py-1 font-medium text-gray-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:text-gray-300"
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
       </Card>

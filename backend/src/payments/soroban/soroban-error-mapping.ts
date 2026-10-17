@@ -29,9 +29,25 @@ export interface SorobanErrorMapping {
 export function mapSorobanError(error: unknown): SorobanErrorMapping {
   const message = error instanceof Error ? error.message : String(error);
 
-  if (/already[_ ]?(released|refunded)/i.test(message)) {
+  if (/already[_ ]?(released|refunded|resolved)/i.test(message)) {
     return { alreadySucceeded: true, reason: null };
   }
+
+  // Try to decode structured Error(Contract, #N) from Soroban
+  try {
+    // Look for patterns like Error(Contract, #2) or Error(Object, #2)
+    const contractErrorMatch = message.match(/Error\([^,]+,\s*#(\d+)\)/i);
+    if (contractErrorMatch) {
+      const code = parseInt(contractErrorMatch[1], 10);
+      // Already resolved = error code 2 for escrow contract
+      if (code === 2) {
+        return { alreadySucceeded: true, reason: null };
+      }
+    }
+  } catch {
+    // ignore
+  }
+
   if (error instanceof SimulationFailedError) {
     return {
       alreadySucceeded: false,

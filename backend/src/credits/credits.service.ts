@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EntityManager } from 'typeorm';
+import { assertCurrencyCode } from '../common/currency-code';
 import { LedgerAccount } from './entities/ledger-account.entity';
 import { LedgerTransaction } from './entities/ledger-transaction.entity';
 import { LedgerAccountKind } from './enums/ledger-account-kind.enum';
@@ -72,9 +73,19 @@ export class CreditsService {
   ) {}
 
   defaultCurrency(): string {
-    return this.config
-      .get<string>('CREDITS_DEFAULT_CURRENCY', 'USD')
-      .toUpperCase();
+    return assertCurrencyCode(
+      this.config.get<string>('CREDITS_DEFAULT_CURRENCY', 'USD'),
+    );
+  }
+
+  /**
+   * Resolves, normalises and validates a currency for a ledger write or
+   * read (issue #1967). Every credit path funnels through here so an
+   * invalid code supplied by a caller that bypassed DTO validation is
+   * rejected at the service boundary rather than reaching a ledger column.
+   */
+  private resolveCurrency(currency?: string): string {
+    return assertCurrencyCode(currency ?? this.defaultCurrency());
   }
 
   /**
@@ -93,7 +104,7 @@ export class CreditsService {
       {
         kind: LedgerAccountKind.USER,
         ownerId: userId,
-        currency: currency ?? this.defaultCurrency(),
+        currency: this.resolveCurrency(currency),
         overdraftLimit: this.config.get<number>(
           'CREDITS_DEFAULT_OVERDRAFT_LIMIT',
           0,
@@ -119,7 +130,7 @@ export class CreditsService {
       {
         kind,
         ownerId: null,
-        currency: currency ?? this.defaultCurrency(),
+        currency: this.resolveCurrency(currency),
         label: kind.toLowerCase().replace(/_/g, ' '),
       },
       manager,
@@ -143,7 +154,7 @@ export class CreditsService {
       {
         kind,
         ownerId,
-        currency: currency ?? this.defaultCurrency(),
+        currency: this.resolveCurrency(currency),
         externalPayoutAddress: externalPayoutAddress ?? null,
         label: `${kind.toLowerCase().replace(/_/g, ' ')} payable`,
       },
@@ -155,7 +166,7 @@ export class CreditsService {
     userId: string,
     currency?: string,
   ): Promise<CreditBalanceView> {
-    const resolvedCurrency = (currency ?? this.defaultCurrency()).toUpperCase();
+    const resolvedCurrency = this.resolveCurrency(currency);
     const account = await this.ledger.findAccount({
       kind: LedgerAccountKind.USER,
       ownerId: userId,
@@ -207,7 +218,7 @@ export class CreditsService {
       throw new BadRequestException('A charge reference is required');
     }
 
-    const currency = (input.currency ?? this.defaultCurrency()).toUpperCase();
+    const currency = this.resolveCurrency(input.currency);
     const userAccount = await this.getUserAccount(input.userId, currency);
     const revenueAccount = await this.getSystemAccount(
       LedgerAccountKind.REVENUE,
@@ -256,7 +267,7 @@ export class CreditsService {
     currency: string;
     manager?: EntityManager;
   }): Promise<{ transaction: LedgerTransaction; posted: boolean }> {
-    const currency = input.currency.toUpperCase();
+    const currency = this.resolveCurrency(input.currency);
     const userAccount = await this.getUserAccount(
       input.userId,
       currency,
@@ -316,7 +327,7 @@ export class CreditsService {
       throw new BadRequestException('An adjustment reason is required');
     }
 
-    const currency = (input.currency ?? this.defaultCurrency()).toUpperCase();
+    const currency = this.resolveCurrency(input.currency);
     const userAccount = await this.getUserAccount(input.userId, currency);
     const treasury = await this.getSystemAccount(
       LedgerAccountKind.TREASURY,

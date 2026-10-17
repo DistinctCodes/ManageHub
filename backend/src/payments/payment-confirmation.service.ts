@@ -11,10 +11,25 @@ import { PaymentVerificationOutcome } from './interfaces/payment-rail-adapter.in
 import { PaymentsService } from './payments.service';
 import { PaymentsGateway } from './payments.gateway';
 import { PaymentRailRegistry } from './payment-rail-registry';
+import { PaymentTransitionSource } from './payment-state-machine';
 import { withTimeout } from './utils/with-timeout';
 import { withRequestId } from '../common/request-context';
 
 const DEFAULT_VERIFY_TIMEOUT_MS = 3000;
+
+/** Maps a ConfirmationSource to the transition-source label used when a refused transition is logged (issue #1941). */
+function transitionSourceFor(
+  source: ConfirmationSource,
+): PaymentTransitionSource {
+  switch (source) {
+    case ConfirmationSource.WEBHOOK:
+      return 'webhook';
+    case ConfirmationSource.RECONCILIATION:
+      return 'reconciliation';
+    default:
+      return 'verify_return';
+  }
+}
 
 const TERMINAL_STATUSES: ReadonlySet<PaymentStatus> = new Set([
   PaymentStatus.CONFIRMED,
@@ -125,7 +140,11 @@ export class PaymentConfirmationService {
     const nextStatus =
       outcome === 'confirmed' ? PaymentStatus.CONFIRMED : PaymentStatus.FAILED;
 
-    this.paymentsService.transitionStatus(payment, nextStatus);
+    this.paymentsService.transitionStatus(
+      payment,
+      nextStatus,
+      transitionSourceFor(source),
+    );
     const saved = await this.paymentRepository.save(payment);
 
     await this.logEvent({
