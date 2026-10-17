@@ -73,6 +73,12 @@ jobs:
       - name: Unit tests
         run: npm run test
 
+      # Boots the real HTTP stack (guards, validation pipe, cookies, raw-body
+      # webhook path) against the CI Postgres service; migrations were applied
+      # by the "Migrate fresh database" step above (issue #1953).
+      - name: Run e2e tests
+        run: npm run test:e2e
+
       # npm audit is the blocking gate for critical advisories in the
       # direct+transitive npm advisory database. OSV below is advisory-only
       # and provides broader OSV coverage, including transitive packages.
