@@ -18,6 +18,59 @@ const POSTGRES_UNIQUE_VIOLATION = '23505';
 const LEDGER_TRANSACTION_REFERENCE_CONSTRAINT =
   'uq_ledger_transactions_reference';
 
+/** Page size used by the export walk; the admin list caps its own limit. */
+export const LEDGER_ACCOUNT_PAGE_SIZE = 500;
+
+/** Largest page the admin list endpoint will return (issue #1962). */
+export const LEDGER_ACCOUNT_PAGE_MAX_LIMIT = 200;
+
+/** Page size the admin list endpoint falls back to when no limit is given. */
+export const LEDGER_ACCOUNT_PAGE_DEFAULT_LIMIT = 50;
+
+/**
+ * Hard cap on rows written by the admin xlsx export (issue #1962). Combined
+ * with the page-by-page walk this keeps the export's memory flat and its
+ * runtime bounded no matter how large the account table grows.
+ */
+export const LEDGER_ACCOUNT_EXPORT_MAX_ROWS = 100000;
+
+/**
+ * A page of ledger accounts plus the cursor that resumes after the last
+ * one. `nextCursor` is null on the final page.
+ */
+export interface LedgerAccountsPage {
+  accounts: LedgerAccount[];
+  nextCursor: string | null;
+}
+
+/**
+ * Cursors are opaque to clients: base64url of `<createdAt ISO>|<id>`. They
+ * pin the (createdAt, id) position the next page resumes from, which keeps
+ * pagination stable even when rows are inserted concurrently.
+ */
+function encodeAccountsCursor(account: LedgerAccount): string {
+  return Buffer.from(
+    `${account.createdAt.toISOString()}|${account.id}`,
+    'utf8',
+  ).toString('base64url');
+}
+
+function decodeAccountsCursor(cursor: string): {
+  createdAt: Date;
+  id: string;
+} {
+  const decoded = Buffer.from(cursor, 'base64url').toString('utf8');
+  const separator = decoded.lastIndexOf('|');
+  const rawCreatedAt = separator === -1 ? '' : decoded.slice(0, separator);
+  const id = separator === -1 ? '' : decoded.slice(separator + 1);
+  const createdAt = new Date(rawCreatedAt);
+
+  if (!id || Number.isNaN(createdAt.getTime())) {
+    throw new BadRequestException('cursor is not a valid pagination cursor');
+  }
+  return { createdAt, id };
+}
+
 /**
  * Raised when a debit would take a member's credit balance past its
  * overdraft ceiling. A ConflictException (409) rather than a 400: the
@@ -218,11 +271,81 @@ export class LedgerService {
     }
   }
 
-  async listAccounts(currency?: string): Promise<LedgerAccount[]> {
-    return this.accountRepository.find({
-      where: currency ? { currency: currency.toUpperCase() } : {},
-      order: { kind: 'ASC', createdAt: 'ASC' },
-    });
+  /**
+   * A single page of ledger accounts, ordered by (createdAt, id) so the
+   * cursor is stable even when two accounts share a creation timestamp.
+   * `nextCursor` is null once the last page is returned (issue #1962).
+   */
+  async listAccountsPage(
+    currency: string | undefined,
+    limit: number,
+    cursor: string | undefined,
+  ): Promise<LedgerAccountsPage> {
+    const query = this.accountRepository
+      .createQueryBuilder('account')
+      .orderBy('account.createdAt', 'ASC')
+      .addOrderBy('account.id', 'ASC')
+      .take(limit + 1);
+
+    if (currency) {
+      query.andWhere('account.currency = :currency', {
+        currency: currency.toUpperCase(),
+      });
+    }
+
+    if (cursor) {
+      const { createdAt, id } = decodeAccountsCursor(cursor);
+      query.andWhere(
+        '(account.createdAt, account.id) > (:cursorCreatedAt, :cursorId)',
+        { cursorCreatedAt: createdAt, cursorId: id },
+      );
+    }
+
+    const rows = await query.getMany();
+    const hasMore = rows.length > limit;
+    const accounts = hasMore ? rows.slice(0, limit) : rows;
+    const last = accounts[accounts.length - 1];
+
+    return {
+      accounts,
+      nextCursor: hasMore && last ? encodeAccountsCursor(last) : null,
+    };
+  }
+
+  /**
+   * Walks the whole account table one page at a time and hands each account
+   * to `onAccount`, so an export never materialises the table in memory
+   * (issue #1962). Stops early — `truncated` true — once `maxRows` have been
+   * visited, keeping very large exports bounded.
+   */
+  async iterateAccounts(
+    currency: string | undefined,
+    maxRows: number,
+    onAccount: (account: LedgerAccount) => Promise<void> | void,
+  ): Promise<{ visited: number; truncated: boolean }> {
+    let cursor: string | undefined;
+    let visited = 0;
+
+    for (;;) {
+      const page = await this.listAccountsPage(
+        currency,
+        Math.min(LEDGER_ACCOUNT_PAGE_SIZE, maxRows - visited),
+        cursor,
+      );
+
+      for (const account of page.accounts) {
+        await onAccount(account);
+        visited += 1;
+      }
+
+      if (!page.nextCursor) {
+        return { visited, truncated: false };
+      }
+      if (visited >= maxRows) {
+        return { visited, truncated: true };
+      }
+      cursor = page.nextCursor;
+    }
   }
 
   /**

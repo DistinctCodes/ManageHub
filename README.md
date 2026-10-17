@@ -145,7 +145,7 @@ ManageHub/
 ├── README.md           # Project readme (this file)
 ```
 
-- **backend/** — Contains controllers, services, modules, database logic.
+- **backend/** — Contains controllers, services, modules, database logic. See [`backend/src/auth/README.md`](backend/src/auth/README.md) for the authentication model (tokens, cookies, roles, websocket auth).
 - **frontend/** — UI components, pages, API integrations.
 - **contracts/** — Soroban smart contract workspace (Rust). Currently contains the `payment_escrow` scaffold. See [`contracts/README.md`](contracts/README.md) for the backend integration reference and [`contracts/RUNBOOK.md`](contracts/RUNBOOK.md) for the operator recovery guide.
 

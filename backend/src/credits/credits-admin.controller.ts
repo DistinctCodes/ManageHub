@@ -10,6 +10,7 @@ import {
   Query,
   UseGuards,
   Res,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -34,8 +35,13 @@ import { SettlementService } from './settlement.service';
 import { AdminActionLogService } from '../admin-audit/admin-action-log.service';
 import { AdminActionType } from '../admin-audit/admin-action-type.enum';
 import { SettlementBatchStatus } from './enums/settlement-batch-status.enum';
-import { Workbook } from 'exceljs';
+import { stream as excelStream } from 'exceljs';
 import { Response } from 'express';
+import {
+  LEDGER_ACCOUNT_EXPORT_MAX_ROWS,
+  LEDGER_ACCOUNT_PAGE_DEFAULT_LIMIT,
+  LEDGER_ACCOUNT_PAGE_MAX_LIMIT,
+} from './ledger.service';
 import {
   AbandonSettlementBatchDto,
   AdjustCreditsDto,
@@ -76,6 +82,17 @@ import { SettlementRunResponseDto } from './dto/settlement-run-response.dto';
  * reason, and nothing here can edit a posted entry — a correction is
  * always a new transaction, so the audit trail only ever grows.
  */
+function parseAccountPageLimit(limit?: string): number {
+  if (limit === undefined || limit === '') {
+    return LEDGER_ACCOUNT_PAGE_DEFAULT_LIMIT;
+  }
+  const parsed = Number(limit);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new BadRequestException('limit must be a positive integer');
+  }
+  return Math.min(parsed, LEDGER_ACCOUNT_PAGE_MAX_LIMIT);
+}
+
 @ApiTags('credits-admin')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -94,29 +111,79 @@ export class CreditsAdminController {
   // ── accounts ───────────────────────────────────────────────────────────
 
   @Get('accounts')
-  @ApiOperation({ summary: 'List ledger accounts' })
+  @ApiOperation({
+    summary: 'List one page of ledger accounts',
+    description:
+      'Paginated (issue #1962). Returns at most `limit` accounts (default ' +
+      `${LEDGER_ACCOUNT_PAGE_DEFAULT_LIMIT}, max ${LEDGER_ACCOUNT_PAGE_MAX_LIMIT}) ` +
+      'plus a `nextCursor`; pass that cursor back as `cursor` to fetch the ' +
+      'next page. `nextCursor` is null on the last page.',
+  })
   @ApiQuery({ name: 'currency', required: false, type: String })
-  @ApiResponse({ status: 200, type: [LedgerAccountResponseDto] })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: `Page size (1-${LEDGER_ACCOUNT_PAGE_MAX_LIMIT})`,
+  })
+  @ApiQuery({
+    name: 'cursor',
+    required: false,
+    type: String,
+    description: 'Opaque cursor from the previous page',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'A page of accounts plus the cursor for the next one',
+  })
   async listAccounts(
     @Query('currency') currency?: string,
-  ): Promise<LedgerAccountResponseDto[]> {
-    const accounts = await this.ledger.listAccounts(currency);
-    return accounts.map((account) =>
-      LedgerAccountResponseDto.fromEntity(account),
+    @Query('limit') limit?: string,
+    @Query('cursor') cursor?: string,
+  ): Promise<{ data: LedgerAccountResponseDto[]; nextCursor: string | null }> {
+    const page = await this.ledger.listAccountsPage(
+      currency,
+      parseAccountPageLimit(limit),
+      cursor,
     );
+    return {
+      data: page.accounts.map((account) =>
+        LedgerAccountResponseDto.fromEntity(account),
+      ),
+      nextCursor: page.nextCursor,
+    };
   }
 
   @Get('accounts/export')
-  @ApiOperation({ summary: 'Export ledger accounts as xlsx' })
+  @ApiOperation({
+    summary: 'Export ledger accounts as xlsx',
+    description:
+      "Streamed with ExcelJS's streaming writer and walked page-by-page, so " +
+      'memory stays flat regardless of table size (issue #1962). The export ' +
+      `stops at ${LEDGER_ACCOUNT_EXPORT_MAX_ROWS} rows.`,
+  })
   @ApiQuery({ name: 'currency', required: false, type: String })
-  @ApiProduces('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-  @ApiResponse({ status: 200, description: 'xlsx workbook stream' })
+  @ApiProduces(
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  )
+  @ApiResponse({
+    status: 200,
+    description: 'xlsx workbook stream',
+  })
   async exportAccounts(
     @Query('currency') currency: string | undefined,
-    @Res({ passthrough: true }) res: Response,
-  ): Promise<Buffer> {
-    const accounts = await this.ledger.listAccounts(currency);
-    const workbook = new Workbook();
+    @Res() res: Response,
+  ): Promise<void> {
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="ledger-accounts.xlsx"',
+    );
+
+    const workbook = new excelStream.xlsx.WorkbookWriter({ stream: res });
     const sheet = workbook.addWorksheet('ledger-accounts');
     sheet.columns = [
       { header: 'ID', key: 'id', width: 40 },
@@ -125,30 +192,37 @@ export class CreditsAdminController {
       { header: 'Currency', key: 'currency', width: 12 },
       { header: 'Balance', key: 'balance', width: 14 },
       { header: 'Overdraft', key: 'overdraftLimit', width: 14 },
-      { header: 'External payout address', key: 'externalPayoutAddress', width: 40 },
+      {
+        header: 'External payout address',
+        key: 'externalPayoutAddress',
+        width: 40,
+      },
       { header: 'Frozen', key: 'frozen', width: 10 },
       { header: 'Label', key: 'label', width: 24 },
     ];
-    sheet.addRows(
-      accounts.map((account) => ({
-        id: account.id,
-        kind: account.kind,
-        ownerId: account.ownerId ?? '',
-        currency: account.currency,
-        balance: account.balance,
-        overdraftLimit: account.overdraftLimit,
-        externalPayoutAddress: account.externalPayoutAddress ?? '',
-        frozen: account.frozen,
-        label: account.label ?? '',
-      })),
+
+    await this.ledger.iterateAccounts(
+      currency,
+      LEDGER_ACCOUNT_EXPORT_MAX_ROWS,
+      (account) => {
+        sheet
+          .addRow({
+            id: account.id,
+            kind: account.kind,
+            ownerId: account.ownerId ?? '',
+            currency: account.currency,
+            balance: account.balance,
+            overdraftLimit: account.overdraftLimit,
+            externalPayoutAddress: account.externalPayoutAddress ?? '',
+            frozen: account.frozen,
+            label: account.label ?? '',
+          })
+          .commit();
+      },
     );
 
-    res.setHeader(
-      'Content-Type',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    );
-    res.setHeader('Content-Disposition', 'attachment; filename="ledger-accounts.xlsx"');
-    return Buffer.from(await workbook.xlsx.writeBuffer());
+    sheet.commit();
+    await workbook.commit();
   }
 
   @Post('accounts')
