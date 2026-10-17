@@ -15,6 +15,13 @@ export interface PaymentVerificationResult {
 export interface WebhookSignatureInput {
   rawBody: Buffer;
   signatureHeader: string | undefined;
+  /**
+   * The signed timestamp (from the transport header). The signature is
+   * computed over `timestamp + '.' + rawBody` so a captured payload cannot
+   * be replayed later — the timestamp is verified against a tolerance by
+   * the caller. Required for rails that carry a timestamp.
+   */
+  timestamp?: string;
 }
 
 export interface WebhookPayload {

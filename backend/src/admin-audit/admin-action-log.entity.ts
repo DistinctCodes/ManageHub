@@ -36,6 +36,14 @@ export class AdminActionLog {
   @Column({ type: 'text', nullable: true })
   detail: string | null;
 
+  /** Caller IP captured from the request context, where one was available. */
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  ip: string | null;
+
+  /** Caller User-Agent captured from the request context. */
+  @Column({ type: 'varchar', length: 512, name: 'user_agent', nullable: true })
+  userAgent: string | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 }

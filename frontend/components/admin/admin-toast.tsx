@@ -13,8 +13,8 @@ interface AdminToastProps {
 
 const VARIANT_STYLES: Record<ToastVariant, string> = {
   success: 'bg-green-600',
-  error:   'bg-red-600',
-  info:    'bg-blue-600',
+  error: 'bg-red-600',
+  info: 'bg-blue-600',
 };
 
 /**

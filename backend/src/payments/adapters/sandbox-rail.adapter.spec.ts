@@ -5,8 +5,14 @@ function makeConfig(secret: string | undefined = 'test-secret') {
   return { get: jest.fn(() => secret) };
 }
 
-function sign(secret: string, rawBody: Buffer): string {
-  return createHmac('sha256', secret).update(rawBody).digest('hex');
+const TIMESTAMP = '1700000000000';
+
+function sign(secret: string, rawBody: Buffer, timestamp = TIMESTAMP): string {
+  const signedPayload = Buffer.concat([
+    Buffer.from(`${timestamp}.`, 'utf8'),
+    rawBody,
+  ]);
+  return createHmac('sha256', secret).update(signedPayload).digest('hex');
 }
 
 describe('SandboxRailAdapter', () => {
@@ -25,7 +31,11 @@ describe('SandboxRailAdapter', () => {
       const signature = sign('shh', rawBody);
 
       expect(
-        adapter.verifyWebhookSignature({ rawBody, signatureHeader: signature }),
+        adapter.verifyWebhookSignature({
+          rawBody,
+          signatureHeader: signature,
+          timestamp: TIMESTAMP,
+        }),
       ).toBe(true);
     });
 
@@ -37,6 +47,7 @@ describe('SandboxRailAdapter', () => {
         adapter.verifyWebhookSignature({
           rawBody,
           signatureHeader: 'not-the-right-signature-value',
+          timestamp: TIMESTAMP,
         }),
       ).toBe(false);
     });
@@ -50,6 +61,21 @@ describe('SandboxRailAdapter', () => {
         adapter.verifyWebhookSignature({
           rawBody,
           signatureHeader: wrongSignature,
+          timestamp: TIMESTAMP,
+        }),
+      ).toBe(false);
+    });
+
+    it('rejects a signature computed over the body alone (timestamp not covered)', () => {
+      const adapter = new SandboxRailAdapter(makeConfig('shh') as any);
+      const rawBody = Buffer.from(JSON.stringify({ a: 1 }));
+      const bodyOnly = createHmac('sha256', 'shh').update(rawBody).digest('hex');
+
+      expect(
+        adapter.verifyWebhookSignature({
+          rawBody,
+          signatureHeader: bodyOnly,
+          timestamp: TIMESTAMP,
         }),
       ).toBe(false);
     });
@@ -62,6 +88,19 @@ describe('SandboxRailAdapter', () => {
         adapter.verifyWebhookSignature({
           rawBody,
           signatureHeader: undefined,
+          timestamp: TIMESTAMP,
+        }),
+      ).toBe(false);
+    });
+
+    it('rejects when the timestamp is missing', () => {
+      const adapter = new SandboxRailAdapter(makeConfig('shh') as any);
+      const rawBody = Buffer.from(JSON.stringify({ a: 1 }));
+
+      expect(
+        adapter.verifyWebhookSignature({
+          rawBody,
+          signatureHeader: sign('shh', rawBody),
         }),
       ).toBe(false);
     });
@@ -74,6 +113,7 @@ describe('SandboxRailAdapter', () => {
         adapter.verifyWebhookSignature({
           rawBody,
           signatureHeader: sign('shh', rawBody),
+          timestamp: TIMESTAMP,
         }),
       ).toBe(false);
     });
