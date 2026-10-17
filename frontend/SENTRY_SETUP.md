@@ -9,17 +9,22 @@ This frontend now includes Sentry error monitoring to capture and report client-
 - **Wallet Error Boundary** (`app/wallet/error.tsx`): Catches errors specific to wallet operations
 
 ### API Errors
-All API client errors are now reported to Sentry with contextual information:
+All API client errors are reported to Sentry through a shared helper
+(`lib/api-report.ts`) used by:
 - **Payments API** (`lib/payments-api.ts`): Payment initiation, verification, refunds
 - **Wallet API** (`lib/wallet-api.ts`): Wallet provisioning, linking, status checks
 - **Auth API** (`lib/auth-api.ts`): Login and registration
 - **Admin API** (`lib/admin-api.ts`): Ledger accounts, settlements, revenue splits
 
-Each error includes:
-- API endpoint and HTTP status code
-- Request/response context (sanitized)
+Each error includes only non-sensitive metadata:
+- HTTP method and API path template (not the full URL with query string)
+- HTTP status code
+- Request ID (from the `x-request-id`/`request-id` response header, when present)
 - Error boundary source (when applicable)
 - User environment information
+
+Request and response bodies are **never** attached to Sentry events, since
+they can contain plaintext passwords, tokens or wallet signatures.
 
 ## Setup Instructions
 
@@ -49,12 +54,18 @@ After setting the DSN, Sentry will automatically:
 Errors are tagged with:
 - `errorBoundary`: Which error boundary caught the error (global/wallet)
 - `api`: Which API module failed (payments/wallet/auth/admin)
-- `endpoint`: The specific API endpoint
 - `statusCode`: HTTP status code (for API errors)
+
+Event `extra` contains only `method`, `pathTemplate`, `statusCode` and
+`requestId` for API errors.
 
 ## Privacy
 - Session replays mask all text and block media by default
-- Sensitive request/response data is only sent when an error occurs
+- Request and response bodies are never sent to Sentry
+- A `beforeSend` scrubber in `sentry.client.config.ts` is a second line of
+  defence: it strips request body data and redacts any field whose key looks
+  like a password, token, signature, secret, credential, authorization header
+  or API key
 - No PII is collected unless explicitly added
 
 ## Testing

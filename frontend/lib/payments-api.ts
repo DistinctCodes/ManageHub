@@ -1,4 +1,8 @@
-import * as Sentry from "@sentry/nextjs";
+import {
+  getApiErrorMessage,
+  getRequestId,
+  reportApiError,
+} from "@/lib/api-report";
 
 export type PaymentRail = "FIAT" | "STELLAR_CUSTODIAL" | "STELLAR_EXTERNAL";
 
@@ -148,19 +152,16 @@ async function apiFetch<T>(
 
   if (!response.ok) {
     const body = await response.json().catch(() => null);
-    const errorMessage = body?.message ?? `Request failed (${response.status})`;
-    const error = new Error(errorMessage);
+    const error = new Error(
+      getApiErrorMessage(body, `Request failed (${response.status})`),
+    );
 
-    Sentry.captureException(error, {
-      tags: {
-        api: "payments",
-        endpoint: path,
-        statusCode: response.status,
-      },
-      extra: {
-        requestBody: init?.body,
-        responseBody: body,
-      },
+    reportApiError({
+      api: "payments",
+      method: init?.method ?? "GET",
+      pathTemplate: path,
+      status: response.status,
+      requestId: getRequestId(response),
     });
 
     throw error;

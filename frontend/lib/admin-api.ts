@@ -1,5 +1,11 @@
 "use client";
 
+import {
+  getApiErrorMessage,
+  getRequestId,
+  reportApiError,
+} from "@/lib/api-report";
+
 export type LedgerAccountKind =
   | "USER"
   | "TREASURY"
@@ -167,21 +173,18 @@ async function adminFetch<T>(
 
   if (!response.ok) {
     const body = await response.json().catch(() => null);
-    const errorMessage = body?.message ?? `Admin request failed (${response.status})`;
-    const error = new Error(errorMessage);
-    
-    Sentry.captureException(error, {
-      tags: {
-        api: "admin",
-        endpoint: path,
-        statusCode: response.status,
-      },
-      extra: {
-        requestBody: init?.body,
-        responseBody: body,
-      },
+    const error = new Error(
+      getApiErrorMessage(body, `Admin request failed (${response.status})`),
+    );
+
+    reportApiError({
+      api: "admin",
+      method: init?.method ?? "GET",
+      pathTemplate: path,
+      status: response.status,
+      requestId: getRequestId(response),
     });
-    
+
     throw error;
   }
 
