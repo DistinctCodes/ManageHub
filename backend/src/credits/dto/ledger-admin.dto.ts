@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import {
   IsBoolean,
   IsEnum,
@@ -7,11 +8,12 @@ import {
   IsOptional,
   IsString,
   IsUUID,
-  Length,
   MaxLength,
   Min,
   NotEquals,
 } from 'class-validator';
+import { IsCurrencyCode } from '../../common/currency-code.decorator';
+import { transformCurrencyCode } from '../../common/currency-code';
 import { LedgerAccountKind } from '../enums/ledger-account-kind.enum';
 
 export class CreateLedgerAccountDto {
@@ -30,8 +32,9 @@ export class CreateLedgerAccountDto {
 
   @ApiPropertyOptional({ example: 'USD' })
   @IsOptional()
+  @Transform(transformCurrencyCode)
   @IsString()
-  @Length(3, 3)
+  @IsCurrencyCode()
   currency?: string;
 
   @ApiPropertyOptional({
@@ -108,8 +111,9 @@ export class AdjustCreditsDto {
 
   @ApiPropertyOptional({ example: 'USD' })
   @IsOptional()
+  @Transform(transformCurrencyCode)
   @IsString()
-  @Length(3, 3)
+  @IsCurrencyCode()
   currency?: string;
 
   @ApiProperty({ description: 'Natural key making this adjustment idempotent' })
@@ -143,8 +147,9 @@ export class AbandonSettlementBatchDto {
 export class CreateSettlementBatchDto {
   @ApiPropertyOptional({ example: 'USD' })
   @IsOptional()
+  @Transform(transformCurrencyCode)
   @IsString()
-  @Length(3, 3)
+  @IsCurrencyCode()
   currency?: string;
 
   @ApiPropertyOptional({

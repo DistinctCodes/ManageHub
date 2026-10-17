@@ -9,6 +9,14 @@
  */
 export const TOTAL_BASIS_POINTS = 10_000;
 
+/**
+ * Largest integer a minor-unit amount may hold exactly. This is the same
+ * safe-integer ceiling `assertMinorUnits` enforces, exported so DTO
+ * validation (`@MinorUnits`) and the arithmetic primitives reject the
+ * identical boundary.
+ */
+export const MAX_MINOR_UNITS = Number.MAX_SAFE_INTEGER;
+
 /** Typed failure for invalid currency integers or an unsafe scaling operation. */
 export class MinorUnitsError extends Error {
   constructor(message: string) {
@@ -28,11 +36,7 @@ export class MinorUnitsError extends Error {
  * single expression.
  */
 export function assertMinorUnits(value: number, label = 'value'): number {
-  if (
-    typeof value !== 'number' ||
-    !Number.isSafeInteger(value) ||
-    value < 0
-  ) {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
     throw new MinorUnitsError(
       `${label} must be a non-negative safe integer, got ${String(value)}`,
     );
@@ -149,9 +153,7 @@ export function apportionByBasisPoints(
     };
   });
 
-  let leftover =
-    amount -
-    entries.reduce((sum, entry) => sum + entry.amount, 0);
+  let leftover = amount - entries.reduce((sum, entry) => sum + entry.amount, 0);
   const byRemainder = [...entries].sort(
     (left, right) =>
       right.remainder - left.remainder || left.index - right.index,

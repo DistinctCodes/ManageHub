@@ -2,7 +2,6 @@ import {
   Body,
   Controller,
   Get,
-  Headers,
   Param,
   ParseUUIDPipe,
   Post,
@@ -24,6 +23,7 @@ import { PaymentResponseDto } from './dto/payment-response.dto';
 import { VerifyReturnResponseDto } from './dto/verify-return-response.dto';
 import { Throttle } from '@nestjs/throttler';
 import { withSpan } from '../common/tracing';
+import { IdempotencyKey } from './idempotency-key.decorator';
 
 @ApiTags('payments')
 @ApiBearerAuth()
@@ -46,7 +46,8 @@ export class PaymentsController {
   @ApiResponse({ status: 201, type: PaymentResponseDto })
   async initiate(
     @CurrentUser() currentUser: RequestUser,
-    @Headers('idempotency-key') idempotencyKey: string,
+    @IdempotencyKey()
+    idempotencyKey: string,
     @Body() dto: InitiatePaymentDto,
   ): Promise<PaymentResponseDto> {
     return withSpan(
