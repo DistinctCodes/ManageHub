@@ -1,14 +1,15 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import {
   IsEnum,
-  IsInt,
   IsNotEmpty,
   IsOptional,
-  IsPositive,
   IsString,
   IsUUID,
-  Length,
 } from 'class-validator';
+import { IsCurrencyCode } from '../../common/currency-code.decorator';
+import { transformCurrencyCode } from '../../common/currency-code';
+import { MinorUnits } from '../../payments/utils/minor-units.decorator';
 import { MeteredResource } from '../enums/metered-resource.enum';
 
 export class RecordMeteredUsageDto {
@@ -24,22 +25,21 @@ export class RecordMeteredUsageDto {
     description: 'Metered quantity — minutes, pages, ...',
     example: 12,
   })
-  @IsInt()
-  @IsPositive()
+  @MinorUnits()
   units: number;
 
   @ApiProperty({
     description: 'Price per unit in minor units',
     example: 5,
   })
-  @IsInt()
-  @IsPositive()
+  @MinorUnits()
   unitPrice: number;
 
   @ApiPropertyOptional({ example: 'USD' })
   @IsOptional()
+  @Transform(transformCurrencyCode)
   @IsString()
-  @Length(3, 3)
+  @IsCurrencyCode()
   currency?: string;
 
   @ApiProperty({

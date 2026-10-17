@@ -1,15 +1,16 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import {
   IsEnum,
-  IsInt,
   IsNotEmpty,
   IsObject,
   IsOptional,
-  IsPositive,
   IsString,
   IsUUID,
-  Length,
 } from 'class-validator';
+import { IsCurrencyCode } from '../../common/currency-code.decorator';
+import { transformCurrencyCode } from '../../common/currency-code';
+import { MinorUnits } from '../utils/minor-units.decorator';
 import { PaymentRail } from '../enums/payment-rail.enum';
 
 export class InitiatePaymentDto {
@@ -21,13 +22,13 @@ export class InitiatePaymentDto {
     description: 'Amount in minor units (e.g. cents)',
     example: 5000,
   })
-  @IsInt()
-  @IsPositive()
+  @MinorUnits()
   amount: number;
 
   @ApiProperty({ description: 'ISO 4217 currency code', example: 'USD' })
+  @Transform(transformCurrencyCode)
   @IsString()
-  @Length(3, 3)
+  @IsCurrencyCode()
   currency: string;
 
   @ApiProperty({ enum: PaymentRail })

@@ -5,12 +5,14 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { RequestUser } from '../auth/interfaces/authenticated-request.interface';
 import { UserRole } from '../auth/enums/user-role.enum';
+import { assertCurrencyCode } from '../common/currency-code';
 import { MetricsService } from '../common/metrics.service';
 import { withSpan } from '../common/tracing';
 import { Payment } from './entities/payment.entity';
@@ -29,6 +31,7 @@ import { withRequestId } from '../common/request-context';
 import type { PaymentInitiationResult } from './interfaces/payment-rail-adapter.interface';
 import { createPaymentProviderCircuitBreaker } from './utils/circuit-breaker';
 import type { PaymentProviderCircuitBreaker } from './utils/circuit-breaker';
+import { hashPaymentRequest } from './utils/idempotency-hash';
 
 const USER_IDEMPOTENCY_KEY_CONSTRAINT = 'uq_payments_user_id_idempotency_key';
 const BOOKING_NON_TERMINAL_CONSTRAINT = 'uq_payments_booking_id_non_terminal';
@@ -67,6 +70,11 @@ export class PaymentsService {
           throw new BadRequestException('Idempotency-Key header is required');
         }
 
+        // Enforced here as well as in the DTO so a caller bypassing request
+        // validation (internal service, job) can never persist a code the
+        // ledger or a rail provider does not recognise (issue #1967).
+        assertCurrencyCode(dto.currency);
+
         const existing = await this.findByIdempotencyKey(
           userId,
           idempotencyKey,
@@ -89,7 +97,7 @@ export class PaymentsService {
           const saved = await this.paymentRepository.save(payment);
           return await this.progressToAwaitingConfirmation(saved, resolution);
         } catch (error) {
-          return this.handleInsertConflict(error, userId, idempotencyKey);
+          return this.handleInsertConflict(error, userId, idempotencyKey, dto);
         }
       },
       {
@@ -140,18 +148,33 @@ export class PaymentsService {
     existing: Payment,
     dto: InitiatePaymentDto,
   ): Payment {
-    const samePayload =
-      existing.bookingId === dto.bookingId &&
-      existing.amount === dto.amount &&
-      existing.currency === dto.currency.toUpperCase() &&
-      this.requestedRailFor(existing) === dto.rail;
+    const requestHash = hashPaymentRequest(dto);
+    const samePayload = existing.requestHash
+      ? existing.requestHash === requestHash
+      : this.legacySamePayload(existing, dto);
 
     if (!samePayload) {
-      throw new ConflictException(
-        'Idempotency-Key was already used with a different payload',
+      throw new UnprocessableEntityException(
+        'Idempotency-Key was already used with a different request body',
       );
     }
     return existing;
+  }
+
+  /**
+   * Fallback comparison for payments persisted before the request hash
+   * column existed. New rows always carry a hash and are compared by it.
+   */
+  private legacySamePayload(
+    existing: Payment,
+    dto: InitiatePaymentDto,
+  ): boolean {
+    return (
+      existing.bookingId === dto.bookingId &&
+      existing.amount === dto.amount &&
+      existing.currency === dto.currency.toUpperCase() &&
+      this.requestedRailFor(existing) === dto.rail
+    );
   }
 
   /**
@@ -208,9 +231,10 @@ export class PaymentsService {
       provider: dto.provider ?? null,
       status: PaymentStatus.INITIATED,
       idempotencyKey,
+      requestHash: hashPaymentRequest(dto),
       metadata: usedFallback
         ? { ...(dto.metadata ?? {}), requestedRail }
-        : dto.metadata ?? null,
+        : (dto.metadata ?? null),
       expiresAt: new Date(Date.now() + ttlMinutes * 60_000),
     });
   }
@@ -257,9 +281,7 @@ export class PaymentsService {
    */
   private async progressToAwaitingConfirmation(
     payment: Payment,
-    resolution: PaymentRailResolution = this.railRegistry.resolve(
-      payment.rail,
-    ),
+    resolution: PaymentRailResolution = this.railRegistry.resolve(payment.rail),
   ): Promise<Payment> {
     const requestedRail = this.requestedRailFor(payment);
     if (resolution.usedFallback && resolution.rail !== requestedRail) {
@@ -299,6 +321,7 @@ export class PaymentsService {
     error: unknown,
     userId: string,
     idempotencyKey: string,
+    dto: InitiatePaymentDto,
   ): Promise<Payment> {
     if (!this.isUniqueViolation(error)) {
       throw error;
@@ -307,7 +330,9 @@ export class PaymentsService {
     if (this.violatedConstraint(error) === USER_IDEMPOTENCY_KEY_CONSTRAINT) {
       const winner = await this.findByIdempotencyKey(userId, idempotencyKey);
       if (winner) {
-        return winner;
+        // The winner of the race may have used the same key for a
+        // different body; compare it exactly like a sequential replay.
+        return this.assertSamePayload(winner, dto);
       }
     }
 
