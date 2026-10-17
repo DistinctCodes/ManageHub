@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/http-exception.filter';
 import { isOriginAllowed, resolveAllowedOrigins } from './common/cors';
@@ -68,23 +69,31 @@ async function bootstrap() {
   );
 
   app.use((req: Request, res: Response, next: NextFunction) => {
-    res.setHeader('x-dns-prefetch-control', 'off');
-    res.setHeader('x-frame-options', 'SAMEORIGIN');
-    res.setHeader('x-content-type-options', 'nosniff');
-    res.setHeader('referrer-policy', 'no-referrer');
-    res.setHeader('x-download-options', 'noopen');
-    res.setHeader('x-permitted-cross-domain-policies', 'none');
-    if (process.env.NODE_ENV === 'production') {
-      res.setHeader(
-        'strict-transport-security',
-        'max-age=31536000; includeSubDomains',
-      );
-    }
     if (!res.getHeader('x-request-id')) {
       res.setHeader('x-request-id', req.header('x-request-id') || randomUUID());
     }
     next();
   });
+
+  /**
+   * Replaces the previously hand-rolled security-headers block (issue
+   * #1961) with helmet. Everything except the Swagger UI is served with
+   * helmet's full default set (including a CSP); /api/docs opts out of the
+   * CSP only, because Swagger UI relies on inline scripts and styles that a
+   * strict default-src 'self' policy would block. No other header is
+   * relaxed, so the docs page keeps the rest of the hardening.
+   */
+  const defaultSecurityHeaders = helmet();
+  const docsSecurityHeaders = helmet({ contentSecurityPolicy: false });
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.path.startsWith('/api/docs')) {
+      docsSecurityHeaders(req, res, next);
+      return;
+    }
+    defaultSecurityHeaders(req, res, next);
+  });
+
+  app.disable('x-powered-by');
 
   app.useGlobalInterceptors(new HttpLoggingInterceptor());
 
