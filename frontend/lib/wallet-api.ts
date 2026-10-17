@@ -1,4 +1,8 @@
-import * as Sentry from "@sentry/nextjs";
+import {
+  getApiErrorMessage,
+  getRequestId,
+  reportApiError,
+} from "@/lib/api-report";
 
 export type WalletCustodyType = "CUSTODIAL" | "EXTERNAL";
 export type WalletStatus = "PENDING" | "ACTIVE" | "DISABLED";
@@ -31,21 +35,18 @@ async function walletFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     const body = await response.json().catch(() => null);
-    const errorMessage = body?.message ?? `Wallet request failed (${response.status})`;
-    const error = new Error(errorMessage);
-    
-    Sentry.captureException(error, {
-      tags: {
-        api: "wallet",
-        endpoint: path,
-        statusCode: response.status,
-      },
-      extra: {
-        requestBody: init?.body,
-        responseBody: body,
-      },
+    const error = new Error(
+      getApiErrorMessage(body, `Wallet request failed (${response.status})`),
+    );
+
+    reportApiError({
+      api: "wallet",
+      method: init?.method ?? "GET",
+      pathTemplate: path,
+      status: response.status,
+      requestId: getRequestId(response),
     });
-    
+
     throw error;
   }
 
