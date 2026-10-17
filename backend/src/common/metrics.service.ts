@@ -86,7 +86,9 @@ export class MetricsService {
     });
   }
 
-  recordSettlementPayoutAttempt(result: 'submitted' | 'confirmed' | 'failed'): void {
+  recordSettlementPayoutAttempt(
+    result: 'submitted' | 'confirmed' | 'failed',
+  ): void {
     this.incrementCounter('managehub_settlement_payout_attempts_total', {
       result,
     });
@@ -119,6 +121,87 @@ export class MetricsService {
     this.incrementCounter('managehub_credit_usage_spikes_total', { resource });
   }
 
+  /**
+   * Records the outcome of a retention pass (issue #1948). A real pass
+   * increments a per-table delete counter; a dry run instead sets a gauge
+   * with the row count that *would* have been deleted, so an operator can
+   * preview the effect of a `DATA_RETENTION_MONTHS` change on `/metrics`
+   * before applying it. The last-run success flag and timestamp make a
+   * silently failing job visible.
+   */
+  recordRetentionRun(summary: {
+    dryRun: boolean;
+    walletKeyAccessLogAffected: number;
+    meteredUsageEventsAffected: number;
+    at: Date;
+  }): void {
+    const perTable: Array<[string, number]> = [
+      ['wallet_key_access_log', summary.walletKeyAccessLogAffected],
+      ['metered_usage_events', summary.meteredUsageEventsAffected],
+    ];
+    for (const [table, count] of perTable) {
+      if (summary.dryRun) {
+        this.setGauge('managehub_retention_dry_run_rows', { table }, count);
+      } else {
+        this.incrementCounter(
+          'managehub_retention_rows_deleted_total',
+          { table },
+          count,
+        );
+      }
+    }
+    this.setGauge(
+      'managehub_retention_last_run_timestamp_seconds',
+      {},
+      Math.floor(summary.at.getTime() / 1000),
+    );
+    this.setGauge('managehub_retention_last_run_success', {}, 1);
+    this.setGauge(
+      'managehub_retention_last_run_dry_run',
+      {},
+      summary.dryRun ? 1 : 0,
+    );
+  }
+
+  /** Counts a failed retention pass and marks the last run as unsuccessful. */
+  recordRetentionFailure(occurredAt: Date): void {
+    this.incrementCounter('managehub_retention_failures_total', {});
+    this.setGauge(
+      'managehub_retention_last_run_timestamp_seconds',
+      {},
+      Math.floor(occurredAt.getTime() / 1000),
+    );
+    this.setGauge('managehub_retention_last_run_success', {}, 0);
+  }
+
+  /**
+   * Records a custodial key-material rotation pass (issue #1945) and the
+   * number of rows still referencing the old key version, so an operator
+   * can watch a long/resumable rotation drain to zero on `/metrics`.
+   */
+  recordWalletKeyRotation(result: {
+    keyId: string;
+    rotated: number;
+    failed: number;
+    remaining: number;
+  }): void {
+    this.incrementCounter(
+      'managehub_wallet_key_rotation_rows_total',
+      { result: 'rotated' },
+      result.rotated,
+    );
+    this.incrementCounter(
+      'managehub_wallet_key_rotation_rows_total',
+      { result: 'failed' },
+      result.failed,
+    );
+    this.setGauge(
+      'managehub_wallet_key_material_old_key_rows',
+      { key_id: result.keyId },
+      result.remaining,
+    );
+  }
+
   renderPrometheus(): string {
     const lines: string[] = [];
     this.appendCounters(lines);
@@ -134,7 +217,9 @@ export class MetricsService {
     delta = 1,
   ): void {
     const series = this.counters.get(name) ?? [];
-    const existing = series.find((item) => this.sameLabels(item.labels, labels));
+    const existing = series.find((item) =>
+      this.sameLabels(item.labels, labels),
+    );
     if (existing) {
       existing.value += delta;
     } else {
@@ -149,7 +234,9 @@ export class MetricsService {
     value: number,
   ): void {
     const series = this.gauges.get(name) ?? [];
-    const existing = series.find((item) => this.sameLabels(item.labels, labels));
+    const existing = series.find((item) =>
+      this.sameLabels(item.labels, labels),
+    );
     if (existing) {
       existing.value = value;
     } else {
@@ -207,7 +294,9 @@ export class MetricsService {
     for (const [name, series] of this.counters.entries()) {
       lines.push(`# TYPE ${name} counter`);
       for (const sample of series) {
-        lines.push(`${name}${this.formatLabels(sample.labels)} ${sample.value}`);
+        lines.push(
+          `${name}${this.formatLabels(sample.labels)} ${sample.value}`,
+        );
       }
     }
   }
@@ -216,7 +305,9 @@ export class MetricsService {
     for (const [name, series] of this.gauges.entries()) {
       lines.push(`# TYPE ${name} gauge`);
       for (const sample of series) {
-        lines.push(`${name}${this.formatLabels(sample.labels)} ${sample.value}`);
+        lines.push(
+          `${name}${this.formatLabels(sample.labels)} ${sample.value}`,
+        );
       }
     }
   }
@@ -224,8 +315,12 @@ export class MetricsService {
   private appendSummaries(lines: string[]): void {
     for (const [name, summary] of this.summaries.entries()) {
       lines.push(`# TYPE ${name} summary`);
-      lines.push(`${name}_count${this.formatLabels(summary.labels)} ${summary.count}`);
-      lines.push(`${name}_sum${this.formatLabels(summary.labels)} ${summary.sum}`);
+      lines.push(
+        `${name}_count${this.formatLabels(summary.labels)} ${summary.count}`,
+      );
+      lines.push(
+        `${name}_sum${this.formatLabels(summary.labels)} ${summary.sum}`,
+      );
     }
   }
 

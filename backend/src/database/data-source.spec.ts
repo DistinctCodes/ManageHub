@@ -1,3 +1,5 @@
+import type { PostgresConnectionOptions } from 'typeorm/driver/postgres/PostgresConnectionOptions';
+
 describe('AppDataSource pool configuration (issue #1778)', () => {
   const ORIGINAL_ENV = { ...process.env };
 
@@ -35,5 +37,36 @@ describe('AppDataSource pool configuration (issue #1778)', () => {
     expect(DB_POOL_MIN).toBe(5);
     expect(DB_POOL_MAX).toBe(25);
     expect(AppDataSource.options.extra).toEqual({ min: 5, max: 25 });
+  });
+
+  it('disables TLS by default outside production (issue #1956)', () => {
+    delete process.env.DATABASE_SSL;
+    delete process.env.DATABASE_SSL_CA;
+
+    const { AppDataSource } = loadDataSource();
+
+    expect((AppDataSource.options as PostgresConnectionOptions).ssl).toBe(
+      false,
+    );
+  });
+
+  it('enables TLS from DATABASE_SSL and DATABASE_SSL_CA (issue #1956)', () => {
+    const ca = '-----BEGIN CERTIFICATE-----\nabc\n-----END CERTIFICATE-----';
+    process.env.DATABASE_SSL = 'verify-full';
+    process.env.DATABASE_SSL_CA = ca;
+
+    const { AppDataSource } = loadDataSource();
+
+    expect((AppDataSource.options as PostgresConnectionOptions).ssl).toEqual({
+      rejectUnauthorized: true,
+      ca,
+    });
+  });
+
+  it('fails fast on a misconfigured CA (issue #1956)', () => {
+    process.env.DATABASE_SSL = 'require';
+    process.env.DATABASE_SSL_CA = '/etc/ssl/ca.pem';
+
+    expect(() => loadDataSource()).toThrow(/DATABASE_SSL_CA/);
   });
 });

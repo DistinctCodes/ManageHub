@@ -14,9 +14,11 @@ import {
 } from './common/graceful-shutdown';
 import { HttpLoggingInterceptor } from './common/http-logging.interceptor';
 import { NextFunction, Request, Response, json, urlencoded } from 'express';
+import * as cookieParser from 'cookie-parser';
 import { initTracing } from './common/tracing';
 import { StructuredLoggerService } from './common/structured-logger.service';
 import { StructuredRequestLoggerMiddleware } from './common/structured-request-logger.middleware';
+import { resolveTrustProxy } from './common/trust-proxy';
 
 interface RawBodyRequest extends Request {
   rawBody?: Buffer;
@@ -53,6 +55,11 @@ async function bootstrap() {
   // registerWsModule(), which runs before lifecycle hooks.
   app.useWebSocketAdapter(new WsCorsIoAdapter(app, app.get(ConfigService)));
 
+  // Behind a reverse proxy/load balancer, TRUST_PROXY makes Express take the
+  // client IP from X-Forwarded-For so the shared (Redis) rate limiter keys
+  // on the real client instead of the proxy (issue #1955).
+  app.set('trust proxy', resolveTrustProxy(process.env));
+
   const requestBodyLimit = process.env.REQUEST_BODY_LIMIT ?? '1mb';
   const captureRawBody = (
     req: Request,
@@ -76,6 +83,11 @@ async function bootstrap() {
     }),
   );
 
+  // The JwtAuthGuard reads `request.cookies.accessToken`, so the cookie
+  // parser must run before the guard. Without it, cookie-based auth silently
+  // fails and only the bearer-token path works (issue #1953).
+  app.use(cookieParser());
+
   app.use((req: Request, res: Response, next: NextFunction) => {
     res.setHeader('x-dns-prefetch-control', 'off');
     res.setHeader('x-frame-options', 'SAMEORIGIN');
@@ -88,9 +100,6 @@ async function bootstrap() {
         'strict-transport-security',
         'max-age=31536000; includeSubDomains',
       );
-    }
-    if (!res.getHeader('x-request-id')) {
-      res.setHeader('x-request-id', req.header('x-request-id') || randomUUID());
     }
     next();
   });

@@ -1,7 +1,11 @@
 // Admin-only key rotation helper for wallets/key-custody, recording the
 // rotation in admin-audit as it happens.
 export interface AdminAuditRecorder {
-  record(entry: { action: string; adminId: string; walletId: string }): Promise<void>;
+  record(entry: {
+    action: string;
+    adminId: string;
+    walletId: string;
+  }): Promise<void>;
 }
 
 export interface KeyRotationResult {

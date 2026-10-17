@@ -31,8 +31,11 @@ describe('KeyCustodyService', () => {
       create: jest.fn((data) => ({ ...data })),
       save: jest.fn(async (entity) => ({ id: 'log-1', ...entity })),
     };
+    const masterKey = randomBytes(32).toString('base64');
     const config = {
-      get: jest.fn().mockReturnValue(randomBytes(32).toString('base64')),
+      get: jest.fn((key: string, fallback?: unknown) =>
+        key === 'WALLET_KMS_MASTER_KEY' ? masterKey : fallback,
+      ),
     };
     kms = new EnvelopeKeyManagementService(config as any);
     service = new KeyCustodyService(

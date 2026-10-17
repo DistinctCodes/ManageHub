@@ -58,7 +58,18 @@ npm run migration:revert
 The commands use `src/database/data-source.ts` and the same environment
 variables as the application (`DATABASE_HOST`, `DATABASE_PORT`,
 `DATABASE_USERNAME`, `DATABASE_PASSWORD`, `DATABASE_NAME`, `DATABASE_SSL`, and
-`PGSSLMODE`). Do not use `synchronize` or edit an already-applied migration.
+`DATABASE_SSL_CA`). Do not use `synchronize` or edit an already-applied migration.
+
+### Postgres TLS
+
+Managed Postgres services (RDS, Azure, Heroku, Neon, ...) require TLS. Set
+`DATABASE_SSL` to `require` or `verify-full` and, for certificate verification,
+`DATABASE_SSL_CA` to the provider's CA bundle in PEM form (inlined, not a path).
+Both the API and the migration CLI build their `ssl` options through the shared
+`src/database/database-ssl.ts`, so they always agree. When `DATABASE_SSL` is
+unset, production defaults to `require` and other environments to `disable`. An
+invalid mode or a `DATABASE_SSL_CA` that is not a PEM document fails fast at
+boot/CLI start with a clear error.
 
 ## Authentication
 
@@ -72,6 +83,31 @@ production. Because the cookie is `httpOnly`, it is not accessible to
 JavaScript, which removes XSS as a token-theft vector. The frontend makes
 same-origin requests and relies on the browser to attach the cookie
 automatically; no `Authorization` header is built from client-side state.
+
+## Rate limiting
+
+The global `ThrottlerGuard` allows 100 requests per minute per client by
+default (individual routes lower this with `@Throttle`). Its counters are
+stored in Redis (`REDIS_HOST`/`REDIS_PORT`/`REDIS_PASSWORD`/`REDIS_DB`) rather
+than per-process memory, so **all replicas share one counter per client** and
+counters survive deploys. If Redis is unreachable the API fails open — requests
+are allowed and a warning is logged — rather than failing to boot or rejecting
+traffic.
+
+Behind a reverse proxy or load balancer, set `TRUST_PROXY` (e.g. `TRUST_PROXY=1`
+for one hop, or `loopback`) so the throttler keys on the client IP from
+`X-Forwarded-For` instead of the proxy IP. Leave it unset when the app is
+directly exposed: trusting `X-Forwarded-For` without a proxy in front would let
+clients spoof it and rotate through fresh buckets. See
+`src/common/trust-proxy.ts`.
+
+## Password policy
+
+`POST /auth/register` enforces a password policy: at least 8 characters, at most
+72 (bcrypt ignores bytes past 72, so longer passwords would collide), and not one
+of the most common passwords. Violations return `400` with a clear message. The
+rules live in `src/auth/dto/password-policy.ts` so a future reset-password DTO
+can reuse them.
 
 ## Compile and run the project
 

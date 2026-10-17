@@ -5,13 +5,20 @@ export interface DryRunResult {
   sampleIds: string[];
 }
 
+/**
+ * Builds a preview from a bounded sample of matching ids plus the
+ * authoritative total. `totalCount` is passed separately because a dry run
+ * over a large table must not load every matching id into memory just to
+ * report the count.
+ */
 export function buildRetentionDryRunResult(
-  matchingIds: string[],
+  sampleIds: string[],
   sampleSize = 10,
+  totalCount = sampleIds.length,
 ): DryRunResult {
   return {
-    wouldAffect: matchingIds.length,
-    sampleIds: matchingIds.slice(0, sampleSize),
+    wouldAffect: totalCount,
+    sampleIds: sampleIds.slice(0, sampleSize),
   };
 }
 

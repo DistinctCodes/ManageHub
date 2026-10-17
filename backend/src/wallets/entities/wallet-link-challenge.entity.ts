@@ -25,6 +25,17 @@ export class WalletLinkChallenge {
   @Column({ type: 'varchar' })
   nonce: string;
 
+  /**
+   * The external address this challenge is bound to (issue #1946). When
+   * set, verification rejects any attempt to consume the challenge with a
+   * different address, and the address is part of the signed message.
+   * Nullable so a legacy challenge created without an address still
+   * verifies against an address-inclusive signature only if none was
+   * requested.
+   */
+  @Column({ type: 'varchar', name: 'address', nullable: true })
+  address: string | null;
+
   @Column({ type: 'timestamptz', name: 'expires_at' })
   expiresAt: Date;
 

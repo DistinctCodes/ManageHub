@@ -1,3 +1,9 @@
+import {
+  getApiErrorMessage,
+  getRequestId,
+  reportApiError,
+} from "@/lib/api-report";
+
 export type UserRole = "MEMBER" | "ADMIN" | "SUPER_ADMIN";
 
 export interface AuthUser {
@@ -25,21 +31,20 @@ async function authRequest<T>(
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => null);
-    const errorMessage = errorBody?.message ?? `Authentication failed (${response.status})`;
-    const error = new Error(errorMessage);
-    
-    Sentry.captureException(error, {
-      tags: {
-        api: "auth",
-        endpoint: path,
-        statusCode: response.status,
-      },
-      extra: {
-        requestBody: body,
-        responseBody: errorBody,
-      },
+    const fallbackMessage =
+      response.status === 401
+        ? "Invalid credentials"
+        : `Authentication failed (${response.status})`;
+    const error = new Error(getApiErrorMessage(errorBody, fallbackMessage));
+
+    reportApiError({
+      api: "auth",
+      method: "POST",
+      pathTemplate: path,
+      status: response.status,
+      requestId: getRequestId(response),
     });
-    
+
     throw error;
   }
 

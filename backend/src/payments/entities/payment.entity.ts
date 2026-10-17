@@ -57,6 +57,15 @@ export class Payment {
   @Column({ type: 'varchar', name: 'idempotency_key' })
   idempotencyKey: string;
 
+  /**
+   * SHA-256 over the canonical initiate request body that first claimed
+   * `idempotencyKey` (issue #1968). A replay is only a replay when this
+   * hash matches; reusing the key with a different body is a 422. Nullable
+   * so rows created before this column existed still load.
+   */
+  @Column({ type: 'varchar', name: 'request_hash', length: 64, nullable: true })
+  requestHash: string | null;
+
   @Column({ type: 'jsonb', nullable: true })
   metadata: Record<string, unknown> | null;
 

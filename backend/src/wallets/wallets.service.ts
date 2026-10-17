@@ -17,6 +17,7 @@ import { WalletCustodyType } from './enums/wallet-custody-type.enum';
 import { WalletStatus } from './enums/wallet-status.enum';
 import { WalletLedgerEntryType } from './enums/wallet-ledger-entry-type.enum';
 import { KeyCustodyService } from './key-custody/key-custody.service';
+import { buildWalletLinkMessage } from './link-message.util';
 
 const WALLET_ACCOUNT_USER_ID_CONSTRAINT = 'uq_wallet_accounts_user_id';
 const WALLET_ACCOUNT_ADDRESS_CONSTRAINT = 'uq_wallet_accounts_external_address';
@@ -31,6 +32,13 @@ export interface WalletStatusView {
   account: WalletAccount | null;
   balance: number;
   currency: string;
+}
+
+export interface WalletLinkChallengeView {
+  nonce: string;
+  expiresAt: Date;
+  /** The exact message the wallet must sign (issue #1946). */
+  message: string;
 }
 
 /**
@@ -77,8 +85,8 @@ export class WalletsService {
     }
 
     try {
-      return await this.walletAccountRepository.manager.transaction(
-        (manager) => this.insertCustodialWallet(manager, userId),
+      return await this.walletAccountRepository.manager.transaction((manager) =>
+        this.insertCustodialWallet(manager, userId),
       );
     } catch (error) {
       if (
@@ -90,9 +98,7 @@ export class WalletsService {
           withDeleted: true,
         });
         if (winner) {
-          return winner.deletedAt
-            ? this.reviveDeletedAccount(winner)
-            : winner;
+          return winner.deletedAt ? this.reviveDeletedAccount(winner) : winner;
         }
       }
       throw error;
@@ -121,22 +127,20 @@ export class WalletsService {
    * participate in the same locking protocol.
    */
   async getWalletStatus(userId: string): Promise<WalletStatusView> {
-    return this.walletAccountRepository.manager.transaction(
-      async (manager) => {
-        const account = await manager
-          .getRepository(WalletAccount)
-          .createQueryBuilder('wallet_account')
-          .setLock('pessimistic_write')
-          .where('wallet_account.user_id = :userId', { userId })
-          .andWhere('wallet_account.deleted_at IS NULL')
-          .getOne();
-        if (!account) {
-          return { account: null, balance: 0, currency: LEDGER_ASSET };
-        }
-        const balance = await this.getBalance(manager, account.id);
-        return { account, balance, currency: LEDGER_ASSET };
-      },
-    );
+    return this.walletAccountRepository.manager.transaction(async (manager) => {
+      const account = await manager
+        .getRepository(WalletAccount)
+        .createQueryBuilder('wallet_account')
+        .setLock('pessimistic_write')
+        .where('wallet_account.user_id = :userId', { userId })
+        .andWhere('wallet_account.deleted_at IS NULL')
+        .getOne();
+      if (!account) {
+        return { account: null, balance: 0, currency: LEDGER_ASSET };
+      }
+      const balance = await this.getBalance(manager, account.id);
+      return { account, balance, currency: LEDGER_ASSET };
+    });
   }
 
   /**
@@ -237,49 +241,51 @@ export class WalletsService {
       throw new BadRequestException('Funding reason is required');
     }
 
-    return this.walletAccountRepository.manager.transaction(
-      async (manager) => {
-        const account = await manager
-          .getRepository(WalletAccount)
-          .createQueryBuilder('wallet_account')
-          .setLock('pessimistic_write')
-          .where(
-            'wallet_account.user_id = :userId AND wallet_account.deleted_at IS NULL',
-            { userId },
-          )
-          .getOne();
+    return this.walletAccountRepository.manager.transaction(async (manager) => {
+      const account = await manager
+        .getRepository(WalletAccount)
+        .createQueryBuilder('wallet_account')
+        .setLock('pessimistic_write')
+        .where(
+          'wallet_account.user_id = :userId AND wallet_account.deleted_at IS NULL',
+          { userId },
+        )
+        .getOne();
 
-        if (!account || account.deletedAt) {
-          throw new NotFoundException('No wallet found for this user');
-        }
-        if (account.custodyType !== WalletCustodyType.CUSTODIAL) {
-          throw new BadRequestException(
-            'Only custodial wallets can be funded directly',
-          );
-        }
-        if (account.status !== WalletStatus.ACTIVE) {
-          throw new BadRequestException('Wallet is not active');
-        }
-
-        await manager.getRepository(WalletLedgerEntry).save(
-          manager.getRepository(WalletLedgerEntry).create({
-            walletAccountId: account.id,
-            type: WalletLedgerEntryType.CREDIT,
-            amount,
-            currency: LEDGER_ASSET,
-            reason,
-            actorId,
-          }),
+      if (!account || account.deletedAt) {
+        throw new NotFoundException('No wallet found for this user');
+      }
+      if (account.custodyType !== WalletCustodyType.CUSTODIAL) {
+        throw new BadRequestException(
+          'Only custodial wallets can be funded directly',
         );
+      }
+      if (account.status !== WalletStatus.ACTIVE) {
+        throw new BadRequestException('Wallet is not active');
+      }
 
-        return account;
-      },
-    );
+      await manager.getRepository(WalletLedgerEntry).save(
+        manager.getRepository(WalletLedgerEntry).create({
+          walletAccountId: account.id,
+          type: WalletLedgerEntryType.CREDIT,
+          amount,
+          currency: LEDGER_ASSET,
+          reason,
+          actorId,
+        }),
+      );
+
+      return account;
+    });
   }
 
   async createLinkChallenge(
     userId: string,
-  ): Promise<{ nonce: string; expiresAt: Date }> {
+    address?: string,
+  ): Promise<WalletLinkChallengeView> {
+    if (address !== undefined && !StrKey.isValidEd25519PublicKey(address)) {
+      throw new BadRequestException('Not a valid Stellar public address');
+    }
     const ttlSeconds = this.config.get<number>(
       'WALLET_LINK_CHALLENGE_TTL_SECONDS',
       300,
@@ -293,6 +299,7 @@ export class WalletsService {
           userId,
           nonce,
           expiresAt,
+          address: address ?? null,
           consumedAt: null,
         }),
       );
@@ -310,7 +317,11 @@ export class WalletsService {
       throw error;
     }
 
-    return { nonce, expiresAt };
+    return {
+      nonce,
+      expiresAt,
+      message: buildWalletLinkMessage({ userId, address, nonce, expiresAt }),
+    };
   }
 
   /**
@@ -318,6 +329,10 @@ export class WalletsService {
    * user, upgrades to) an external wallet. The challenge row is locked for
    * the duration of the check-and-consume so a captured signature can
    * never be replayed to link twice, even under concurrent requests.
+   *
+   * Issue #1946: the signature is verified over the structured link
+   * message (app/user/address/expiry), not the bare nonce, and the
+   * challenge is bound to the requested address when one was supplied.
    */
   async verifyAndLinkExternalWallet(
     userId: string,
@@ -332,8 +347,19 @@ export class WalletsService {
     try {
       return await this.walletAccountRepository.manager.transaction(
         async (manager) => {
-          const challenge = await this.claimChallenge(manager, userId, nonce);
-          this.verifySignature(address, nonce, signatureBase64);
+          const challenge = await this.claimChallenge(
+            manager,
+            userId,
+            nonce,
+            address,
+          );
+          const message = buildWalletLinkMessage({
+            userId: challenge.userId,
+            address: challenge.address,
+            nonce: challenge.nonce,
+            expiresAt: challenge.expiresAt,
+          });
+          this.verifySignature(address, message, signatureBase64);
           return this.upsertExternalWallet(manager, userId, address, challenge);
         },
       );
@@ -379,10 +405,7 @@ export class WalletsService {
       }),
     );
 
-    const address = await this.keyCustody.provisionKeypair(
-      account.id,
-      manager,
-    );
+    const address = await this.keyCustody.provisionKeypair(account.id, manager);
 
     account.address = address;
     account.status = WalletStatus.ACTIVE;
@@ -423,6 +446,7 @@ export class WalletsService {
     manager: EntityManager,
     userId: string,
     nonce: string,
+    requestedAddress: string,
   ): Promise<WalletLinkChallenge> {
     const challenge = await manager
       .getRepository(WalletLinkChallenge)
@@ -440,6 +464,13 @@ export class WalletsService {
     if (challenge.expiresAt.getTime() < Date.now()) {
       throw new BadRequestException('This challenge has expired');
     }
+    // Reject a bound-challenge/address mismatch before consuming the
+    // challenge, so one bad request cannot burn the user's nonce.
+    if (challenge.address && challenge.address !== requestedAddress) {
+      throw new BadRequestException(
+        'This challenge was issued for a different address',
+      );
+    }
 
     challenge.consumedAt = new Date();
     return manager.getRepository(WalletLinkChallenge).save(challenge);
@@ -447,14 +478,14 @@ export class WalletsService {
 
   private verifySignature(
     address: string,
-    nonce: string,
+    message: string,
     signatureBase64: string,
   ): void {
     let valid: boolean;
     try {
       const keypair = Keypair.fromPublicKey(address);
       valid = keypair.verify(
-        Buffer.from(nonce, 'utf8'),
+        Buffer.from(message, 'utf8'),
         Buffer.from(signatureBase64, 'base64'),
       );
     } catch {
