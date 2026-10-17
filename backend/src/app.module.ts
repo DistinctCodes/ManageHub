@@ -19,6 +19,7 @@ import { MetricsModule } from './common/metrics.module';
 import { MetricsController } from './common/metrics.controller';
 import { RequestContextMiddleware } from './common/request-context.middleware';
 import { RequestDurationInterceptor } from './common/request-duration.interceptor';
+import { NoCacheInterceptor } from './common/no-cache.interceptor';
 import { TracingMiddleware } from './common/tracing.middleware';
 import {
   createThrottlerRedisClient,
@@ -134,6 +135,10 @@ import { buildDatabaseSslOptions } from './database/database-ssl';
     {
       provide: APP_INTERCEPTOR,
       useClass: RequestDurationInterceptor,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: NoCacheInterceptor,
     },
   ],
 })

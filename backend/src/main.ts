@@ -92,9 +92,6 @@ async function bootstrap() {
         'max-age=31536000; includeSubDomains',
       );
     }
-    if (!res.getHeader('x-request-id')) {
-      res.setHeader('x-request-id', req.header('x-request-id') || randomUUID());
-    }
     next();
   });
 
