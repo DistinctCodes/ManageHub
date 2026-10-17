@@ -1,0 +1,9 @@
+# Rust build artifacts
+target/
+
+# Compiled WebAssembly files
+*.wasm
+
+# Local environment and deployment configuration
+.env*
+deployments/*.local.json
