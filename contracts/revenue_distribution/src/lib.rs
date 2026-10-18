@@ -78,6 +78,10 @@ pub enum Error {
 pub struct RevenueDistributionContract;
 
 fn bump_ttl(env: &Env) {
+    // The contract must remain invokable to read its persistent configuration.
+    env.storage()
+        .instance()
+        .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
     env.storage()
         .persistent()
         .extend_ttl(&DataKey::Config, TTL_THRESHOLD, TTL_EXTEND_TO);
