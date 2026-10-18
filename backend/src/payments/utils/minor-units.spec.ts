@@ -1,8 +1,12 @@
 import {
+  addMinorUnits,
   apportionByBasisPoints,
   assertMinorUnits,
+  assertPositiveMinorUnits,
   MinorUnitsError,
   multiplyMinorUnits,
+  subtractMinorUnits,
+  sumMinorUnits,
   TOTAL_BASIS_POINTS,
 } from './minor-units';
 
@@ -74,9 +78,7 @@ describe('multiplyMinorUnits', () => {
     expect(() => multiplyMinorUnits(100, 10001, 10000)).toThrow(
       /cannot exceed/,
     );
-    expect(() => multiplyMinorUnits(100.5, 1, 10000)).toThrow(
-      MinorUnitsError,
-    );
+    expect(() => multiplyMinorUnits(100.5, 1, 10000)).toThrow(MinorUnitsError);
     expect(() => multiplyMinorUnits(100, -1, 10000)).toThrow(MinorUnitsError);
   });
 });
@@ -93,28 +95,22 @@ describe('apportionByBasisPoints', () => {
   });
 
   it('assigns a single minor unit to exactly one recipient', () => {
-    const allocations = apportionByBasisPoints(1, [1000, 1000, 1000, 1000]);
+    const allocations = apportionByBasisPoints(1, [2500, 2500, 2500, 2500]);
     expect(sum(allocations)).toBe(1);
     expect(allocations.filter((amount) => amount === 1)).toHaveLength(1);
     expect(allocations.every((amount) => Number.isInteger(amount))).toBe(true);
   });
 
   it('keeps a maximum safely scalable amount exact', () => {
-    const amount = Math.floor(
-      Number.MAX_SAFE_INTEGER / TOTAL_BASIS_POINTS,
-    );
+    const amount = Math.floor(Number.MAX_SAFE_INTEGER / TOTAL_BASIS_POINTS);
     const allocations = apportionByBasisPoints(amount, [1, 9999]);
     expect(sum(allocations)).toBe(amount);
     expect(allocations.every((value) => Number.isInteger(value))).toBe(true);
   });
 
   it('rejects fractional, non-finite, negative, and unsafe inputs', () => {
-    expect(() => apportionByBasisPoints(1.5, [10000])).toThrow(
-      MinorUnitsError,
-    );
-    expect(() => apportionByBasisPoints(1, [10000.5])).toThrow(
-      MinorUnitsError,
-    );
+    expect(() => apportionByBasisPoints(1.5, [10000])).toThrow(MinorUnitsError);
+    expect(() => apportionByBasisPoints(1, [10000.5])).toThrow(MinorUnitsError);
     expect(() => apportionByBasisPoints(Number.NaN, [10000])).toThrow(
       MinorUnitsError,
     );
@@ -147,9 +143,7 @@ describe('apportionByBasisPoints', () => {
 
       for (let index = 0; index < recipientCount - 1; index += 1) {
         const share =
-          index === recipientCount - 2
-            ? remaining
-            : random() % (remaining + 1);
+          index === recipientCount - 2 ? remaining : random() % (remaining + 1);
         basisPoints.push(share);
         remaining -= share;
       }
@@ -158,6 +152,103 @@ describe('apportionByBasisPoints', () => {
       const allocations = apportionByBasisPoints(amount, basisPoints);
       expect(sum(allocations)).toBe(amount);
       expect(allocations.every((value) => Number.isInteger(value))).toBe(true);
+      expect(allocations.every((value) => value >= 0)).toBe(true);
+    }
+  });
+});
+
+describe('assertPositiveMinorUnits', () => {
+  it('accepts and returns a strictly positive safe integer', () => {
+    expect(assertPositiveMinorUnits(1, 'amount')).toBe(1);
+    expect(assertPositiveMinorUnits(Number.MAX_SAFE_INTEGER, 'amount')).toBe(
+      Number.MAX_SAFE_INTEGER,
+    );
+  });
+
+  it('rejects zero, negatives, fractions, and unsafe values', () => {
+    for (const value of [0, -1, 1.5, Number.NaN, Number.MAX_SAFE_INTEGER + 1]) {
+      expect(() => assertPositiveMinorUnits(value, 'amount')).toThrow(
+        MinorUnitsError,
+      );
+    }
+  });
+});
+
+describe('addMinorUnits / subtractMinorUnits / sumMinorUnits', () => {
+  it('adds and sums within the safe integer range', () => {
+    expect(addMinorUnits(1, 2, 3)).toBe(6);
+    expect(sumMinorUnits([1000, 250, 1])).toBe(1251);
+    expect(sumMinorUnits([])).toBe(0);
+  });
+
+  it('rejects an addition that leaves the safe integer range', () => {
+    expect(() => addMinorUnits(Number.MAX_SAFE_INTEGER, 1)).toThrow(
+      MinorUnitsError,
+    );
+    expect(() => sumMinorUnits([Number.MAX_SAFE_INTEGER, 1])).toThrow(
+      MinorUnitsError,
+    );
+  });
+
+  it('rejects non-integer or negative inputs', () => {
+    expect(() => addMinorUnits(1, 0.5)).toThrow(MinorUnitsError);
+    expect(() => sumMinorUnits([1, -1])).toThrow(MinorUnitsError);
+  });
+
+  it('subtracts without going negative', () => {
+    expect(subtractMinorUnits(10, 4)).toBe(6);
+    expect(subtractMinorUnits(4, 4)).toBe(0);
+    expect(() => subtractMinorUnits(4, 10)).toThrow(/would be negative/);
+    expect(() => subtractMinorUnits(4, 0.5)).toThrow(MinorUnitsError);
+  });
+});
+
+/**
+ * The property the money paths rely on (issue #1950): however a captured
+ * amount is split or refunded, the pieces always reconcile back to the exact
+ * input — no unit is created and none is lost.
+ */
+describe('money conservation (property)', () => {
+  it('every random partial-refund sequence reconciles to the captured amount', () => {
+    const random = seededRandom(0x1950_0001);
+
+    for (let iteration = 0; iteration < 2_000; iteration += 1) {
+      const captured = random() % 1_000_000_000;
+      let remaining = captured;
+      let refunded = 0;
+      const refundCount = random() % 10;
+
+      for (let index = 0; index < refundCount && remaining > 0; index += 1) {
+        const amount = (random() % remaining) + 1;
+        remaining = subtractMinorUnits(remaining, amount);
+        refunded = addMinorUnits(refunded, amount);
+        expect(remaining).toBeGreaterThanOrEqual(0);
+      }
+
+      expect(addMinorUnits(refunded, remaining)).toBe(captured);
+      expect(refunded).toBeLessThanOrEqual(captured);
+    }
+  });
+
+  it('every random basis-point split reconciles to the input amount', () => {
+    const random = seededRandom(0x1950_0002);
+
+    for (let iteration = 0; iteration < 2_000; iteration += 1) {
+      const amount = random() % 1_000_000_000;
+      const recipientCount = 2 + (random() % 8);
+      const basisPoints: number[] = [];
+      let remainder = TOTAL_BASIS_POINTS;
+
+      for (let index = 0; index < recipientCount - 1; index += 1) {
+        const share =
+          index === recipientCount - 2 ? remainder : random() % (remainder + 1);
+        basisPoints.push(share);
+        remainder -= share;
+      }
+      basisPoints.push(remainder);
+
+      const allocations = apportionByBasisPoints(amount, basisPoints);
+      expect(sumMinorUnits(allocations)).toBe(amount);
       expect(allocations.every((value) => value >= 0)).toBe(true);
     }
   });

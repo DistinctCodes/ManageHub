@@ -13,7 +13,8 @@ import { UserRole } from './enums/user-role.enum';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
-import { AuthResponseDto } from './dto/auth-response.dto';
+import { AuthResponseDto, AuthUserDto } from './dto/auth-response.dto';
+import { RequestUser } from './interfaces/authenticated-request.interface';
 
 /**
  * Cost factor every password hash in this service uses (issue #1964). Both
@@ -162,6 +163,20 @@ export class AuthService {
     user.role = role;
     user.tokenVersion = (user.tokenVersion ?? 0) + 1;
     return this.users.save(user);
+  }
+
+  /**
+   * Restores the session client-side (issue #1973): the HttpOnly cookie
+   * cannot be read by the frontend, so `GET /auth/me` is the only way to
+   * learn who is signed in and with which role. A revoked token never gets
+   * this far (the guard's verifier rejects it), so a hit means "logged in".
+   */
+  async me(currentUser: RequestUser): Promise<AuthUserDto> {
+    const user = await this.users.findOne({ where: { id: currentUser.id } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return { id: user.id, email: user.email, role: user.role };
   }
 
   private async bumpTokenVersion(userId: string): Promise<void> {

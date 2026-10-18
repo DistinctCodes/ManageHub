@@ -1,11 +1,10 @@
 # Build configuration for the contracts/ Cargo workspace.
 #
-# Sets wasm32-unknown-unknown as the default compile target so that
-# `cargo build --workspace` (and CI) produce Soroban-compatible Wasm
-# binaries without requiring an explicit --target flag on every invocation.
+# There is deliberately no default `[build] target`: a global wasm32 target
+# makes `cargo test` build the test harness for wasm, which cannot run.
+# WASM artifacts are built with an explicit target instead:
 #
-# The stable Rust toolchain and the wasm32 target component are pinned in
-# the sibling rust-toolchain.toml, which rustup reads automatically.
-
-[build]
-target = "wasm32-unknown-unknown"
+#   cargo build --workspace --release --target wasm32-unknown-unknown
+#
+# (see the root Makefile `build` target and the contracts CI job). The pinned
+# toolchain and wasm32 target component live in rust-toolchain.toml.

@@ -3,20 +3,28 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Wallet, ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight } from "lucide-react";
-import Cookies from "js-cookie";
+import { useSessionBootstrap } from "@/lib/stores/use-session-bootstrap";
+import { useSessionStore } from "@/lib/stores/session-store";
+import { UserMenu } from "@/components/auth/user-menu";
 import { getCreditBalance, getCreditStatement } from "@/lib/credits-api";
 import type { CreditStatementEntry } from "@/lib/credits-api";
 
 const PAGE_SIZE = 20;
 
-function useAccessToken(): string | null {
-  return Cookies.get("accessToken") ?? null;
-}
-
 export default function CreditsPage() {
-  const token = useAccessToken();
+  useSessionBootstrap();
+  const user = useSessionStore((state) => state.user);
+  const sessionStatus = useSessionStore((state) => state.status);
 
-  if (!token) {
+  if (sessionStatus === "unknown") {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <p className="text-sm text-gray-500">Checking your session...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="max-w-sm rounded-xl border border-dashed border-gray-300 px-8 py-12 text-center dark:border-gray-700">
@@ -32,20 +40,20 @@ export default function CreditsPage() {
     );
   }
 
-  return <CreditsInner token={token} />;
+  return <CreditsInner />;
 }
 
-function CreditsInner({ token }: { token: string }) {
+function CreditsInner() {
   const [page, setPage] = useState(1);
 
   const balance = useQuery({
     queryKey: ["credit-balance"],
-    queryFn: () => getCreditBalance(token),
+    queryFn: () => getCreditBalance(),
   });
 
   const statement = useQuery({
     queryKey: ["credit-statement", page],
-    queryFn: () => getCreditStatement(token, page, PAGE_SIZE),
+    queryFn: () => getCreditStatement(page, PAGE_SIZE),
   });
 
   const totalPages = statement.data
@@ -54,6 +62,9 @@ function CreditsInner({ token }: { token: string }) {
 
   return (
     <div className="mx-auto max-w-3xl space-y-8 px-4 py-8">
+      <div className="flex items-center justify-end">
+        <UserMenu />
+      </div>
       {/* Balance card */}
       <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 p-6 text-white shadow-lg">
         <div className="flex items-start justify-between">

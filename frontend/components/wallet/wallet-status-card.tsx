@@ -12,7 +12,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { WalletLinkForm } from "@/components/wallet/wallet-link-form";
-import { useSessionStore } from "@/lib/stores/session-store";
+import { useSignOut } from "@/components/auth/use-sign-out";
 
 /**
  * Minor-unit decimal places per currency. `GET /credits/balance` is
@@ -54,7 +54,7 @@ export function formatBalance(minorUnits: number, currency: string): string {
  */
 export function WalletStatusCard() {
   const queryClient = useQueryClient();
-  const setAccessToken = useSessionStore((state) => state.setAccessToken);
+  const signOut = useSignOut();
   const [linking, setLinking] = useState(false);
   const [nonce, setNonce] = useState<string | null>(null);
 
@@ -140,7 +140,7 @@ export function WalletStatusCard() {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Your balance</CardTitle>
-        <Button variant="link" onClick={() => setAccessToken(null)}>
+        <Button variant="link" onClick={() => signOut()}>
           Sign out
         </Button>
       </CardHeader>

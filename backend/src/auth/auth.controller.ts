@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -14,7 +15,7 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
-import { AuthResponseDto } from './dto/auth-response.dto';
+import { AuthResponseDto, AuthUserDto } from './dto/auth-response.dto';
 import { Response, CookieOptions } from 'express';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
@@ -56,6 +57,16 @@ export class AuthController {
     const result = await this.authService.login(dto);
     res.cookie('accessToken', result.accessToken, COOKIE_OPTIONS);
     return result;
+  }
+
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary:
+      'Return the authenticated user (id, email, role) so the client can restore a session from the HttpOnly cookie without exposing it to JavaScript',
+  })
+  async me(@CurrentUser() currentUser: RequestUser): Promise<AuthUserDto> {
+    return this.authService.me(currentUser);
   }
 
   @Post('logout')
@@ -115,3 +126,4 @@ export class AuthController {
     return { id: user.id, role: user.role };
   }
 }
+

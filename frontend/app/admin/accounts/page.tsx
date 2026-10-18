@@ -16,7 +16,7 @@ import {
   SecondaryButton,
   inputClass,
 } from "@/components/admin/ui";
-import { RequireAdmin, useAdminToken } from "@/components/admin/require-admin";
+import { RequireAdmin } from "@/components/admin/require-admin";
 
 const KINDS: LedgerAccountKind[] = [
   "USER",
@@ -28,27 +28,25 @@ const KINDS: LedgerAccountKind[] = [
 ];
 
 export default function AccountsPage() {
-  const token = useAdminToken();
-
   return (
     <RequireAdmin>
-      <AccountsInner token={token as string} />
+      <AccountsInner />
     </RequireAdmin>
   );
 }
 
-function AccountsInner({ token }: { token: string }) {
+function AccountsInner() {
   const queryClient = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
 
   const accounts = useQuery({
     queryKey: ["ledger-accounts"],
-    queryFn: () => listAccounts(token),
+    queryFn: () => listAccounts(),
   });
 
   const freeze = useMutation({
     mutationFn: ({ id, frozen }: { id: string; frozen: boolean }) =>
-      updateAccount(token, id, { frozen }),
+      updateAccount(id, { frozen }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ledger-accounts"] });
       toast.success("Account policy updated");
@@ -74,7 +72,7 @@ function AccountsInner({ token }: { token: string }) {
       </div>
 
       {showCreate && (
-        <CreateAccountForm token={token} onDone={() => setShowCreate(false)} />
+        <CreateAccountForm onDone={() => setShowCreate(false)} />
       )}
 
       <Card>
@@ -176,10 +174,8 @@ function AccountRow({
 }
 
 function CreateAccountForm({
-  token,
   onDone,
 }: {
-  token: string;
   onDone: () => void;
 }) {
   const queryClient = useQueryClient();
@@ -201,7 +197,7 @@ function CreateAccountForm({
 
   const create = useMutation({
     mutationFn: () =>
-      createAccount(token, {
+      createAccount({
         kind: form.kind,
         ownerId: form.ownerId || undefined,
         currency: form.currency,
