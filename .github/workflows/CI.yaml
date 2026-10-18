@@ -205,9 +205,9 @@ jobs:
         uses: actions/checkout@v4
 
       # rustup reads contracts/rust-toolchain.toml automatically and installs
-      # the pinned stable channel plus the wasm32-unknown-unknown target.
-      - name: Install Rust toolchain (stable + wasm32)
-        uses: dtolnay/rust-toolchain@1.79.0
+      # the pinned toolchain plus the wasm32-unknown-unknown target.
+      - name: Install Rust toolchain (1.85 + wasm32)
+        uses: dtolnay/rust-toolchain@1.85.0
         with:
           targets: wasm32-unknown-unknown
           components: rustfmt,clippy,rust-src
