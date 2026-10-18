@@ -1,4 +1,6 @@
-﻿// lib/credits-api.ts  -- member-facing credit API (FE-108)
+// lib/credits-api.ts  -- member-facing credit API (FE-108)
+
+import { expireSession } from "@/lib/session-expiry";
 
 export interface CreditBalance {
   accountId: string;
@@ -69,19 +71,24 @@ export class CreditsApiError extends Error {
 
 async function creditsFetch<T>(
   path: string,
-  accessToken: string,
   init?: RequestInit,
 ): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`,
       ...init?.headers,
     },
+    // The API authorizes every credits call through the HttpOnly session
+    // cookie (issue #1975); if it has been rejected, route the user to login
+    // instead of leaving stale state around (issue #1977).
+    credentials: "include",
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      expireSession();
+    }
     const body: unknown = await response.json().catch(() => null);
     throw new CreditsApiError(response.status, body);
   }
@@ -94,17 +101,15 @@ async function creditsFetch<T>(
 
 // -- member credit balance (FE-108) -----------------------------------------------
 
-export function getCreditBalance(accessToken: string): Promise<CreditBalance> {
-  return creditsFetch<CreditBalance>("/credits/balance", accessToken);
+export function getCreditBalance(): Promise<CreditBalance> {
+  return creditsFetch<CreditBalance>("/credits/balance");
 }
 
 export function getCreditStatement(
-  accessToken: string,
   page = 1,
   pageSize = 20,
 ): Promise<CreditStatement> {
   return creditsFetch<CreditStatement>(
     `/credits/statement?page=${page}&pageSize=${pageSize}`,
-    accessToken,
   );
 }

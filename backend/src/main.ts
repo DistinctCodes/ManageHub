@@ -2,9 +2,9 @@ import { NestFactory } from '@nestjs/core';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
+import { setupSwagger } from './common/swagger';
 import { AllExceptionsFilter } from './common/http-exception.filter';
 import { isOriginAllowed, resolveAllowedOrigins } from './common/cors';
 import { WsCorsIoAdapter } from './common/ws-cors.io-adapter';
@@ -62,11 +62,7 @@ async function bootstrap() {
   app.set('trust proxy', resolveTrustProxy(process.env));
 
   const requestBodyLimit = process.env.REQUEST_BODY_LIMIT ?? '1mb';
-  const captureRawBody = (
-    req: Request,
-    _res: Response,
-    buf: Buffer,
-  ): void => {
+  const captureRawBody = (req: Request, _res: Response, buf: Buffer): void => {
     (req as RawBodyRequest).rawBody = Buffer.from(buf);
   };
 
@@ -151,36 +147,9 @@ async function bootstrap() {
     ],
   });
 
-  const config = new DocumentBuilder()
-    .setTitle('ManageHub API')
-    .setDescription(
-      'ManageHub backend API.\n\n' +
-        '## Payment state machine\n' +
-        'INITIATED -> AWAITING_CONFIRMATION -> CONFIRMED | FAILED | EXPIRED\n' +
-        'CONFIRMED -> REFUNDED | PARTIALLY_REFUNDED\n' +
-        'All transitions are enforced by a single guarded service method.\n\n' +
-        '## Credit ledger\n' +
-        'Charges too small to settle on-chain per event move value inside a ' +
-        'double-entry ledger instead: a charge debits the member and credits ' +
-        'platform revenue, and value only crosses the platform boundary ' +
-        'later, in one netted settlement batch per recipient.\n' +
-        '- Every ledger transaction balances (debits == credits) and its ' +
-        '`reference` is unique, so any retry is a no-op rather than a ' +
-        'duplicate.\n' +
-        '- A charge is refused if it would breach the account overdraft ' +
-        'ceiling (0 by default), checked under the account row lock so ' +
-        'concurrent charges cannot overdraw together.\n' +
-        '- Revenue splits are basis points summing to exactly 10000, ' +
-        'allocated by the largest-remainder method so rounding never loses ' +
-        'or duplicates a minor unit.\n' +
-        '- Settlement never marks a ledger entry settled until the payout ' +
-        'rail confirms the transfer from fresh state.',
-    )
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document);
+  // Swagger is a development tool and is off in production unless
+  // SWAGGER_ENABLED=true; see src/common/swagger.ts (issue #1951).
+  setupSwagger(app);
 
   const port = process.env.PORT ?? 6000;
   await app.listen(port);

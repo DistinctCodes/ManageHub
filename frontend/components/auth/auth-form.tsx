@@ -12,7 +12,7 @@ type Mode = "login" | "register";
 export function AuthForm({ mode }: { mode: Mode }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const setAccessToken = useSessionStore((state) => state.setAccessToken);
+  const setSession = useSessionStore((state) => state.setSession);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -35,7 +35,9 @@ export function AuthForm({ mode }: { mode: Mode }) {
       const result = isLogin
         ? await login(email.trim(), password)
         : await register(email.trim(), password);
-      setAccessToken(result.accessToken);
+      // The backend already set its HttpOnly cookie for this response; the
+      // token surname in the body is kept in memory only (session-store).
+      setSession(result.user, result.accessToken);
       const returnTo = getSafeReturnTo(
         searchParams.get("returnTo") ?? searchParams.get("next"),
       );

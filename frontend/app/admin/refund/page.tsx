@@ -14,7 +14,6 @@ import {
   requestRefund,
   type Payment,
 } from "@/lib/payments-api";
-import Cookies from "js-cookie";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -24,14 +23,12 @@ function PaymentRow({ payment }: { payment: Payment }) {
   const [amount, setAmount] = useState(String(payment.amount));
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
-  const token = typeof window !== "undefined" ? Cookies.get("accessToken") : null;
 
   async function onRefund(e: React.FormEvent) {
     e.preventDefault();
-    if (!token) return;
     setBusy(true);
     try {
-      await requestRefund(token, payment.id, Number(amount), reason);
+      await requestRefund(payment.id, Number(amount), reason);
       toast.success("Refund request submitted");
       setReason("");
       await queryClient.invalidateQueries({ queryKey: ["manual-review"] });
@@ -91,11 +88,9 @@ function PaymentRow({ payment }: { payment: Payment }) {
 }
 
 export default function AdminRefundPage() {
-  const token = typeof window !== "undefined" ? Cookies.get("accessToken") : null;
   const { data, isLoading, error } = useQuery({
     queryKey: ["manual-review"],
-    queryFn: () => listManualReviewPayments(token!),
-    enabled: !!token,
+    queryFn: () => listManualReviewPayments(),
   });
 
   return (
@@ -107,9 +102,7 @@ export default function AdminRefundPage() {
             description="Payments awaiting reconciliation or manual review can be refunded."
           />
           <div className="space-y-4 px-5 py-4">
-            {!token ? (
-              <p className="text-sm text-amber-600">Sign in required.</p>
-            ) : isLoading ? (
+            isLoading ? (
               <p className="text-sm text-gray-500">Loading…</p>
             ) : error ? (
               <p className="text-sm text-red-600">{(error as Error).message}</p>
