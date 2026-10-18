@@ -15,6 +15,11 @@ import { assertValidTransition } from './payment-state-machine';
 import { PaymentRailRegistry } from './payment-rail-registry';
 import { PaymentsGateway } from './payments.gateway';
 import { retryWithBackoff } from './utils/retry-with-backoff';
+import {
+  addMinorUnits,
+  assertPositiveMinorUnits,
+  subtractMinorUnits,
+} from './utils/minor-units';
 
 const REFUNDABLE_STATUSES: ReadonlySet<PaymentStatus> = new Set([
   PaymentStatus.CONFIRMED,
@@ -58,7 +63,9 @@ export class RefundsService {
     reason: string,
     actorId: string | null,
   ): Promise<RefundResult> {
-    if (!Number.isInteger(amount) || amount <= 0) {
+    try {
+      assertPositiveMinorUnits(amount, 'Refund amount');
+    } catch {
       throw new BadRequestException(
         'Refund amount must be a positive integer (minor units)',
       );
@@ -127,7 +134,7 @@ export class RefundsService {
       .where('refund.payment_id = :paymentId', { paymentId })
       .getRawOne<{ total: string }>();
     const refundedSoFar = Number(alreadyRefunded?.total ?? 0);
-    const remaining = payment.amount - refundedSoFar;
+    const remaining = subtractMinorUnits(payment.amount, refundedSoFar);
 
     if (amount > remaining) {
       throw new ConflictException(
@@ -144,7 +151,7 @@ export class RefundsService {
     const savedRefund = await manager.getRepository(Refund).save(refund);
 
     const nextStatus =
-      refundedSoFar + amount >= payment.amount
+      addMinorUnits(refundedSoFar, amount) >= payment.amount
         ? PaymentStatus.REFUNDED
         : PaymentStatus.PARTIALLY_REFUNDED;
 

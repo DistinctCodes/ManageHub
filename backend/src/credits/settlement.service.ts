@@ -31,7 +31,7 @@ import { SettlementPayoutStatus } from './enums/settlement-payout-status.enum';
 import { LedgerService } from './ledger.service';
 import { RevenueSplitService } from './revenue-split.service';
 import { EXTERNAL_PAYOUT_RAIL } from './credits.tokens';
-import { ExternalPayoutRail } from './interfaces';
+import { ExternalPayoutRail } from './interfaces/external-payout-rail.interface';
 import { MetricsService } from '../common/metrics.service';
 import { withRequestId } from '../common/request-context';
 
