@@ -73,7 +73,9 @@ describe("lib/http request", () => {
   });
 
   it("expires the session on a 401 unless told not to", async () => {
-    fetchMock.mockResolvedValue(jsonResponse(401, { message: "nope" }));
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(jsonResponse(401, { message: "nope" })),
+    );
 
     await expect(request("/wallets/me", { service: "wallet" })).rejects.toThrow(
       "nope",

@@ -19,6 +19,7 @@ export default defineConfig({
   webServer: {
     command: "npm run dev",
     url: "http://localhost:3000",
+    env: { JWT_SECRET: "playwright-test-secret" },
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },

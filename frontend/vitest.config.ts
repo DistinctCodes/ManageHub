@@ -12,6 +12,13 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
+    exclude: ["e2e/**", "node_modules/**", "dist/**"],
+    coverage: {
+      include: ["app/admin/**/*.tsx"],
+      exclude: ["app/admin/**/__tests__/**"],
+      reporter: ["text", "json-summary"],
+      thresholds: { statements: 60 },
+    },
   },
   resolve: {
     alias: {

@@ -2,6 +2,11 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { axe, toHaveNoViolations } from "jest-axe";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: vi.fn() }),
+}));
+
 import { WalletStatusCard } from "../wallet-status-card";
 import * as walletApi from "@/lib/wallet-api";
 

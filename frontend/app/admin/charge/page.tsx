@@ -20,10 +20,10 @@ export default function AdminChargePage() {
   const [reference, setReference] = useState("");
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const [result, setResult] = useState<ChargeCreditsResponse | null>(null);
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function confirmCharge() {
     setBusy(true);
     try {
       const res = await chargeCredits(
@@ -36,6 +36,7 @@ export default function AdminChargePage() {
         },
       );
       setResult(res);
+      setConfirming(false);
       toast.success(res.posted ? "Charge posted" : "Charge already applied");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Charge failed");
@@ -52,7 +53,13 @@ export default function AdminChargePage() {
             title="Charge credits"
             description="Charge a member's credit balance (internal, service-to-service)."
           />
-          <form onSubmit={onSubmit} className="space-y-4 px-5 py-5">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              setConfirming(true);
+            }}
+            className="space-y-4 px-5 py-5"
+          >
             <Field label="User ID">
               <input
                 className={inputClass}
@@ -103,6 +110,35 @@ export default function AdminChargePage() {
             </Button>
           </form>
         </Card>
+
+        {confirming ? (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="confirm-charge-title"
+            className="mt-6 rounded-md border border-amber-300 bg-amber-50 p-4 text-sm dark:border-amber-800 dark:bg-amber-950"
+          >
+            <h2 id="confirm-charge-title" className="font-semibold">
+              Confirm charge
+            </h2>
+            <p className="mt-1">
+              Charge {amount || "0"} minor units to {userId || "this member"}?
+            </p>
+            <div className="mt-4 flex gap-3">
+              <Button type="button" onClick={confirmCharge} disabled={busy}>
+                {busy ? "Chargingâ€¦" : "Confirm charge"}
+              </Button>
+              <Button
+                type="button"
+                className="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                onClick={() => setConfirming(false)}
+                disabled={busy}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        ) : null}
 
         {result ? (
           <div className="mt-6 rounded-md border border-gray-200 p-4 text-sm dark:border-gray-800">

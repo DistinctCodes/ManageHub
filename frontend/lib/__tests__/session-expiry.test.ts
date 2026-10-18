@@ -1,7 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { toast } from "sonner";
-
-import { useSessionStore } from "../stores/session-store";
 
 vi.mock("sonner", () => ({
   toast: {
@@ -23,9 +21,6 @@ describe("session expiry reactions (issue #1977)", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    useSessionStore
-      .getState()
-      .setSession({ id: "u1", email: "a@example.com", role: "user" });
     assignSpy.mockClear();
     // jsdom does not implement navigation: observe it instead.
     Object.defineProperty(window, "location", {
@@ -38,12 +33,12 @@ describe("session expiry reactions (issue #1977)", () => {
     });
   });
 
-  afterEach(() => {
-    useSessionStore.getState().clearSession();
-  });
-
   it("clears the session, shows a toast and redirects to login once", async () => {
     const { expireSession } = await loadExpiry();
+    const { useSessionStore } = await import("../stores/session-store");
+    useSessionStore
+      .getState()
+      .setSession({ id: "u1", email: "a@example.com", role: "user" });
 
     expireSession();
 
@@ -60,6 +55,10 @@ describe("session expiry reactions (issue #1977)", () => {
 
   it("coalesces parallel 401s into a single redirect (no loops)", async () => {
     const { expireSession } = await loadExpiry();
+    const { useSessionStore } = await import("../stores/session-store");
+    useSessionStore
+      .getState()
+      .setSession({ id: "u1", email: "a@example.com", role: "user" });
 
     expireSession();
     expireSession();
@@ -71,6 +70,10 @@ describe("session expiry reactions (issue #1977)", () => {
 
   it("does nothing extra when the user is already on an auth page", async () => {
     const { expireSession } = await loadExpiry();
+    const { useSessionStore } = await import("../stores/session-store");
+    useSessionStore
+      .getState()
+      .setSession({ id: "u1", email: "a@example.com", role: "user" });
     Object.assign(window.location, { pathname: "/login", search: "" });
 
     expireSession();
@@ -82,6 +85,10 @@ describe("session expiry reactions (issue #1977)", () => {
 
   it("redirects carry only the return path, never credentials or body data", async () => {
     const { expireSession } = await loadExpiry();
+    const { useSessionStore } = await import("../stores/session-store");
+    useSessionStore
+      .getState()
+      .setSession({ id: "u1", email: "a@example.com", role: "user" });
     Object.assign(window.location, { pathname: "/wallet", search: "" });
 
     expireSession();

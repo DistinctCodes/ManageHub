@@ -154,9 +154,10 @@ describe("wallet-api", () => {
 
       expect(Sentry.captureException).toHaveBeenCalledTimes(1);
       const [error, context] = vi.mocked(Sentry.captureException).mock.calls[0];
-      expect((error as Error).message).toBe("Wallet not found");
+      expect((error as Error).message).toBe("wallet request failed (404)");
       expect(context).toMatchObject({
-        tags: { api: "wallet", endpoint: "/wallets/me", statusCode: 404 },
+        tags: { api: "wallet", statusCode: "404" },
+        extra: { pathTemplate: "/wallets/me", statusCode: 404 },
       });
     });
 

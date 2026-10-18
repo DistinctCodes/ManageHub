@@ -54,12 +54,17 @@ function ConfirmDialog({
 }) {
   const [value, setValue] = useState("");
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="payment-confirm-title"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+    >
       <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl dark:bg-gray-900">
         <div className="flex items-start gap-3">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
           <div>
-            <h2 className="text-base font-semibold text-gray-900 dark:text-gray-50">
+            <h2 id="payment-confirm-title" className="text-base font-semibold text-gray-900 dark:text-gray-50">
               {title}
             </h2>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">

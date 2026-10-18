@@ -1,6 +1,14 @@
-import { afterEach } from "vitest";
+import { afterEach, vi } from "vitest";
 import { cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
+
+// Avoid loading Sentry's Next.js build instrumentation in unit tests. Tests
+// that verify Sentry calls provide their own file-scoped mocks.
+vi.mock("@sentry/nextjs", () => ({
+  captureException: vi.fn(),
+  init: vi.fn(),
+  replayIntegration: vi.fn(() => ({})),
+}));
 
 // RTL's automatic afterEach(cleanup) only registers itself when it detects a
 // global `afterEach` (i.e. `test.globals: true`). This project doesn't set

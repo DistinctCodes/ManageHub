@@ -125,9 +125,10 @@ describe("AuthForm per-field API errors (issue #1988)", () => {
     );
     renderForm("register");
 
-    await user.type(screen.getByLabelText("Email"), "not-an-email");
-    await user.type(screen.getByLabelText("Password"), "short");
-    await user.type(screen.getByLabelText("Confirm password"), "short");
+    // Use browser-valid input so the API validation response is exercised.
+    await user.type(screen.getByLabelText("Email"), "person@example.com");
+    await user.type(screen.getByLabelText("Password"), "password-one");
+    await user.type(screen.getByLabelText("Confirm password"), "password-one");
     await user.click(screen.getByRole("button", { name: "Create account" }));
 
     const emailError = await screen.findByText("email must be an email");
@@ -227,7 +228,7 @@ describe("AuthForm per-field API errors (issue #1988)", () => {
     );
     renderForm("register");
 
-    await user.type(screen.getByLabelText("Email"), "nope");
+    await user.type(screen.getByLabelText("Email"), "person@example.com");
     await user.type(screen.getByLabelText("Password"), "password-one");
     await user.type(screen.getByLabelText("Confirm password"), "password-one");
     await user.click(screen.getByRole("button", { name: "Create account" }));

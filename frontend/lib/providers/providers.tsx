@@ -24,7 +24,7 @@ export function isAuthError(error: unknown): boolean {
       error.message.includes("401") ||
       error.message.includes("403") ||
       error.message.includes("Unauthorized") ||
-      error.message.includes("Forbidden")
+      error.message.toLowerCase().includes("forbidden")
     ) {
       return true;
     }

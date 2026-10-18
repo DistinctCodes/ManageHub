@@ -35,6 +35,8 @@ export const ADMIN_NAV: AdminNavItem[] = [
 
 // Detail pages reached from their parent list, not navigated directly.
 export const ADMIN_NAV_EXEMPT_ROUTES: string[] = [
+  // Access is denied by RequireAdmin; this destination is intentionally not navigable.
+  "admin/forbidden",
   "admin/payments/[id]",
   "admin/settlements/[id]",
   "admin/splits/[id]",

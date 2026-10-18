@@ -65,6 +65,7 @@ function PaymentRow({ payment }: { payment: Payment }) {
             className={inputClass}
             type="number"
             min={1}
+            max={payment.amount}
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             required
@@ -103,7 +104,7 @@ export default function AdminRefundPage() {
             description="Payments awaiting reconciliation or manual review can be refunded."
           />
           <div className="space-y-4 px-5 py-4">
-            isLoading ? (
+            {isLoading ? (
               <p className="text-sm text-gray-500">Loading…</p>
             ) : error ? (
               <p className="text-sm text-red-600">{(error as Error).message}</p>

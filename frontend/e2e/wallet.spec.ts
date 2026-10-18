@@ -1,4 +1,7 @@
 import { test, expect } from "@playwright/test";
+import { SignJWT } from "jose";
+
+const JWT_SECRET = "playwright-test-secret";
 
 /**
  * End-to-end coverage of the one flow that currently works end to end in
@@ -11,10 +14,17 @@ import { test, expect } from "@playwright/test";
  * real, keeping this test self-contained and fast in CI.
  */
 async function signIn(page: import("@playwright/test").Page) {
+  const token = await new SignJWT({ role: "user" })
+    .setProtectedHeader({ alg: "HS256" })
+    .setSubject("e2e-user")
+    .setIssuedAt()
+    .setExpirationTime("1h")
+    .sign(new TextEncoder().encode(JWT_SECRET));
+
   await page.context().addCookies([
     {
       name: "accessToken",
-      value: "e2e-test-token",
+      value: token,
       url: "http://localhost:3000",
     },
   ]);
@@ -93,6 +103,6 @@ test.describe("wallet status and provisioning", () => {
 
     await page.goto("/wallet");
 
-    await expect(page.getByText("Internal error")).toBeVisible();
+    await expect(page.getByRole("status")).toHaveText("Internal error");
   });
 });

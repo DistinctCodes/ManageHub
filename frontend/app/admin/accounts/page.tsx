@@ -77,6 +77,11 @@ function AccountsInner() {
 
       <Card>
         <CardHeader title={`${accounts.data?.length ?? 0} accounts`} />
+        {accounts.error && (
+          <p role="alert" className="px-5 py-6 text-sm text-red-600">
+            {(accounts.error as Error).message}
+          </p>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-gray-200 text-xs uppercase text-gray-500 dark:border-gray-800 dark:text-gray-400">
@@ -101,7 +106,7 @@ function AccountsInner() {
                   }
                 />
               ))}
-              {!accounts.isLoading && (accounts.data?.length ?? 0) === 0 && (
+              {!accounts.isLoading && !accounts.error && (accounts.data?.length ?? 0) === 0 && (
                 <tr>
                   <td colSpan={8} className="px-5 py-8 text-center text-gray-400">
                     No accounts found.
