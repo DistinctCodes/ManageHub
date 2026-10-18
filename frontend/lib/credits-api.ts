@@ -2,6 +2,8 @@
 
 import { expireSession } from "@/lib/session-expiry";
 
+import { getApiBaseUrl } from "@/lib/env";
+
 export interface CreditBalance {
   accountId: string;
   currency: string;
@@ -27,8 +29,6 @@ export interface CreditStatement {
   page: number;
   pageSize: number;
 }
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 export interface CreditsApiErrorBody {
   statusCode?: number;
@@ -73,7 +73,7 @@ async function creditsFetch<T>(
   path: string,
   init?: RequestInit,
 ): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",

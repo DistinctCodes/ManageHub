@@ -147,7 +147,7 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          NEXT_PUBLIC_API_URL: http://localhost:3001
+          NEXT_PUBLIC_API_URL: http://localhost:6000
 
   e2e:
     name: Frontend E2E (Playwright)
@@ -177,7 +177,7 @@ jobs:
       - name: Run E2E Tests
         run: npm run test:e2e
         env:
-          NEXT_PUBLIC_API_URL: http://localhost:3001
+          NEXT_PUBLIC_API_URL: http://localhost:6000
 
       - name: Upload Playwright Artifacts on Failure
         if: failure()

@@ -3,6 +3,7 @@ import {
   getRequestId,
   reportApiError,
 } from "@/lib/api-report";
+import { getApiBaseUrl } from "@/lib/env";
 import { expireSession } from "@/lib/session-expiry";
 import type { AuthUser } from "@/lib/auth-types";
 
@@ -15,8 +16,6 @@ export interface AuthResponse {
   user: AuthUser;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
-
 /**
  * Every request includes `credentials: "include"` (issue #1975): the backend
  * answers register/login with an HttpOnly `accessToken` cookie, so the session
@@ -27,7 +26,7 @@ async function authRequest<T>(
   path: string,
   body: { email: string; password: string },
 ): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -84,7 +83,7 @@ export function me(): Promise<AuthUser> {
 }
 
 async function fetchMe(): Promise<AuthUser> {
-  const response = await fetch(`${API_BASE_URL}/auth/me`, {
+  const response = await fetch(`${getApiBaseUrl()}/auth/me`, {
     method: "GET",
     credentials: "include",
   });
@@ -123,7 +122,7 @@ async function fetchMe(): Promise<AuthUser> {
  */
 export async function logout(): Promise<void> {
   try {
-    await fetch(`${API_BASE_URL}/auth/logout`, {
+    await fetch(`${getApiBaseUrl()}/auth/logout`, {
       method: "POST",
       credentials: "include",
     });

@@ -30,6 +30,7 @@ import { useSessionBootstrap } from "@/lib/stores/use-session-bootstrap";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getProviderReturnErrorMessage } from "@/lib/payment-return-errors";
+import { formatCurrency, fromMinorUnits } from "@/lib/utils";
 
 // -- tuning constants ---------------------------------------------------------
 
@@ -405,7 +406,10 @@ export default function PaymentReturnPage() {
 
               <dt className="text-gray-500 dark:text-gray-400">Amount</dt>
               <dd>
-                {payment.amount.toFixed(2)} {payment.currency}
+                {formatCurrency(
+                  fromMinorUnits(payment.amount, payment.currency),
+                  payment.currency,
+                )}
               </dd>
 
               {payment.provider && (

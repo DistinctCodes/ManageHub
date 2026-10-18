@@ -12,38 +12,15 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { WalletLinkForm } from "@/components/wallet/wallet-link-form";
+import { fromMinorUnits } from "@/lib/utils";
 import { useSignOut } from "@/components/auth/use-sign-out";
 
-/**
- * Minor-unit decimal places per currency. `GET /credits/balance` is
- * currency-scoped and not always XLM-denominated (`CREDITS_DEFAULT_CURRENCY`
- * defaults to USD) -- the Stellar stroop ratio (10^7) only applies to XLM.
- * Falls back to 2 (the ISO 4217 default) for any currency not listed here.
- */
-const CURRENCY_MINOR_UNIT_DECIMALS: Record<string, number> = {
-  XLM: 7,
-  // ISO 4217 zero-decimal currencies
-  JPY: 0,
-  KRW: 0,
-  VND: 0,
-  // ISO 4217 three-decimal currencies
-  BHD: 3,
-  JOD: 3,
-  KWD: 3,
-  OMR: 3,
-};
-const DEFAULT_MINOR_UNIT_DECIMALS = 2;
-
-export function minorUnitDecimals(currency: string): number {
-  return (
-    CURRENCY_MINOR_UNIT_DECIMALS[currency.toUpperCase()] ??
-    DEFAULT_MINOR_UNIT_DECIMALS
-  );
-}
-
+// Minor-unit conversion (and the currency exponent table it uses) lives in
+// lib/utils.ts so every money surface parses amounts the same way. The
+// formatBalance contract tested by __tests__/format-balance.test.ts is
+// unchanged: "<value>.<2 digits> <CURRENCY> credit".
 export function formatBalance(minorUnits: number, currency: string): string {
-  const value = minorUnits / 10 ** minorUnitDecimals(currency);
-  return `${value.toFixed(2)} ${currency} credit`;
+  return `${fromMinorUnits(minorUnits, currency).toFixed(2)} ${currency} credit`;
 }
 
 /**
