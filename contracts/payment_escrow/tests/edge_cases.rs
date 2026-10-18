@@ -25,7 +25,13 @@ fn fixture() -> Fixture {
         .register_stellar_asset_contract_v2(Address::generate(&env))
         .address();
     token::StellarAssetClient::new(&env, &token).mint(&payer, &10_000);
-    Fixture { env, contract_id, payer, beneficiary, token }
+    Fixture {
+        env,
+        contract_id,
+        payer,
+        beneficiary,
+        token,
+    }
 }
 
 fn client(f: &Fixture) -> PaymentEscrowContractClient<'_> {
