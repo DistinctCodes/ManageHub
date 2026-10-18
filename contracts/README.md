@@ -59,10 +59,7 @@ exact derivation.
 
 ## Arithmetic Safety (CT-73)
 
-All amount-handling paths in every contract **must** use checked arithmetic
-(`checked_add` / `checked_sub`) rather than raw `+` / `-` operators. The
-`payment_escrow` scaffold includes helper functions and tests demonstrating
-this pattern. See [`payment_escrow/src/lib.rs`](payment_escrow/src/lib.rs).
+Amount-handling paths must use checked arithmetic (`checked_add` / `checked_sub`) rather than raw `+` / `-`. `revenue_distribution` already does this for its basis-point sum. `payment_escrow` stores a single amount per escrow and performs no arithmetic on it today; when partial releases or batch totals are added they must use the same checked pattern inline.
 
 ## Workspace Crates
 
