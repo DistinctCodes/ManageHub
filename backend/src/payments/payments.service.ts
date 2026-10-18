@@ -5,7 +5,6 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-  UnprocessableEntityException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -164,7 +163,7 @@ export class PaymentsService {
       : this.legacySamePayload(existing, dto);
 
     if (!samePayload) {
-      throw new UnprocessableEntityException(
+      throw new ConflictException(
         'Idempotency-Key was already used with a different request body',
       );
     }

@@ -97,10 +97,12 @@ function authRequest<T>(
       return new AuthApiError(
         status,
         fieldErrors,
-        getApiErrorMessage(
-          errorBody as Record<string, unknown> | null,
-          fallbackMessage,
-        ),
+        status === 401
+          ? fallbackMessage
+          : getApiErrorMessage(
+              errorBody as Record<string, unknown> | null,
+              fallbackMessage,
+            ),
       );
     },
   });

@@ -20,7 +20,7 @@
  *     MAX_POLL_ATTEMPTS.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { verifyPaymentReturn, getPayment } from "@/lib/payments-api";
@@ -81,7 +81,7 @@ function statusTone(status: string): string {
 
 // -- component ----------------------------------------------------------------
 
-export default function PaymentReturnPage() {
+function PaymentReturnContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   useSessionBootstrap();
@@ -244,7 +244,9 @@ export default function PaymentReturnPage() {
             </p>
             <Button asChild>
               <Link
-                href={`/login?next=/payments/return?paymentId=${paymentId}`}
+                href={`/login?returnTo=${encodeURIComponent(
+                  `/payments/return?paymentId=${paymentId}`,
+                )}`}
               >
                 Sign in
               </Link>
@@ -540,5 +542,21 @@ export default function PaymentReturnPage() {
         </Card>
       )}
     </main>
+  );
+}
+
+export default function PaymentReturnPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="mx-auto max-w-lg px-4 py-16">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Loading payment details...
+          </p>
+        </main>
+      }
+    >
+      <PaymentReturnContent />
+    </Suspense>
   );
 }

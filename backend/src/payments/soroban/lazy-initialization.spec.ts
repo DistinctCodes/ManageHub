@@ -48,8 +48,9 @@ describe('createLazy', () => {
     });
     const client = createLazy(factory);
 
-    expect(() => client.invoke(1)).toThrow(failure);
-    expect(() => client.invoke(1)).toThrow(failure);
+    const failingClient = client as ExampleClient;
+    expect(() => failingClient.invoke(1)).toThrow(failure);
+    expect(() => failingClient.invoke(1)).toThrow(failure);
     expect(factory).toHaveBeenCalledTimes(1);
   });
 });

@@ -117,6 +117,7 @@ describe('PaymentsService', () => {
         rail: PaymentRail.FIAT,
         usedFallback: true,
       });
+      railRegistry.get.mockReturnValue(fallbackAdapter);
       repository.findOne.mockResolvedValueOnce(null);
       repository.findOne.mockResolvedValueOnce(null);
 

@@ -1,7 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { toast } from "sonner";
-
-import { useSessionStore } from "../stores/session-store";
 
 vi.mock("sonner", () => ({
   toast: {
@@ -15,7 +13,14 @@ vi.mock("sonner", () => ({
  */
 async function loadExpiry() {
   vi.resetModules();
-  return await import("../session-expiry");
+  const [expiry, store] = await Promise.all([
+    import("../session-expiry"),
+    import("../stores/session-store"),
+  ]);
+  store.useSessionStore
+    .getState()
+    .setSession({ id: "u1", email: "a@example.com", role: "user" });
+  return { ...expiry, useSessionStore: store.useSessionStore };
 }
 
 describe("session expiry reactions (issue #1977)", () => {
@@ -23,9 +28,6 @@ describe("session expiry reactions (issue #1977)", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    useSessionStore
-      .getState()
-      .setSession({ id: "u1", email: "a@example.com", role: "user" });
     assignSpy.mockClear();
     // jsdom does not implement navigation: observe it instead.
     Object.defineProperty(window, "location", {
@@ -38,12 +40,8 @@ describe("session expiry reactions (issue #1977)", () => {
     });
   });
 
-  afterEach(() => {
-    useSessionStore.getState().clearSession();
-  });
-
   it("clears the session, shows a toast and redirects to login once", async () => {
-    const { expireSession } = await loadExpiry();
+    const { expireSession, useSessionStore } = await loadExpiry();
 
     expireSession();
 
@@ -70,7 +68,7 @@ describe("session expiry reactions (issue #1977)", () => {
   });
 
   it("does nothing extra when the user is already on an auth page", async () => {
-    const { expireSession } = await loadExpiry();
+    const { expireSession, useSessionStore } = await loadExpiry();
     Object.assign(window.location, { pathname: "/login", search: "" });
 
     expireSession();

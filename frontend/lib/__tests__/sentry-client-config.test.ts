@@ -49,7 +49,7 @@ describe("describeException (issue #1987)", () => {
       name: "RangeError",
       message: "boom",
     });
-    expect(describeException(error).stack).toContain("describeException");
+    expect(describeException(error).stack).toContain("RangeError: boom");
   });
 
   it("labels thrown strings as NonError instead of crashing", () => {
