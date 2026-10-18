@@ -1,4 +1,4 @@
-﻿// lib/credits-api.ts  -- member-facing credit API (FE-108)
+// lib/credits-api.ts  -- member-facing credit API (FE-108)
 
 import { request } from "@/lib/http";
 
@@ -67,14 +67,12 @@ export class CreditsApiError extends Error {
   }
 }
 
-async function creditsFetch<T>(
-  path: string,
-  accessToken: string | undefined,
-): Promise<T> {
+function creditsFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return request<T>(path, {
     service: "credits",
-    accessToken,
-    // Credits historically builds its own typed error and does not report.
+    method: init?.method,
+    body: init?.body,
+    // Credits builds its own typed error and does not report to Sentry.
     makeError: (status, body) => new CreditsApiError(status, body),
     report: false,
   });
@@ -82,19 +80,15 @@ async function creditsFetch<T>(
 
 // -- member credit balance (FE-108) -----------------------------------------------
 
-export function getCreditBalance(
-  accessToken?: string,
-): Promise<CreditBalance> {
-  return creditsFetch<CreditBalance>("/credits/balance", accessToken);
+export function getCreditBalance(): Promise<CreditBalance> {
+  return creditsFetch<CreditBalance>("/credits/balance");
 }
 
 export function getCreditStatement(
-  accessToken?: string,
   page = 1,
   pageSize = 20,
 ): Promise<CreditStatement> {
   return creditsFetch<CreditStatement>(
     `/credits/statement?page=${page}&pageSize=${pageSize}`,
-    accessToken,
   );
 }

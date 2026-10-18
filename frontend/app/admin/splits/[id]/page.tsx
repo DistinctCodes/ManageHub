@@ -44,12 +44,12 @@ function SplitDetailInner() {
 
   const preview = useQuery({
     queryKey: ["split-preview", id, amount],
-    queryFn: () => previewSplit(undefined, id, Number(amount) || 0),
+    queryFn: () => previewSplit(id, Number(amount) || 0),
     enabled: !!split && Number(amount) > 0,
   });
 
   const toggleActive = useMutation({
-    mutationFn: () => setSplitActive(undefined, id, !split?.active),
+    mutationFn: () => setSplitActive(id, !split?.active),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["revenue-splits"] });
       toast.success(`Config ${split?.active ? "deactivated" : "activated"}`);

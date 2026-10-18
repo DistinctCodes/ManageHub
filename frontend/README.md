@@ -17,6 +17,22 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## Configuration
+
+Copy `frontend/.env.example` to `frontend/.env.local` and adjust the values
+for your environment. Documented variables include:
+
+- `NEXT_PUBLIC_API_URL` - base URL of the backend API. In development the app
+  defaults to `http://localhost:6000` (the backend's configured port); in
+  production this variable is **required** and the build fails fast at request
+  time when it is missing.
+- `NEXT_PUBLIC_APP_URL` - canonical origin of this frontend (defaults to
+  `https://managehub.app`).
+- `NEXT_PUBLIC_SENTRY_*`, `NEXT_PUBLIC_GOOGLE_VERIFICATION` - optional
+  observability and search-console settings.
+- `JWT_SECRET` (server-only) - used by `middleware.ts` to verify the session
+  cookie.
+
 ## Frontend foundations
 
 - Visit `/components` for the shared component catalog.

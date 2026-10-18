@@ -26,9 +26,11 @@ import Link from "next/link";
 import { verifyPaymentReturn, getPayment } from "@/lib/payments-api";
 import type { Payment } from "@/lib/payments-api";
 import { useSessionStore } from "@/lib/stores/session-store";
+import { useSessionBootstrap } from "@/lib/stores/use-session-bootstrap";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getProviderReturnErrorMessage } from "@/lib/payment-return-errors";
+import { formatCurrency, fromMinorUnits } from "@/lib/utils";
 
 // -- tuning constants ---------------------------------------------------------
 
@@ -82,7 +84,9 @@ function statusTone(status: string): string {
 export default function PaymentReturnPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const accessToken = useSessionStore((state) => state.accessToken);
+  useSessionBootstrap();
+  const user = useSessionStore((state) => state.user);
+  const sessionStatus = useSessionStore((state) => state.status);
 
   const paymentId =
     searchParams.get("paymentId") ?? searchParams.get("payment_id") ?? "";
@@ -156,7 +160,7 @@ export default function PaymentReturnPage() {
   // -- fast path -----------------------------------------------------------
 
   useEffect(() => {
-    if (providerErrorMessage || !paymentId || !accessToken) return;
+    if (providerErrorMessage || !paymentId || !user || sessionStatus !== "authenticated") return;
 
     const ctrl = new AbortController();
     abortRef.current = ctrl;
@@ -195,7 +199,7 @@ export default function PaymentReturnPage() {
       ctrl.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paymentId, accessToken, providerErrorMessage]);
+  }, [paymentId, user, sessionStatus, providerErrorMessage]);
 
   // -- render --------------------------------------------------------------
 
@@ -229,7 +233,7 @@ export default function PaymentReturnPage() {
     );
   }
 
-  if (!accessToken) {
+  if (!user) {
     return (
       <main className="mx-auto max-w-lg px-4 py-16">
         <h1 className="text-2xl font-semibold mb-6">Verifying Payment</h1>
@@ -402,7 +406,10 @@ export default function PaymentReturnPage() {
 
               <dt className="text-gray-500 dark:text-gray-400">Amount</dt>
               <dd>
-                {payment.amount.toFixed(2)} {payment.currency}
+                {formatCurrency(
+                  fromMinorUnits(payment.amount, payment.currency),
+                  payment.currency,
+                )}
               </dd>
 
               {payment.provider && (

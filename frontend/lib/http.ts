@@ -3,6 +3,8 @@ import {
   getRequestId,
   reportApiError,
 } from "@/lib/api-report";
+import { getApiBaseUrl } from "@/lib/env";
+import { expireSession } from "@/lib/session-expiry";
 
 export class ApiError extends Error {
   readonly status: number;
@@ -21,14 +23,11 @@ export type ApiService = "auth" | "admin" | "payments" | "wallet" | "credits";
 
 export interface RequestOptions {
   method?: string;
-  /** JSON body (object/array); it is serialized here. */
-  body?: unknown;
   /**
-   * Legacy bearer token. Optional: the backend also accepts the HttpOnly
-   * session cookie, which is always sent via credentials. New call sites
-   * should not pass this.
+   * JSON body (object/array); it is serialized here. A string is assumed to
+   * be already-serialized JSON and is sent as-is.
    */
-  accessToken?: string;
+  body?: unknown;
   idempotencyKey?: string;
   /** Api name used as the "api" tag for Sentry error reporting. */
   service: ApiService;
@@ -43,16 +42,18 @@ export interface RequestOptions {
   makeError?: (status: number, body: unknown) => Error;
   /** Default true; set false for modules that do not report (credits). */
   report?: boolean;
+  /**
+   * Default true: a 401 means the HttpOnly session cookie was rejected, so the
+   * user is sent to login (issue #1977). Set false for login/register, where
+   * a 401 just means bad credentials.
+   */
+  expireOn401?: boolean;
   /** Default "include" so the HttpOnly session cookie is sent cross-origin. */
   credentials?: RequestCredentials;
 }
 
 const TRANSIENT_RETRY_DELAY_MS = 250;
 const RETRYABLE_STATUS_CODES = new Set([408, 425, 429, 500, 502, 503, 504]);
-
-function apiBaseUrl(): string {
-  return process.env.NEXT_PUBLIC_API_URL ?? "";
-}
 
 function isRetryableMethod(init: RequestInit): boolean {
   return (init.method ?? "GET").toUpperCase() === "GET";
@@ -129,34 +130,40 @@ export async function request<T>(
   const {
     method,
     body,
-    accessToken,
     idempotencyKey,
     service,
     retriable = false,
     fallbackMessage,
     makeError,
     report = true,
+    expireOn401 = true,
     credentials = "include",
   } = options;
 
   const init: RequestInit = {
     ...(method ? { method } : {}),
-    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+    ...(body !== undefined
+      ? { body: typeof body === "string" ? body : JSON.stringify(body) }
+      : {}),
     headers: {
       "Content-Type": "application/json",
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
     },
     credentials,
   };
 
   const response = await fetchWithRetry(
-    `${apiBaseUrl()}${path}`,
+    `${getApiBaseUrl()}${path}`,
     init,
     retriable && isRetryableMethod(init),
   );
 
   if (!response.ok) {
+    if (response.status === 401 && expireOn401) {
+      // A rejected session must send the user to login, not leave the stale
+      // state in place (issue #1977).
+      expireSession();
+    }
     const payload: unknown = await response.json().catch(() => null);
 
     let error: Error;

@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   searchParams: new URLSearchParams(),
   push: vi.fn(),
-  setAccessToken: vi.fn(),
+  setSession: vi.fn(),
   login: vi.fn(),
   register: vi.fn(),
 }));
@@ -17,8 +17,8 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/lib/stores/session-store", () => ({
   useSessionStore: (
-    selector: (state: { setAccessToken: typeof mocks.setAccessToken }) => unknown,
-  ) => selector({ setAccessToken: mocks.setAccessToken }),
+    selector: (state: { setSession: typeof mocks.setSession }) => unknown,
+  ) => selector({ setSession: mocks.setSession }),
 }));
 
 vi.mock("@/lib/auth-api", () => ({
@@ -60,7 +60,7 @@ describe("AuthForm registration confirmation", () => {
     const user = userEvent.setup();
     mocks.register.mockResolvedValue({
       accessToken: "access-token",
-      user: { id: "user-1", email: "person@example.com", role: "MEMBER" },
+      user: { id: "user-1", email: "person@example.com", role: "user" },
     });
     renderForm("register");
 
@@ -75,7 +75,10 @@ describe("AuthForm registration confirmation", () => {
         "password-one",
       ),
     );
-    expect(mocks.setAccessToken).toHaveBeenCalledWith("access-token");
+    expect(mocks.setSession).toHaveBeenCalledWith(
+      { id: "user-1", email: "person@example.com", role: "user" },
+      "access-token",
+    );
     expect(mocks.push).toHaveBeenCalledWith("/wallet");
   });
 });

@@ -91,25 +91,18 @@ export interface ManualReviewPage {
   total: number;
 }
 
-interface PaymentsRequestInit {
-  method?: string;
-  body?: unknown;
-}
-
-async function apiFetch<T>(
+function apiFetch<T>(
   path: string,
-  accessToken: string | undefined,
-  init?: PaymentsRequestInit,
+  init?: RequestInit,
   idempotencyKey?: string,
 ): Promise<T> {
   return request<T>(path, {
     service: "payments",
     method: init?.method,
     body: init?.body,
-    accessToken,
     idempotencyKey,
     // One extra attempt for idempotent methods on network errors or
-    // transient response statuses; request() limits it to GET/HEAD.
+    // transient response statuses; request() limits it to GET.
     retriable: true,
   });
 }
@@ -117,43 +110,39 @@ async function apiFetch<T>(
 // ── payments (FE-102) ────────────────────────────────────────────────────
 
 export function initiatePayment(
-  accessToken?: string,
-  input?: InitiatePaymentInput,
-  idempotencyKey?: string,
+  input: InitiatePaymentInput,
+  idempotencyKey: string,
 ): Promise<Payment> {
-  return apiFetch<Payment>("/payments/initiate", accessToken, {
+  return apiFetch<Payment>("/payments/initiate", {
     method: "POST",
-    body: input,
+    body: JSON.stringify(input),
   }, idempotencyKey);
 }
 
-export function getPayments(accessToken?: string): Promise<Payment[]> {
-  return apiFetch<Payment[]>("/payments", accessToken);
+export function getPayments(): Promise<Payment[]> {
+  return apiFetch<Payment[]>("/payments");
 }
 
-export function getPayment(id: string, accessToken?: string): Promise<Payment> {
-  return apiFetch<Payment>(`/payments/${id}`, accessToken);
+export function getPayment(id: string): Promise<Payment> {
+  return apiFetch<Payment>(`/payments/${id}`);
 }
 
 export function verifyPaymentReturn(
-  accessToken?: string,
-  id?: string,
+  id: string,
 ): Promise<{ payment: Payment; verified: boolean }> {
   return apiFetch<{ payment: Payment; verified: boolean }>(
     `/payments/${id}/verify-return`,
-    accessToken,
     { method: "POST" },
   );
 }
 
 // ── metered usage (FE-109) ───────────────────────────────────────────────
 
-export function listMyUsage(accessToken?: string): Promise<MeteredUsageEvent[]> {
-  return apiFetch<MeteredUsageEvent[]>("/credits/usage", accessToken);
+export function listMyUsage(): Promise<MeteredUsageEvent[]> {
+  return apiFetch<MeteredUsageEvent[]>("/credits/usage");
 }
 
 export function listManualReviewPayments(
-  accessToken?: string,
   limit = 25,
   offset = 0,
 ): Promise<ManualReviewPage> {
@@ -163,67 +152,57 @@ export function listManualReviewPayments(
   });
   return apiFetch<ManualReviewPage>(
     `/payments/admin/manual-review?${params.toString()}`,
-    accessToken,
   );
 }
 
 // ── admin payment actions (FE-104 / FE-106) ──────────────────────────────
 
 export function forceReconcilePayment(
-  accessToken?: string,
-  id?: string,
+  id: string,
 ): Promise<Payment> {
   return apiFetch<Payment>(
     `/payments/admin/${id}/force-reconcile`,
-    accessToken,
     { method: "POST" },
   );
 }
 
 export function resolvePaymentManually(
-  accessToken?: string,
-  id?: string,
-  resolution?: string,
+  id: string,
+  resolution: string,
 ): Promise<Payment> {
   return apiFetch<Payment>(
     `/payments/admin/${id}/resolve-manually`,
-    accessToken,
-    { method: "POST", body: { resolution } },
+    { method: "POST", body: JSON.stringify({ resolution }) },
   );
 }
 
 export function voidPayment(
-  accessToken?: string,
-  id?: string,
-  reason?: string,
+  id: string,
+  reason: string,
 ): Promise<Payment> {
   return apiFetch<Payment>(
     `/payments/admin/${id}/void`,
-    accessToken,
-    { method: "POST", body: { reason } },
+    { method: "POST", body: JSON.stringify({ reason }) },
   );
 }
 
 // ── refunds (FE-107) ─────────────────────────────────────────────────────
 
 export function requestRefund(
-  accessToken?: string,
-  paymentId?: string,
-  amount?: number,
-  reason?: string,
+  paymentId: string,
+  amount: number,
+  reason: string,
 ): Promise<RequestRefundResponse> {
   return apiFetch<RequestRefundResponse>(
     `/payments/admin/${paymentId}/refunds`,
-    accessToken,
-    { method: "POST", body: { amount, reason } },
+    { method: "POST", body: JSON.stringify({ amount, reason }) },
   );
 }
 
 // ── charge credits (FE-110) ──────────────────────────────────────────────
 
 export function chargeCredits(
-  accessToken?: string,
-  input?: {
+  input: {
     userId: string;
     amount: number;
     reference: string;
@@ -232,8 +211,8 @@ export function chargeCredits(
     metadata?: Record<string, unknown>;
   },
 ): Promise<ChargeCreditsResponse> {
-  return apiFetch<ChargeCreditsResponse>("/credits/charge", accessToken, {
+  return apiFetch<ChargeCreditsResponse>("/credits/charge", {
     method: "POST",
-    body: input,
+    body: JSON.stringify(input),
   });
 }

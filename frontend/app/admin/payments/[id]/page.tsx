@@ -127,7 +127,7 @@ function PaymentDetailInner() {
   };
 
   const reconcile = useMutation({
-    mutationFn: () => forceReconcilePayment(undefined, id),
+    mutationFn: () => forceReconcilePayment(id),
     onSuccess: () => {
       invalidate();
       toast.success("Payment force-reconciled.");
@@ -137,7 +137,7 @@ function PaymentDetailInner() {
 
   const resolve = useMutation({
     mutationFn: (resolution: string) =>
-      resolvePaymentManually(undefined, id, resolution),
+      resolvePaymentManually(id, resolution),
     onSuccess: () => {
       invalidate();
       toast.success("Payment resolved manually.");
@@ -146,7 +146,7 @@ function PaymentDetailInner() {
   });
 
   const voidMut = useMutation({
-    mutationFn: (reason: string) => voidPayment(undefined, id, reason),
+    mutationFn: (reason: string) => voidPayment(id, reason),
     onSuccess: () => {
       invalidate();
       toast.success("Payment voided.");

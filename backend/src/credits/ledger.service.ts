@@ -7,6 +7,10 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, In, Repository } from 'typeorm';
 import { assertCurrencyCode } from '../common/currency-code';
+import {
+  assertPositiveMinorUnits,
+  sumMinorUnits,
+} from '../payments/utils/minor-units';
 import { LedgerAccount } from './entities/ledger-account.entity';
 import { LedgerEntry } from './entities/ledger-entry.entity';
 import { LedgerTransaction } from './entities/ledger-transaction.entity';
@@ -647,7 +651,9 @@ export class LedgerService {
       );
     }
     for (const leg of input.legs) {
-      if (!Number.isInteger(leg.amount) || leg.amount <= 0) {
+      try {
+        assertPositiveMinorUnits(leg.amount, 'Ledger leg amount');
+      } catch {
         throw new BadRequestException(
           'Ledger leg amounts must be positive integers (minor units), ' +
             `got ${leg.amount}`,
@@ -676,9 +682,11 @@ export class LedgerService {
     legs: readonly LedgerLeg[],
     direction: LedgerEntryDirection,
   ): number {
-    return legs
-      .filter((leg) => leg.direction === direction)
-      .reduce((sum, leg) => sum + leg.amount, 0);
+    return sumMinorUnits(
+      legs
+        .filter((leg) => leg.direction === direction)
+        .map((leg) => leg.amount),
+    );
   }
 
   /** Net balance delta per account (credits positive, debits negative). */

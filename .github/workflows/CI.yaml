@@ -67,6 +67,18 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # No non-test backend module may be reachable only from its own spec
+      # (issue #1949). scripts/check-dead-modules.js walks the import graph
+      # from the entrypoints and fails the job on any orphan module.
+      - name: Dead module check
+        run: npm run dead-modules
+
+      # Reject a package.json that declares dependencies which nothing in
+      # src/ or scripts/ imports, or that imports a package it does not
+      # declare (issue #1952).
+      - name: Dependency hygiene (depcheck)
+        run: npm run depcheck
+
       - name: Build (TypeScript check)
         run: npm run build
 
@@ -135,7 +147,7 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          NEXT_PUBLIC_API_URL: http://localhost:3001
+          NEXT_PUBLIC_API_URL: http://localhost:6000
 
   e2e:
     name: Frontend E2E (Playwright)
@@ -165,7 +177,7 @@ jobs:
       - name: Run E2E Tests
         run: npm run test:e2e
         env:
-          NEXT_PUBLIC_API_URL: http://localhost:3001
+          NEXT_PUBLIC_API_URL: http://localhost:6000
 
       - name: Upload Playwright Artifacts on Failure
         if: failure()
@@ -212,10 +224,22 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
-      # .cargo/config.toml sets default-target = wasm32-unknown-unknown, so
-      # no explicit --target flag is needed here.
-      - name: Build workspace
-        run: cargo build --workspace
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      # Native target: .cargo/config.toml has no default wasm target, so the
+      # unit and integration tests actually execute.
+      - name: Test
+        run: cargo test --workspace
+
+      - name: Build WASM
+        run: cargo build --workspace --release --target wasm32-unknown-unknown
+
+      - name: Report WASM sizes
+        run: ls -l target/wasm32-unknown-unknown/release/*.wasm
 
   # ─────────────────────────────────────────────
   # CONTRACTS — require_auth coverage audit (CT-72)
@@ -230,3 +254,30 @@ jobs:
 
       - name: Audit state-changing entrypoints for require_auth()
         run: bash scripts/audit_require_auth.sh
+
+  # ─────────────────────────────────────────────
+  # CONTRACTS — dependency audit (#2017)
+  # ─────────────────────────────────────────────
+  contracts-dependency-audit:
+    name: Contracts — cargo audit
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: contracts
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+
+      - name: Resolve lockfile
+        run: test -f Cargo.lock || cargo generate-lockfile
+
+      - name: Audit dependencies
+        run: cargo audit

@@ -128,7 +128,7 @@ function CreateSplitForm({ onDone }: { onDone: () => void }) {
 
   const create = useMutation({
     mutationFn: () =>
-      createSplit(undefined, {
+      createSplit({
         name,
         description: description || undefined,
         recipients: recipients.map((r) => ({

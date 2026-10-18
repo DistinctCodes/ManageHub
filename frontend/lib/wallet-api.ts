@@ -17,15 +17,7 @@ export interface LinkChallengeResponse {
   expiresAt: string;
 }
 
-interface WalletRequestInit {
-  method?: string;
-  body?: unknown;
-}
-
-async function walletFetch<T>(
-  path: string,
-  init?: WalletRequestInit,
-): Promise<T> {
+function walletFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return request<T>(path, {
     service: "wallet",
     method: init?.method,
@@ -57,6 +49,6 @@ export function verifyLinkChallenge(params: {
 }): Promise<WalletStatusResponse> {
   return walletFetch<WalletStatusResponse>("/wallets/link/verify", {
     method: "POST",
-    body: params,
+    body: JSON.stringify(params),
   });
 }

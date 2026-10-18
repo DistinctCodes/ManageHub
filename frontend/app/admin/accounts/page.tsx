@@ -46,7 +46,7 @@ function AccountsInner() {
 
   const freeze = useMutation({
     mutationFn: ({ id, frozen }: { id: string; frozen: boolean }) =>
-      updateAccount(undefined, id, { frozen }),
+      updateAccount(id, { frozen }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ledger-accounts"] });
       toast.success("Account policy updated");
@@ -197,7 +197,7 @@ function CreateAccountForm({
 
   const create = useMutation({
     mutationFn: () =>
-      createAccount(undefined, {
+      createAccount({
         kind: form.kind,
         ownerId: form.ownerId || undefined,
         currency: form.currency,

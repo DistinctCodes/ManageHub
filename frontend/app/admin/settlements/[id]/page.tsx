@@ -39,24 +39,24 @@ function BatchDetailInner() {
 
   const detail = useQuery({
     queryKey: ["settlement-batch", id],
-    queryFn: () => getBatchBreakdown(undefined, id),
+    queryFn: () => getBatchBreakdown(id),
   });
 
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: ["settlement-batch", id] });
 
   const execute = useMutation({
-    mutationFn: () => executeBatch(undefined, id),
+    mutationFn: () => executeBatch(id),
     onSuccess: invalidate,
     onError: (err) => toast.error(err.message),
   });
   const retry = useMutation({
-    mutationFn: () => retryBatch(undefined, id),
+    mutationFn: () => retryBatch(id),
     onSuccess: invalidate,
     onError: (err) => toast.error(err.message),
   });
   const abandon = useMutation({
-    mutationFn: () => abandonBatch(undefined, id, abandonReason),
+    mutationFn: () => abandonBatch(id, abandonReason),
     onSuccess: () => {
       toast.success("Batch abandoned");
       invalidate();

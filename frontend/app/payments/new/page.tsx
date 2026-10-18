@@ -2,12 +2,10 @@
 
 import { Button, Card, CardHeader, Field, inputClass } from "@/components/app-ui";
 import { initiatePayment, type PaymentRail } from "@/lib/payments-api";
-import Cookies from "js-cookie";
 import { useState } from "react";
 import { toast } from "sonner";
 
 export default function NewPaymentPage() {
-  const [token] = useState(() => Cookies.get("accessToken"));
   const [bookingId, setBookingId] = useState("");
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState("USD");
@@ -18,14 +16,9 @@ export default function NewPaymentPage() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!token) {
-      toast.error("You must sign in to make a payment.");
-      return;
-    }
     setSubmitting(true);
     try {
       const payment = await initiatePayment(
-        undefined,
         {
           bookingId,
           amount: Number(amount),

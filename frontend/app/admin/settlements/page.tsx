@@ -44,7 +44,7 @@ function SettlementsInner() {
   const batches = useQuery({
     queryKey: ["settlement-batches", status],
     queryFn: () =>
-      listBatches(undefined, (status || undefined) as SettlementBatchStatus | undefined),
+      listBatches((status || undefined) as SettlementBatchStatus | undefined),
   });
 
   const run = useMutation({

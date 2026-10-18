@@ -4,7 +4,12 @@ vi.mock("@sentry/nextjs", () => ({
   captureException: vi.fn(),
 }));
 
+vi.mock("@/lib/session-expiry", () => ({
+  expireSession: vi.fn(),
+}));
+
 import * as Sentry from "@sentry/nextjs";
+import { expireSession } from "@/lib/session-expiry";
 import { ApiError, request } from "../http";
 
 function jsonResponse(status: number, body: unknown): Response {
@@ -38,25 +43,23 @@ describe("lib/http request", () => {
     process.env.NEXT_PUBLIC_API_URL = undefined;
   });
 
-  it("prefixes the configured base URL and attaches auth headers when an access token is passed", async () => {
+  it("prefixes the configured base URL and attaches the idempotency key", async () => {
     fetchMock.mockResolvedValue(jsonResponse(200, { ok: true }));
 
     await request("/payments", {
       service: "payments",
-      accessToken: "access-token",
       idempotencyKey: "idempotency-key",
     });
 
     const [url, init] = fetchMock.mock.calls[0];
     expect(String(url)).toBe("https://api.test/payments");
     expect(init.headers).toMatchObject({
-      Authorization: "Bearer access-token",
       "Content-Type": "application/json",
       "Idempotency-Key": "idempotency-key",
     });
   });
 
-  it("omits Authorization without an accessToken and sends cookies cross-origin", async () => {
+  it("never sends a bearer header and includes cookies cross-origin", async () => {
     fetchMock.mockResolvedValue(jsonResponse(200, { ok: true }));
 
     await request("/wallets/me", { service: "wallet" });
@@ -67,6 +70,20 @@ describe("lib/http request", () => {
     expect(headers["Content-Type"]).toBe("application/json");
     expect(headers.Authorization).toBeUndefined();
     expect(init.credentials).toBe("include");
+  });
+
+  it("expires the session on a 401 unless told not to", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(401, { message: "nope" }));
+
+    await expect(request("/wallets/me", { service: "wallet" })).rejects.toThrow(
+      "nope",
+    );
+    expect(expireSession).toHaveBeenCalledTimes(1);
+
+    await expect(
+      request("/auth/login", { service: "auth", expireOn401: false }),
+    ).rejects.toThrow("nope");
+    expect(expireSession).toHaveBeenCalledTimes(1);
   });
 
   it("serializes the JSON body on mutations", async () => {

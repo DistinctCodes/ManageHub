@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Landmark } from "lucide-react";
-import { AdminProviders } from "@/lib/providers";
+import { Providers } from "@/lib/providers/providers";
 import { AdminBreadcrumbs } from "@/components/admin/admin-breadcrumbs";
 import { AdminNav } from "@/components/admin/admin-nav";
+import { UserMenu } from "@/components/auth/user-menu";
 
 export const metadata: Metadata = {
   title: "Admin",
@@ -15,7 +16,7 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <AdminProviders>
+    <Providers>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
         <header className="border-b border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
           <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
@@ -23,9 +24,12 @@ export default function AdminLayout({
               <Landmark className="h-5 w-5 text-blue-600" />
               ManageHub Admin
             </Link>
-            <Link href="/" className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
-              Back to site
-            </Link>
+            <div className="flex items-center gap-4">
+              <UserMenu />
+              <Link href="/" className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                Back to site
+              </Link>
+            </div>
           </div>
         </header>
         <div className="mx-auto flex max-w-7xl gap-8 px-6 py-8">
@@ -38,6 +42,6 @@ export default function AdminLayout({
           </main>
         </div>
       </div>
-    </AdminProviders>
+    </Providers>
   );
 }

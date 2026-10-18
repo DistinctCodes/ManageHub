@@ -3,20 +3,34 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Wallet, ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight } from "lucide-react";
-import Cookies from "js-cookie";
+import { useSessionBootstrap } from "@/lib/stores/use-session-bootstrap";
+import { useSessionStore } from "@/lib/stores/session-store";
+import { UserMenu } from "@/components/auth/user-menu";
 import { getCreditBalance, getCreditStatement } from "@/lib/credits-api";
 import type { CreditStatementEntry } from "@/lib/credits-api";
+import { formatCurrency, fromMinorUnits } from "@/lib/utils";
+
+// Credit balances and statement amounts arrive as integer minor units.
+function formatMinorAmount(amount: number, currency: string): string {
+  return formatCurrency(fromMinorUnits(amount, currency), currency);
+}
 
 const PAGE_SIZE = 20;
 
-function useAccessToken(): string | null {
-  return Cookies.get("accessToken") ?? null;
-}
-
 export default function CreditsPage() {
-  const token = useAccessToken();
+  useSessionBootstrap();
+  const user = useSessionStore((state) => state.user);
+  const sessionStatus = useSessionStore((state) => state.status);
 
-  if (!token) {
+  if (sessionStatus === "unknown") {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <p className="text-sm text-gray-500">Checking your session...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
         <div className="max-w-sm rounded-xl border border-dashed border-gray-300 px-8 py-12 text-center dark:border-gray-700">
@@ -45,7 +59,7 @@ function CreditsInner() {
 
   const statement = useQuery({
     queryKey: ["credit-statement", page],
-    queryFn: () => getCreditStatement(undefined, page, PAGE_SIZE),
+    queryFn: () => getCreditStatement(page, PAGE_SIZE),
   });
 
   const totalPages = statement.data
@@ -54,6 +68,9 @@ function CreditsInner() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-8 px-4 py-8">
+      <div className="flex items-center justify-end">
+        <UserMenu />
+      </div>
       {/* Balance card */}
       <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 p-6 text-white shadow-lg">
         <div className="flex items-start justify-between">
@@ -68,7 +85,7 @@ function CreditsInner() {
             ) : (
               <>
                 <p className="mt-2 text-4xl font-bold tracking-tight">
-                  {balance.data!.balance.toLocaleString(undefined, {
+                  {fromMinorUnits(balance.data!.balance, balance.data!.currency).toLocaleString(undefined, {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
                   })}
@@ -78,7 +95,7 @@ function CreditsInner() {
                 </p>
                 {balance.data!.overdraftLimit > 0 && (
                   <p className="mt-1 text-xs text-blue-200">
-                    Overdraft limit: {balance.data!.overdraftLimit.toLocaleString()} {balance.data!.currency}
+                    Overdraft limit: {formatMinorAmount(balance.data!.overdraftLimit, balance.data!.currency)}
                   </p>
                 )}
               </>
@@ -143,10 +160,7 @@ function CreditsInner() {
                     }`}
                   >
                     {entry.direction === "CREDIT" ? "+" : "−"}
-                    {entry.amount.toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                    })}{" "}
-                    {entry.currency}
+                    {formatMinorAmount(entry.amount, entry.currency)}
                   </p>
                 </li>
               ))}

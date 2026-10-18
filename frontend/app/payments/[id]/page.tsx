@@ -5,11 +5,14 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { getPayment } from "@/lib/payments-api";
 import { useSessionStore } from "@/lib/stores/session-store";
+import { usePaymentStatus } from "@/lib/use-payment-status";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { formatCurrency, fromMinorUnits } from "@/lib/utils";
 
+// Payment amounts arrive as integer minor units.
 function formatAmount(amount: number, currency: string): string {
-  return `${amount.toFixed(2)} ${currency}`;
+  return formatCurrency(fromMinorUnits(amount, currency), currency);
 }
 
 function statusTone(status: string): string {
@@ -40,6 +43,8 @@ export default function PaymentDetailPage() {
     queryFn: () => getPayment(id),
     enabled: Boolean(accessToken && id),
   });
+
+  usePaymentStatus(id, accessToken);
 
   if (!accessToken) {
     return (
