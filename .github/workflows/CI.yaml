@@ -254,3 +254,30 @@ jobs:
 
       - name: Audit state-changing entrypoints for require_auth()
         run: bash scripts/audit_require_auth.sh
+
+  # ─────────────────────────────────────────────
+  # CONTRACTS — dependency audit (#2017)
+  # ─────────────────────────────────────────────
+  contracts-dependency-audit:
+    name: Contracts — cargo audit
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: contracts
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+
+      - name: Resolve lockfile
+        run: test -f Cargo.lock || cargo generate-lockfile
+
+      - name: Audit dependencies
+        run: cargo audit

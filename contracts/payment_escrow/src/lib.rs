@@ -211,55 +211,6 @@ impl PaymentEscrowContract {
 }
 
 // ---------------------------------------------------------------------------
-// CT-73: Checked arithmetic helpers
-// ---------------------------------------------------------------------------
-// These demonstrate the pattern required by issue #1687. Any future amount
-// handling (e.g. batch totals, basis-point fees, dispute windows) MUST use
-// checked_add / checked_sub instead of raw +/- operators.
-
-/// Safely add two i128 amounts, returning ArithmeticOverflow on overflow.
-#[allow(dead_code)]
-pub fn checked_amount_add(a: i128, b: i128) -> Result<i128, Error> {
-    a.checked_add(b).ok_or(Error::ArithmeticOverflow)
-}
-
-/// Safely subtract two i128 amounts, returning ArithmeticOverflow on underflow.
-#[allow(dead_code)]
-pub fn checked_amount_sub(a: i128, b: i128) -> Result<i128, Error> {
-    a.checked_sub(b).ok_or(Error::ArithmeticOverflow)
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    // CT-73: verify checked arithmetic rejects overflow/underflow cleanly
-    #[test]
-    fn test_checked_add_overflow() {
-        let result = checked_amount_add(i128::MAX, 1);
-        assert_eq!(result, Err(Error::ArithmeticOverflow));
-    }
-
-    #[test]
-    fn test_checked_sub_underflow() {
-        let result = checked_amount_sub(i128::MIN, 1);
-        assert_eq!(result, Err(Error::ArithmeticOverflow));
-    }
-
-    #[test]
-    fn test_checked_add_valid() {
-        let result = checked_amount_add(100, 200);
-        assert_eq!(result, Ok(300));
-    }
-
-    #[test]
-    fn test_checked_sub_valid() {
-        let result = checked_amount_sub(500, 200);
-        assert_eq!(result, Ok(300));
-    }
-}
-
-// ---------------------------------------------------------------------------
 // CT-51: happy-path tests for create/release/refund/get_status
 // ---------------------------------------------------------------------------
 
