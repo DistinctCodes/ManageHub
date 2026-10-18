@@ -274,10 +274,13 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install cargo-audit
-        run: cargo install cargo-audit --locked
+        # The contracts workspace pins Rust 1.79 for Soroban compatibility,
+        # but the current cargo-audit release requires a newer compiler.
+        # Keep the security tool on the stable toolchain independently.
+        run: cargo +stable install cargo-audit --locked
 
       - name: Resolve lockfile
         run: test -f Cargo.lock || cargo generate-lockfile
 
       - name: Audit dependencies
-        run: cargo audit
+        run: cargo +stable audit
