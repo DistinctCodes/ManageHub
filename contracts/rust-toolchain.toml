@@ -1,8 +1,4 @@
-# Pinned Rust toolchain for the contracts workspace (#1889).
-#
-# Upgrade cadence: review this pin at the start of each quarter, and whenever a
-# new stable Rust release affects soroban-sdk support. Record every bump in
-# contracts/CHANGELOG.md so integrators can follow along.
 [toolchain]
-channel = "1.79.0"
+channel = "nightly"
+components = ["rustfmt", "clippy", "rust-src"]
 targets = ["wasm32-unknown-unknown"]

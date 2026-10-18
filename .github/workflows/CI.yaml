@@ -204,10 +204,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # rustup reads contracts/rust-toolchain.toml automatically and installs
-      # the pinned stable channel plus the wasm32-unknown-unknown target.
-      - name: Install Rust toolchain (stable + wasm32)
-        uses: dtolnay/rust-toolchain@stable
+      # Match contracts/rust-toolchain.toml, including the edition2024 parser
+      # required by the resolved workspace dependencies.
+      - name: Install Rust toolchain (nightly + wasm32)
+        uses: dtolnay/rust-toolchain@nightly
         with:
           targets: wasm32-unknown-unknown
           components: rustfmt,clippy,rust-src
