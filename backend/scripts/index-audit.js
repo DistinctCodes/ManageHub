@@ -27,8 +27,9 @@ const QUERIES = [
   {
     name: 'admin manual-review queue (by status, oldest first)',
     sql: `EXPLAIN SELECT * FROM "payments"
-          WHERE "status" = 'MANUAL_REVIEW'
+          WHERE "status" = $1
           ORDER BY "updated_at" ASC`,
+    parameters: ['MANUAL_REVIEW'],
   },
 ];
 
@@ -108,7 +109,10 @@ async function main() {
     await client.query('ANALYZE "payments"');
 
     for (const query of QUERIES) {
-      const result = await client.query(query.sql, [auditUserId]);
+      const result = await client.query(
+        query.sql,
+        query.parameters ?? [auditUserId],
+      );
       const plan = result.rows
         .map((row) => Object.values(row).join(' '))
         .join('\n');

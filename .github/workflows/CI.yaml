@@ -204,10 +204,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Match contracts/rust-toolchain.toml and install rustfmt on that pinned
-      # toolchain so `cargo fmt` does not depend on the runner's default.
-      - name: Install Rust toolchain (1.79.0 + wasm32)
-        uses: dtolnay/rust-toolchain@1.79.0
+      # Match contracts/rust-toolchain.toml, including the edition2024 parser
+      # required by the resolved workspace dependencies.
+      - name: Install Rust toolchain (nightly + wasm32)
+        uses: dtolnay/rust-toolchain@nightly
         with:
           targets: wasm32-unknown-unknown
           components: rustfmt,clippy,rust-src
