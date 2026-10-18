@@ -536,7 +536,8 @@ mod partial_release_test {
             .register_stellar_asset_contract_v2(Address::generate(&env))
             .address();
         token::StellarAssetClient::new(&env, &token).mint(&payer, &1_000_000);
-        (env, client, payer, Address::generate(&env), token)
+        let beneficiary = Address::generate(&env);
+        (env, client, payer, beneficiary, token)
     }
 
     #[test]
