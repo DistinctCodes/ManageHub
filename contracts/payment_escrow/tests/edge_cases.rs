@@ -4,7 +4,7 @@
 use payment_escrow::{Error, PaymentEscrowContract, PaymentEscrowContractClient};
 use soroban_sdk::{
     testutils::{Address as _, MockAuth, MockAuthInvoke},
-    Address, BytesN, Env, IntoVal,
+    token, Address, BytesN, Env, IntoVal,
 };
 
 struct Fixture {
@@ -12,6 +12,7 @@ struct Fixture {
     contract_id: Address,
     payer: Address,
     beneficiary: Address,
+    token: Address,
 }
 
 fn fixture() -> Fixture {
@@ -20,7 +21,11 @@ fn fixture() -> Fixture {
     let contract_id = env.register(PaymentEscrowContract, ());
     let payer = Address::generate(&env);
     let beneficiary = Address::generate(&env);
-    Fixture { env, contract_id, payer, beneficiary }
+    let token = env
+        .register_stellar_asset_contract_v2(Address::generate(&env))
+        .address();
+    token::StellarAssetClient::new(&env, &token).mint(&payer, &10_000);
+    Fixture { env, contract_id, payer, beneficiary, token }
 }
 
 fn client(f: &Fixture) -> PaymentEscrowContractClient<'_> {
@@ -36,7 +41,7 @@ fn double_release_is_rejected() {
     let f = fixture();
     let c = client(&f);
     let id = escrow_id(&f, 1);
-    c.create(&id, &f.payer, &f.beneficiary, &100);
+    c.create(&id, &f.payer, &f.beneficiary, &100, &f.token);
     c.release(&id);
     assert!(matches!(c.try_release(&id), Err(Ok(_))));
 }
@@ -46,7 +51,7 @@ fn refund_after_release_is_rejected() {
     let f = fixture();
     let c = client(&f);
     let id = escrow_id(&f, 2);
-    c.create(&id, &f.payer, &f.beneficiary, &100);
+    c.create(&id, &f.payer, &f.beneficiary, &100, &f.token);
     c.release(&id);
     assert!(matches!(c.try_refund(&id), Err(Ok(_))));
 }
@@ -70,7 +75,7 @@ fn unauthorized_release_is_rejected() {
     let f = fixture();
     let c = client(&f);
     let id = escrow_id(&f, 5);
-    c.create(&id, &f.payer, &f.beneficiary, &100);
+    c.create(&id, &f.payer, &f.beneficiary, &100, &f.token);
 
     let stranger = Address::generate(&f.env);
     f.env.mock_auths(&[MockAuth {
@@ -90,7 +95,7 @@ fn unauthorized_refund_is_rejected() {
     let f = fixture();
     let c = client(&f);
     let id = escrow_id(&f, 6);
-    c.create(&id, &f.payer, &f.beneficiary, &100);
+    c.create(&id, &f.payer, &f.beneficiary, &100, &f.token);
 
     let stranger = Address::generate(&f.env);
     f.env.mock_auths(&[MockAuth {
