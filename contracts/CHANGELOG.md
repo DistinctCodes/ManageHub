@@ -13,5 +13,5 @@ backend and indexer integrators can track compatibility across releases (#1877).
 ### Notes
 - This file establishes the interface-change tracking process requested for the
   contracts workspace.
-- Bump the contracts workspace toolchain to Rust 1.85.0, the minimum required
-  by the locked `cpufeatures` 0.3.1 dependency, which uses the Rust 2024 edition.
+- Use Rust stable for the contracts workspace because locked dependencies such
+  as `proptest`, `serde_with`, and `time` require Rust 1.88 or newer.
