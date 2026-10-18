@@ -1,35 +1,39 @@
 "use client";
 
-import { CardHeader, StatusBadge } from "@/components/app-ui";
+import { Card, CardHeader, StatusBadge } from "@/components/app-ui";
 import { listMyUsage, type MeteredUsageEvent } from "@/lib/payments-api";
-import { formatCurrency } from "@/lib/utils";
-import {
-  useSessionHydration,
-  useSessionToken,
-} from "@/lib/stores/use-session-hydration";
+import { formatCurrency, fromMinorUnits } from "@/lib/utils";
+import { useSessionBootstrap } from "@/lib/stores/use-session-bootstrap";
+import { useSessionStore } from "@/lib/stores/session-store";
+import { UserMenu } from "@/components/auth/user-menu";
 import { useQuery } from "@tanstack/react-query";
 
+// Usage event amounts (and per-unit prices) arrive as integer minor units.
 function formatMoney(amount: number, currency: string) {
-  return formatCurrency(amount / 100, currency || "USD");
+  return formatCurrency(fromMinorUnits(amount, currency), currency || "USD");
 }
 
 export default function UsagePage() {
-  const hydrated = useSessionHydration();
-  const token = useSessionToken();
+  useSessionBootstrap();
+  const user = useSessionStore((state) => state.user);
+  const sessionStatus = useSessionStore((state) => state.status);
   const { data, isLoading, error } = useQuery({
     queryKey: ["my-usage"],
-    queryFn: () => listMyUsage(token!),
-    enabled: Boolean(token),
+    queryFn: () => listMyUsage(),
+    enabled: Boolean(user),
   });
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-10">
+      <div className="mb-4 flex items-center justify-end">
+        <UserMenu />
+      </div>
       <Card>
         <CardHeader title="Usage history" description="Your metered usage, newest first." />
         <div className="px-5 py-4">
-          {!hydrated ? (
+          {sessionStatus === "unknown" ? (
             <p className="text-sm text-gray-500">Checking your session...</p>
-          ) : !token ? (
+          ) : !user ? (
             <p className="text-sm text-amber-600">Sign in to view usage.</p>
           ) : isLoading ? (
             <p className="text-sm text-gray-500">Loading…</p>

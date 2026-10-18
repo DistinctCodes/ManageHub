@@ -15,13 +15,23 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => mocks.searchParams,
 }));
 
-vi.mock("@/lib/stores/session-store", () => ({
-  useSessionStore: (selector: (state: { accessToken: string }) => unknown) =>
-    selector({ accessToken: "token" }),
+vi.mock("@/lib/stores/use-session-bootstrap", () => ({
+  useSessionBootstrap: () => {},
 }));
 
-vi.mock("@/lib/stores/use-session-hydration", () => ({
-  useSessionHydration: () => true,
+vi.mock("@/lib/stores/session-store", () => ({
+  useSessionStore: (
+    selector: (
+      state: {
+        user: { id: string; email: string; role: string };
+        status: string;
+      },
+    ) => unknown,
+  ) =>
+    selector({
+      user: { id: "user-1", email: "a@example.com", role: "user" },
+      status: "authenticated",
+    }),
 }));
 
 vi.mock("@/lib/payments-api", () => ({

@@ -5,20 +5,23 @@ import { useEffect, useState } from "react";
 import { Loader2, ShieldAlert } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { buildReturnTo, getSafeReturnTo } from "@/lib/auth-redirect";
-import { useSessionHydration } from "@/lib/stores/use-session-hydration";
+import { useSessionBootstrap } from "@/lib/stores/use-session-bootstrap";
 import { useSessionStore } from "@/lib/stores/session-store";
 
 /**
- * The token comes from the session store, which is hydrated once inside a
- * client effect (issue #1983): no cookie is read during render, so the
- * server-rendered markup and the first client render agree, and the gate
- * re-renders reactively when the token changes (for example after sign-out
- * in another tab). The former `useAdminToken` (a plain per-render cookie
- * read) is replaced by `useSessionToken` from use-session-hydration.
+ * An account may open ADMIN-gated API endpoints only with an admin role
+ * (issue #1973). The role comes from `GET /auth/me` (restored through the
+ * session store, never from `document.cookie`); the middleware enforces the
+ * same check server-side, this component is the client-side backstop.
  */
+export function isAdminRole(role: string | null | undefined): boolean {
+  return (role ?? "").toLowerCase() === "admin";
+}
+
 export function RequireAdmin({ children }: { children: React.ReactNode }) {
-  const hydrated = useSessionHydration();
-  const token = useSessionStore((state) => state.accessToken);
+  useSessionBootstrap();
+  const user = useSessionStore((state) => state.user);
+  const status = useSessionStore((state) => state.status);
   const pathname = usePathname();
   const router = useRouter();
   const [returnTo, setReturnTo] = useState(pathname);
@@ -29,12 +32,12 @@ export function RequireAdmin({ children }: { children: React.ReactNode }) {
       buildReturnTo(pathname, window.location.search.replace(/^\?/, "")),
     );
     setReturnTo(currentReturnTo);
-    if (hydrated && !token) {
+    if (status === "unauthenticated") {
       router.replace(`/login?returnTo=${encodeURIComponent(currentReturnTo)}`);
     }
-  }, [pathname, router, token, hydrated]);
+  }, [pathname, router, status]);
 
-  if (!hydrated) {
+  if (status === "unknown") {
     return (
       <div
         className="flex items-center justify-center gap-2 px-6 py-12 text-sm text-gray-500 dark:text-gray-400"
@@ -46,7 +49,7 @@ export function RequireAdmin({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!token) {
+  if (status === "unauthenticated" || !user) {
     return (
       <div className="flex max-w-md flex-col items-center gap-3 rounded-lg border border-dashed border-gray-300 px-6 py-12 text-center dark:border-gray-700">
         <ShieldAlert className="h-8 w-8 text-gray-400" />
@@ -55,7 +58,7 @@ export function RequireAdmin({ children }: { children: React.ReactNode }) {
         </h2>
         <p className="text-sm text-gray-500 dark:text-gray-400">
           These pages call ADMIN-gated API endpoints. Sign in with an admin
-          account so an <code className="rounded bg-gray-100 px-1 py-0.5 text-xs dark:bg-gray-800">accessToken</code> cookie is present.
+          account to continue.
         </p>
         <Link
           href={loginHref}
@@ -66,5 +69,27 @@ export function RequireAdmin({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
+
+  if (!isAdminRole(user.role)) {
+    return (
+      <div className="flex max-w-md flex-col items-center gap-3 rounded-lg border border-dashed border-red-300 px-6 py-12 text-center dark:border-red-700">
+        <ShieldAlert className="h-8 w-8 text-red-400" />
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-50">
+          Not authorised
+        </h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          Your account is signed in as a member, but this area requires the
+          admin role. Ask an administrator to upgrade your account.
+        </p>
+        <Link
+          href="/wallet"
+          className="text-sm font-medium text-blue-600 underline hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+        >
+          Back to your wallet
+        </Link>
+      </div>
+    );
+  }
+
   return <>{children}</>;
 }

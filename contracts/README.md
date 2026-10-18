@@ -32,10 +32,44 @@ The `get_status` return value maps to the backend's `EscrowStatus` enum
 
 | Raw `u32` | Contract State | Backend `EscrowStatus` |
 | --------- | -------------- | ---------------------- |
-| `0`       | *(not found)*  | `NOT_FOUND`            |
 | `1`       | Locked         | `LOCKED`               |
 | `2`       | Released       | `RELEASED`             |
 | `3`       | Refunded       | `REFUNDED`             |
+| `4`       | Completed (fully released in instalments) | - |
+
+A missing escrow is **not** a status code: `get_status` returns
+`Err(Error::NotFound)`, which surfaces to clients as `Error(Contract, #1)`. The
+backend maps that error to `NOT_FOUND`.
+
+### Error Codes
+
+| Code | Error                 | Meaning                                              |
+| ---- | --------------------- | ---------------------------------------------------- |
+| `1`  | `NotFound`            | No escrow exists for the id                          |
+| `2`  | `AlreadyResolved`     | The escrow is no longer `Locked`                     |
+| `3`  | `InvalidAmount`       | Amount must be positive                              |
+| `4`  | `AlreadyExists`       | An escrow with this id already exists                |
+| `5`  | `ArithmeticOverflow`  | Checked arithmetic failed                            |
+| `20` | `AmountExceedsEscrow` | A partial release would exceed the locked amount     |
+| `21` | `NothingToRefund`     | Nothing remains to refund                            |
+
+### Amount Units and Token Decimals
+
+`amount` is an `i128` in **the escrowed token's smallest unit**, not fiat minor
+units. The backend stores fiat amounts in minor units (cents); it must convert
+to token units before building the transaction:
+
+```
+token_units = round_half_up(fiat_minor_units * 10^token_decimals / 10^fiat_decimals / rate)
+```
+
+Rounding is applied once, on the backend, to the token amount; the contract
+never rounds. Most Stellar assets use 7 decimals.
+
+Worked example: 50.00 USD paid in a token pegged 1:1 to USD with 7 decimals.
+The payment record holds `5000` (cents); `5000 * 10^7 / 10^2 = 500_000_000`
+token units, which is the `amount` passed to `create`. Partial releases use the
+same unit and satisfy `released <= amount`.
 
 ### Configuration Variables
 
@@ -59,10 +93,7 @@ exact derivation.
 
 ## Arithmetic Safety (CT-73)
 
-All amount-handling paths in every contract **must** use checked arithmetic
-(`checked_add` / `checked_sub`) rather than raw `+` / `-` operators. The
-`payment_escrow` scaffold includes helper functions and tests demonstrating
-this pattern. See [`payment_escrow/src/lib.rs`](payment_escrow/src/lib.rs).
+Amount-handling paths must use checked arithmetic (`checked_add` / `checked_sub`) rather than raw `+` / `-`. `revenue_distribution` already does this for its basis-point sum. `payment_escrow` stores a single amount per escrow and performs no arithmetic on it today; when partial releases or batch totals are added they must use the same checked pattern inline.
 
 ## Workspace Crates
 
@@ -84,3 +115,9 @@ as workspace members in [`Cargo.toml`](Cargo.toml) as they are developed.
 
 - [`SECURITY.md`](SECURITY.md) — trust model and pre-deployment checklist (CT-68).
 - [`UPGRADE.md`](UPGRADE.md) — contract upgrade/migration path (CT-69).
+
+## On-chain scope decisions
+
+- **Settlement batches** (execute / retry / abandon) are modelled off-chain only, in the backend `settlement-batch.entity.ts`. There is no on-chain batch contract, so the placeholder `settlement_batch_lifecycle` tests were removed.
+- **Split allocation** property tests and the **escrow-to-distribution** integration test were placeholders with no assertions. They are removed until the behaviour they describe exists on-chain; add them back with real assertions (a `proptest` dev-dependency and both contracts registered in one `Env`) together with that feature.
+- `cargo test --workspace` now runs natively in CI together with `cargo fmt --check`, `cargo clippy -- -D warnings` and a WASM build.

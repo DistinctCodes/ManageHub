@@ -1,8 +1,14 @@
+import { notFound } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
 export default function ComponentsPage() {
+  // The component catalog is an internal design-review surface; it must not
+  // ship in production builds. 404 outside development and keep it out of
+  // robots.txt (app/robots.ts).
+  if (process.env.NODE_ENV === "production") notFound();
+
   return (
     <main className="min-h-screen bg-gray-50 px-6 py-12 text-gray-950 dark:bg-gray-950 dark:text-gray-50">
       <div className="mx-auto max-w-5xl space-y-10">

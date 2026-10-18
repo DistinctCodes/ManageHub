@@ -9,7 +9,6 @@ import {
   StatusBadge,
 } from "@/components/app-ui";
 import { RequireAdmin } from "@/components/admin/require-admin";
-import { useSessionHydration, useSessionToken } from "@/lib/stores/use-session-hydration";
 import {
   listManualReviewPayments,
   requestRefund,
@@ -18,20 +17,19 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
+import { formatCurrency, fromMinorUnits } from "@/lib/utils";
 
 function PaymentRow({ payment }: { payment: Payment }) {
   const queryClient = useQueryClient();
   const [amount, setAmount] = useState(String(payment.amount));
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
-  const token = useSessionToken();
 
   async function onRefund(e: React.FormEvent) {
     e.preventDefault();
-    if (!token) return;
     setBusy(true);
     try {
-      await requestRefund(token, payment.id, Number(amount), reason);
+      await requestRefund(payment.id, Number(amount), reason);
       toast.success("Refund request submitted");
       setReason("");
       await queryClient.invalidateQueries({ queryKey: ["manual-review"] });
@@ -50,7 +48,7 @@ function PaymentRow({ payment }: { payment: Payment }) {
             {payment.id}
           </p>
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            {payment.currency} {payment.amount} ·{" "}
+            {formatCurrency(fromMinorUnits(payment.amount, payment.currency), payment.currency)} ·{" "}
             {new Date(payment.createdAt).toLocaleString()}
           </p>
         </div>
@@ -91,12 +89,9 @@ function PaymentRow({ payment }: { payment: Payment }) {
 }
 
 export default function AdminRefundPage() {
-  const hydrated = useSessionHydration();
-  const token = useSessionToken();
   const { data, isLoading, error } = useQuery({
     queryKey: ["manual-review"],
-    queryFn: () => listManualReviewPayments(token!),
-    enabled: Boolean(token),
+    queryFn: () => listManualReviewPayments(),
   });
 
   return (
@@ -108,11 +103,7 @@ export default function AdminRefundPage() {
             description="Payments awaiting reconciliation or manual review can be refunded."
           />
           <div className="space-y-4 px-5 py-4">
-            {!hydrated ? (
-              <p className="text-sm text-gray-500">Checking your session...</p>
-            ) : !token ? (
-              <p className="text-sm text-amber-600">Sign in required.</p>
-            ) : isLoading ? (
+            isLoading ? (
               <p className="text-sm text-gray-500">Loading…</p>
             ) : error ? (
               <p className="text-sm text-red-600">{(error as Error).message}</p>

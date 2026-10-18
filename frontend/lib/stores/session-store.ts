@@ -1,59 +1,35 @@
 "use client";
 
 import { create } from "zustand";
-import Cookies from "js-cookie";
-
-export const ACCESS_TOKEN_COOKIE = "accessToken";
+import type { AuthUser } from "@/lib/auth-types";
 
 /**
- * localStorage signal written whenever the session changes (issue #1983).
- * Cookies raise no cross-tab events, so other tabs listen for this key's
- * `storage` event and re-read the session store, keeping them in step when
- * a user signs out (or in) in a different tab.
+ * The access token is kept in memory only: the backend owns the real session
+ * through its HttpOnly `accessToken` cookie (issue #1975), and the client must
+ * not keep a JavaScript-readable copy (no js-cookie mirror). A JavaScript-
+ * readable cookie also had to be read synchronously at store creation, which
+ * made server-rendered markup disagree with the first client render and
+ * caused hydration mismatches (issue #1983's root cause). What the client
+ * needs - who the user is and which role they hold - is restored from
+ * `GET /auth/me` inside a client effect instead.
  */
-export const SESSION_SIGNAL_KEY = "managehub-session-signal";
-
-function emitSessionSignal(): void {
-  try {
-    localStorage.setItem(SESSION_SIGNAL_KEY, String(Date.now()));
-  } catch {
-    // Private browsing etc. - cross-tab sync is best effort.
-  }
-}
+export type SessionStatus = "unknown" | "authenticated" | "unauthenticated";
 
 interface SessionState {
-  /**
-   * Null until `hydrate()` has run in the client: the cookie must never be
-   * read synchronously at store creation or during render, because the
-   * server render and the first client render would disagree and produce a
-   * hydration mismatch. Pages gate on `hydrated` before trusting the token.
-   */
+  user: AuthUser | null;
+  /** Memory-only copy of the login/register response token. Not persisted. */
   accessToken: string | null;
-  hydrated: boolean;
-  setAccessToken: (token: string | null) => void;
-  hydrate: () => void;
+  status: SessionStatus;
+  setSession: (user: AuthUser, accessToken?: string | null) => void;
+  clearSession: () => void;
 }
 
 export const useSessionStore = create<SessionState>((set) => ({
+  user: null,
   accessToken: null,
-  hydrated: false,
-  setAccessToken: (token) => {
-    if (token) {
-      Cookies.set(ACCESS_TOKEN_COOKIE, token, {
-        sameSite: "lax",
-        secure: window.location.protocol === "https:",
-      });
-    } else {
-      Cookies.remove(ACCESS_TOKEN_COOKIE);
-    }
-    emitSessionSignal();
-    set({ accessToken: token, hydrated: true });
-  },
-  hydrate: () => {
-    if (typeof window === "undefined") return;
-    set({
-      accessToken: Cookies.get(ACCESS_TOKEN_COOKIE) ?? null,
-      hydrated: true,
-    });
-  },
+  status: "unknown",
+  setSession: (user, accessToken = null) =>
+    set({ user, accessToken, status: "authenticated" }),
+  clearSession: () =>
+    set({ user: null, accessToken: null, status: "unauthenticated" }),
 }));

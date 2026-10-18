@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { getPayments } from "@/lib/payments-api";
+import { useSessionBootstrap } from "@/lib/stores/use-session-bootstrap";
 import { useSessionStore } from "@/lib/stores/session-store";
-import { useSessionHydration } from "@/lib/stores/use-session-hydration";
+import { formatCurrency, fromMinorUnits } from "@/lib/utils";
+import { UserMenu } from "@/components/auth/user-menu";
 import {
   Card,
   CardContent,
@@ -13,8 +15,9 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
+// Payment amounts arrive as integer minor units.
 function formatAmount(amount: number, currency: string): string {
-  return `${amount.toFixed(2)} ${currency}`;
+  return formatCurrency(fromMinorUnits(amount, currency), currency);
 }
 
 function statusTone(status: string): string {
@@ -32,22 +35,20 @@ function statusTone(status: string): string {
 }
 
 export default function PaymentsPage() {
-  const hydrated = useSessionHydration();
-  const accessToken = useSessionStore((state) => state.accessToken);
-
+  useSessionBootstrap();
+  const user = useSessionStore((state) => state.user);
+  const sessionStatus = useSessionStore((state) => state.status);
   const {
     data: payments,
     isLoading,
     error,
   } = useQuery({
     queryKey: ["payments", "list"],
-    queryFn: () => getPayments(accessToken as string),
-    enabled: Boolean(accessToken),
+    queryFn: () => getPayments(),
+    enabled: Boolean(user),
   });
 
-  if (!hydrated) {
-    // Before hydration the token is deliberately null (issue #1983), so
-    // render the same neutral state the server did and avoid a mismatch.
+  if (sessionStatus === "unknown") {
     return (
       <main className="mx-auto max-w-3xl px-4 py-10">
         <h1 className="text-2xl font-semibold mb-6">Payments</h1>
@@ -58,7 +59,7 @@ export default function PaymentsPage() {
     );
   }
 
-  if (!accessToken) {
+  if (!user) {
     return (
       <main className="mx-auto max-w-3xl px-4 py-10">
         <h1 className="text-2xl font-semibold mb-6">Payments</h1>
@@ -78,7 +79,10 @@ export default function PaymentsPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
-      <h1 className="text-2xl font-semibold mb-6">Payments</h1>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Payments</h1>
+        <UserMenu />
+      </div>
 
       {isLoading && (
         <Card>

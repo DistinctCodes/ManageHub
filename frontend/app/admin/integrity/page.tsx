@@ -6,22 +6,19 @@ import { checkIntegrity, type LedgerIntegrityReport } from "@/lib/admin-api";
 import { Card, CardHeader, Button } from "@/components/admin/ui";
 import { IntegrityResults } from "@/components/admin/integrity-results";
 import { RequireAdmin } from "@/components/admin/require-admin";
-import { useSessionToken } from "@/lib/stores/use-session-hydration";
 
 export default function IntegrityPage() {
-  const token = useSessionToken();
-
   return (
     <RequireAdmin>
-      <IntegrityInner token={token as string} />
+      <IntegrityInner />
     </RequireAdmin>
   );
 }
 
-function IntegrityInner({ token }: { token: string }) {
+function IntegrityInner() {
   const report = useQuery({
     queryKey: ["ledger-integrity"],
-    queryFn: () => checkIntegrity(token),
+    queryFn: () => checkIntegrity(),
     refetchOnWindowFocus: false,
   });
 

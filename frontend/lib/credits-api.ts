@@ -1,4 +1,6 @@
-﻿// lib/credits-api.ts  -- member-facing credit API (FE-108)
+// lib/credits-api.ts  -- member-facing credit API (FE-108)
+
+import { request } from "@/lib/http";
 
 export interface CreditBalance {
   accountId: string;
@@ -25,8 +27,6 @@ export interface CreditStatement {
   page: number;
   pageSize: number;
 }
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 export interface CreditsApiErrorBody {
   statusCode?: number;
@@ -67,44 +67,28 @@ export class CreditsApiError extends Error {
   }
 }
 
-async function creditsFetch<T>(
-  path: string,
-  accessToken: string,
-  init?: RequestInit,
-): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`,
-      ...init?.headers,
-    },
+function creditsFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  return request<T>(path, {
+    service: "credits",
+    method: init?.method,
+    body: init?.body,
+    // Credits builds its own typed error and does not report to Sentry.
+    makeError: (status, body) => new CreditsApiError(status, body),
+    report: false,
   });
-
-  if (!response.ok) {
-    const body: unknown = await response.json().catch(() => null);
-    throw new CreditsApiError(response.status, body);
-  }
-
-  if (response.status === 204) {
-    return undefined as T;
-  }
-  return response.json() as Promise<T>;
 }
 
 // -- member credit balance (FE-108) -----------------------------------------------
 
-export function getCreditBalance(accessToken: string): Promise<CreditBalance> {
-  return creditsFetch<CreditBalance>("/credits/balance", accessToken);
+export function getCreditBalance(): Promise<CreditBalance> {
+  return creditsFetch<CreditBalance>("/credits/balance");
 }
 
 export function getCreditStatement(
-  accessToken: string,
   page = 1,
   pageSize = 20,
 ): Promise<CreditStatement> {
   return creditsFetch<CreditStatement>(
     `/credits/statement?page=${page}&pageSize=${pageSize}`,
-    accessToken,
   );
 }

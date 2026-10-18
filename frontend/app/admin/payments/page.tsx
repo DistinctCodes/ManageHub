@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ClipboardList, ExternalLink } from "lucide-react";
 import { listManualReviewPayments } from "@/lib/payments-api";
 import type { Payment } from "@/lib/payments-api";
+import { formatCurrency, fromMinorUnits } from "@/lib/utils";
 import {
   Card,
   CardHeader,
@@ -13,24 +14,27 @@ import {
   StatusBadge,
 } from "@/components/admin/ui";
 import { RequireAdmin } from "@/components/admin/require-admin";
-import { useSessionToken } from "@/lib/stores/use-session-hydration";
+
+// Payment amounts arrive as integer minor units.
+function formatAmount(amount: number, currency: string): string {
+  return formatCurrency(fromMinorUnits(amount, currency), currency);
+}
 
 const PAGE_SIZE = 25;
 
 export default function AdminManualReviewPage() {
-  const token = useSessionToken();
   return (
     <RequireAdmin>
-      <ManualReviewInner token={token as string} />
+      <ManualReviewInner />
     </RequireAdmin>
   );
 }
 
-function ManualReviewInner({ token }: { token: string }) {
+function ManualReviewInner() {
   const [offset, setOffset] = useState(0);
   const { data, isLoading, error } = useQuery({
     queryKey: ["manual-review-payments", offset],
-    queryFn: () => listManualReviewPayments(token, PAGE_SIZE, offset),
+    queryFn: () => listManualReviewPayments(PAGE_SIZE, offset),
     refetchInterval: 30_000,
   });
 
@@ -100,7 +104,7 @@ function ManualReviewInner({ token }: { token: string }) {
                       <StatusBadge status={p.status} />
                     </td>
                     <td className="px-5 py-3 text-right tabular-nums">
-                      {p.amount.toLocaleString()} {p.currency}
+                      {formatAmount(p.amount, p.currency)}
                     </td>
                     <td className="px-5 py-3 max-w-xs truncate text-gray-500 dark:text-gray-400">
                       {p.manualReviewReason ?? "—"}

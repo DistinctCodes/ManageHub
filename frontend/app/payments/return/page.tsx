@@ -26,10 +26,11 @@ import Link from "next/link";
 import { verifyPaymentReturn, getPayment } from "@/lib/payments-api";
 import type { Payment } from "@/lib/payments-api";
 import { useSessionStore } from "@/lib/stores/session-store";
-import { useSessionHydration } from "@/lib/stores/use-session-hydration";
+import { useSessionBootstrap } from "@/lib/stores/use-session-bootstrap";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { getProviderReturnErrorMessage } from "@/lib/payment-return-errors";
+import { formatCurrency, fromMinorUnits } from "@/lib/utils";
 
 // -- tuning constants ---------------------------------------------------------
 
@@ -83,8 +84,9 @@ function statusTone(status: string): string {
 export default function PaymentReturnPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const hydrated = useSessionHydration();
-  const accessToken = useSessionStore((state) => state.accessToken);
+  useSessionBootstrap();
+  const user = useSessionStore((state) => state.user);
+  const sessionStatus = useSessionStore((state) => state.status);
 
   const paymentId =
     searchParams.get("paymentId") ?? searchParams.get("payment_id") ?? "";
@@ -123,7 +125,7 @@ export default function PaymentReturnPage() {
   // -- polling loop --------------------------------------------------------
 
   const startPolling = useCallback(
-    (id: string, token: string) => {
+    (id: string) => {
       let attempt = 0;
       setPhase("polling");
 
@@ -131,7 +133,7 @@ export default function PaymentReturnPage() {
         attempt += 1;
         setPollCount(attempt);
 
-        getPayment(id, token)
+        getPayment(id)
           .then((p) => {
             setPayment(p);
             if (terminalStatus(p.status)) {
@@ -158,7 +160,7 @@ export default function PaymentReturnPage() {
   // -- fast path -----------------------------------------------------------
 
   useEffect(() => {
-    if (providerErrorMessage || !paymentId || !accessToken) return;
+    if (providerErrorMessage || !paymentId || !user || sessionStatus !== "authenticated") return;
 
     const ctrl = new AbortController();
     abortRef.current = ctrl;
@@ -166,10 +168,10 @@ export default function PaymentReturnPage() {
     // Arm the timeout that triggers the polling fallback
     const timeoutId = setTimeout(() => {
       ctrl.abort();
-      startPolling(paymentId, accessToken as string);
+      startPolling(paymentId);
     }, FAST_PATH_TIMEOUT_MS);
 
-    verifyPaymentReturn(accessToken as string, paymentId)
+    verifyPaymentReturn(paymentId)
       .then((result) => {
         clearTimeout(timeoutId);
         if (ctrl.signal.aborted) return; // timeout already fired, ignore
@@ -177,8 +179,8 @@ export default function PaymentReturnPage() {
         if (result.verified || terminalStatus(result.payment.status)) {
           setPhase("success");
         } else {
-          // Not yet in a terminal state � fall through to polling
-          startPolling(paymentId, accessToken as string);
+          // Not yet in a terminal state, fall through to polling
+          startPolling(paymentId);
         }
       })
       .catch((err: unknown) => {
@@ -189,7 +191,7 @@ export default function PaymentReturnPage() {
           "[verify-return] fast path failed, falling back to polling:",
           err,
         );
-        startPolling(paymentId, accessToken as string);
+        startPolling(paymentId);
       });
 
     return () => {
@@ -197,7 +199,7 @@ export default function PaymentReturnPage() {
       ctrl.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paymentId, accessToken, providerErrorMessage]);
+  }, [paymentId, user, sessionStatus, providerErrorMessage]);
 
   // -- render --------------------------------------------------------------
 
@@ -231,24 +233,7 @@ export default function PaymentReturnPage() {
     );
   }
 
-  if (!hydrated) {
-    // Pre-hydration the token is null (issue #1983); render the neutral
-    // state the server rendered so the markup cannot mismatch.
-    return (
-      <main className="mx-auto max-w-lg px-4 py-16">
-        <h1 className="text-2xl font-semibold mb-6">Verifying Payment</h1>
-        <Card>
-          <CardContent className="py-6">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Checking your session...
-            </p>
-          </CardContent>
-        </Card>
-      </main>
-    );
-  }
-
-  if (!accessToken) {
+  if (!user) {
     return (
       <main className="mx-auto max-w-lg px-4 py-16">
         <h1 className="text-2xl font-semibold mb-6">Verifying Payment</h1>
@@ -421,7 +406,10 @@ export default function PaymentReturnPage() {
 
               <dt className="text-gray-500 dark:text-gray-400">Amount</dt>
               <dd>
-                {payment.amount.toFixed(2)} {payment.currency}
+                {formatCurrency(
+                  fromMinorUnits(payment.amount, payment.currency),
+                  payment.currency,
+                )}
               </dd>
 
               {payment.provider && (

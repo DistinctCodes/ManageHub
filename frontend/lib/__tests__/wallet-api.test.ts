@@ -53,7 +53,9 @@ describe("wallet-api", () => {
       expect(result).toEqual(body);
       const [url, init] = fetchMock.mock.calls[0];
       expect(String(url)).toContain("/wallets/me");
-      expect(init).toMatchObject({ credentials: "same-origin" });
+      // The shared request helper now always sends credentials: "include"
+      // so the HttpOnly session cookie crosses origins to the API domain.
+      expect(init).toMatchObject({ credentials: "include" });
       expect(init.headers).toMatchObject({ "Content-Type": "application/json" });
     });
   });

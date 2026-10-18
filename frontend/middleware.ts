@@ -44,6 +44,28 @@ async function isAuthenticated(request: NextRequest): Promise<boolean> {
   }
 }
 
+/**
+ * Decodes the verified token's `role` claim (issue #1973). The backend signs
+ * the `user`/`admin` enum values, and role changes bump `tokenVersion`, so a
+ * role claim that still verifies is fresh enough to gate admin pages here.
+ * The backend still enforces authorization on every endpoint.
+ */
+async function isAdminToken(request: NextRequest): Promise<boolean> {
+  const token = getAccessToken(request);
+  if (!token) return false;
+
+  const secret = process.env.JWT_SECRET;
+  if (!secret) return false;
+
+  try {
+    const key = new TextEncoder().encode(secret);
+    const { payload } = await jwtVerify(token, key);
+    return payload.role === "admin";
+  } catch {
+    return false;
+  }
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const authenticated = await isAuthenticated(request);
@@ -61,6 +83,24 @@ export async function middleware(request: NextRequest) {
     url.pathname = "/wallet";
     url.search = "";
     return NextResponse.redirect(url);
+  }
+
+  // Member-role tokens must land on a "not authorised" page instead of the
+  // admin shell (issue #1973). The dedicated forbidden page skips this check
+  // so the redirect cannot loop.
+  if (
+    authenticated &&
+    isProtectedRoute(pathname) &&
+    (pathname === "/admin" || pathname.startsWith("/admin/")) &&
+    pathname !== "/admin/forbidden"
+  ) {
+    const isAdmin = await isAdminToken(request);
+    if (!isAdmin) {
+      const forbiddenUrl = request.nextUrl.clone();
+      forbiddenUrl.pathname = "/admin/forbidden";
+      forbiddenUrl.search = "";
+      return NextResponse.redirect(forbiddenUrl);
+    }
   }
 
   return NextResponse.next();

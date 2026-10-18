@@ -1,10 +1,16 @@
-import {
-  getApiErrorMessage,
-  getRequestId,
-  reportApiError,
-} from "@/lib/api-report";
+import { getApiErrorMessage } from "@/lib/api-report";
+import { getApiBaseUrl } from "@/lib/env";
+import { request } from "@/lib/http";
+import type { AuthUser } from "@/lib/auth-types";
 
-export type UserRole = "MEMBER" | "ADMIN" | "SUPER_ADMIN";
+// Re-exported for convenience: the session store and the auth form both need
+// these exact shapes, and the backend's `UserRole` enum is the source of truth.
+export type { AuthUser, UserRole } from "@/lib/auth-types";
+
+export interface AuthResponse {
+  accessToken: string;
+  user: AuthUser;
+}
 
 /**
  * Auth failures that carry structured field information (issue #1988).
@@ -57,62 +63,47 @@ function collectFieldErrors(errorBody: unknown): Record<string, string> {
   return fieldErrors;
 }
 
-export interface AuthUser {
-  id: string;
-  email: string;
-  role: UserRole;
-}
-
-export interface AuthResponse {
-  accessToken: string;
-  user: AuthUser;
-}
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
-
-async function authRequest<T>(
+/**
+ * Every request includes `credentials: "include"` (issue #1975): the backend
+ * answers register/login with an HttpOnly `accessToken` cookie, so the session
+ * is owned by the cookie, not by a JavaScript-readable duplicate. The token
+ * returned in the response body is kept in memory only (see session-store).
+ */
+function authRequest<T>(
   path: string,
   body: { email: string; password: string },
 ): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  return request<T>(path, {
+    service: "auth",
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    const errorBody = await response.json().catch(() => null);
-    const fallbackMessage =
-      response.status === 401
-        ? "Invalid credentials"
-        : `Authentication failed (${response.status})`;
-
-    reportApiError({
-      api: "auth",
-      method: "POST",
-      pathTemplate: path,
-      status: response.status,
-      requestId: getRequestId(response),
-    });
-
-    // Attach per-field validation detail when the backend provided it
-    // (issue #1988): 400 field arrays, and 409 for a taken email address.
-    const fieldErrors = collectFieldErrors(errorBody);
-    if (response.status === 409 && !fieldErrors.email) {
-      fieldErrors.email = getApiErrorMessage(
-        errorBody,
-        "Email is already registered",
+    body,
+    // A 401 from login/register means bad credentials, not an expired
+    // session - resolving the session and redirecting here would be wrong.
+    expireOn401: false,
+    makeError: (status, errorBody) => {
+      const fallbackMessage =
+        status === 401
+          ? "Invalid credentials"
+          : `Authentication failed (${status})`;
+      // Attach per-field validation detail when the backend provided it
+      // (issue #1988): 400 field arrays, and 409 for a taken email address.
+      const fieldErrors = collectFieldErrors(errorBody);
+      if (status === 409 && !fieldErrors.email) {
+        fieldErrors.email = getApiErrorMessage(
+          errorBody as Record<string, unknown> | null,
+          "Email is already registered",
+        );
+      }
+      return new AuthApiError(
+        status,
+        fieldErrors,
+        getApiErrorMessage(
+          errorBody as Record<string, unknown> | null,
+          fallbackMessage,
+        ),
       );
-    }
-
-    throw new AuthApiError(
-      response.status,
-      fieldErrors,
-      getApiErrorMessage(errorBody, fallbackMessage),
-    );
-  }
-
-  return response.json() as Promise<T>;
+    },
+  });
 }
 
 export function login(email: string, password: string): Promise<AuthResponse> {
@@ -124,4 +115,44 @@ export function register(
   password: string,
 ): Promise<AuthResponse> {
   return authRequest<AuthResponse>("/auth/register", { email, password });
+}
+
+/**
+ * Returns the signed-in user from the backend (issue #1973). Used to restore
+ * a session after a page reload without reading the HttpOnly cookie from
+ * JavaScript. Single-flight: concurrent callers share one request.
+ */
+let meInFlight: Promise<AuthUser> | null = null;
+
+export function me(): Promise<AuthUser> {
+  meInFlight ??= fetchMe().finally(() => {
+    meInFlight = null;
+  });
+  return meInFlight;
+}
+
+function fetchMe(): Promise<AuthUser> {
+  // A 401 here expires the session (handled by request()).
+  return request<AuthUser>("/auth/me", {
+    service: "auth",
+    fallbackMessage: () => "Failed to load the current session",
+  });
+}
+
+/**
+ * Ends the session server-side and clears the HttpOnly cookie (issue #1974).
+ * The backend revokes every outstanding token for the user by bumping their
+ * `tokenVersion`, so a copied JWT cannot outlive the logout either. Network
+ * or 401/403 failures must not block the local sign-out: callers always clear
+ * the local session afterwards, which is why errors are swallowed here.
+ */
+export async function logout(): Promise<void> {
+  try {
+    await fetch(`${getApiBaseUrl()}/auth/logout`, {
+      method: "POST",
+      credentials: "include",
+    });
+  } catch {
+    // The local session is cleared by the caller regardless.
+  }
 }

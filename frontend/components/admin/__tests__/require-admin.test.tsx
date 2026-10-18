@@ -1,29 +1,37 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import Cookies from "js-cookie";
+import { render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  SESSION_SIGNAL_KEY,
-  useSessionStore,
-} from "@/lib/stores/session-store";
-import { RequireAdmin } from "../require-admin";
 
-vi.mock("js-cookie", () => ({
-  default: { get: vi.fn() },
-}));
+import { RequireAdmin } from "../require-admin";
+import { useSessionStore } from "@/lib/stores/session-store";
 
 vi.mock("next/navigation", () => ({
   usePathname: vi.fn(),
   useRouter: vi.fn(),
 }));
 
+vi.mock("@/lib/stores/use-session-bootstrap", () => ({
+  useSessionBootstrap: () => {},
+}));
+
+/**
+ * JWT_SECRET verification works server-side only, so the client relies on
+ * `GET /auth/me` to learn the signed-in user (and role). The bootstrap hook is
+ * mocked above, and each test seeds the real zustand store directly so the
+ * store's status machine drives the component.
+ */
+function seedSession(state: {
+  user: { id: string; email: string; role: string } | null;
+  accessToken: string | null;
+  status: "unknown" | "authenticated" | "unauthenticated";
+}): void {
+  useSessionStore.setState(state, false);
+}
+
 const replace = vi.fn();
 
 beforeEach(() => {
   vi.clearAllMocks();
-  // The zustand store is module-scoped and would otherwise leak state
-  // between tests (issue #1983): every test starts un-hydrated.
-  useSessionStore.setState({ accessToken: null, hydrated: false });
   window.history.replaceState({}, "", "/admin/accounts?tab=frozen");
   vi.mocked(usePathname).mockReturnValue("/admin/accounts");
   vi.mocked(useRouter).mockReturnValue({
@@ -31,9 +39,20 @@ beforeEach(() => {
   } as unknown as ReturnType<typeof useRouter>);
 });
 
-describe("RequireAdmin", () => {
-  it("redirects an unauthenticated visitor with the current destination", async () => {
-    vi.mocked(Cookies.get).mockReturnValue(undefined);
+afterEach(() => {
+  useSessionStore.setState(
+    { user: null, accessToken: null, status: "unknown" },
+    false,
+  );
+});
+
+describe("RequireAdmin role gate (issue #1973)", () => {
+  it("renders protected content for an admin user", () => {
+    seedSession({
+      user: { id: "u1", email: "a@example.com", role: "admin" },
+      accessToken: "not-readable-from-cookie",
+      status: "authenticated",
+    });
 
     render(
       <RequireAdmin>
@@ -41,78 +60,71 @@ describe("RequireAdmin", () => {
       </RequireAdmin>,
     );
 
-    const loginUrl =
-      "/login?returnTo=%2Fadmin%2Faccounts%3Ftab%3Dfrozen";
+    expect(screen.getByText("Protected content")).toBeInTheDocument();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("shows a not-authorised state for a member-role user", () => {
+    seedSession({
+      user: { id: "u2", email: "bill@example.com", role: "user" },
+      accessToken: "not-readable-from-cookie",
+      status: "authenticated",
+    });
+
+    render(
+      <RequireAdmin>
+        <div>Protected content</div>
+      </RequireAdmin>,
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Not authorised" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Protected content")).not.toBeInTheDocument();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("redirects an unauthenticated visitor with the current destination", async () => {
+    seedSession({ user: null, accessToken: null, status: "unauthenticated" });
+
+    render(
+      <RequireAdmin>
+        <div>Protected content</div>
+      </RequireAdmin>,
+    );
+
+    const loginUrl = "/login?returnTo=%2Fadmin%2Faccounts%3Ftab%3Dfrozen";
     const loginLink = screen.getByRole("link", { name: "Sign in to continue" });
     await waitFor(() => expect(loginLink).toHaveAttribute("href", loginUrl));
     await waitFor(() => expect(replace).toHaveBeenCalledWith(loginUrl));
   });
 
-  it("renders protected content when an access token is present", async () => {
-    vi.mocked(Cookies.get).mockReturnValue("access-token");
+  it("shows a transient checking state while the session is unknown", async () => {
+    // Simulate /auth/me resolving to a member shortly after mount.
+    seedSession({ user: null, accessToken: null, status: "unknown" });
 
-    render(
+    const { rerender } = render(
       <RequireAdmin>
         <div>Protected content</div>
       </RequireAdmin>,
     );
 
-    // The token is only known after the client-side hydration effect runs,
-    // which is exactly what keeps the first render identical to the SSR
-    // output (issue #1983).
-    await waitFor(() =>
-      expect(screen.getByText("Protected content")).toBeInTheDocument(),
-    );
-    expect(replace).not.toHaveBeenCalled();
-  });
-
-  it("clears the session and re-gates when another tab signs out", async () => {
-    vi.mocked(Cookies.get).mockReturnValue("access-token");
-
-    render(
-      <RequireAdmin>
-        <div>Protected content</div>
-      </RequireAdmin>,
-    );
-    await waitFor(() =>
-      expect(screen.getByText("Protected content")).toBeInTheDocument(),
-    );
-
-    // The other tab removed the cookie and emitted the session signal.
-    vi.mocked(Cookies.get).mockReturnValue(undefined);
-    act(() => {
-      window.dispatchEvent(
-        new StorageEvent("storage", { key: SESSION_SIGNAL_KEY }),
-      );
-    });
-
-    await waitFor(() =>
-      expect(
-        screen.getByRole("link", { name: "Sign in to continue" }),
-      ).toBeInTheDocument(),
-    );
-    expect(screen.queryByText("Protected content")).not.toBeInTheDocument();
-  });
-
-  it("renders a neutral checking state while hydration is pending", () => {
-    vi.mocked(Cookies.get).mockReturnValue(undefined);
-
-    render(
-      <RequireAdmin>
-        <div>Protected content</div>
-      </RequireAdmin>,
-    );
-
-    // Force the pre-hydration state the component shows on first paint,
-    // before the store's hydrate effect has run: it must be a neutral
-    // "checking" state so it matches the SSR output (issue #1983) instead
-    // of flashing the signed-out panel.
-    act(() =>
-      useSessionStore.setState({ accessToken: null, hydrated: false }),
-    );
     expect(screen.getByText("Checking your session...")).toBeInTheDocument();
+
+    useSessionStore.setState({
+      user: { id: "u2", email: "bill@example.com", role: "user" },
+      accessToken: "not-readable-from-cookie",
+      status: "authenticated",
+    });
+    rerender(
+      <RequireAdmin>
+        <div>Protected content</div>
+      </RequireAdmin>,
+    );
+
     expect(
-      screen.queryByRole("link", { name: "Sign in to continue" }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("heading", { name: "Not authorised" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Protected content")).not.toBeInTheDocument();
   });
 });
