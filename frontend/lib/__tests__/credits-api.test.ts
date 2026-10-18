@@ -38,7 +38,7 @@ describe("credits-api", () => {
 
     let caught: unknown;
     try {
-      await getCreditBalance("access-token");
+      await getCreditBalance();
     } catch (error) {
       caught = error;
     }
@@ -60,7 +60,7 @@ describe("credits-api", () => {
 
     let caught: unknown;
     try {
-      await getCreditStatement("access-token", 2, 10);
+      await getCreditStatement(2, 10);
     } catch (error) {
       caught = error;
     }
@@ -75,17 +75,17 @@ describe("credits-api", () => {
     });
   });
 
-  it("preserves the access token and statement query parameters", async () => {
+  it("preserves the statement query parameters", async () => {
     fetchMock.mockResolvedValue(
       jsonResponse(200, { entries: [], total: 0, page: 2, pageSize: 10 }),
     );
 
-    await getCreditStatement("access-token", 2, 10);
+    await getCreditStatement(2, 10);
 
     const [url, init] = fetchMock.mock.calls[0];
     expect(String(url)).toContain("/credits/statement?page=2&pageSize=10");
+    expect(init.credentials).toBe("include");
     expect(init.headers).toMatchObject({
-      Authorization: "Bearer access-token",
       "Content-Type": "application/json",
     });
   });

@@ -12,24 +12,23 @@ import {
   Badge,
   StatusBadge,
 } from "@/components/admin/ui";
-import { RequireAdmin, useAdminToken } from "@/components/admin/require-admin";
+import { RequireAdmin } from "@/components/admin/require-admin";
 
 const PAGE_SIZE = 25;
 
 export default function AdminManualReviewPage() {
-  const token = useAdminToken();
   return (
     <RequireAdmin>
-      <ManualReviewInner token={token as string} />
+      <ManualReviewInner />
     </RequireAdmin>
   );
 }
 
-function ManualReviewInner({ token }: { token: string }) {
+function ManualReviewInner() {
   const [offset, setOffset] = useState(0);
   const { data, isLoading, error } = useQuery({
     queryKey: ["manual-review-payments", offset],
-    queryFn: () => listManualReviewPayments(token, PAGE_SIZE, offset),
+    queryFn: () => listManualReviewPayments(PAGE_SIZE, offset),
     refetchInterval: 30_000,
   });
 
