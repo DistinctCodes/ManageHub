@@ -1,6 +1,14 @@
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, contracttype, contracterror, token, Env, Address, BytesN};
+use soroban_sdk::{
+    contract, contractimpl, contractmeta, contracterror, contracttype, token, Address, BytesN, Env,
+};
+
+contractmeta!(key = "name", val = "payment_escrow");
+contractmeta!(key = "interface_version", val = "1");
+
+/// Interface version reported by `version()`. Bump on any ABI change.
+pub const VERSION: u32 = 1;
 
 /// On-chain escrow status codes.
 /// Maps to backend EscrowStatus enum: 0=NotFound, 1=Locked, 2=Released, 3=Refunded.
@@ -30,6 +38,9 @@ pub struct Escrow {
 #[contracttype]
 pub enum DataKey {
     Escrow(BytesN<32>),
+    Admin,
+    PendingAdmin,
+    Paused,
 }
 
 #[contracterror]
@@ -45,6 +56,16 @@ pub enum Error {
     AlreadyExists = 4,
     /// Arithmetic overflow or underflow detected (CT-73).
     ArithmeticOverflow = 5,
+    /// `initialize` was already called.
+    AlreadyInitialized = 10,
+    /// The contract has no admin yet.
+    NotInitialized = 11,
+    /// Caller is not the admin.
+    Unauthorized = 12,
+    /// Creating escrows is paused.
+    Paused = 13,
+    /// There is no pending admin transfer.
+    NoPendingAdmin = 14,
     /// The escrow was already released.
     AlreadyReleased = 6,
     /// The escrow was already refunded.
@@ -58,8 +79,80 @@ pub enum Error {
 #[contract]
 pub struct PaymentEscrowContract;
 
+fn load_admin(env: &Env) -> Result<Address, Error> {
+    env.storage()
+        .instance()
+        .get(&DataKey::Admin)
+        .ok_or(Error::NotInitialized)
+}
+
 #[contractimpl]
 impl PaymentEscrowContract {
+    /// One-time setup: record the admin. Escrow entrypoints work without it,
+    /// but upgrade, pause and admin rotation need it.
+    pub fn initialize(env: Env, admin: Address) -> Result<(), Error> {
+        if env.storage().instance().has(&DataKey::Admin) {
+            return Err(Error::AlreadyInitialized);
+        }
+        admin.require_auth();
+        env.storage().instance().set(&DataKey::Admin, &admin);
+        Ok(())
+    }
+
+    /// Interface version of this contract; the backend checks it at startup.
+    pub fn version(_env: Env) -> u32 {
+        VERSION
+    }
+
+    /// Replace the contract code. Admin only; stored escrows are preserved.
+    pub fn upgrade(env: Env, new_wasm_hash: BytesN<32>) -> Result<(), Error> {
+        let admin = load_admin(&env)?;
+        admin.require_auth();
+        env.deployer().update_current_contract_wasm(new_wasm_hash);
+        Ok(())
+    }
+
+    /// Step one of an admin transfer: nominate `new_admin`.
+    pub fn propose_admin(env: Env, new_admin: Address) -> Result<(), Error> {
+        let admin = load_admin(&env)?;
+        admin.require_auth();
+        env.storage().instance().set(&DataKey::PendingAdmin, &new_admin);
+        Ok(())
+    }
+
+    /// Step two of an admin transfer: the nominee accepts.
+    pub fn accept_admin(env: Env) -> Result<(), Error> {
+        let pending: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::PendingAdmin)
+            .ok_or(Error::NoPendingAdmin)?;
+        pending.require_auth();
+        env.storage().instance().set(&DataKey::Admin, &pending);
+        env.storage().instance().remove(&DataKey::PendingAdmin);
+        Ok(())
+    }
+
+    /// Emergency stop for `create`. Existing escrows can still be released or refunded.
+    pub fn pause(env: Env) -> Result<(), Error> {
+        let admin = load_admin(&env)?;
+        admin.require_auth();
+        env.storage().instance().set(&DataKey::Paused, &true);
+        Ok(())
+    }
+
+    /// Lift the pause.
+    pub fn unpause(env: Env) -> Result<(), Error> {
+        let admin = load_admin(&env)?;
+        admin.require_auth();
+        env.storage().instance().set(&DataKey::Paused, &false);
+        Ok(())
+    }
+
+    pub fn is_paused(env: Env) -> bool {
+        env.storage().instance().get(&DataKey::Paused).unwrap_or(false)
+    }
+
     /// Create a new escrow, locking `amount` from `payer` for `beneficiary`.
     ///
     /// CT-73: uses checked arithmetic on all amount paths.
@@ -72,6 +165,10 @@ impl PaymentEscrowContract {
         token: Address,
     ) -> Result<(), Error> {
         payer.require_auth();
+
+        if env.storage().instance().get::<_, bool>(&DataKey::Paused).unwrap_or(false) {
+            return Err(Error::Paused);
+        }
 
         if amount <= 0 {
             return Err(Error::InvalidAmount);
@@ -562,5 +659,82 @@ mod model_test {
                 }
             }
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Admin, pause and version tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod admin_test {
+    use super::*;
+    use soroban_sdk::testutils::Address as _;
+
+    fn setup() -> (Env, PaymentEscrowContractClient<'static>, Address) {
+        let env = Env::default();
+        env.mock_all_auths();
+        let id = env.register(PaymentEscrowContract, ());
+        let client = PaymentEscrowContractClient::new(&env, &id);
+        let admin = Address::generate(&env);
+        client.initialize(&admin);
+        (env, client, admin)
+    }
+
+    #[test]
+    fn initialize_runs_once() {
+        let (env, client, _) = setup();
+        let other = Address::generate(&env);
+        assert_eq!(client.try_initialize(&other), Err(Ok(Error::AlreadyInitialized)));
+    }
+
+    #[test]
+    fn version_is_reported() {
+        let (_, client, _) = setup();
+        assert_eq!(client.version(), VERSION);
+    }
+
+    #[test]
+    fn pause_blocks_create_but_not_settlement() {
+        let (env, client, _) = setup();
+        let payer = Address::generate(&env);
+        let beneficiary = Address::generate(&env);
+        let token = env
+            .register_stellar_asset_contract_v2(Address::generate(&env))
+            .address();
+        token::StellarAssetClient::new(&env, &token).mint(&payer, &1_000);
+        let existing = BytesN::from_array(&env, &[1u8; 32]);
+        client.create(&existing, &payer, &beneficiary, &100, &token);
+
+        client.pause();
+        assert!(client.is_paused());
+        let blocked = BytesN::from_array(&env, &[2u8; 32]);
+        assert_eq!(
+            client.try_create(&blocked, &payer, &beneficiary, &100, &token),
+            Err(Ok(Error::Paused))
+        );
+        client.release(&existing);
+
+        client.unpause();
+        client.create(&blocked, &payer, &beneficiary, &100, &token);
+    }
+
+    #[test]
+    fn non_admin_cannot_pause_or_propose() {
+        let env = Env::default();
+        let id = env.register(PaymentEscrowContract, ());
+        let client = PaymentEscrowContractClient::new(&env, &id);
+        // No admin has been initialised, so admin-only calls are refused.
+        assert_eq!(client.try_pause(), Err(Ok(Error::NotInitialized)));
+    }
+
+    #[test]
+    fn admin_transfer_is_two_step() {
+        let (env, client, _) = setup();
+        let next = Address::generate(&env);
+        assert_eq!(client.try_accept_admin(), Err(Ok(Error::NoPendingAdmin)));
+        client.propose_admin(&next);
+        client.accept_admin();
+        client.pause();
     }
 }
