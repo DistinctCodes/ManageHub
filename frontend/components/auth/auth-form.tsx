@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { login, register } from "@/lib/auth-api";
+import { login, register, AuthApiError } from "@/lib/auth-api";
 import { getSafeReturnTo } from "@/lib/auth-redirect";
 import { useSessionStore } from "@/lib/stores/session-store";
 
@@ -17,14 +17,29 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // Per-field validation errors from the API (issue #1988): keys are
+  // "email" / "password", values are backend messages for that field.
+  const [fieldErrors, setFieldErrors] = useState<
+    Record<string, string> | null
+  >(null);
   const [confirmationError, setConfirmationError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const isLogin = mode === "login";
 
+  function clearFieldError(field: string) {
+    setFieldErrors((prev) => {
+      if (!prev || !(field in prev)) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+    setFieldErrors(null);
     if (!isLogin && password !== confirmPassword) {
       setConfirmationError(true);
       return;
@@ -43,7 +58,29 @@ export function AuthForm({ mode }: { mode: Mode }) {
       );
       router.push(returnTo);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      // Rate limiting (#1988): show a single, calm form-level message and
+      // make it clear the problem is not a specific field.
+      if (err instanceof AuthApiError && err.status === 429) {
+        setFieldErrors(null);
+        setError("Too many attempts. Please wait a few minutes and try again.");
+        return;
+      }
+
+      const fieldErrors =
+        err instanceof AuthApiError ? { ...err.fieldErrors } : {};
+      const firstInvalidField = Object.entries(fieldErrors)[0];
+
+      if (firstInvalidField) {
+        // Render each message next to its field, announce them to screen
+        // readers (aria-live via role="alert") and focus the first invalid
+        // input so keyboard users land straight on what to fix.
+        setFieldErrors(fieldErrors);
+        setError(null);
+        document.getElementById(firstInvalidField[0])?.focus();
+      } else {
+        setFieldErrors(null);
+        setError(err instanceof Error ? err.message : "Something went wrong");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -74,9 +111,25 @@ export function AuthForm({ mode }: { mode: Mode }) {
             type="email"
             required
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              clearFieldError("email");
+            }}
+            aria-invalid={
+              fieldErrors?.email ? true : undefined
+            }
+            aria-describedby={fieldErrors?.email ? "email-error" : undefined}
             className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-3 py-2 text-sm"
           />
+          {fieldErrors?.email && (
+            <p
+              id="email-error"
+              className="mt-1 text-sm text-red-600 dark:text-red-400"
+              role="alert"
+            >
+              {fieldErrors.email}
+            </p>
+          )}
         </div>
 
         <div>
@@ -96,9 +149,23 @@ export function AuthForm({ mode }: { mode: Mode }) {
             onChange={(e) => {
               setPassword(e.target.value);
               setConfirmationError(false);
+              clearFieldError("password");
             }}
+            aria-invalid={fieldErrors?.password ? true : undefined}
+            aria-describedby={
+              fieldErrors?.password ? "password-error" : undefined
+            }
             className="w-full rounded-md border border-gray-300 dark:border-gray-700 bg-transparent px-3 py-2 text-sm"
           />
+          {fieldErrors?.password && (
+            <p
+              id="password-error"
+              className="mt-1 text-sm text-red-600 dark:text-red-400"
+              role="alert"
+            >
+              {fieldErrors.password}
+            </p>
+          )}
         </div>
 
         {!isLogin && (

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Providers } from "@/lib/providers/providers";
 import { OfflineBanner } from "@/components/admin/offline-banner";
@@ -14,15 +14,24 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+/**
+ * Since Next.js 14 the viewport must be exported separately (issue #1986);
+ * leaving it inside `metadata` produces build warnings and is ignored in
+ * newer releases. `app/manifest.ts` uses the same theme colour.
+ */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#0f172a",
+};
+
 export const metadata: Metadata = {
-  viewport: "width=device-width, initial-scale=1",
   title: {
     default: "ManageHub - Smart Hub & Workspace Management",
     template: "%s | ManageHub",
   },
   description:
     "Smart Hub & Workspace Management System for modern teams. Streamline operations, manage resources, and boost productivity with our comprehensive management platform.",
-  themeColor: "#0f172a",
   keywords: [
     "workspace management",
     "hub management",
