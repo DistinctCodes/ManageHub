@@ -84,3 +84,9 @@ as workspace members in [`Cargo.toml`](Cargo.toml) as they are developed.
 
 - [`SECURITY.md`](SECURITY.md) — trust model and pre-deployment checklist (CT-68).
 - [`UPGRADE.md`](UPGRADE.md) — contract upgrade/migration path (CT-69).
+
+## On-chain scope decisions
+
+- **Settlement batches** (execute / retry / abandon) are modelled off-chain only, in the backend `settlement-batch.entity.ts`. There is no on-chain batch contract, so the placeholder `settlement_batch_lifecycle` tests were removed.
+- **Split allocation** property tests and the **escrow-to-distribution** integration test were placeholders with no assertions. They are removed until the behaviour they describe exists on-chain; add them back with real assertions (a `proptest` dev-dependency and both contracts registered in one `Env`) together with that feature.
+- `cargo test --workspace` now runs natively in CI together with `cargo fmt --check`, `cargo clippy -- -D warnings` and a WASM build.
