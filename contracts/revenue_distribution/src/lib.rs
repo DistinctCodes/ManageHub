@@ -78,6 +78,11 @@ pub enum Error {
 pub struct RevenueDistributionContract;
 
 fn bump_ttl(env: &Env) {
+    // Persistent configuration is only useful while the contract instance can
+    // still be invoked, so keep the instance and code alive alongside it.
+    env.storage()
+        .instance()
+        .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
     env.storage()
         .persistent()
         .extend_ttl(&DataKey::Config, TTL_THRESHOLD, TTL_EXTEND_TO);
@@ -342,8 +347,9 @@ mod test {
         client.configure(&admin, &recipients(&env, &[6_000, 4_000]));
         assert_eq!(client.get_config_version(), 1);
         client.configure(&admin, &recipients(&env, &[5_000, 5_000]));
+        let events = env.events().all();
+        assert_eq!(events.len(), 1);
         assert_eq!(client.get_config_version(), 2);
-        assert!(!env.events().all().is_empty());
     }
 
     #[test]
