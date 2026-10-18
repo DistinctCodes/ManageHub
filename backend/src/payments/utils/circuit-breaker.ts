@@ -1,9 +1,6 @@
-import {
-  ConflictException,
-  ServiceUnavailableException,
-} from '@nestjs/common';
+import { ConflictException, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import CircuitBreakerModule = require('opossum');
+import * as CircuitBreakerModule from 'opossum';
 
 export interface PaymentProviderCircuitBreaker<
   TArgs extends unknown[],

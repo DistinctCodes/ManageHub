@@ -27,7 +27,7 @@ describe('withTimeout', () => {
 
     jest.advanceTimersByTime(500);
 
-    await expect(timeoutPromise).rejects.toThrow(/timeout/i);
+    await expect(timeoutPromise).rejects.toThrow(/timed out/i);
   });
 
   it('should clear the underlying timer upon successful completion', async () => {

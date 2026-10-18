@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   NotFoundException,
   ServiceUnavailableException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { Payment } from './entities/payment.entity';
@@ -117,6 +118,7 @@ describe('PaymentsService', () => {
         rail: PaymentRail.FIAT,
         usedFallback: true,
       });
+      railRegistry.get.mockReturnValue(fallbackAdapter);
       repository.findOne.mockResolvedValueOnce(null);
       repository.findOne.mockResolvedValueOnce(null);
 
@@ -226,7 +228,7 @@ describe('PaymentsService', () => {
 
       await expect(
         service.initiate('user-1', 'key-1', makeDto()),
-      ).rejects.toThrow(ConflictException);
+      ).rejects.toThrow(UnprocessableEntityException);
       expect(repository.save).not.toHaveBeenCalled();
     });
 

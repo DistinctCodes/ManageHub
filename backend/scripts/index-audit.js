@@ -43,7 +43,9 @@ async function main() {
 
   let failed = false;
   for (const query of QUERIES) {
-    const result = await client.query(query.sql, [DUMMY_UUID]);
+    const result = query.sql.includes('$1')
+      ? await client.query(query.sql, [DUMMY_UUID])
+      : await client.query(query.sql);
     const plan = result.rows.map((row) => Object.values(row).join(' ')).join('\n');
     const seqScan = /Seq Scan/i.test(plan);
 

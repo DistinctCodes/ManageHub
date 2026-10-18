@@ -207,7 +207,7 @@ jobs:
       # rustup reads contracts/rust-toolchain.toml automatically and installs
       # the pinned stable channel plus the wasm32-unknown-unknown target.
       - name: Install Rust toolchain (stable + wasm32)
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.79.0
         with:
           targets: wasm32-unknown-unknown
           components: rustfmt,clippy,rust-src
@@ -274,10 +274,13 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install cargo-audit
-        run: cargo install cargo-audit --locked
+        # Run outside contracts/ so rustup does not apply the workspace's
+        # Rust 1.79 pin to cargo-audit's installation toolchain.
+        working-directory: .
+        run: cargo +stable install cargo-audit --locked
 
       - name: Resolve lockfile
-        run: test -f Cargo.lock || cargo generate-lockfile
+        run: test -f Cargo.lock || cargo +stable generate-lockfile
 
       - name: Audit dependencies
-        run: cargo audit
+        run: cargo +stable audit
