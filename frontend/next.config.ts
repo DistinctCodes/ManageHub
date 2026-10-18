@@ -1,9 +1,9 @@
 import type { NextConfig } from "next";
+import bundleAnalyzer from "@next/bundle-analyzer";
 
-const withBundleAnalyzer =
-  process.env.ANALYZE === "true"
-    ? require("@next/bundle-analyzer")({ enabled: true })
-    : (config: NextConfig) => config;
+const withBundleAnalyzer = bundleAnalyzer({
+  enabled: process.env.ANALYZE === "true",
+});
 
 const nextConfig: NextConfig = {
   turbopack: {

@@ -46,7 +46,10 @@ describe('PaymentsGateway', () => {
     });
 
     it('attaches the decoded user for a valid token', async () => {
-      verifier.verify.mockResolvedValueOnce({ id: 'user-1', role: UserRole.USER });
+      verifier.verify.mockResolvedValueOnce({
+        id: 'user-1',
+        role: UserRole.USER,
+      });
       const socket = makeSocket('good-token');
 
       await gateway.handleConnection(socket as any);

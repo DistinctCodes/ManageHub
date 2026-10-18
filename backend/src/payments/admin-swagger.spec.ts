@@ -25,7 +25,9 @@ describe('admin Swagger metadata', () => {
       expect(methodNames.length).toBeGreaterThan(0);
       for (const methodName of methodNames) {
         const handler = prototype[methodName];
-        expect(Reflect.getMetadata('swagger/apiOperation', handler)).toBeDefined();
+        expect(
+          Reflect.getMetadata('swagger/apiOperation', handler),
+        ).toBeDefined();
 
         const responses = Reflect.getMetadata(
           'swagger/apiResponse',

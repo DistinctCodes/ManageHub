@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { toast } from "sonner";
 
-import { login, register, me, logout } from "../auth-api";
+import { login, me, logout } from "../auth-api";
 import { useSessionStore } from "../stores/session-store";
 
 vi.mock("sonner", () => ({

@@ -43,7 +43,7 @@ describe('createLazy', () => {
 
   it('rethrows the same factory error on every access without retrying', () => {
     const failure = new Error('RPC unavailable');
-    const factory = jest.fn(() => {
+    const factory: () => ExampleClient = jest.fn(() => {
       throw failure;
     });
     const client = createLazy(factory);

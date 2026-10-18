@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { toast } from "sonner";
 
-import { useSessionStore } from "../stores/session-store";
+import type { useSessionStore as SessionStore } from "../stores/session-store";
 
 vi.mock("sonner", () => ({
   toast: {
@@ -14,16 +14,18 @@ vi.mock("sonner", () => ({
  * test case imports a fresh instance of the module through vi.resetModules().
  */
 async function loadExpiry() {
-  vi.resetModules();
   return await import("../session-expiry");
 }
 
 describe("session expiry reactions (issue #1977)", () => {
   const assignSpy = vi.fn();
+  let sessionStore: typeof SessionStore;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
-    useSessionStore
+    vi.resetModules();
+    ({ useSessionStore: sessionStore } = await import("../stores/session-store"));
+    sessionStore
       .getState()
       .setSession({ id: "u1", email: "a@example.com", role: "user" });
     assignSpy.mockClear();
@@ -39,7 +41,7 @@ describe("session expiry reactions (issue #1977)", () => {
   });
 
   afterEach(() => {
-    useSessionStore.getState().clearSession();
+    sessionStore.getState().clearSession();
   });
 
   it("clears the session, shows a toast and redirects to login once", async () => {
@@ -47,8 +49,8 @@ describe("session expiry reactions (issue #1977)", () => {
 
     expireSession();
 
-    expect(useSessionStore.getState().user).toBeNull();
-    expect(useSessionStore.getState().status).toBe("unauthenticated");
+    expect(sessionStore.getState().user).toBeNull();
+    expect(sessionStore.getState().status).toBe("unauthenticated");
     expect(toast.error).toHaveBeenCalledWith(
       "Your session has expired. Please sign in again.",
     );
@@ -77,7 +79,7 @@ describe("session expiry reactions (issue #1977)", () => {
 
     expect(assignSpy).not.toHaveBeenCalled();
     // The stale session is still dropped so the login page shows logged-out UI.
-    expect(useSessionStore.getState().user).toBeNull();
+    expect(sessionStore.getState().user).toBeNull();
   });
 
   it("redirects carry only the return path, never credentials or body data", async () => {

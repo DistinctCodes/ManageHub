@@ -1,20 +1,29 @@
 import { test, expect } from "@playwright/test";
+import { SignJWT } from "jose";
+
+const jwtSecret = "playwright-test-secret-that-is-at-least-32-bytes";
 
 /**
  * End-to-end coverage of the one flow that currently works end to end in
  * this app: loading and provisioning a wallet (issue FE-125).
  *
  * `/wallet` is a protected route (see middleware.ts) — a JWT is required,
- * but middleware.ts only verifies its signature when `JWT_SECRET` is set,
- * which it isn't in this test run, so any non-empty cookie value passes.
+ * and middleware verifies its signature with the test-only secret configured
+ * in playwright.config.ts.
  * The backend itself is mocked via page.route() rather than started for
  * real, keeping this test self-contained and fast in CI.
  */
 async function signIn(page: import("@playwright/test").Page) {
+  const accessToken = await new SignJWT({ sub: "e2e-user", role: "user" })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("1h")
+    .sign(new TextEncoder().encode(jwtSecret));
+
   await page.context().addCookies([
     {
       name: "accessToken",
-      value: "e2e-test-token",
+      value: accessToken,
       url: "http://localhost:3000",
     },
   ]);
@@ -70,7 +79,7 @@ test.describe("wallet status and provisioning", () => {
 
     await page.goto("/wallet");
 
-    await expect(page.getByRole("heading", { name: "Your balance" })).toBeVisible();
+    await expect(page.getByText("Your balance", { exact: true })).toBeVisible();
     await expect(
       page.getByText(/don't have a payment balance set up yet/),
     ).toBeVisible();
@@ -93,6 +102,8 @@ test.describe("wallet status and provisioning", () => {
 
     await page.goto("/wallet");
 
-    await expect(page.getByText("Internal error")).toBeVisible();
+    await expect(
+      page.getByRole("paragraph").filter({ hasText: "Internal error" }),
+    ).toBeVisible();
   });
 });

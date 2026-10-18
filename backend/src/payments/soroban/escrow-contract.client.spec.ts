@@ -37,7 +37,11 @@ describe('EscrowContractClient', () => {
           .fn()
           .mockResolvedValue({ status: 'PENDING', hash: 'hash-1' }),
       });
-      const client = new EscrowContractClient(rpc as any, CONTRACT_ID, 'passphrase');
+      const client = new EscrowContractClient(
+        rpc as any,
+        CONTRACT_ID,
+        'passphrase',
+      );
 
       const result = await client.submit({} as any);
 
@@ -51,7 +55,11 @@ describe('EscrowContractClient', () => {
           errorResult: { code: 'txBAD_SEQ' },
         }),
       });
-      const client = new EscrowContractClient(rpc as any, CONTRACT_ID, 'passphrase');
+      const client = new EscrowContractClient(
+        rpc as any,
+        CONTRACT_ID,
+        'passphrase',
+      );
 
       await expect(client.submit({} as any)).rejects.toThrow(
         EscrowSubmissionError,
@@ -64,7 +72,11 @@ describe('EscrowContractClient', () => {
       const rpc = makeRpc({
         getTransaction: jest.fn().mockResolvedValue({ status: 'SUCCESS' }),
       });
-      const client = new EscrowContractClient(rpc as any, CONTRACT_ID, 'passphrase');
+      const client = new EscrowContractClient(
+        rpc as any,
+        CONTRACT_ID,
+        'passphrase',
+      );
 
       const status = await client.pollFinality('hash-1', {
         timeoutMs: 1000,
@@ -83,7 +95,11 @@ describe('EscrowContractClient', () => {
           .mockResolvedValueOnce({ status: 'NOT_FOUND' })
           .mockResolvedValueOnce({ status: 'SUCCESS' }),
       });
-      const client = new EscrowContractClient(rpc as any, CONTRACT_ID, 'passphrase');
+      const client = new EscrowContractClient(
+        rpc as any,
+        CONTRACT_ID,
+        'passphrase',
+      );
 
       const status = await client.pollFinality('hash-1', {
         timeoutMs: 5000,
@@ -98,7 +114,11 @@ describe('EscrowContractClient', () => {
       const rpc = makeRpc({
         getTransaction: jest.fn().mockResolvedValue({ status: 'NOT_FOUND' }),
       });
-      const client = new EscrowContractClient(rpc as any, CONTRACT_ID, 'passphrase');
+      const client = new EscrowContractClient(
+        rpc as any,
+        CONTRACT_ID,
+        'passphrase',
+      );
 
       const status = await client.pollFinality('hash-1', {
         timeoutMs: 20,
@@ -119,7 +139,11 @@ describe('EscrowContractClient', () => {
           .fn()
           .mockResolvedValue({ error: 'Error(Contract, #1)' }),
       });
-      const client = new EscrowContractClient(rpc as any, CONTRACT_ID, 'passphrase');
+      const client = new EscrowContractClient(
+        rpc as any,
+        CONTRACT_ID,
+        'passphrase',
+      );
 
       const status = await client.getEscrowStatus(
         Keypair.random().publicKey(),

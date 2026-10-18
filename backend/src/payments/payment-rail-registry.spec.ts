@@ -43,11 +43,7 @@ describe('PaymentRailRegistry', () => {
           : undefined,
       ),
     };
-    const registry = new PaymentRailRegistry(
-      sandbox,
-      undefined,
-      config as any,
-    );
+    const registry = new PaymentRailRegistry(sandbox, undefined, config as any);
 
     expect(registry.resolve(PaymentRail.FIAT)).toEqual({
       adapter: sandbox,
@@ -65,11 +61,7 @@ describe('PaymentRailRegistry', () => {
           : undefined,
       ),
     };
-    const registry = new PaymentRailRegistry(
-      sandbox,
-      undefined,
-      config as any,
-    );
+    const registry = new PaymentRailRegistry(sandbox, undefined, config as any);
 
     expect(registry.resolve(PaymentRail.STELLAR_CUSTODIAL)).toEqual({
       adapter: sandbox,

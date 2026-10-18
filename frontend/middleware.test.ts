@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 
-import { middleware } from "../middleware";
+import { middleware } from "./middleware";
 
 vi.mock("jose", () => ({
   jwtVerify: vi.fn(),
@@ -26,6 +26,7 @@ function verifiedToken(role: string): void {
 describe("middleware role gate (issue #1973)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubEnv("JWT_SECRET", "test-secret");
   });
 
   it("lets an admin token through to admin pages", async () => {

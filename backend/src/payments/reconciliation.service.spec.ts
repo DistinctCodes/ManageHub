@@ -631,9 +631,13 @@ describe('ReconciliationService', () => {
 
     it('marks a failed pass without masking the original error and resets the guard', async () => {
       const { service, paymentRepository, runRepository } = build([]);
-      paymentRepository.find.mockRejectedValueOnce(new Error('database unavailable'));
+      paymentRepository.find.mockRejectedValueOnce(
+        new Error('database unavailable'),
+      );
 
-      await expect(service.handleCron()).rejects.toThrow('database unavailable');
+      await expect(service.handleCron()).rejects.toThrow(
+        'database unavailable',
+      );
       expect(runRepository.update).toHaveBeenCalledWith(
         'run-1',
         expect.objectContaining({
@@ -842,20 +846,16 @@ describe('ReconciliationService', () => {
     });
 
     it('lists recent reconciliation runs newest first with a bounded limit', async () => {
-      const { service, runRepository } = build(
-        [],
-        {},
-        [
-          {
-            id: 'run-old',
-            startedAt: new Date('2025-01-01T00:00:00.000Z'),
-          },
-          {
-            id: 'run-new',
-            startedAt: new Date('2025-01-02T00:00:00.000Z'),
-          },
-        ],
-      );
+      const { service, runRepository } = build([], {}, [
+        {
+          id: 'run-old',
+          startedAt: new Date('2025-01-01T00:00:00.000Z'),
+        },
+        {
+          id: 'run-new',
+          startedAt: new Date('2025-01-02T00:00:00.000Z'),
+        },
+      ]);
 
       const result = await service.listRecentRuns(1);
 

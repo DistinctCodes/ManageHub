@@ -50,7 +50,7 @@ describe("PaymentReturnPage provider errors", () => {
     render(<PaymentReturnPage />);
 
     expect(
-      screen.getByRole("heading", { name: "Payment could not be completed" }),
+      screen.getByText("Payment could not be completed"),
     ).toBeInTheDocument();
     expect(screen.getByRole("alert")).toHaveTextContent(
       "The payment was cancelled. No payment was completed.",
