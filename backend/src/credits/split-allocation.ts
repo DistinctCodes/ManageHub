@@ -22,6 +22,8 @@
  * a split be posted as balanced double-entry ledger legs.
  */
 
+import { apportionByBasisPoints } from '../payments/utils/minor-units';
+
 export interface BasisPointShare {
   /** Caller's identifier — echoed back on the allocation. */
   key: string;
@@ -97,41 +99,34 @@ export function allocateByBasisPoints<T extends BasisPointShare>(
   }
   assertBasisPointsSumToTotal(shares);
 
-  const allocations = shares.map((share, index) => {
-    const scaled = amount * share.basisPoints;
-    return {
-      share,
-      index,
-      amount: Math.floor(scaled / TOTAL_BASIS_POINTS),
-      remainder: scaled % TOTAL_BASIS_POINTS,
-      remainderUnits: 0,
+  // The rounding itself lives in `apportionByBasisPoints` so there is one
+  // largest-remainder implementation to audit. It breaks a remainder tie by
+  // input position, so feed it the recipients pre-sorted by `sortOrder`
+  // (then input position) to preserve this module's documented tie-break,
+  // then map the allocations back to the caller's order.
+  const ordered = shares
+    .map((share, index) => ({ share, index }))
+    .sort(
+      (left, right) =>
+        (left.share.sortOrder ?? 0) - (right.share.sortOrder ?? 0) ||
+        left.index - right.index,
+    );
+
+  const allocated = apportionByBasisPoints(
+    amount,
+    ordered.map((entry) => entry.share.basisPoints),
+  );
+
+  const allocations = new Array<AllocatedShare<T>>(shares.length);
+  ordered.forEach((entry, position) => {
+    const floor = Math.floor(
+      (amount * entry.share.basisPoints) / TOTAL_BASIS_POINTS,
+    );
+    allocations[entry.index] = {
+      share: entry.share,
+      amount: allocated[position],
+      remainderUnits: allocated[position] - floor,
     };
   });
-
-  let leftover =
-    amount - allocations.reduce((sum, entry) => sum + entry.amount, 0);
-
-  // Strictly less than allocations.length, so a single ordered pass is
-  // always enough — no wrap-around, no recipient getting two units while
-  // another with the same remainder gets none.
-  const byRemainder = [...allocations].sort(
-    (a, b) =>
-      b.remainder - a.remainder ||
-      (a.share.sortOrder ?? 0) - (b.share.sortOrder ?? 0) ||
-      a.index - b.index,
-  );
-  for (const entry of byRemainder) {
-    if (leftover <= 0) {
-      break;
-    }
-    entry.amount += 1;
-    entry.remainderUnits += 1;
-    leftover -= 1;
-  }
-
-  return allocations.map((entry) => ({
-    share: entry.share,
-    amount: entry.amount,
-    remainderUnits: entry.remainderUnits,
-  }));
+  return allocations;
 }

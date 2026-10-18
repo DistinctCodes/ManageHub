@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { getPayments } from "@/lib/payments-api";
+import { useSessionBootstrap } from "@/lib/stores/use-session-bootstrap";
 import { useSessionStore } from "@/lib/stores/session-store";
 import { formatCurrency, fromMinorUnits } from "@/lib/utils";
+import { UserMenu } from "@/components/auth/user-menu";
 import {
   Card,
   CardContent,
@@ -33,19 +35,31 @@ function statusTone(status: string): string {
 }
 
 export default function PaymentsPage() {
-  const accessToken = useSessionStore((state) => state.accessToken);
-
+  useSessionBootstrap();
+  const user = useSessionStore((state) => state.user);
+  const sessionStatus = useSessionStore((state) => state.status);
   const {
     data: payments,
     isLoading,
     error,
   } = useQuery({
     queryKey: ["payments", "list"],
-    queryFn: () => getPayments(accessToken as string),
-    enabled: Boolean(accessToken),
+    queryFn: () => getPayments(),
+    enabled: Boolean(user),
   });
 
-  if (!accessToken) {
+  if (sessionStatus === "unknown") {
+    return (
+      <main className="mx-auto max-w-3xl px-4 py-10">
+        <h1 className="text-2xl font-semibold mb-6">Payments</h1>
+        <p className="text-sm text-gray-600 dark:text-gray-400">
+          Checking your session...
+        </p>
+      </main>
+    );
+  }
+
+  if (!user) {
     return (
       <main className="mx-auto max-w-3xl px-4 py-10">
         <h1 className="text-2xl font-semibold mb-6">Payments</h1>
@@ -65,7 +79,10 @@ export default function PaymentsPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
-      <h1 className="text-2xl font-semibold mb-6">Payments</h1>
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Payments</h1>
+        <UserMenu />
+      </div>
 
       {isLoading && (
         <Card>

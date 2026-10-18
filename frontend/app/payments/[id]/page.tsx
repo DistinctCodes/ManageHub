@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { getPayment } from "@/lib/payments-api";
 import { useSessionStore } from "@/lib/stores/session-store";
+import { usePaymentStatus } from "@/lib/use-payment-status";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatCurrency, fromMinorUnits } from "@/lib/utils";
@@ -42,6 +43,8 @@ export default function PaymentDetailPage() {
     queryFn: () => getPayment(id, accessToken as string),
     enabled: Boolean(accessToken && id),
   });
+
+  usePaymentStatus(id, accessToken);
 
   if (!accessToken) {
     return (

@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { Providers } from "@/lib/providers/providers";
 import { AdminBreadcrumbs } from "@/components/admin/admin-breadcrumbs";
+import { UserMenu } from "@/components/auth/user-menu";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -39,9 +40,12 @@ export default function AdminLayout({
               <Landmark className="h-5 w-5 text-blue-600" />
               ManageHub Admin
             </Link>
-            <Link href="/" className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
-              Back to site
-            </Link>
+            <div className="flex items-center gap-4">
+              <UserMenu />
+              <Link href="/" className="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                Back to site
+              </Link>
+            </div>
           </div>
         </header>
         <div className="mx-auto flex max-w-7xl gap-8 px-6 py-8">

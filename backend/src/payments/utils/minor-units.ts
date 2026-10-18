@@ -86,6 +86,72 @@ export function multiplyMinorUnits(
   return Math.floor(scaled / totalBasisPoints);
 }
 
+/**
+ * Validates one strictly positive minor-unit amount. Zero is a valid
+ * minor-unit *value* but never a valid amount to move value with, so callers
+ * moving money use this instead of `assertMinorUnits`.
+ */
+export function assertPositiveMinorUnits(
+  value: number,
+  label = 'value',
+): number {
+  const safe = assertMinorUnits(value, label);
+  if (safe === 0) {
+    throw new MinorUnitsError(`${label} must be greater than zero`);
+  }
+  return safe;
+}
+
+/**
+ * Sums non-negative minor-unit amounts. Every input and every intermediate
+ * total is checked so a running sum cannot silently pass through a value that
+ * is no longer representable as an exact integer.
+ */
+export function sumMinorUnits(amounts: readonly number[]): number {
+  let total = 0;
+  for (const [index, amount] of amounts.entries()) {
+    assertMinorUnits(amount, `amount[${index}]`);
+    total += amount;
+    if (!Number.isSafeInteger(total)) {
+      throw new MinorUnitsError(
+        'minor-unit sum exceeds the safe integer range',
+      );
+    }
+  }
+  return total;
+}
+
+/**
+ * Adds two or more non-negative minor-unit amounts, rejecting any input or
+ * intermediate total outside the safe-integer range.
+ */
+export function addMinorUnits(
+  first: number,
+  ...rest: readonly number[]
+): number {
+  return sumMinorUnits([first, ...rest]);
+}
+
+/**
+ * Subtracts a non-negative minor-unit amount from another. A result below
+ * zero is rejected rather than carried: money that "goes negative" is a caller
+ * bug, not a value to propagate.
+ */
+export function subtractMinorUnits(
+  minuend: number,
+  subtrahend: number,
+): number {
+  assertMinorUnits(minuend, 'minuend');
+  assertMinorUnits(subtrahend, 'subtrahend');
+  const difference = minuend - subtrahend;
+  if (difference < 0) {
+    throw new MinorUnitsError(
+      `subtracting ${subtrahend} from ${minuend} would be negative`,
+    );
+  }
+  return difference;
+}
+
 interface AllocationEntry {
   index: number;
   amount: number;

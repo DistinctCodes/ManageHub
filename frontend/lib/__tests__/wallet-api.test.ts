@@ -53,7 +53,7 @@ describe("wallet-api", () => {
       expect(result).toEqual(body);
       const [url, init] = fetchMock.mock.calls[0];
       expect(String(url)).toContain("/wallets/me");
-      expect(init).toMatchObject({ credentials: "same-origin" });
+      expect(init).toMatchObject({ credentials: "include" });
       expect(init.headers).toMatchObject({ "Content-Type": "application/json" });
     });
   });

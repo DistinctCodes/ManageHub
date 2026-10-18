@@ -10,7 +10,6 @@ import {
 import { RequireAdmin } from "@/components/admin/require-admin";
 import { chargeCredits, type ChargeCreditsResponse } from "@/lib/payments-api";
 import { formatCurrency, fromMinorUnits } from "@/lib/utils";
-import Cookies from "js-cookie";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -25,15 +24,9 @@ export default function AdminChargePage() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const token = Cookies.get("accessToken");
-    if (!token) {
-      toast.error("Sign in as an administrator.");
-      return;
-    }
     setBusy(true);
     try {
       const res = await chargeCredits(
-        token,
         {
           userId,
           amount: Number(amount),
