@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  getApiErrorMessage,
-  getRequestId,
-  reportApiError,
-} from "@/lib/api-report";
-import { getApiBaseUrl } from "@/lib/env";
-import { expireSession } from "@/lib/session-expiry";
+import { request } from "@/lib/http";
 
 export type LedgerAccountKind =
   | "USER"
@@ -157,47 +151,13 @@ export interface SettlementBatchBreakdown {
   onChainReferences: Array<{ payoutId: string; reference: string }>;
 }
 
-async function adminFetch<T>(
-  path: string,
-  init?: RequestInit,
-): Promise<T> {
-  const response = await fetch(`${getApiBaseUrl()}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...init?.headers,
-    },
-    // The backend authorizes via its HttpOnly `accessToken` cookie (issue
-    // #1975); no bearer header is threaded from the client.
-    credentials: "include",
+function adminFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  return request<T>(path, {
+    service: "admin",
+    method: init?.method,
+    body: init?.body,
+    fallbackMessage: (status) => `Admin request failed (${status})`,
   });
-
-  if (!response.ok) {
-    if (response.status === 401) {
-      // A rejected session must send the user to login, not leave the stale
-      // state in place (issue #1977).
-      expireSession();
-    }
-    const body = await response.json().catch(() => null);
-    const error = new Error(
-      getApiErrorMessage(body, `Admin request failed (${response.status})`),
-    );
-
-    reportApiError({
-      api: "admin",
-      method: init?.method ?? "GET",
-      pathTemplate: path,
-      status: response.status,
-      requestId: getRequestId(response),
-    });
-
-    throw error;
-  }
-
-  if (response.status === 204) {
-    return undefined as T;
-  }
-  return response.json() as Promise<T>;
 }
 
 // ── ledger accounts (FE-111) ─────────────────────────────────────────────

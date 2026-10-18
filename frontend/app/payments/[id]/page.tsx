@@ -40,7 +40,7 @@ export default function PaymentDetailPage() {
     error,
   } = useQuery({
     queryKey: ["payments", "detail", id],
-    queryFn: () => getPayment(id, accessToken as string),
+    queryFn: () => getPayment(id),
     enabled: Boolean(accessToken && id),
   });
 

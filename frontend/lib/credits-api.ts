@@ -1,8 +1,6 @@
 // lib/credits-api.ts  -- member-facing credit API (FE-108)
 
-import { expireSession } from "@/lib/session-expiry";
-
-import { getApiBaseUrl } from "@/lib/env";
+import { request } from "@/lib/http";
 
 export interface CreditBalance {
   accountId: string;
@@ -69,34 +67,15 @@ export class CreditsApiError extends Error {
   }
 }
 
-async function creditsFetch<T>(
-  path: string,
-  init?: RequestInit,
-): Promise<T> {
-  const response = await fetch(`${getApiBaseUrl()}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...init?.headers,
-    },
-    // The API authorizes every credits call through the HttpOnly session
-    // cookie (issue #1975); if it has been rejected, route the user to login
-    // instead of leaving stale state around (issue #1977).
-    credentials: "include",
+function creditsFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  return request<T>(path, {
+    service: "credits",
+    method: init?.method,
+    body: init?.body,
+    // Credits builds its own typed error and does not report to Sentry.
+    makeError: (status, body) => new CreditsApiError(status, body),
+    report: false,
   });
-
-  if (!response.ok) {
-    if (response.status === 401) {
-      expireSession();
-    }
-    const body: unknown = await response.json().catch(() => null);
-    throw new CreditsApiError(response.status, body);
-  }
-
-  if (response.status === 204) {
-    return undefined as T;
-  }
-  return response.json() as Promise<T>;
 }
 
 // -- member credit balance (FE-108) -----------------------------------------------

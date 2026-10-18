@@ -1,10 +1,5 @@
-import {
-  getApiErrorMessage,
-  getRequestId,
-  reportApiError,
-} from "@/lib/api-report";
 import { getApiBaseUrl } from "@/lib/env";
-import { expireSession } from "@/lib/session-expiry";
+import { request } from "@/lib/http";
 import type { AuthUser } from "@/lib/auth-types";
 
 // Re-exported for convenience: the session store and the auth form both need
@@ -22,39 +17,22 @@ export interface AuthResponse {
  * is owned by the cookie, not by a JavaScript-readable duplicate. The token
  * returned in the response body is kept in memory only (see session-store).
  */
-async function authRequest<T>(
+function authRequest<T>(
   path: string,
   body: { email: string; password: string },
 ): Promise<T> {
-  const response = await fetch(`${getApiBaseUrl()}${path}`, {
+  return request<T>(path, {
+    service: "auth",
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    credentials: "include",
-  });
-
-  if (!response.ok) {
+    body,
     // A 401 from login/register means bad credentials, not an expired
     // session - resolving the session and redirecting here would be wrong.
-    const errorBody = await response.json().catch(() => null);
-    const fallbackMessage =
-      response.status === 401
+    expireOn401: false,
+    fallbackMessage: (status) =>
+      status === 401
         ? "Invalid credentials"
-        : `Authentication failed (${response.status})`;
-    const error = new Error(getApiErrorMessage(errorBody, fallbackMessage));
-
-    reportApiError({
-      api: "auth",
-      method: "POST",
-      pathTemplate: path,
-      status: response.status,
-      requestId: getRequestId(response),
-    });
-
-    throw error;
-  }
-
-  return response.json() as Promise<T>;
+        : `Authentication failed (${status})`,
+  });
 }
 
 export function login(email: string, password: string): Promise<AuthResponse> {
@@ -82,35 +60,12 @@ export function me(): Promise<AuthUser> {
   return meInFlight;
 }
 
-async function fetchMe(): Promise<AuthUser> {
-  const response = await fetch(`${getApiBaseUrl()}/auth/me`, {
-    method: "GET",
-    credentials: "include",
+function fetchMe(): Promise<AuthUser> {
+  // A 401 here expires the session (handled by request()).
+  return request<AuthUser>("/auth/me", {
+    service: "auth",
+    fallbackMessage: () => "Failed to load the current session",
   });
-
-  if (!response.ok) {
-    if (response.status === 401) {
-      // A rejected session must clear the store and send the user to login
-      // instead of leaving a stale state behind (issue #1977).
-      expireSession();
-    }
-    const errorBody = await response.json().catch(() => null);
-    const error = new Error(
-      getApiErrorMessage(errorBody, "Failed to load the current session"),
-    );
-
-    reportApiError({
-      api: "auth",
-      method: "GET",
-      pathTemplate: "/auth/me",
-      status: response.status,
-      requestId: getRequestId(response),
-    });
-
-    throw error;
-  }
-
-  return (await response.json()) as AuthUser;
 }
 
 /**

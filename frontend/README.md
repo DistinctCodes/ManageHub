@@ -40,9 +40,8 @@ for your environment. Documented variables include:
   is disabled for normal development and builds.
 - PWA metadata is exposed through `/manifest.webmanifest`; update
   `app/manifest.ts` when icons or install behavior change.
-- New user-facing copy should be added to `lib/i18n/messages/<locale>.json`
-  and read through the helpers in `lib/i18n` so additional locales can be added
-  without rewriting route components.
+- Sentry client-side setup and API error reporting notes live in
+  [docs/escrow.md](../docs/escrow.md) at the repo root.
 
 ## Running Tests
 

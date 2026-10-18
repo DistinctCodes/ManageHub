@@ -179,7 +179,7 @@ export default function PaymentReturnPage() {
         if (result.verified || terminalStatus(result.payment.status)) {
           setPhase("success");
         } else {
-          // Not yet in a terminal state � fall through to polling
+          // Not yet in a terminal state, fall through to polling
           startPolling(paymentId);
         }
       })

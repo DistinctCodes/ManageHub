@@ -1,30 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  Landmark,
-  Scale,
-  Split,
-  RefreshCw,
-  LayoutDashboard,
-  Coins,
-} from "lucide-react";
+import { Landmark } from "lucide-react";
 import { Providers } from "@/lib/providers/providers";
 import { AdminBreadcrumbs } from "@/components/admin/admin-breadcrumbs";
+import { AdminNav } from "@/components/admin/admin-nav";
 import { UserMenu } from "@/components/auth/user-menu";
-import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Admin",
 };
-
-const nav = [
-  { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/admin/accounts", label: "Ledger accounts", icon: Landmark },
-  { href: "/admin/credits", label: "Credits & payments", icon: Coins },
-  { href: "/admin/integrity", label: "Integrity check", icon: Scale },
-  { href: "/admin/splits", label: "Revenue splits", icon: Split },
-  { href: "/admin/settlements", label: "Settlement", icon: RefreshCw },
-];
 
 export default function AdminLayout({
   children,
@@ -50,13 +34,7 @@ export default function AdminLayout({
         </header>
         <div className="mx-auto flex max-w-7xl gap-8 px-6 py-8">
           <aside className="w-52 shrink-0">
-            <nav className="sticky top-8 space-y-1">
-              {nav.map(({ href, label, icon: Icon }) => (
-                <AdminLink key={href} href={href} icon={Icon}>
-                  {label}
-                </AdminLink>
-              ))}
-            </nav>
+            <AdminNav />
           </aside>
           <main className="min-w-0 flex-1">
             <AdminBreadcrumbs />
@@ -65,27 +43,5 @@ export default function AdminLayout({
         </div>
       </div>
     </Providers>
-  );
-}
-
-function AdminLink({
-  href,
-  icon: Icon,
-  children,
-}: {
-  href: string;
-  icon: React.ComponentType<{ className?: string }>;
-  children: React.ReactNode;
-}) {
-  return (
-    <Link
-      href={href}
-      className={cn(
-        "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100",
-      )}
-    >
-      <Icon className="h-4 w-4" />
-      {children}
-    </Link>
   );
 }

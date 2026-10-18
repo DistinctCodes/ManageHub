@@ -1,10 +1,4 @@
-import {
-  getApiErrorMessage,
-  getRequestId,
-  reportApiError,
-} from "@/lib/api-report";
-import { getApiBaseUrl } from "@/lib/env";
-import { expireSession } from "@/lib/session-expiry";
+import { request } from "@/lib/http";
 
 export type WalletCustodyType = "CUSTODIAL" | "EXTERNAL";
 export type WalletStatus = "PENDING" | "ACTIVE" | "DISABLED";
@@ -23,41 +17,13 @@ export interface LinkChallengeResponse {
   expiresAt: string;
 }
 
-async function walletFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${getApiBaseUrl()}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...init?.headers,
-    },
-    // The backend owns the session via its HttpOnly `accessToken` cookie
-    // (issue #1975); no bearer header is threaded from the client.
-    credentials: "include",
+function walletFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  return request<T>(path, {
+    service: "wallet",
+    method: init?.method,
+    body: init?.body,
+    fallbackMessage: (status) => `Wallet request failed (${status})`,
   });
-
-  if (!response.ok) {
-    if (response.status === 401) {
-      // A rejected session must send the user to login, not leave the stale
-      // state in place (issue #1977).
-      expireSession();
-    }
-    const body = await response.json().catch(() => null);
-    const error = new Error(
-      getApiErrorMessage(body, `Wallet request failed (${response.status})`),
-    );
-
-    reportApiError({
-      api: "wallet",
-      method: init?.method ?? "GET",
-      pathTemplate: path,
-      status: response.status,
-      requestId: getRequestId(response),
-    });
-
-    throw error;
-  }
-
-  return response.json() as Promise<T>;
 }
 
 export function getWalletStatus(): Promise<WalletStatusResponse> {

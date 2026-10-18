@@ -1,9 +1,4 @@
-import {
-  getApiErrorMessage,
-  getRequestId,
-  reportApiError,
-} from "@/lib/api-report";
-import { getApiBaseUrl } from "@/lib/env";
+import { request } from "@/lib/http";
 
 export type PaymentRail = "FIAT" | "STELLAR_CUSTODIAL" | "STELLAR_EXTERNAL";
 
@@ -96,92 +91,20 @@ export interface ManualReviewPage {
   total: number;
 }
 
-const TRANSIENT_RETRY_DELAY_MS = 250;
-const RETRYABLE_STATUS_CODES = new Set([408, 425, 429, 500, 502, 503, 504]);
-
-function isRetryableMethod(init: RequestInit): boolean {
-  return (init.method ?? "GET").toUpperCase() === "GET";
-}
-
-function isAbortError(error: unknown): boolean {
-  return error instanceof Error && error.name === "AbortError";
-}
-
-function waitForRetry(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, TRANSIENT_RETRY_DELAY_MS));
-}
-
-async function fetchWithRetry(
-  url: string,
-  init: RequestInit,
-): Promise<Response> {
-  const retryable = isRetryableMethod(init);
-
-  for (let attempt = 0; ; attempt += 1) {
-    try {
-      const response = await fetch(url, init);
-      if (
-        !retryable ||
-        attempt >= 1 ||
-        !RETRYABLE_STATUS_CODES.has(response.status)
-      ) {
-        return response;
-      }
-      await response.body?.cancel();
-    } catch (error) {
-      if (!retryable || attempt >= 1 || isAbortError(error)) {
-        throw error;
-      }
-    }
-
-    await waitForRetry();
-  }
-}
-
-async function apiFetch<T>(
+function apiFetch<T>(
   path: string,
   init?: RequestInit,
   idempotencyKey?: string,
 ): Promise<T> {
-  const requestInit: RequestInit = {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
-      ...init?.headers,
-    },
-    // The backend authorizes via its HttpOnly `accessToken` cookie (issue
-    // #1975); no bearer header is threaded from the client.
-    credentials: "include",
-  };
-  const response = await fetchWithRetry(`${getApiBaseUrl()}${path}`, requestInit);
-
-  if (!response.ok) {
-    if (response.status === 401) {
-      // A rejected session must send the user to login, not leave the stale
-      // state in place (issue #1977).
-      expireSession();
-    }
-    const body = await response.json().catch(() => null);
-    const error = new Error(
-      getApiErrorMessage(body, `Request failed (${response.status})`),
-    );
-
-    reportApiError({
-      api: "payments",
-      method: init?.method ?? "GET",
-      pathTemplate: path,
-      status: response.status,
-      requestId: getRequestId(response),
-    });
-
-    throw error;
-  }
-
-  if (response.status === 204) {
-    return undefined as T;
-  }
-  return response.json() as Promise<T>;
+  return request<T>(path, {
+    service: "payments",
+    method: init?.method,
+    body: init?.body,
+    idempotencyKey,
+    // One extra attempt for idempotent methods on network errors or
+    // transient response statuses; request() limits it to GET.
+    retriable: true,
+  });
 }
 
 // ── payments (FE-102) ────────────────────────────────────────────────────

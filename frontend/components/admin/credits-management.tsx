@@ -1,4 +1,4 @@
-// src/components/AdminCreditsManagement.tsx
+// components/admin/credits-management.tsx
 'use client';
 
 import React, { useState } from 'react';

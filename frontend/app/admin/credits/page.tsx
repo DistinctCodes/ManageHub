@@ -7,7 +7,7 @@ import dynamic from "next/dynamic";
 // its own chunk and only fetched when an authenticated admin visits
 // /admin/credits, so regular (non-admin) users never download it.
 const AdminCreditsManagement = dynamic(
-  () => import("@/lib/AdminCreditsManagement"),
+  () => import("@/components/admin/credits-management"),
   {
     ssr: false,
     loading: () => (
