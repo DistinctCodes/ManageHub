@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -128,7 +128,9 @@ describe("AuthForm per-field API errors (issue #1988)", () => {
     await user.type(screen.getByLabelText("Email"), "not-an-email");
     await user.type(screen.getByLabelText("Password"), "short");
     await user.type(screen.getByLabelText("Confirm password"), "short");
-    await user.click(screen.getByRole("button", { name: "Create account" }));
+    fireEvent.submit(
+      screen.getByRole("button", { name: "Create account" }).closest("form")!,
+    );
 
     const emailError = await screen.findByText("email must be an email");
     expect(emailError).toHaveAttribute("id", "email-error");
@@ -230,7 +232,9 @@ describe("AuthForm per-field API errors (issue #1988)", () => {
     await user.type(screen.getByLabelText("Email"), "nope");
     await user.type(screen.getByLabelText("Password"), "password-one");
     await user.type(screen.getByLabelText("Confirm password"), "password-one");
-    await user.click(screen.getByRole("button", { name: "Create account" }));
+    fireEvent.submit(
+      screen.getByRole("button", { name: "Create account" }).closest("form")!,
+    );
     await screen.findByText("email must be an email");
 
     await user.type(screen.getByLabelText("Email"), "x");

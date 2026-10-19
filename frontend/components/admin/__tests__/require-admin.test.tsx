@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 
 import { RequireAdmin } from "../require-admin";
 import { useSessionStore } from "@/lib/stores/session-store";
+import type { UserRole } from "@/lib/auth-types";
 
 vi.mock("next/navigation", () => ({
   usePathname: vi.fn(),
@@ -21,7 +22,7 @@ vi.mock("@/lib/stores/use-session-bootstrap", () => ({
  * store's status machine drives the component.
  */
 function seedSession(state: {
-  user: { id: string; email: string; role: string } | null;
+  user: { id: string; email: string; role: UserRole } | null;
   accessToken: string | null;
   status: "unknown" | "authenticated" | "unauthenticated";
 }): void {

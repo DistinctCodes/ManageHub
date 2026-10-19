@@ -1,20 +1,29 @@
 import { test, expect } from "@playwright/test";
+import { SignJWT } from "jose";
 
 /**
  * End-to-end coverage of the one flow that currently works end to end in
  * this app: loading and provisioning a wallet (issue FE-125).
  *
- * `/wallet` is a protected route (see middleware.ts) — a JWT is required,
- * but middleware.ts only verifies its signature when `JWT_SECRET` is set,
- * which it isn't in this test run, so any non-empty cookie value passes.
- * The backend itself is mocked via page.route() rather than started for
- * real, keeping this test self-contained and fast in CI.
+ * `/wallet` is protected by middleware and needs a valid JWT,
+ * The test signs a short test-only JWT for middleware; wallet API calls are
+ * still mocked and do not require the backend, keeping this smoke test fast.
  */
 async function signIn(page: import("@playwright/test").Page) {
+  const secret = new TextEncoder().encode(
+    process.env.JWT_SECRET ?? "managehub-e2e-only-secret",
+  );
+  const token = await new SignJWT({ role: "user" })
+    .setProtectedHeader({ alg: "HS256" })
+    .setSubject("e2e-wallet-user")
+    .setIssuedAt()
+    .setExpirationTime("10m")
+    .sign(secret);
+
   await page.context().addCookies([
     {
       name: "accessToken",
-      value: "e2e-test-token",
+      value: token,
       url: "http://localhost:3000",
     },
   ]);
@@ -70,7 +79,7 @@ test.describe("wallet status and provisioning", () => {
 
     await page.goto("/wallet");
 
-    await expect(page.getByRole("heading", { name: "Your balance" })).toBeVisible();
+    await expect(page.getByText("Your balance", { exact: true })).toBeVisible();
     await expect(
       page.getByText(/don't have a payment balance set up yet/),
     ).toBeVisible();
@@ -93,6 +102,6 @@ test.describe("wallet status and provisioning", () => {
 
     await page.goto("/wallet");
 
-    await expect(page.getByText("Internal error")).toBeVisible();
+    await expect(page.getByRole("paragraph").filter({ hasText: "Internal error" })).toBeVisible();
   });
 });

@@ -150,8 +150,51 @@ jobs:
           NEXT_PUBLIC_API_URL: http://localhost:6000
 
   e2e:
-    name: Frontend E2E (Playwright)
+    name: Full-stack E2E (Playwright)
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: managehub
+          POSTGRES_PASSWORD: managehub
+          POSTGRES_DB: managehub
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U managehub"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_HOST: localhost
+      DATABASE_PORT: 5432
+      DATABASE_USERNAME: managehub
+      DATABASE_PASSWORD: managehub
+      DATABASE_NAME: managehub
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      NODE_ENV: development
+      PORT: 6000
+      JWT_SECRET: managehub-e2e-only-secret
+      PAYMENT_WEBHOOK_SECRET: managehub-e2e-webhook-secret
+      CORS_ORIGINS: http://localhost:3000
+      METRICS_ACCESS_TOKEN: managehub-e2e-metrics-token
+      WALLET_KMS_MASTER_KEY: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+      E2E_ADMIN_EMAIL: e2e-admin@example.com
+      E2E_ADMIN_PASSWORD: ManageHub-e2e-Admin-2026
 
     defaults:
       run:
@@ -160,6 +203,42 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Setup Node.js for backend
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Migrate e2e database
+        working-directory: backend
+        run: npm run migration:run
+
+      - name: Seed admin account for the browser flow
+        working-directory: backend
+        run: node scripts/e2e-seed-admin.js
+
+      - name: Build backend
+        working-directory: backend
+        run: npm run build
+
+      - name: Start backend
+        working-directory: backend
+        run: |
+          nohup npm run start:prod > /tmp/managehub-e2e-backend.log 2>&1 &
+          for attempt in {1..60}; do
+            if curl --fail --silent http://localhost:6000/health >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/managehub-e2e-backend.log
+          exit 1
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
