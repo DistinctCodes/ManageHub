@@ -11,6 +11,12 @@ import { WalletStatusCard } from "../wallet-status-card";
 import * as walletApi from "@/lib/wallet-api";
 import type { WalletStatusResponse } from "@/lib/wallet-api";
 
+// The card's sign-out button uses useSignOut(), which calls next/navigation's
+// useRouter() - that throws outside a mounted App Router.
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
+}));
+
 afterEach(() => {
   vi.restoreAllMocks();
 });
@@ -279,6 +285,88 @@ describe("WalletStatusCard", () => {
       expect(
         screen.getByRole("button", { name: "Connect wallet" }),
       ).toBeInTheDocument();
+    });
+
+    it("optimistically shows the linked wallet before the server confirms", async () => {
+      const user = userEvent.setup();
+      await openLinkForm(user);
+
+      let resolveVerify!: (value: WalletStatusResponse) => void;
+      vi.spyOn(walletApi, "verifyLinkChallenge").mockReturnValue(
+        new Promise((resolve) => {
+          resolveVerify = resolve;
+        }),
+      );
+
+      await user.type(
+        screen.getByLabelText("Wallet address"),
+        VALID_STELLAR_ADDRESS,
+      );
+      await user.type(screen.getByLabelText("Signature"), "a-valid-signature");
+      await user.click(screen.getByRole("button", { name: "Connect wallet" }));
+
+      // Still pending, but the card already shows the self-custody state.
+      await waitFor(() =>
+        expect(
+          screen.getByText("This balance lives in a wallet you control."),
+        ).toBeInTheDocument(),
+      );
+      expect(screen.getByText(VALID_STELLAR_ADDRESS)).toBeInTheDocument();
+      expect(
+        screen.getByText("Confirming your wallet link…"),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: "Connect wallet" }),
+      ).not.toBeInTheDocument();
+
+      resolveVerify({
+        ...PROVISIONED_CUSTODIAL,
+        custodyType: "EXTERNAL",
+        walletAddress: VALID_STELLAR_ADDRESS,
+      });
+
+      await waitFor(() =>
+        expect(
+          screen.queryByText("Confirming your wallet link…"),
+        ).not.toBeInTheDocument(),
+      );
+      expect(
+        screen.getByText("This balance lives in a wallet you control."),
+      ).toBeInTheDocument();
+    });
+
+    it("rolls back to the previous wallet and refills the form when verification fails", async () => {
+      const user = userEvent.setup();
+      await openLinkForm(user);
+
+      vi.spyOn(walletApi, "verifyLinkChallenge").mockRejectedValue(
+        new Error("Signature verification failed"),
+      );
+
+      await user.type(
+        screen.getByLabelText("Wallet address"),
+        VALID_STELLAR_ADDRESS,
+      );
+      await user.type(screen.getByLabelText("Signature"), "a-valid-signature");
+      await user.click(screen.getByRole("button", { name: "Connect wallet" }));
+
+      await waitFor(() =>
+        expect(
+          screen.getAllByText("Signature verification failed").length,
+        ).toBeGreaterThan(0),
+      );
+      // The custodial wallet is restored...
+      expect(screen.getByText("GCUSTODIALADDRESS")).toBeInTheDocument();
+      expect(
+        screen.queryByText("This balance lives in a wallet you control."),
+      ).not.toBeInTheDocument();
+      // ...and the re-opened form keeps what the user entered.
+      expect(screen.getByLabelText("Wallet address")).toHaveValue(
+        VALID_STELLAR_ADDRESS,
+      );
+      expect(screen.getByLabelText("Signature")).toHaveValue(
+        "a-valid-signature",
+      );
     });
   });
 });
