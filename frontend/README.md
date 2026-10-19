@@ -23,7 +23,7 @@ Copy `frontend/.env.example` to `frontend/.env.local` and adjust the values
 for your environment. Documented variables include:
 
 - `NEXT_PUBLIC_API_URL` - base URL of the backend API. In development the app
-  defaults to `http://localhost:6000` (the backend's configured port); in
+  defaults to `http://localhost:6100` (the backend's configured port); in
   production this variable is **required** and the build fails fast at request
   time when it is missing.
 - `NEXT_PUBLIC_APP_URL` - canonical origin of this frontend (defaults to

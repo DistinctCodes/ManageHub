@@ -28,7 +28,7 @@ test("registers, restores, logs out, and logs in through the real auth API", asy
   expect(cookie?.httpOnly).toBe(true);
 
   const meResponse = await page.evaluate(async () => {
-    const response = await fetch("http://localhost:6000/auth/me", {
+    const response = await fetch("http://localhost:6100/auth/me", {
       credentials: "include",
     });
     return { status: response.status, body: await response.json() };
@@ -37,7 +37,7 @@ test("registers, restores, logs out, and logs in through the real auth API", asy
   expect(meResponse.body).toMatchObject({ id: registration.user.id, email });
 
   const logoutResponse = await page.evaluate(async () => {
-    const response = await fetch("http://localhost:6000/auth/logout", {
+    const response = await fetch("http://localhost:6100/auth/logout", {
       method: "POST",
       credentials: "include",
     });
@@ -46,7 +46,7 @@ test("registers, restores, logs out, and logs in through the real auth API", asy
   expect(logoutResponse).toBe(201);
 
   const revokedResponse = await page.evaluate(async () => {
-    const response = await fetch("http://localhost:6000/auth/me", {
+    const response = await fetch("http://localhost:6100/auth/me", {
       credentials: "include",
     });
     return response.status;
@@ -60,7 +60,7 @@ test("registers, restores, logs out, and logs in through the real auth API", asy
   await expect(page).toHaveURL(/\/wallet$/);
 
   const loggedInResponse = await page.evaluate(async () => {
-    const response = await fetch("http://localhost:6000/auth/me", {
+    const response = await fetch("http://localhost:6100/auth/me", {
       credentials: "include",
     });
     return { status: response.status, body: await response.json() };

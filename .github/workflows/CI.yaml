@@ -147,7 +147,7 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          NEXT_PUBLIC_API_URL: http://localhost:6000
+          NEXT_PUBLIC_API_URL: http://localhost:6100
 
   e2e:
     name: Full-stack E2E (Playwright)
@@ -187,7 +187,7 @@ jobs:
       REDIS_PORT: 6379
       REDIS_DB: 0
       NODE_ENV: development
-      PORT: 6000
+      PORT: 6100
       JWT_SECRET: managehub-e2e-only-secret
       PAYMENT_WEBHOOK_SECRET: managehub-e2e-webhook-secret
       CORS_ORIGINS: http://localhost:3000
@@ -232,7 +232,7 @@ jobs:
         run: |
           nohup npm run start:prod > /tmp/managehub-e2e-backend.log 2>&1 &
           for attempt in {1..60}; do
-            if curl --fail --silent http://localhost:6000/health >/dev/null; then
+            if curl --fail --silent http://localhost:6100/health >/dev/null; then
               exit 0
             fi
             sleep 2
@@ -256,7 +256,7 @@ jobs:
       - name: Run E2E Tests
         run: npm run test:e2e
         env:
-          NEXT_PUBLIC_API_URL: http://localhost:6000
+          NEXT_PUBLIC_API_URL: http://localhost:6100
 
       - name: Upload Playwright Artifacts on Failure
         if: failure()

@@ -21,7 +21,7 @@ test("an authenticated admin can charge a member through the admin page", async 
   memberId = (await (await registerResponse).json()).user.id;
 
   const memberChargeStatus = await page.evaluate(async () => {
-    const response = await fetch("http://localhost:6000/credits/charge", {
+    const response = await fetch("http://localhost:6100/credits/charge", {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -49,7 +49,7 @@ test("an authenticated admin can charge a member through the admin page", async 
   await expect(adminPage).toHaveURL(/\/wallet$/);
 
   const adjustment = await adminContext.request.post(
-    "http://localhost:6000/credits/admin/adjustments",
+    "http://localhost:6100/credits/admin/adjustments",
     {
       data: {
         userId: memberId,
