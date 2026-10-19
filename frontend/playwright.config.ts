@@ -22,6 +22,9 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
     env: {
+      // CI sets PORT=6000 for the backend across the job; Next.js reserves
+      // that port, so keep the Playwright web server on its configured port.
+      PORT: "3000",
       NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:6000",
       // A fixed test-only key keeps the frontend middleware and the local
       // backend on the same JWT contract when running Playwright manually.
