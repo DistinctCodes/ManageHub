@@ -79,6 +79,9 @@ pub struct RevenueDistributionContract;
 
 fn bump_ttl(env: &Env) {
     env.storage()
+        .instance()
+        .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+    env.storage()
         .persistent()
         .extend_ttl(&DataKey::Config, TTL_THRESHOLD, TTL_EXTEND_TO);
     if env.storage().persistent().has(&DataKey::ConfigVersion) {
