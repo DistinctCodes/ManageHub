@@ -345,8 +345,8 @@ mod test {
         client.configure(&admin, &recipients(&env, &[6_000, 4_000]));
         assert_eq!(client.get_config_version(), 1);
         client.configure(&admin, &recipients(&env, &[5_000, 5_000]));
-        assert_eq!(client.get_config_version(), 2);
         assert!(!env.events().all().is_empty());
+        assert_eq!(client.get_config_version(), 2);
     }
 
     #[test]
