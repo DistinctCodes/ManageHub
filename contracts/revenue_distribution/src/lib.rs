@@ -299,7 +299,10 @@ impl RevenueDistributionContract {
 #[cfg(test)]
 mod test {
     use super::*;
-    use soroban_sdk::{testutils::Address as _, vec};
+    use soroban_sdk::{
+        testutils::{Address as _, Events as _},
+        vec,
+    };
 
     fn setup() -> (Env, RevenueDistributionContractClient<'static>, Address) {
         let env = Env::default();
