@@ -285,8 +285,8 @@ jobs:
 
       # Install the same pinned toolchain as contracts/rust-toolchain.toml,
       # including the formatter/linter components and WASM target.
-      - name: Install Rust toolchain (1.79 + wasm32)
-        uses: dtolnay/rust-toolchain@1.79.0
+      - name: Install Rust toolchain (1.98.1 + wasm32)
+        uses: dtolnay/rust-toolchain@1.98.1
         with:
           targets: wasm32-unknown-unknown
           components: rustfmt,clippy,rust-src
@@ -353,8 +353,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install cargo-audit
-        # contracts/rust-toolchain.toml pins 1.79, below cargo-audit's MSRV.
-        # The audit CLI is a CI tool, so install it with the stable toolchain.
+        # The audit CLI is a CI tool and is installed with the stable toolchain.
         run: cargo +stable install cargo-audit --locked
 
       - name: Resolve lockfile
