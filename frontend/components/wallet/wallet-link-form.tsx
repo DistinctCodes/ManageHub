@@ -12,6 +12,11 @@ import { Input } from "@/components/ui/input";
 interface WalletLinkFormProps {
   nonce: string;
   busy: boolean;
+  /**
+   * Prefills the fields, e.g. with the values from a submission that was
+   * optimistically applied and then rolled back (issue #1866).
+   */
+  defaultValues?: Partial<WalletLinkInput>;
   onCancel: () => void;
   onSubmit: (values: WalletLinkInput) => void;
 }
@@ -19,6 +24,7 @@ interface WalletLinkFormProps {
 export function WalletLinkForm({
   nonce,
   busy,
+  defaultValues,
   onCancel,
   onSubmit,
 }: WalletLinkFormProps) {
@@ -28,6 +34,7 @@ export function WalletLinkForm({
     formState: { errors },
   } = useForm<WalletLinkInput>({
     resolver: zodResolver(walletLinkSchema),
+    defaultValues,
     // Validate as soon as the field is blurred (and live on every change
     // after that), so a malformed address surfaces inline immediately
     // instead of waiting for the server round-trip (issue #1814).
