@@ -140,8 +140,16 @@ describe('AdminActionLogService', () => {
 
   it('lists logs newest first', async () => {
     const repo = makeLogRepository([
-      { id: 'a', action: 'payment_void', createdAt: new Date('2025-01-01T00:00:00Z') },
-      { id: 'b', action: 'payment_resolve_manually', createdAt: new Date('2025-01-01T00:00:00Z') },
+      {
+        id: 'a',
+        action: 'payment_void',
+        createdAt: new Date('2025-01-01T00:00:00Z'),
+      },
+      {
+        id: 'b',
+        action: 'payment_resolve_manually',
+        createdAt: new Date('2025-01-01T00:00:00Z'),
+      },
     ]);
     const service = new AdminActionLogService(repo as any);
 

@@ -45,10 +45,7 @@ function closeHttpServer(server: GracefulShutdownServer): Promise<void> {
   return new Promise((resolve, reject) => {
     try {
       const result = server.close(() => resolve());
-      if (
-        result &&
-        typeof (result as { then?: unknown }).then === 'function'
-      ) {
+      if (result && typeof (result as { then?: unknown }).then === 'function') {
         void (result as PromiseLike<void>).then(
           () => resolve(),
           (error) => reject(error),
@@ -89,8 +86,7 @@ export function installGracefulShutdown(
     options.scheduleTimeout ??
     ((callback: () => void, delayMs: number) => setTimeout(callback, delayMs));
   const cancelTimeout =
-    options.cancelTimeout ??
-    ((timer: TimerHandle) => clearTimeout(timer));
+    options.cancelTimeout ?? ((timer: TimerHandle) => clearTimeout(timer));
   const exit = options.exit ?? ((code: number) => process.exit(code));
 
   let draining = false;

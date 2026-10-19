@@ -34,10 +34,7 @@ import { currentRequestId } from './request-context';
 export class HttpLoggingInterceptor implements NestInterceptor {
   private readonly logger = new Logger(HttpLoggingInterceptor.name);
 
-  intercept(
-    context: ExecutionContext,
-    next: CallHandler,
-  ): Observable<unknown> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const contextType =
       typeof context.getType === 'function'
         ? context.getType<string>()
@@ -100,9 +97,11 @@ export class HttpLoggingInterceptor implements NestInterceptor {
     // `route` is populated by Express at dispatch time but is not part of the
     // published Request typing, so it is read through a narrow local alias
     // rather than with a bare `any` cast at the call site.
-    const matchedRoute = (request as Request & {
-      route?: { path?: unknown } | undefined;
-    }).route;
+    const matchedRoute = (
+      request as Request & {
+        route?: { path?: unknown } | undefined;
+      }
+    ).route;
     const route = matchedRoute?.path;
     if (typeof route === 'string') {
       const baseUrl =

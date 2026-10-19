@@ -12,14 +12,13 @@ describe('graceful shutdown', () => {
   beforeEach(() => {
     jest.useFakeTimers();
     handlers = {};
-    jest
-      .spyOn(process, 'once')
-      .mockImplementation(
-        ((signal: NodeJS.Signals, handler: SignalHandler) => {
-          handlers[signal] = handler;
-          return process;
-        }) as any,
-      );
+    jest.spyOn(process, 'once').mockImplementation(((
+      signal: NodeJS.Signals,
+      handler: SignalHandler,
+    ) => {
+      handlers[signal] = handler;
+      return process;
+    }) as any);
   });
 
   afterEach(() => {
@@ -63,9 +62,7 @@ describe('graceful shutdown', () => {
     await shutdown;
 
     expect(exit).toHaveBeenCalledWith(0);
-    expect(logger.log).toHaveBeenCalledWith(
-      'Graceful shutdown completed.',
-    );
+    expect(logger.log).toHaveBeenCalledWith('Graceful shutdown completed.');
     dispose();
   });
 

@@ -1,7 +1,7 @@
 #![no_std]
 
 use soroban_sdk::{
-    contract, contractimpl, contractmeta, contracterror, contracttype, token, Address, BytesN, Env,
+    contract, contracterror, contractimpl, contractmeta, contracttype, token, Address, BytesN, Env,
 };
 
 contractmeta!(key = "name", val = "payment_escrow");
@@ -116,7 +116,9 @@ impl PaymentEscrowContract {
     pub fn propose_admin(env: Env, new_admin: Address) -> Result<(), Error> {
         let admin = load_admin(&env)?;
         admin.require_auth();
-        env.storage().instance().set(&DataKey::PendingAdmin, &new_admin);
+        env.storage()
+            .instance()
+            .set(&DataKey::PendingAdmin, &new_admin);
         Ok(())
     }
 
@@ -150,7 +152,10 @@ impl PaymentEscrowContract {
     }
 
     pub fn is_paused(env: Env) -> bool {
-        env.storage().instance().get(&DataKey::Paused).unwrap_or(false)
+        env.storage()
+            .instance()
+            .get(&DataKey::Paused)
+            .unwrap_or(false)
     }
 
     /// Create a new escrow, locking `amount` from `payer` for `beneficiary`.
@@ -166,7 +171,12 @@ impl PaymentEscrowContract {
     ) -> Result<(), Error> {
         payer.require_auth();
 
-        if env.storage().instance().get::<_, bool>(&DataKey::Paused).unwrap_or(false) {
+        if env
+            .storage()
+            .instance()
+            .get::<_, bool>(&DataKey::Paused)
+            .unwrap_or(false)
+        {
             return Err(Error::Paused);
         }
 
@@ -174,16 +184,16 @@ impl PaymentEscrowContract {
             return Err(Error::InvalidAmount);
         }
 
-        if env.storage().persistent().has(&DataKey::Escrow(escrow_id.clone())) {
+        if env
+            .storage()
+            .persistent()
+            .has(&DataKey::Escrow(escrow_id.clone()))
+        {
             return Err(Error::AlreadyExists);
         }
 
         // Pull the funds into the contract before recording the escrow.
-        token::Client::new(&env, &token).transfer(
-            &payer,
-            &env.current_contract_address(),
-            &amount,
-        );
+        token::Client::new(&env, &token).transfer(&payer, &env.current_contract_address(), &amount);
 
         let escrow = Escrow {
             payer,
@@ -194,7 +204,9 @@ impl PaymentEscrowContract {
             state: EscrowState::Locked,
         };
 
-        env.storage().persistent().set(&DataKey::Escrow(escrow_id), &escrow);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Escrow(escrow_id), &escrow);
         Ok(())
     }
 
@@ -227,7 +239,9 @@ impl PaymentEscrowContract {
         );
         escrow.released = escrow.amount;
         escrow.state = EscrowState::Released;
-        env.storage().persistent().set(&DataKey::Escrow(escrow_id), &escrow);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Escrow(escrow_id), &escrow);
         Ok(())
     }
 
@@ -268,7 +282,9 @@ impl PaymentEscrowContract {
         if released == escrow.amount {
             escrow.state = EscrowState::Completed;
         }
-        env.storage().persistent().set(&DataKey::Escrow(escrow_id), &escrow);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Escrow(escrow_id), &escrow);
         Ok(())
     }
 
@@ -301,7 +317,9 @@ impl PaymentEscrowContract {
             &remaining,
         );
         escrow.state = EscrowState::Refunded;
-        env.storage().persistent().set(&DataKey::Escrow(escrow_id), &escrow);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Escrow(escrow_id), &escrow);
         Ok(remaining)
     }
 
@@ -333,7 +351,9 @@ impl PaymentEscrowContract {
             &remaining,
         );
         escrow.state = EscrowState::Refunded;
-        env.storage().persistent().set(&DataKey::Escrow(escrow_id), &escrow);
+        env.storage()
+            .persistent()
+            .set(&DataKey::Escrow(escrow_id), &escrow);
         Ok(())
     }
 
@@ -390,12 +410,21 @@ mod escrow_test {
         let client = PaymentEscrowContractClient::new(&env, &contract_id);
 
         let token_admin = Address::generate(&env);
-        let token = env.register_stellar_asset_contract_v2(token_admin).address();
+        let token = env
+            .register_stellar_asset_contract_v2(token_admin)
+            .address();
         let payer = Address::generate(&env);
         let beneficiary = Address::generate(&env);
         token::StellarAssetClient::new(&env, &token).mint(&payer, &10_000);
 
-        Fixture { env, client, contract_id, token, payer, beneficiary }
+        Fixture {
+            env,
+            client,
+            contract_id,
+            token,
+            payer,
+            beneficiary,
+        }
     }
 
     fn balance(f: &Fixture, who: &Address) -> i128 {
@@ -412,7 +441,8 @@ mod escrow_test {
         let f = setup();
         let id = escrow_id(&f.env, 1);
 
-        f.client.create(&id, &f.payer, &f.beneficiary, &1_000, &f.token);
+        f.client
+            .create(&id, &f.payer, &f.beneficiary, &1_000, &f.token);
         assert_eq!(f.client.get_status(&id), 1);
         assert_eq!(balance(&f, &f.contract_id), 1_000);
         assert_eq!(balance(&f, &f.payer), 9_000);
@@ -429,7 +459,8 @@ mod escrow_test {
         let f = setup();
         let id = escrow_id(&f.env, 2);
 
-        f.client.create(&id, &f.payer, &f.beneficiary, &500, &f.token);
+        f.client
+            .create(&id, &f.payer, &f.beneficiary, &500, &f.token);
         assert_eq!(balance(&f, &f.payer), 9_500);
 
         f.client.refund(&id);
@@ -442,7 +473,8 @@ mod escrow_test {
     fn test_get_escrow_shows_the_held_amount() {
         let f = setup();
         let id = escrow_id(&f.env, 3);
-        f.client.create(&id, &f.payer, &f.beneficiary, &250, &f.token);
+        f.client
+            .create(&id, &f.payer, &f.beneficiary, &250, &f.token);
         let escrow = f.client.get_escrow(&id);
         assert_eq!(escrow.amount, 250);
         assert_eq!(escrow.token, f.token);
@@ -453,15 +485,29 @@ mod escrow_test {
         let f = setup();
         let released = escrow_id(&f.env, 4);
         let refunded = escrow_id(&f.env, 5);
-        f.client.create(&released, &f.payer, &f.beneficiary, &100, &f.token);
-        f.client.create(&refunded, &f.payer, &f.beneficiary, &100, &f.token);
+        f.client
+            .create(&released, &f.payer, &f.beneficiary, &100, &f.token);
+        f.client
+            .create(&refunded, &f.payer, &f.beneficiary, &100, &f.token);
         f.client.release(&released);
         f.client.refund(&refunded);
 
-        assert_eq!(f.client.try_release(&released), Err(Ok(Error::AlreadyReleased)));
-        assert_eq!(f.client.try_refund(&refunded), Err(Ok(Error::AlreadyRefunded)));
-        assert_eq!(f.client.try_release(&refunded), Err(Ok(Error::AlreadyRefunded)));
-        assert_eq!(f.client.try_refund(&released), Err(Ok(Error::AlreadyReleased)));
+        assert_eq!(
+            f.client.try_release(&released),
+            Err(Ok(Error::AlreadyReleased))
+        );
+        assert_eq!(
+            f.client.try_refund(&refunded),
+            Err(Ok(Error::AlreadyRefunded))
+        );
+        assert_eq!(
+            f.client.try_release(&refunded),
+            Err(Ok(Error::AlreadyRefunded))
+        );
+        assert_eq!(
+            f.client.try_refund(&released),
+            Err(Ok(Error::AlreadyReleased))
+        );
     }
 }
 
@@ -474,7 +520,13 @@ mod partial_release_test {
     use super::*;
     use soroban_sdk::testutils::Address as _;
 
-    fn setup() -> (Env, PaymentEscrowContractClient<'static>, Address, Address, Address) {
+    fn setup() -> (
+        Env,
+        PaymentEscrowContractClient<'static>,
+        Address,
+        Address,
+        Address,
+    ) {
         let env = Env::default();
         env.mock_all_auths();
         let id = env.register(PaymentEscrowContract, ());
@@ -685,7 +737,10 @@ mod admin_test {
     fn initialize_runs_once() {
         let (env, client, _) = setup();
         let other = Address::generate(&env);
-        assert_eq!(client.try_initialize(&other), Err(Ok(Error::AlreadyInitialized)));
+        assert_eq!(
+            client.try_initialize(&other),
+            Err(Ok(Error::AlreadyInitialized))
+        );
     }
 
     #[test]

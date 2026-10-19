@@ -104,11 +104,7 @@ export function assertValidTransition(
   }
   const requestId = currentRequestId();
   const { paymentId, source, logger, metrics } = context;
-  metrics?.recordRejectedPaymentTransition(
-    from,
-    to,
-    source ?? 'api',
-  );
+  metrics?.recordRejectedPaymentTransition(from, to, source ?? 'api');
   logger?.warn(`Rejected illegal payment state transition: ${from} -> ${to}`, {
     paymentId,
     from,

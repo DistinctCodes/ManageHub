@@ -82,7 +82,8 @@ export class HealthController {
   })
   @ApiResponse({
     status: HttpStatus.SERVICE_UNAVAILABLE,
-    description: 'The database is unreachable or the readiness check timed out.',
+    description:
+      'The database is unreachable or the readiness check timed out.',
   })
   readiness(): Promise<HealthCheckResult> {
     return this.healthCheckService.check([

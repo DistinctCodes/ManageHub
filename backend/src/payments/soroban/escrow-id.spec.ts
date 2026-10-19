@@ -16,9 +16,9 @@ describe('deriveEscrowId', () => {
   });
 
   it("produces exactly 32 bytes, matching the contract's BytesN<32> id", () => {
-    expect(
-      deriveEscrowId('11111111-1111-1111-1111-111111111111'),
-    ).toHaveLength(32);
+    expect(deriveEscrowId('11111111-1111-1111-1111-111111111111')).toHaveLength(
+      32,
+    );
   });
 
   it('escrowIdToHex is a deterministic hex encoding of the same bytes', () => {

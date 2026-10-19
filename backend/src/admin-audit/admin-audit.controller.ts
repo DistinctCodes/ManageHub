@@ -67,7 +67,11 @@ export class AdminAuditController {
       `single action type. Capped at ${ADMIN_AUDIT_EXPORT_MAX_ROWS} rows, ` +
       `newest first. The export itself is recorded as an audit event.`,
   })
-  @ApiQuery({ name: 'from', required: false, description: 'Inclusive ISO start' })
+  @ApiQuery({
+    name: 'from',
+    required: false,
+    description: 'Inclusive ISO start',
+  })
   @ApiQuery({ name: 'to', required: false, description: 'Inclusive ISO end' })
   @ApiQuery({
     name: 'action',

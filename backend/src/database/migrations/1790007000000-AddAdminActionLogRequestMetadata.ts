@@ -5,9 +5,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * Adds nullable forensic columns so every admin action written after this
  * migration stores the caller's IP and User-Agent.
  */
-export class AddAdminActionLogRequestMetadata1790007000000
-  implements MigrationInterface
-{
+export class AddAdminActionLogRequestMetadata1790007000000 implements MigrationInterface {
   name = 'AddAdminActionLogRequestMetadata1790007000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

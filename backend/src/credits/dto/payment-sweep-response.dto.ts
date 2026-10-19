@@ -7,9 +7,13 @@ export class PaymentSweepResponseDto {
   candidates: number;
   @ApiProperty({ description: 'Payments whose credit effect was applied' })
   applied: number;
-  @ApiProperty({ description: 'Payments skipped because they were already handled' })
+  @ApiProperty({
+    description: 'Payments skipped because they were already handled',
+  })
   skipped: number;
-  @ApiProperty({ description: 'Payments whose application failed during the pass' })
+  @ApiProperty({
+    description: 'Payments whose application failed during the pass',
+  })
   failed: number;
 
   static fromView(summary: PaymentSweepSummary): PaymentSweepResponseDto {
