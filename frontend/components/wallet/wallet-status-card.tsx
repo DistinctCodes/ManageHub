@@ -12,6 +12,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { WalletLinkForm } from "@/components/wallet/wallet-link-form";
+import type { WalletLinkInput } from "@/lib/schemas/wallet-link";
 import { fromMinorUnits } from "@/lib/utils";
 import { useSignOut } from "@/components/auth/use-sign-out";
 
@@ -22,6 +23,8 @@ import { useSignOut } from "@/components/auth/use-sign-out";
 export function formatBalance(minorUnits: number, currency: string): string {
   return `${fromMinorUnits(minorUnits, currency).toFixed(2)} ${currency} credit`;
 }
+
+const WALLET_STATUS_KEY = ["wallet", "status"] as const;
 
 /**
  * Onboarding / settings widget for a user's payment wallet. Framed as a
@@ -34,18 +37,21 @@ export function WalletStatusCard() {
   const signOut = useSignOut();
   const [linking, setLinking] = useState(false);
   const [nonce, setNonce] = useState<string | null>(null);
+  const [lastLinkValues, setLastLinkValues] = useState<
+    WalletLinkInput | undefined
+  >(undefined);
 
   const {
     data: status,
     isLoading: loading,
     error,
   } = useQuery({
-    queryKey: ["wallet", "status"],
+    queryKey: WALLET_STATUS_KEY,
     queryFn: () => getWalletStatus(),
   });
 
   function applyStatus(result: WalletStatusResponse) {
-    queryClient.setQueryData<WalletStatusResponse>(["wallet", "status"], result);
+    queryClient.setQueryData<WalletStatusResponse>(WALLET_STATUS_KEY, result);
   }
 
   const provision = useMutation({
@@ -61,16 +67,41 @@ export function WalletStatusCard() {
     },
   });
 
+  // Linking is applied optimistically (issue #1866): the card switches to the
+  // linked, self-custody view as soon as the form is submitted, and rolls
+  // back to the previous status (re-opening the prefilled form) if the
+  // server rejects the signature. The nonce is kept until the server
+  // confirms so a rolled-back attempt can be retried without a new challenge.
   const verify = useMutation({
-    mutationFn: (values: { address: string; signature: string }) =>
+    mutationFn: (values: WalletLinkInput) =>
       verifyLinkChallenge({
         nonce: nonce ?? "",
         address: values.address,
         signature: values.signature,
       }),
+    onMutate: async (values) => {
+      // Stop an in-flight status refetch from overwriting the optimistic state.
+      await queryClient.cancelQueries({ queryKey: WALLET_STATUS_KEY });
+      const previous =
+        queryClient.getQueryData<WalletStatusResponse>(WALLET_STATUS_KEY);
+      if (previous) {
+        applyStatus({
+          ...previous,
+          custodyType: "EXTERNAL",
+          walletAddress: values.address,
+        });
+      }
+      setLinking(false);
+      return { previous };
+    },
+    onError: (_error, values, context) => {
+      if (context?.previous) applyStatus(context.previous);
+      setLastLinkValues(values);
+      setLinking(true);
+    },
     onSuccess: (result) => {
       applyStatus(result);
-      setLinking(false);
+      setLastLinkValues(undefined);
       setNonce(null);
     },
   });
@@ -84,11 +115,13 @@ export function WalletStatusCard() {
     ? "Loading your wallet…"
     : errorMessage
       ? errorMessage
-      : pending
-        ? "Working…"
-        : status?.provisioned
-          ? "Wallet balance loaded."
-          : "No wallet set up yet.";
+      : verify.isPending
+        ? "Linking your wallet…"
+        : pending
+          ? "Working…"
+          : status?.provisioned
+            ? "Wallet balance loaded."
+            : "No wallet set up yet.";
 
   if (loading) {
     return (
@@ -159,6 +192,11 @@ export function WalletStatusCard() {
                 ? "This works like a store credit balance - we hold it for you and you spend it on bookings."
                 : "This balance lives in a wallet you control."}
             </p>
+            {verify.isPending && (
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Confirming your wallet link…
+              </p>
+            )}
 
             <details className="text-sm">
               <summary className="cursor-pointer text-gray-500 dark:text-gray-400">
@@ -185,9 +223,11 @@ export function WalletStatusCard() {
           <WalletLinkForm
             nonce={nonce}
             busy={verify.isPending}
+            defaultValues={lastLinkValues}
             onCancel={() => {
               setLinking(false);
               setNonce(null);
+              setLastLinkValues(undefined);
             }}
             onSubmit={(values) => verify.mutate(values)}
           />
