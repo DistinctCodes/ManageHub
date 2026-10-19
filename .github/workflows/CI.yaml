@@ -353,7 +353,9 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install cargo-audit
-        run: cargo install cargo-audit --locked
+        # contracts/rust-toolchain.toml pins 1.79, below cargo-audit's MSRV.
+        # The audit CLI is a CI tool, so install it with the stable toolchain.
+        run: cargo +stable install cargo-audit --locked
 
       - name: Resolve lockfile
         run: test -f Cargo.lock || cargo generate-lockfile
