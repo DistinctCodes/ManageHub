@@ -20,7 +20,8 @@
  *     MAX_POLL_ATTEMPTS.
  */
 
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { verifyPaymentReturn, getPayment } from "@/lib/payments-api";
@@ -80,23 +81,6 @@ function statusTone(status: string): string {
 }
 
 // -- component ----------------------------------------------------------------
-
-export default function PaymentReturnPage() {
-  return (
-    <Suspense
-      fallback={
-        <main className="mx-auto max-w-lg px-4 py-16" aria-busy="true">
-          <h1 className="text-2xl font-semibold mb-6">Payment verification</h1>
-          <p role="status" className="text-sm text-gray-500 dark:text-gray-400">
-            Checking payment status...
-          </p>
-        </main>
-      }
-    >
-      <PaymentReturnContent />
-    </Suspense>
-  );
-}
 
 function PaymentReturnContent() {
   const router = useRouter();
@@ -557,5 +541,19 @@ function PaymentReturnContent() {
         </Card>
       )}
     </main>
+  );
+}
+
+export default function PaymentReturnPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="mx-auto max-w-lg p-6" aria-busy="true">
+          <p role="status">Checking payment status…</p>
+        </main>
+      }
+    >
+      <PaymentReturnContent />
+    </Suspense>
   );
 }

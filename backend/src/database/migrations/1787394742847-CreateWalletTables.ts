@@ -134,14 +134,20 @@ export class CreateWalletTables1787394742847 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`DROP INDEX "idx_wallet_ledger_entries_wallet_account_id"`);
+    await queryRunner.query(
+      `DROP INDEX "idx_wallet_ledger_entries_wallet_account_id"`,
+    );
     await queryRunner.query(`DROP TABLE "wallet_ledger_entries"`);
     await queryRunner.query(`DROP INDEX "uq_wallet_link_challenges_nonce"`);
     await queryRunner.query(`DROP INDEX "idx_wallet_link_challenges_user_id"`);
     await queryRunner.query(`DROP TABLE "wallet_link_challenges"`);
-    await queryRunner.query(`DROP INDEX "idx_wallet_key_access_log_wallet_account_id"`);
+    await queryRunner.query(
+      `DROP INDEX "idx_wallet_key_access_log_wallet_account_id"`,
+    );
     await queryRunner.query(`DROP TABLE "wallet_key_access_log"`);
-    await queryRunner.query(`DROP INDEX "uq_wallet_key_material_wallet_account_id"`);
+    await queryRunner.query(
+      `DROP INDEX "uq_wallet_key_material_wallet_account_id"`,
+    );
     await queryRunner.query(`DROP TABLE "wallet_key_material"`);
     await queryRunner.query(`DROP INDEX "uq_wallet_accounts_external_address"`);
     await queryRunner.query(`DROP INDEX "idx_wallet_accounts_address"`);

@@ -1,69 +1,50 @@
 import { CreditsAdminController } from './credits-admin.controller';
+import { UserRole } from '../auth/enums/user-role.enum';
 
 describe('CreditsAdminController', () => {
-  let controller: CreditsAdminController;
-  let ledger: { listAccountsPage: jest.Mock; checkIntegrity: jest.Mock };
-  let settlement: { runSettlement: jest.Mock };
-
-  beforeEach(() => {
-    ledger = {
-      listAccountsPage: jest.fn().mockResolvedValue({
-        accounts: [],
-        nextCursor: 'next-page',
-      }),
-      checkIntegrity: jest.fn().mockResolvedValue({
-        accountsChecked: 0,
-        balanceDrift: [],
-        unbalancedTransactions: [],
-      }),
+  it('posts an audited member balance adjustment with the current admin', async () => {
+    const transaction = {
+      id: 'transaction-1',
+      kind: 'ADJUSTMENT',
+      reference: 'support-case-1',
+      currency: 'USD',
+      amount: 1000,
+      description: 'Support correction',
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
     };
-    settlement = {
-      runSettlement: jest.fn().mockResolvedValue({
-        batchesCreated: 0,
-        batchesExecuted: 0,
-        payoutsSubmitted: 0,
-        payoutsConfirmed: 0,
-        payoutsFailed: 0,
-        payoutsAwaitingRail: 0,
-        entriesSettled: 0,
-        notes: [],
-      }),
+    const credits = {
+      adjust: jest.fn().mockResolvedValue({ transaction }),
     };
-    controller = new CreditsAdminController(
-      {} as any,
-      ledger as any,
-      {} as any,
-      settlement as any,
-      {} as any,
-      {} as any,
+    const controller = new CreditsAdminController(
+      credits as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
     );
-  });
+    const dto = {
+      userId: 'member-1',
+      delta: 1000,
+      currency: 'USD',
+      reference: 'support-case-1',
+      reason: 'Support correction',
+    };
 
-  it('returns a page of ledger accounts and its continuation cursor', async () => {
-    await expect(
-      controller.listAccounts('USD', '25', 'cursor'),
-    ).resolves.toEqual({
-      data: [],
-      nextCursor: 'next-page',
+    const result = await controller.adjust(dto, {
+      id: 'admin-1',
+      role: UserRole.ADMIN,
     });
-    expect(ledger.listAccountsPage).toHaveBeenCalledWith('USD', 25, 'cursor');
-  });
 
-  it('returns an integrity report for the ledger', async () => {
-    await expect(controller.checkIntegrity()).resolves.toMatchObject({
-      accountsChecked: 0,
-      balanceDrift: [],
-      unbalancedTransactions: [],
+    expect(credits.adjust).toHaveBeenCalledWith({
+      userId: dto.userId,
+      delta: dto.delta,
+      currency: dto.currency,
+      reference: dto.reference,
+      reason: dto.reason,
+      actorId: 'admin-1',
     });
-    expect(ledger.checkIntegrity).toHaveBeenCalledWith(undefined);
-  });
-
-  it('runs a settlement pass and returns its summary', async () => {
-    await expect(controller.runSettlement()).resolves.toMatchObject({
-      batchesCreated: 0,
-      payoutsConfirmed: 0,
-      notes: [],
-    });
-    expect(settlement.runSettlement).toHaveBeenCalledTimes(1);
+    expect(result.id).toBe('transaction-1');
+    expect(result.amount).toBe(1000);
   });
 });

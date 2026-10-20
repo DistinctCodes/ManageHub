@@ -8,9 +8,8 @@ import {
 
 describe('request context', () => {
   it('returns both accepted correlation header names inside a request', () => {
-    const headers = runWithRequestContext(
-      { requestId: 'request-123' },
-      () => outboundRequestHeaders(),
+    const headers = runWithRequestContext({ requestId: 'request-123' }, () =>
+      outboundRequestHeaders(),
     );
 
     expect(headers).toEqual({
@@ -25,9 +24,8 @@ describe('request context', () => {
   });
 
   it('does not emit a placeholder for an empty request id', () => {
-    const headers = runWithRequestContext(
-      { requestId: '' },
-      () => outboundRequestHeaders(),
+    const headers = runWithRequestContext({ requestId: '' }, () =>
+      outboundRequestHeaders(),
     );
 
     expect(headers).toEqual({});
@@ -47,9 +45,8 @@ describe('request context', () => {
   });
 
   it('keeps the request id available to log formatting', () => {
-    const message = runWithRequestContext(
-      { requestId: 'request-456' },
-      () => withRequestId('doing work'),
+    const message = runWithRequestContext({ requestId: 'request-456' }, () =>
+      withRequestId('doing work'),
     );
 
     expect(message).toBe('[request:request-456] doing work');

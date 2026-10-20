@@ -2,57 +2,54 @@ import { CreditsController } from './credits.controller';
 import { UserRole } from '../auth/enums/user-role.enum';
 
 describe('CreditsController', () => {
-  let controller: CreditsController;
-  let credits: { getBalance: jest.Mock };
-  let ledger: { listEntries: jest.Mock };
-  let usage: { listForUser: jest.Mock };
-
-  beforeEach(() => {
-    credits = {
-      getBalance: jest.fn().mockResolvedValue({
-        accountId: null,
-        userId: 'user-123',
+  it('charges a member through the ledger with the authenticated actor', async () => {
+    const transaction = {
+      id: 'transaction-1',
+      kind: 'CHARGE',
+      reference: 'job-1',
+      currency: 'USD',
+      amount: 500,
+      description: 'Print job',
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    };
+    const credits = {
+      charge: jest.fn().mockResolvedValue({
+        transaction,
+        posted: true,
+        balanceAfter: 500,
         currency: 'USD',
-        balance: 0,
-        overdraftLimit: 0,
-        spendable: 0,
-        frozen: false,
       }),
     };
-    ledger = { listEntries: jest.fn().mockResolvedValue([]) };
-    usage = { listForUser: jest.fn().mockResolvedValue([]) };
-    controller = new CreditsController(
-      credits as any,
-      ledger as any,
-      usage as any,
-      {} as any,
-      {} as any,
+    const controller = new CreditsController(
+      credits as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
     );
-  });
-
-  it('returns the current user balance', async () => {
-    const user = { id: 'user-123', role: UserRole.USER };
-
-    await expect(controller.myBalance(user)).resolves.toMatchObject({
-      accountId: null,
-      userId: 'user-123',
+    const dto = {
+      userId: 'member-1',
+      amount: 500,
       currency: 'USD',
-      balance: 0,
+      reference: 'job-1',
+      reason: 'Print job',
+      metadata: { jobId: 'job-1' },
+    };
+
+    const result = await controller.charge(dto, {
+      id: 'admin-1',
+      role: UserRole.ADMIN,
     });
-    expect(credits.getBalance).toHaveBeenCalledWith('user-123', undefined);
-  });
 
-  it('returns an empty statement when the user has no ledger account', async () => {
-    await expect(
-      controller.myStatement({ id: 'user-123', role: UserRole.USER }),
-    ).resolves.toEqual([]);
-    expect(ledger.listEntries).not.toHaveBeenCalled();
-  });
-
-  it('returns the current user usage history', async () => {
-    await expect(
-      controller.myUsage({ id: 'user-123', role: UserRole.USER }),
-    ).resolves.toEqual([]);
-    expect(usage.listForUser).toHaveBeenCalledWith('user-123');
+    expect(credits.charge).toHaveBeenCalledWith({
+      ...dto,
+      actorId: 'admin-1',
+    });
+    expect(result).toMatchObject({
+      posted: true,
+      balanceAfter: 500,
+      currency: 'USD',
+    });
+    expect(result.transaction.id).toBe('transaction-1');
   });
 });

@@ -26,7 +26,7 @@ function verifiedToken(role: string): void {
 describe("middleware role gate (issue #1973)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.JWT_SECRET = "test-secret";
+    vi.stubEnv("JWT_SECRET", "middleware-unit-test-secret");
   });
 
   it("lets an admin token through to admin pages", async () => {

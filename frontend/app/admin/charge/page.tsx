@@ -126,7 +126,7 @@ export default function AdminChargePage() {
             </p>
             <div className="mt-4 flex gap-3">
               <Button type="button" onClick={confirmCharge} disabled={busy}>
-                {busy ? "Chargingâ€¦" : "Confirm charge"}
+                {busy ? "Charging..." : "Confirm charge"}
               </Button>
               <Button
                 type="button"

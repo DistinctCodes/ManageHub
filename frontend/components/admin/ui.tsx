@@ -1,14 +1,20 @@
 import { cn } from "@/lib/utils";
-import { type ComponentPropsWithoutRef, type ReactNode } from "react";
+import { type HTMLAttributes, type ReactNode } from "react";
 
-export function Card({ className, children, ...props }: ComponentPropsWithoutRef<"div">) {
+export function Card({
+  className,
+  children,
+  ...props
+}: HTMLAttributes<HTMLDivElement> & {
+  children: ReactNode;
+}) {
   return (
     <div
+      {...props}
       className={cn(
         "rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900",
         className,
       )}
-      {...props}
     >
       {children}
     </div>

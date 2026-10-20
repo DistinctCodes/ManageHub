@@ -16,12 +16,14 @@ const QUERIES = [
     sql: `EXPLAIN SELECT * FROM "ledger_entries"
           WHERE "account_id" = $1
           ORDER BY "created_at" DESC LIMIT 100`,
+    params: [DUMMY_UUID],
   },
   {
     name: 'GET /payments member list (by user)',
     sql: `EXPLAIN SELECT * FROM "payments"
           WHERE "user_id" = $1
           ORDER BY "created_at" DESC`,
+    params: [DUMMY_UUID],
   },
   {
     name: 'admin manual-review queue (by status, oldest first)',
@@ -43,9 +45,7 @@ async function main() {
 
   let failed = false;
   for (const query of QUERIES) {
-    const result = query.sql.includes('$1')
-      ? await client.query(query.sql, [DUMMY_UUID])
-      : await client.query(query.sql);
+    const result = await client.query(query.sql, query.params ?? []);
     const plan = result.rows.map((row) => Object.values(row).join(' ')).join('\n');
     const seqScan = /Seq Scan/i.test(plan);
 

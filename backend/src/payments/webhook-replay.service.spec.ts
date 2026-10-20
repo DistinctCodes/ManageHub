@@ -29,7 +29,9 @@ describe('WebhookReplayService', () => {
 
     it('falls back to the default for an invalid configured value', () => {
       const service = new WebhookReplayService(
-        makeConfig({ PAYMENT_WEBHOOK_TOLERANCE_SECONDS: 'not-a-number' }) as any,
+        makeConfig({
+          PAYMENT_WEBHOOK_TOLERANCE_SECONDS: 'not-a-number',
+        }) as any,
       );
       expect(service.toleranceMs()).toBe(
         DEFAULT_WEBHOOK_TOLERANCE_SECONDS * 1000,
@@ -45,7 +47,9 @@ describe('WebhookReplayService', () => {
 
     it('rejects a stale timestamp', () => {
       const service = new WebhookReplayService(makeConfig() as any);
-      expect(service.isWithinTolerance(Date.now() - 10 * 60 * 1000)).toBe(false);
+      expect(service.isWithinTolerance(Date.now() - 10 * 60 * 1000)).toBe(
+        false,
+      );
     });
 
     it('rejects a non-numeric timestamp', () => {

@@ -2,7 +2,6 @@
 // CT-55). Gated behind an env flag so it doesn't run on every CI job,
 // since it depends on testnet availability.
 import { EscrowContractClient } from './escrow-contract.client';
-import { SorobanRpcClient } from './soroban-rpc-client';
 
 const RUN_TESTNET_TESTS = process.env.RUN_SOROBAN_TESTNET_TESTS === 'true';
 
@@ -13,9 +12,9 @@ const RUN_TESTNET_TESTS = process.env.RUN_SOROBAN_TESTNET_TESTS === 'true';
 
     beforeAll(() => {
       client = new EscrowContractClient(
-        {} as SorobanRpcClient,
+        {} as never,
         process.env.SOROBAN_TESTNET_ESCROW_CONTRACT_ID ?? '',
-        'Test SDF Network ; September 2015',
+        'testnet',
       );
     });
 

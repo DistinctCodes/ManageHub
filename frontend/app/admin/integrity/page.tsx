@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, AlertTriangle } from "lucide-react";
 import { checkIntegrity, type LedgerIntegrityReport } from "@/lib/admin-api";
-import { Card, CardHeader, Button } from "@/components/admin/ui";
+import { Card, Button } from "@/components/admin/ui";
 import { IntegrityResults } from "@/components/admin/integrity-results";
 import { RequireAdmin } from "@/components/admin/require-admin";
 

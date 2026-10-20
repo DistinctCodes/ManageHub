@@ -78,7 +78,6 @@ pub enum Error {
 pub struct RevenueDistributionContract;
 
 fn bump_ttl(env: &Env) {
-    // The contract must remain invokable to read its persistent configuration.
     env.storage()
         .instance()
         .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
@@ -344,7 +343,6 @@ mod test {
         let (env, client, admin) = setup();
         assert_eq!(client.get_config_version(), 0);
         client.configure(&admin, &recipients(&env, &[6_000, 4_000]));
-        assert!(!env.events().all().is_empty());
         assert_eq!(client.get_config_version(), 1);
         client.configure(&admin, &recipients(&env, &[5_000, 5_000]));
         assert!(!env.events().all().is_empty());

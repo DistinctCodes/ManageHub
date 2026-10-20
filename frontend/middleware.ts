@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { jwtVerify } from "jose";
+import { getSafeReturnTo } from "./lib/auth-redirect";
 
 // NOTE: This middleware is a UX convenience (redirects unauthenticated users
 // to /login). It is NOT a security boundary. Authorization and authentication
@@ -74,7 +75,10 @@ export async function middleware(request: NextRequest) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
     loginUrl.search = "";
-    loginUrl.searchParams.set("returnTo", pathname + request.nextUrl.search);
+    loginUrl.searchParams.set(
+      "returnTo",
+      getSafeReturnTo(pathname + request.nextUrl.search),
+    );
     return NextResponse.redirect(loginUrl);
   }
 

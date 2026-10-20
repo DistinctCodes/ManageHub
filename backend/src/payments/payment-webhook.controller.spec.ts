@@ -87,9 +87,9 @@ describe('PaymentWebhookController', () => {
       outcome: 'confirmed',
     });
 
-    await expect(
-      controller.sandbox(req, 'good-sig', '1000'),
-    ).rejects.toThrow(UnauthorizedException);
+    await expect(controller.sandbox(req, 'good-sig', '1000')).rejects.toThrow(
+      UnauthorizedException,
+    );
 
     expect(replay.isWithinTolerance).toHaveBeenCalledWith(1000);
     expect(confirmationService.logRejectedWebhook).toHaveBeenCalledWith(

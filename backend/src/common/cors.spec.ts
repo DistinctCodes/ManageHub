@@ -11,10 +11,7 @@ describe('CORS origin helpers', () => {
       parseAllowedOrigins(
         ' https://app.example.com, ,https://admin.example.com, ',
       ),
-    ).toEqual([
-      'https://app.example.com',
-      'https://admin.example.com',
-    ]);
+    ).toEqual(['https://app.example.com', 'https://admin.example.com']);
   });
 
   it('uses the documented local origins for development and test defaults', () => {

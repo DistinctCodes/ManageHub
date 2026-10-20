@@ -25,28 +25,20 @@ describe('Payment webhook (e2e)', () => {
     }
   });
 
-  function sign(rawBody: string, timestamp: string): string {
-    const signedPayload = Buffer.concat([
-      Buffer.from(`${timestamp}.`, 'utf8'),
-      Buffer.from(rawBody, 'utf8'),
-    ]);
-    return createHmac('sha256', secret).update(signedPayload).digest('hex');
-  }
+  function sign(rawBody: string): { timestamp: string; signature: string } {
+    const timestamp = Date.now().toString();
+    const signature = createHmac('sha256', secret)
+      .update(`${timestamp}.${rawBody}`)
+      .digest('hex');
 
-  function signedHeaders(rawBody: string): Record<string, string> {
-    const timestamp = String(Date.now());
-    return {
-      'X-Payment-Timestamp': timestamp,
-      'X-Payment-Signature': sign(rawBody, timestamp),
-    };
+    return { timestamp, signature };
   }
 
   it('rejects a missing signature (401)', async () => {
-    const timestamp = String(Date.now());
     const res = await request(server)
       .post('/payments/webhooks/sandbox')
       .set('Content-Type', 'application/json')
-      .set('X-Payment-Timestamp', timestamp)
+      .set('X-Payment-Timestamp', Date.now().toString())
       .send(
         JSON.stringify({
           providerReference: 'e2e_missing',
@@ -58,11 +50,10 @@ describe('Payment webhook (e2e)', () => {
   });
 
   it('rejects an invalid signature (401)', async () => {
-    const timestamp = String(Date.now());
     const res = await request(server)
       .post('/payments/webhooks/sandbox')
       .set('Content-Type', 'application/json')
-      .set('X-Payment-Timestamp', timestamp)
+      .set('X-Payment-Timestamp', Date.now().toString())
       .set('X-Payment-Signature', 'deadbeef'.repeat(8))
       .send(
         JSON.stringify({
@@ -79,11 +70,13 @@ describe('Payment webhook (e2e)', () => {
       providerReference: 'e2e_unknown_reference',
       outcome: 'confirmed',
     });
+    const signed = sign(rawBody);
 
     const res = await request(server)
       .post('/payments/webhooks/sandbox')
       .set('Content-Type', 'application/json')
-      .set(signedHeaders(rawBody))
+      .set('X-Payment-Timestamp', signed.timestamp)
+      .set('X-Payment-Signature', signed.signature)
       .send(rawBody);
 
     expect(res.status).toBe(200);
@@ -95,11 +88,13 @@ describe('Payment webhook (e2e)', () => {
     // the app HMACs the raw bytes captured by the body parser.
     const rawBody =
       '{ "providerReference" : "e2e_spaced_reference" , "outcome" : "confirmed" }';
+    const signed = sign(rawBody);
 
     const res = await request(server)
       .post('/payments/webhooks/sandbox')
       .set('Content-Type', 'application/json')
-      .set(signedHeaders(rawBody))
+      .set('X-Payment-Timestamp', signed.timestamp)
+      .set('X-Payment-Signature', signed.signature)
       .send(rawBody);
 
     expect(res.status).toBe(200);
@@ -108,11 +103,13 @@ describe('Payment webhook (e2e)', () => {
 
   it('rejects a correctly signed but malformed payload (400)', async () => {
     const rawBody = JSON.stringify({ providerReference: 'e2e_malformed' });
+    const signed = sign(rawBody);
 
     const res = await request(server)
       .post('/payments/webhooks/sandbox')
       .set('Content-Type', 'application/json')
-      .set(signedHeaders(rawBody))
+      .set('X-Payment-Timestamp', signed.timestamp)
+      .set('X-Payment-Signature', signed.signature)
       .send(rawBody);
 
     expect(res.status).toBe(400);

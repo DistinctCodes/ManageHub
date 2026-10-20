@@ -2,9 +2,10 @@ import type { NextConfig } from "next";
 import bundleAnalyzer from "@next/bundle-analyzer";
 import { securityHeaders } from "./lib/csp";
 
-const withBundleAnalyzer = bundleAnalyzer({
-  enabled: process.env.ANALYZE === "true",
-});
+const withBundleAnalyzer =
+  process.env.ANALYZE === "true"
+    ? bundleAnalyzer({ enabled: true })
+    : (config: NextConfig) => config;
 
 const nextConfig: NextConfig = {
   turbopack: {
