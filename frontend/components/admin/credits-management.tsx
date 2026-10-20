@@ -27,8 +27,8 @@ export default function AdminCreditsManagement() {
       setUserId('');
       setAdjustmentAmount('');
       setAdjustmentReason('');
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to process manual adjustment.');
     } finally {
       setLoading(false);
     }
@@ -47,8 +47,8 @@ export default function AdminCreditsManagement() {
       toast.success('Payment top-up triggered successfully.');
       setPaymentId('');
       setTopUpAmount('');
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to trigger payment top-up.');
     } finally {
       setLoading(false);
     }
@@ -63,8 +63,8 @@ export default function AdminCreditsManagement() {
       });
       if (!res.ok) throw new Error('Failed to execute payment sweep.');
       toast.success('Payment sweep executed successfully.');
-    } catch (err: any) {
-      toast.error(err.message);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to execute payment sweep.');
     } finally {
       setLoading(false);
     }

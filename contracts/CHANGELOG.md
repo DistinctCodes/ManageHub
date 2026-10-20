@@ -6,8 +6,8 @@ backend and indexer integrators can track compatibility across releases (#1877).
 ## Unreleased
 
 ### Toolchain
-- Use the current stable Rust toolchain for the contracts workspace. The old
-  1.79.0 pin could not parse edition 2024 dependencies selected by Cargo.
+- Bump the contracts toolchain to Rust 1.98.1 and check in the resolved Cargo
+  lockfile so CI can build the workspace with current transitive dependencies.
 
 ### Added
 - `payment_escrow::get_escrow(id)` read-only view function, so integrators no

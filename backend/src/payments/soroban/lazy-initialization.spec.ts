@@ -31,7 +31,7 @@ describe('createLazy', () => {
   it('constructs once on first use, preserves instanceof, and forwards calls', () => {
     const factory = jest.fn(() => new ExampleClient());
 
-    const client = createLazy(factory);
+    const client = createLazy(factory) as ExampleClient;
 
     expect(client).toBeInstanceOf(ExampleClient);
     expect(client.invoke(1)).toBe(1);
@@ -43,10 +43,10 @@ describe('createLazy', () => {
 
   it('rethrows the same factory error on every access without retrying', () => {
     const failure = new Error('RPC unavailable');
-    const factory: () => ExampleClient = jest.fn(() => {
+    const factory = jest.fn(() => {
       throw failure;
     });
-    const client = createLazy(factory);
+    const client = createLazy(factory) as ExampleClient;
 
     expect(() => client.invoke(1)).toThrow(failure);
     expect(() => client.invoke(1)).toThrow(failure);

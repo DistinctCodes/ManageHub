@@ -147,7 +147,7 @@ describe("wallet-api", () => {
       await expect(getWalletStatus()).rejects.toThrow("Wallet request failed (503)");
     });
 
-    it("reports the failure to Sentry with the endpoint and status code tagged", async () => {
+    it("reports the failure to Sentry with safe endpoint metadata", async () => {
       fetchMock.mockResolvedValue(jsonResponse(404, { message: "Wallet not found" }));
 
       await expect(getWalletStatus()).rejects.toThrow();
@@ -157,6 +157,7 @@ describe("wallet-api", () => {
       expect((error as Error).message).toBe("wallet request failed (404)");
       expect(context).toMatchObject({
         tags: { api: "wallet", statusCode: "404" },
+        extra: { method: "GET", pathTemplate: "/wallets/me", statusCode: 404 },
       });
     });
 

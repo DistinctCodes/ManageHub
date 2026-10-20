@@ -1,19 +1,13 @@
-import { afterEach } from "vitest";
+import { afterEach, vi } from "vitest";
 import { cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import { vi } from "vitest";
 
+// API unit tests exercise our reporting payloads, not the Next.js Sentry
+// runtime. Keep the SDK's webpack instrumentation out of the jsdom runner.
 vi.mock("@sentry/nextjs", () => ({
   captureException: vi.fn(),
   init: vi.fn(),
-  replayIntegration: vi.fn(),
-}));
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn(), refresh: vi.fn() }),
-  usePathname: () => "/",
-  useSearchParams: () => new URLSearchParams(),
-  useParams: () => ({}),
+  replayIntegration: vi.fn(() => ({})),
 }));
 
 // RTL's automatic afterEach(cleanup) only registers itself when it detects a

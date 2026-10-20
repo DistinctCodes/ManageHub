@@ -532,11 +532,11 @@ mod partial_release_test {
         let id = env.register(PaymentEscrowContract, ());
         let client = PaymentEscrowContractClient::new(&env, &id);
         let payer = Address::generate(&env);
-        let beneficiary = Address::generate(&env);
         let token = env
             .register_stellar_asset_contract_v2(Address::generate(&env))
             .address();
         token::StellarAssetClient::new(&env, &token).mint(&payer, &1_000_000);
+        let beneficiary = Address::generate(&env);
         (env, client, payer, beneficiary, token)
     }
 

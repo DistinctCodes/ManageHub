@@ -20,11 +20,12 @@ export function isAuthError(error: unknown): boolean {
   if (error instanceof Error) {
     const status = (error as { status?: unknown }).status;
     if (status === 401 || status === 403) return true;
+    const message = error.message.toLowerCase();
     if (
-      error.message.includes("401") ||
-      error.message.includes("403") ||
-      error.message.includes("Unauthorized") ||
-      error.message.toLowerCase().includes("forbidden")
+      message.includes("401") ||
+      message.includes("403") ||
+      message.includes("unauthorized") ||
+      message.includes("forbidden")
     ) {
       return true;
     }

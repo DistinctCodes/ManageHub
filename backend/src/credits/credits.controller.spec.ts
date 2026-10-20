@@ -1,16 +1,23 @@
 import { CreditsController } from './credits.controller';
+import { UserRole } from '../auth/enums/user-role.enum';
 
 describe('CreditsController', () => {
-  it('returns the signed-in user balance', async () => {
+  it('charges a member through the ledger with the authenticated actor', async () => {
+    const transaction = {
+      id: 'transaction-1',
+      kind: 'CHARGE',
+      reference: 'job-1',
+      currency: 'USD',
+      amount: 500,
+      description: 'Print job',
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    };
     const credits = {
-      getBalance: jest.fn().mockResolvedValue({
-        accountId: 'account-1',
-        userId: 'user-1',
+      charge: jest.fn().mockResolvedValue({
+        transaction,
+        posted: true,
+        balanceAfter: 500,
         currency: 'USD',
-        balance: 500,
-        overdraftLimit: 0,
-        spendable: 500,
-        frozen: false,
       }),
     };
     const controller = new CreditsController(
@@ -20,30 +27,29 @@ describe('CreditsController', () => {
       {} as never,
       {} as never,
     );
-    const result = await controller.myBalance({ id: 'user-1' } as never);
-    expect(credits.getBalance).toHaveBeenCalledWith('user-1', undefined);
+    const dto = {
+      userId: 'member-1',
+      amount: 500,
+      currency: 'USD',
+      reference: 'job-1',
+      reason: 'Print job',
+      metadata: { jobId: 'job-1' },
+    };
+
+    const result = await controller.charge(dto, {
+      id: 'admin-1',
+      role: UserRole.ADMIN,
+    });
+
+    expect(credits.charge).toHaveBeenCalledWith({
+      ...dto,
+      actorId: 'admin-1',
+    });
     expect(result).toMatchObject({
-      userId: 'user-1',
-      balance: 500,
+      posted: true,
+      balanceAfter: 500,
       currency: 'USD',
     });
-  });
-
-  it('returns no statement entries when the user has no ledger account', async () => {
-    const credits = {
-      getBalance: jest.fn().mockResolvedValue({ accountId: null }),
-    };
-    const ledger = { listEntries: jest.fn() };
-    const controller = new CreditsController(
-      credits as never,
-      ledger as never,
-      {} as never,
-      {} as never,
-      {} as never,
-    );
-    await expect(
-      controller.myStatement({ id: 'user-1' } as never),
-    ).resolves.toEqual([]);
-    expect(ledger.listEntries).not.toHaveBeenCalled();
+    expect(result.transaction.id).toBe('transaction-1');
   });
 });

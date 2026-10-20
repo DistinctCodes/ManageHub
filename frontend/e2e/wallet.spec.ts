@@ -1,29 +1,29 @@
 import { test, expect } from "@playwright/test";
 import { SignJWT } from "jose";
 
-const jwtSecret = "playwright-test-secret-that-is-at-least-32-bytes";
-
 /**
  * End-to-end coverage of the one flow that currently works end to end in
  * this app: loading and provisioning a wallet (issue FE-125).
  *
- * `/wallet` is a protected route (see middleware.ts) — a JWT is required,
- * and middleware verifies its signature with the test-only secret configured
- * in playwright.config.ts.
- * The backend itself is mocked via page.route() rather than started for
- * real, keeping this test self-contained and fast in CI.
+ * `/wallet` is protected by middleware and needs a valid JWT,
+ * The test signs a short test-only JWT for middleware; wallet API calls are
+ * still mocked and do not require the backend, keeping this smoke test fast.
  */
 async function signIn(page: import("@playwright/test").Page) {
-  const accessToken = await new SignJWT({ sub: "e2e-user", role: "user" })
+  const secret = new TextEncoder().encode(
+    process.env.JWT_SECRET ?? "managehub-e2e-only-secret",
+  );
+  const token = await new SignJWT({ role: "user" })
     .setProtectedHeader({ alg: "HS256" })
+    .setSubject("e2e-wallet-user")
     .setIssuedAt()
-    .setExpirationTime("1h")
-    .sign(new TextEncoder().encode(jwtSecret));
+    .setExpirationTime("10m")
+    .sign(secret);
 
   await page.context().addCookies([
     {
       name: "accessToken",
-      value: accessToken,
+      value: token,
       url: "http://localhost:3000",
     },
   ]);
@@ -102,8 +102,6 @@ test.describe("wallet status and provisioning", () => {
 
     await page.goto("/wallet");
 
-    await expect(
-      page.getByRole("paragraph").filter({ hasText: "Internal error" }),
-    ).toBeVisible();
+    await expect(page.getByRole("paragraph").filter({ hasText: "Internal error" })).toBeVisible();
   });
 });

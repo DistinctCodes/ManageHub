@@ -45,9 +45,7 @@ async function main() {
 
   let failed = false;
   for (const query of QUERIES) {
-    const result = query.params
-      ? await client.query(query.sql, query.params)
-      : await client.query(query.sql);
+    const result = await client.query(query.sql, query.params ?? []);
     const plan = result.rows.map((row) => Object.values(row).join(' ')).join('\n');
     const seqScan = /Seq Scan/i.test(plan);
 

@@ -49,9 +49,7 @@ describe("PaymentReturnPage provider errors", () => {
   it("shows the provider error and does not start verification", () => {
     render(<PaymentReturnPage />);
 
-    expect(
-      screen.getByText("Payment could not be completed"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Payment could not be completed")).toBeInTheDocument();
     expect(screen.getByRole("alert")).toHaveTextContent(
       "The payment was cancelled. No payment was completed.",
     );
