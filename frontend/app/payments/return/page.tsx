@@ -20,7 +20,8 @@
  *     MAX_POLL_ATTEMPTS.
  */
 
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { verifyPaymentReturn, getPayment } from "@/lib/payments-api";
@@ -244,9 +245,7 @@ function PaymentReturnContent() {
             </p>
             <Button asChild>
               <Link
-                href={`/login?returnTo=${encodeURIComponent(
-                  `/payments/return?paymentId=${paymentId}`,
-                )}`}
+                href={`/login?next=/payments/return?paymentId=${paymentId}`}
               >
                 Sign in
               </Link>
@@ -549,10 +548,8 @@ export default function PaymentReturnPage() {
   return (
     <Suspense
       fallback={
-        <main className="mx-auto max-w-lg px-4 py-16">
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            Loading payment details...
-          </p>
+        <main className="mx-auto max-w-lg p-6" aria-busy="true">
+          <p role="status">Checking payment status…</p>
         </main>
       }
     >

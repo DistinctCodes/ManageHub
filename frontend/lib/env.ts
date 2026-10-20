@@ -1,9 +1,9 @@
 import { z } from "zod";
 
-// The development default for the API base URL (port 6000) aligns with the
+// The development default for the API base URL (port 6100) aligns with the
 // backend's configured PORT (see backend/.env.example), so `npm run dev` on
 // the frontend reaches a locally running backend with no configuration.
-const DEV_API_BASE_URL = "http://localhost:6000";
+const DEV_API_BASE_URL = "http://localhost:6100";
 const FALLBACK_APP_BASE_URL = "https://managehub.app";
 
 /**
@@ -47,7 +47,7 @@ export function getAppBaseUrl(): string {
  *
  * Behaviour:
  * - set to a valid http(s) URL -> returned trimmed, without a trailing slash;
- * - unset/empty in development -> the backend's port 6000 default;
+ * - unset/empty in development -> the backend's port 6100 default;
  * - unset/empty in production -> throws so a misconfigured deploy fails
  *   loudly instead of silently requesting against the frontend's own origin;
  * - unset/empty in any other environment (e.g. test) -> the legacy "" value,
@@ -58,7 +58,7 @@ export function getApiBaseUrl(): string {
   if (typeof raw !== "string" || raw.trim().length === 0) {
     if (process.env.NODE_ENV === "production") {
       throw new Error(
-        "NEXT_PUBLIC_API_URL is not configured: copy frontend/.env.example to .env.local and set the backend URL (defaults to http://localhost:6000 in development).",
+        "NEXT_PUBLIC_API_URL is not configured: copy frontend/.env.example to .env.local and set the backend URL (defaults to http://localhost:6100 in development).",
       );
     }
     if (process.env.NODE_ENV === "development") {
@@ -70,7 +70,7 @@ export function getApiBaseUrl(): string {
   const parsed = httpUrlSchema.safeParse(raw);
   if (!parsed.success) {
     throw new Error(
-      `NEXT_PUBLIC_API_URL is not a valid http(s) URL: got "${raw}". Copy frontend/.env.example to .env.local for the expected format (defaults to http://localhost:6000 in development).`,
+      `NEXT_PUBLIC_API_URL is not a valid http(s) URL: got "${raw}". Copy frontend/.env.example to .env.local for the expected format (defaults to http://localhost:6100 in development).`,
     );
   }
   return stripTrailingSlash(parsed.data);

@@ -687,13 +687,12 @@ mod model_test {
                         match model[i as usize] {
                             None => prop_assert!(matches!(r, Err(Ok(Error::NotFound)))),
                             Some((M::Locked, a, rel)) => {
-                                let next_released = rel.checked_add(amt).unwrap();
-                                if next_released > a {
+                                if rel + amt > a {
                                     prop_assert!(matches!(r, Err(Ok(Error::AmountExceedsEscrow))));
                                 } else {
                                     prop_assert!(r.is_ok());
-                                    let st = if next_released == a { M::Completed } else { M::Locked };
-                                    model[i as usize] = Some((st, a, next_released));
+                                    let st = if rel + amt == a { M::Completed } else { M::Locked };
+                                    model[i as usize] = Some((st, a, rel + amt));
                                 }
                             }
                             Some(_) => prop_assert!(matches!(r, Err(Ok(Error::AlreadyResolved)))),

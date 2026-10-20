@@ -1,10 +1,10 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { usePathname, useRouter } from "next/navigation";
-import type { AuthUser } from "@/lib/auth-types";
 
 import { RequireAdmin } from "../require-admin";
 import { useSessionStore } from "@/lib/stores/session-store";
+import type { UserRole } from "@/lib/auth-types";
 
 vi.mock("next/navigation", () => ({
   usePathname: vi.fn(),
@@ -22,7 +22,7 @@ vi.mock("@/lib/stores/use-session-bootstrap", () => ({
  * store's status machine drives the component.
  */
 function seedSession(state: {
-  user: AuthUser | null;
+  user: { id: string; email: string; role: UserRole } | null;
   accessToken: string | null;
   status: "unknown" | "authenticated" | "unauthenticated";
 }): void {

@@ -225,9 +225,7 @@ describe('RevenueSplitService', () => {
       // recipients (and only them) are still in place.
       const unchanged = await splits.getConfig(config.id);
       expect(unchanged.recipients).toHaveLength(2);
-      expect(
-        unchanged.recipients.map((r) => [r.label, r.basisPoints]),
-      ).toEqual(
+      expect(unchanged.recipients.map((r) => [r.label, r.basisPoints])).toEqual(
         expect.arrayContaining([
           ['platform fee', 4000],
           ['hub operator', 6000],

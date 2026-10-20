@@ -6,8 +6,6 @@ import { WalletStatusCard } from "../wallet-status-card";
 import * as walletApi from "@/lib/wallet-api";
 import type { WalletStatusResponse } from "@/lib/wallet-api";
 
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace: vi.fn() }),
 // The card's sign-out button uses useSignOut(), which calls next/navigation's
 // useRouter() - that throws outside a mounted App Router.
 vi.mock("next/navigation", () => ({

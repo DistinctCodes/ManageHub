@@ -38,7 +38,7 @@ services:
     container_name: managehub-backend
     environment:
       NODE_ENV: development
-      PORT: 6000
+      PORT: 6100
       DATABASE_HOST: postgres
       DATABASE_PORT: 5432
       DATABASE_USERNAME: postgres
@@ -49,7 +49,7 @@ services:
       REDIS_PASSWORD: ""
       REDIS_DB: 0
     ports:
-      - "6000:6000"
+      - "6100:6100"
     depends_on:
       postgres:
         condition: service_healthy
@@ -63,7 +63,7 @@ services:
         node dist/main
       "
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:6000/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:6100/health || exit 1"]
       interval: 30s
       timeout: 10s
       start-period: 40s

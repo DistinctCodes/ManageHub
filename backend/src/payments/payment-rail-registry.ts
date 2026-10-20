@@ -166,9 +166,7 @@ export class PaymentRailRegistry {
       const target = trimmed.slice(separator + 1).trim();
       mappings.set(
         from,
-        target
-          ? this.parseRail(target, 'PAYMENT_RAIL_FAILOVER target')
-          : null,
+        target ? this.parseRail(target, 'PAYMENT_RAIL_FAILOVER target') : null,
       );
     }
 

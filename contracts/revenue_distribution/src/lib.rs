@@ -81,11 +81,9 @@ fn bump_ttl(env: &Env) {
     env.storage()
         .instance()
         .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
-    if env.storage().persistent().has(&DataKey::Config) {
-        env.storage()
-            .persistent()
-            .extend_ttl(&DataKey::Config, TTL_THRESHOLD, TTL_EXTEND_TO);
-    }
+    env.storage()
+        .persistent()
+        .extend_ttl(&DataKey::Config, TTL_THRESHOLD, TTL_EXTEND_TO);
     if env.storage().persistent().has(&DataKey::ConfigVersion) {
         env.storage().persistent().extend_ttl(
             &DataKey::ConfigVersion,
@@ -136,7 +134,7 @@ pub fn allocate(env: &Env, recipients: &Vec<Recipient>, amount: i128) -> Result<
             .ok_or(Error::ArithmeticOverflow)?;
         shares.set(best, bumped);
         remainders.set(best, -1);
-        leftover = leftover.checked_sub(1).ok_or(Error::ArithmeticOverflow)?;
+        leftover -= 1;
     }
     Ok(shares)
 }
@@ -150,7 +148,6 @@ impl RevenueDistributionContract {
         }
         admin.require_auth();
         env.storage().instance().set(&DataKey::Admin, &admin);
-        bump_ttl(&env);
         Ok(())
     }
 
@@ -170,7 +167,6 @@ impl RevenueDistributionContract {
         env.storage()
             .instance()
             .set(&DataKey::PendingAdmin, &new_admin);
-        bump_ttl(&env);
         Ok(())
     }
 
@@ -184,7 +180,6 @@ impl RevenueDistributionContract {
         pending.require_auth();
         env.storage().instance().set(&DataKey::Admin, &pending);
         env.storage().instance().remove(&DataKey::PendingAdmin);
-        bump_ttl(&env);
         Ok(())
     }
 
@@ -263,13 +258,10 @@ impl RevenueDistributionContract {
 
     /// Monotonically increasing number of successful `configure` calls.
     pub fn get_config_version(env: Env) -> u32 {
-        let version = env
-            .storage()
+        env.storage()
             .persistent()
             .get(&DataKey::ConfigVersion)
-            .unwrap_or(0);
-        bump_ttl(&env);
-        version
+            .unwrap_or(0)
     }
 
     /// Split `amount` of `token` from `from` across the configured recipients
@@ -351,9 +343,9 @@ mod test {
         let (env, client, admin) = setup();
         assert_eq!(client.get_config_version(), 0);
         client.configure(&admin, &recipients(&env, &[6_000, 4_000]));
-        assert!(!env.events().all().is_empty());
         assert_eq!(client.get_config_version(), 1);
         client.configure(&admin, &recipients(&env, &[5_000, 5_000]));
+        assert!(!env.events().all().is_empty());
         assert_eq!(client.get_config_version(), 2);
     }
 
@@ -378,7 +370,7 @@ mod test {
             let mut sum = 0i128;
             for s in first.iter() {
                 assert!(s >= 0);
-                sum = sum.checked_add(s).unwrap();
+                sum += s;
             }
             assert_eq!(sum, amount);
         }

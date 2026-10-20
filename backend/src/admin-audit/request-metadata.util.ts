@@ -45,7 +45,9 @@ export function extractRequestMetadata(req: Request): RequestMetadata {
     : (userAgentHeader ?? null);
 
   const forwardedFor = headers['x-forwarded-for'];
-  const forwardedIp = (Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor)
+  const forwardedIp = (
+    Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor
+  )
     ?.split(',')[0]
     ?.trim();
 

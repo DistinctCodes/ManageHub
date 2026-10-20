@@ -126,4 +126,3 @@ export class AuthController {
     return { id: user.id, role: user.role };
   }
 }
-

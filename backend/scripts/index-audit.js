@@ -7,9 +7,8 @@
  *   node scripts/index-audit.js
  */
 const { Client } = require('pg');
-const { randomUUID } = require('crypto');
 
-const AUDIT_ROW_COUNT = 5_000;
+const DUMMY_UUID = '00000000-0000-0000-0000-000000000000';
 
 const QUERIES = [
   {
@@ -17,25 +16,24 @@ const QUERIES = [
     sql: `EXPLAIN SELECT * FROM "ledger_entries"
           WHERE "account_id" = $1
           ORDER BY "created_at" DESC LIMIT 100`,
+    params: [DUMMY_UUID],
   },
   {
     name: 'GET /payments member list (by user)',
     sql: `EXPLAIN SELECT * FROM "payments"
           WHERE "user_id" = $1
           ORDER BY "created_at" DESC`,
+    params: [DUMMY_UUID],
   },
   {
     name: 'admin manual-review queue (by status, oldest first)',
     sql: `EXPLAIN SELECT * FROM "payments"
-          WHERE "status" = $1
+          WHERE "status" = 'MANUAL_REVIEW'
           ORDER BY "updated_at" ASC`,
-    parameters: ['MANUAL_REVIEW'],
   },
 ];
 
 async function main() {
-  const auditUserId = randomUUID();
-  const fixturePrefix = `be140-index-audit-${randomUUID()}`;
   const client = new Client({
     host: process.env.DATABASE_HOST,
     port: Number(process.env.DATABASE_PORT || 5432),
@@ -46,102 +44,22 @@ async function main() {
   await client.connect();
 
   let failed = false;
-  let transactionOpen = false;
-  try {
-    // The CI database is freshly migrated and empty. PostgreSQL correctly
-    // prefers sequential scans on empty tables even when the needed indexes
-    // exist, so seed selective, representative rows inside a transaction.
-    // The rollback below guarantees this audit leaves the database unchanged.
-    await client.query('BEGIN');
-    transactionOpen = true;
+  for (const query of QUERIES) {
+    const result = await client.query(query.sql, query.params ?? []);
+    const plan = result.rows.map((row) => Object.values(row).join(' ')).join('\n');
+    const seqScan = /Seq Scan/i.test(plan);
 
-    await client.query(
-      `INSERT INTO "ledger_accounts" ("id", "kind", "owner_id", "currency")
-       VALUES ($1, 'USER', gen_random_uuid(), 'USD')`,
-      [auditUserId],
-    );
-    await client.query(
-      `INSERT INTO "ledger_accounts" ("id", "kind", "owner_id", "currency")
-       SELECT md5($1 || '-account-' || i)::uuid,
-              'USER', md5($1 || '-owner-' || i)::uuid, 'USD'
-       FROM generate_series(1, $2::int - 1) AS rows(i)`,
-      [fixturePrefix, AUDIT_ROW_COUNT],
-    );
-    await client.query(
-      `INSERT INTO "ledger_transactions" ("id", "kind", "reference", "currency", "amount")
-       SELECT md5($1 || '-transaction-' || i)::uuid,
-              'ADJUSTMENT', $1 || '-reference-' || i, 'USD', 1
-       FROM generate_series(1, $2::int) AS rows(i)`,
-      [fixturePrefix, AUDIT_ROW_COUNT],
-    );
-    await client.query(
-      `INSERT INTO "ledger_entries"
-         ("transaction_id", "account_id", "direction", "amount", "currency", "created_at")
-       SELECT md5($1 || '-transaction-' || i)::uuid,
-              CASE WHEN i % 100 = 0 THEN $2::uuid
-                   ELSE md5($1 || '-account-' || ((i % ($3::int - 1)) + 1))::uuid
-              END,
-              'CREDIT', 1, 'USD', now() - (i * interval '1 second')
-       FROM generate_series(1, $3::int) AS rows(i)`,
-      [fixturePrefix, auditUserId, AUDIT_ROW_COUNT],
-    );
-    await client.query(
-      `INSERT INTO "payments"
-         ("booking_id", "user_id", "amount", "currency", "rail", "status",
-          "idempotency_key", "created_at", "updated_at")
-       SELECT md5($2 || '-booking-' || i)::uuid,
-              CASE WHEN i = 1 THEN $1::uuid
-                   ELSE md5($2 || '-user-' || i)::uuid
-              END,
-              1, 'USD', 'FIAT',
-              CASE WHEN i % 100 = 0 THEN 'MANUAL_REVIEW'::"payments_status_enum"
-                   ELSE 'CONFIRMED'::"payments_status_enum"
-              END,
-              $2 || '-idempotency-' || i,
-              now() - (i * interval '1 second'),
-              now() - (i * interval '1 second')
-       FROM generate_series(1, $3::int) AS rows(i)`,
-      [auditUserId, fixturePrefix, AUDIT_ROW_COUNT],
-    );
-
-    // Refresh planner statistics so EXPLAIN reflects the seeded distribution.
-    await client.query('ANALYZE "ledger_entries"');
-    await client.query('ANALYZE "payments"');
-
-    for (const query of QUERIES) {
-      const result = await client.query(
-        query.sql,
-        query.parameters ?? [auditUserId],
-      );
-      const plan = result.rows
-        .map((row) => Object.values(row).join(' '))
-        .join('\n');
-      const seqScan = /Seq Scan/i.test(plan);
-
-      console.log(`\n[${query.name}]`);
-      console.log(plan);
-      if (seqScan) {
-        failed = true;
-        console.log('  -> FAIL: sequential scan detected (missing or weak index)');
-      } else {
-        console.log('  -> OK');
-      }
-    }
-  } finally {
-    if (transactionOpen) {
-      try {
-        await client.query('ROLLBACK');
-        // ANALYZE statistics are maintained outside the data transaction.
-        // Refresh them after rollback so a local database's stats stay true.
-        await client.query('ANALYZE "ledger_entries"');
-        await client.query('ANALYZE "payments"');
-      } finally {
-        await client.end();
-      }
+    console.log(`\n[${query.name}]`);
+    console.log(plan);
+    if (seqScan) {
+      failed = true;
+      console.log('  -> FAIL: sequential scan detected (missing or weak index)');
     } else {
-      await client.end();
+      console.log('  -> OK');
     }
   }
+
+  await client.end();
 
   if (failed) {
     console.error('\nIndex audit FAILED: a hot-path query is sequential-scanning.');

@@ -103,7 +103,12 @@ describe('payment state machine', () => {
           assertValidTransition(
             PaymentStatus.EXPIRED,
             PaymentStatus.CONFIRMED,
-            { paymentId: 'payment-2', source: 'reconciliation', logger, metrics },
+            {
+              paymentId: 'payment-2',
+              source: 'reconciliation',
+              logger,
+              metrics,
+            },
           ),
         ).toThrow(UnprocessableEntityException);
       });

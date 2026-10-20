@@ -4,7 +4,9 @@ import {
   SorobanRpcTimeoutError,
 } from './soroban-rpc-client';
 
-function makeServer(overrides: Partial<SorobanRpcServerLike> = {}): SorobanRpcServerLike {
+function makeServer(
+  overrides: Partial<SorobanRpcServerLike> = {},
+): SorobanRpcServerLike {
   return {
     getAccount: jest.fn(),
     simulateTransaction: jest.fn(),

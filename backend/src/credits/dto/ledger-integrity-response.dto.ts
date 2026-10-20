@@ -49,9 +49,7 @@ export class LedgerIntegrityResponseDto {
   @ApiProperty({ type: [LedgerUnbalancedTransactionResponseDto] })
   unbalancedTransactions: LedgerUnbalancedTransactionResponseDto[];
 
-  static fromView(
-    report: LedgerIntegrityReport,
-  ): LedgerIntegrityResponseDto {
+  static fromView(report: LedgerIntegrityReport): LedgerIntegrityResponseDto {
     const dto = new LedgerIntegrityResponseDto();
     dto.accountsChecked = report.accountsChecked;
     dto.balanceDrift = report.balanceDrift.map((row) =>

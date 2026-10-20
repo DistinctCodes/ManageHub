@@ -69,7 +69,9 @@ describe('SandboxRailAdapter', () => {
     it('rejects a signature computed over the body alone (timestamp not covered)', () => {
       const adapter = new SandboxRailAdapter(makeConfig('shh') as any);
       const rawBody = Buffer.from(JSON.stringify({ a: 1 }));
-      const bodyOnly = createHmac('sha256', 'shh').update(rawBody).digest('hex');
+      const bodyOnly = createHmac('sha256', 'shh')
+        .update(rawBody)
+        .digest('hex');
 
       expect(
         adapter.verifyWebhookSignature({

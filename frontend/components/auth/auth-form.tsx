@@ -53,7 +53,9 @@ export function AuthForm({ mode }: { mode: Mode }) {
       // The backend already set its HttpOnly cookie for this response; the
       // token surname in the body is kept in memory only (session-store).
       setSession(result.user, result.accessToken);
-      const returnTo = getSafeReturnTo(searchParams.get("returnTo"));
+      const returnTo = getSafeReturnTo(
+        searchParams.get("returnTo") ?? searchParams.get("next"),
+      );
       router.push(returnTo);
     } catch (err) {
       // Rate limiting (#1988): show a single, calm form-level message and

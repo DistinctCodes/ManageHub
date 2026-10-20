@@ -250,13 +250,21 @@ const cases: DtoValidationCase[] = [
 ];
 
 describe('request DTO validation audit', () => {
-  it.each(cases)('$name accepts a known-good payload', async ({ type, valid }) => {
-    await expect(validationErrors(type, valid)).resolves.toHaveLength(0);
-  });
+  it.each(cases)(
+    '$name accepts a known-good payload',
+    async ({ type, valid }) => {
+      await expect(validationErrors(type, valid)).resolves.toHaveLength(0);
+    },
+  );
 
-  it.each(cases)('$name rejects malformed values', async ({ type, invalid }) => {
-    await expect(validationErrors(type, invalid)).resolves.not.toHaveLength(0);
-  });
+  it.each(cases)(
+    '$name rejects malformed values',
+    async ({ type, invalid }) => {
+      await expect(validationErrors(type, invalid)).resolves.not.toHaveLength(
+        0,
+      );
+    },
+  );
 
   it('allows a negative adjustment but rejects a zero adjustment', async () => {
     const negative = await validationErrors(AdjustCreditsDto, {
@@ -274,9 +282,7 @@ describe('request DTO validation audit', () => {
       reason: 'Invalid zero correction',
     });
     expect(zero).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ property: 'delta' }),
-      ]),
+      expect.arrayContaining([expect.objectContaining({ property: 'delta' })]),
     );
   });
 
@@ -292,9 +298,7 @@ describe('request DTO validation audit', () => {
       reason: 'x'.repeat(501),
     });
     expect(reasonErrors).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ property: 'reason' }),
-      ]),
+      expect.arrayContaining([expect.objectContaining({ property: 'reason' })]),
     );
 
     const linkErrors = await validationErrors(VerifyLinkDto, {
@@ -303,9 +307,7 @@ describe('request DTO validation audit', () => {
       signature: 'ZGVtby1zaWduYXR1cmU=',
     });
     expect(linkErrors).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ property: 'nonce' }),
-      ]),
+      expect.arrayContaining([expect.objectContaining({ property: 'nonce' })]),
     );
   });
 });

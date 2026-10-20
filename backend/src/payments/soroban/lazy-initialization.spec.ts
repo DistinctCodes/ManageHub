@@ -31,7 +31,7 @@ describe('createLazy', () => {
   it('constructs once on first use, preserves instanceof, and forwards calls', () => {
     const factory = jest.fn(() => new ExampleClient());
 
-    const client = createLazy(factory);
+    const client = createLazy(factory) as ExampleClient;
 
     expect(client).toBeInstanceOf(ExampleClient);
     expect(client.invoke(1)).toBe(1);
@@ -46,11 +46,10 @@ describe('createLazy', () => {
     const factory = jest.fn(() => {
       throw failure;
     });
-    const client = createLazy(factory);
+    const client = createLazy(factory) as ExampleClient;
 
-    const failingClient = client as ExampleClient;
-    expect(() => failingClient.invoke(1)).toThrow(failure);
-    expect(() => failingClient.invoke(1)).toThrow(failure);
+    expect(() => client.invoke(1)).toThrow(failure);
+    expect(() => client.invoke(1)).toThrow(failure);
     expect(factory).toHaveBeenCalledTimes(1);
   });
 });

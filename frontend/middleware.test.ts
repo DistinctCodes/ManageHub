@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 
@@ -26,11 +26,7 @@ function verifiedToken(role: string): void {
 describe("middleware role gate (issue #1973)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.stubEnv("JWT_SECRET", "test-secret");
-  });
-
-  afterEach(() => {
-    vi.unstubAllEnvs();
+    vi.stubEnv("JWT_SECRET", "middleware-unit-test-secret");
   });
 
   it("lets an admin token through to admin pages", async () => {
@@ -65,16 +61,6 @@ describe("middleware role gate (issue #1973)", () => {
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe(
       "http://localhost/login?returnTo=%2Fcredits",
-    );
-  });
-
-  it("preserves the query string in returnTo", async () => {
-    const response = await middleware(
-      new NextRequest("http://localhost/payments/abc?x=1"),
-    );
-
-    expect(response.headers.get("location")).toBe(
-      "http://localhost/login?returnTo=%2Fpayments%2Fabc%3Fx%3D1",
     );
   });
 

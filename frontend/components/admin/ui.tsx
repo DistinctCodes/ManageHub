@@ -1,11 +1,13 @@
 import { cn } from "@/lib/utils";
-import { type ComponentProps, type ReactNode } from "react";
+import { type HTMLAttributes, type ReactNode } from "react";
 
 export function Card({
   className,
   children,
   ...props
-}: ComponentProps<"div">) {
+}: HTMLAttributes<HTMLDivElement> & {
+  children: ReactNode;
+}) {
   return (
     <div
       {...props}
