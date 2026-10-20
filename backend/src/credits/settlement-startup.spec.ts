@@ -2,8 +2,8 @@ import { SettlementService } from './settlement.service';
 
 function makeConfig(values: Record<string, unknown>) {
   return {
-    get: jest.fn((key: string, fallback?: unknown) =>
-      (values as any)[key] ?? fallback,
+    get: jest.fn(
+      (key: string, fallback?: unknown) => (values as any)[key] ?? fallback,
     ),
   };
 }
@@ -36,7 +36,10 @@ describe('SettlementService.onModuleInit (CREDITS_SETTLEMENT_SPLIT_CONFIG)', () 
   it('does nothing when settlement is disabled', async () => {
     const findConfigByName = jest.fn();
     const service = build(
-      { CREDITS_SETTLEMENT_SPLIT_CONFIG: 'split-a', CREDITS_SETTLEMENT_ENABLED: 'false' },
+      {
+        CREDITS_SETTLEMENT_SPLIT_CONFIG: 'split-a',
+        CREDITS_SETTLEMENT_ENABLED: 'false',
+      },
       findConfigByName,
     );
     await expect(service.onModuleInit()).resolves.toBeUndefined();

@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddSorobanFailureReasons1787401777618
-  implements MigrationInterface
-{
+export class AddSorobanFailureReasons1787401777618 implements MigrationInterface {
   name = 'AddSorobanFailureReasons1787401777618';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

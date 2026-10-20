@@ -40,7 +40,9 @@ describe('AdminAuditController', () => {
       listForExport: jest.fn().mockResolvedValue([]),
       record: jest.fn().mockResolvedValue(undefined),
     };
-    controller = new AdminAuditController(audit as unknown as AdminActionLogService);
+    controller = new AdminAuditController(
+      audit as unknown as AdminActionLogService,
+    );
   });
 
   it('lists actions and includes ip/userAgent in the DTO', async () => {
@@ -75,7 +77,10 @@ describe('AdminAuditController', () => {
   });
 
   it('records the export itself as an audit event', async () => {
-    audit.listForExport.mockResolvedValueOnce([makeLog(), makeLog({ id: 'log-2' })]);
+    audit.listForExport.mockResolvedValueOnce([
+      makeLog(),
+      makeLog({ id: 'log-2' }),
+    ]);
 
     await controller.export(undefined, undefined, undefined, {
       id: 'admin-1',

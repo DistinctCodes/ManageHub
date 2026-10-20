@@ -23,7 +23,7 @@ Copy `frontend/.env.example` to `frontend/.env.local` and adjust the values
 for your environment. Documented variables include:
 
 - `NEXT_PUBLIC_API_URL` - base URL of the backend API. In development the app
-  defaults to `http://localhost:6000` (the backend's configured port); in
+  defaults to `http://localhost:6100` (the backend's configured port); in
   production this variable is **required** and the build fails fast at request
   time when it is missing.
 - `NEXT_PUBLIC_APP_URL` - canonical origin of this frontend (defaults to
@@ -40,8 +40,12 @@ for your environment. Documented variables include:
   is disabled for normal development and builds.
 - PWA metadata is exposed through `/manifest.webmanifest`; update
   `app/manifest.ts` when icons or install behavior change.
-- Sentry client-side setup and API error reporting notes live in
-  [docs/escrow.md](../docs/escrow.md) at the repo root.
+- Sentry error monitoring (what is reported, how to configure the DSN and
+  sample rates, and what is scrubbed before sending) is documented in
+  [SENTRY_SETUP.md](./SENTRY_SETUP.md).
+- A baseline Content-Security-Policy and related security headers are applied
+  to every route from `lib/csp.ts`. If you add a third-party script, font or
+  API origin, allow it there or the browser will block it.
 
 ## Running Tests
 

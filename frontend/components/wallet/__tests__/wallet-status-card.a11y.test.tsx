@@ -5,6 +5,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { WalletStatusCard } from "../wallet-status-card";
 import * as walletApi from "@/lib/wallet-api";
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
+}));
+
 expect.extend(toHaveNoViolations);
 
 afterEach(() => {

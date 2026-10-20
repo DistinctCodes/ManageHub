@@ -417,8 +417,7 @@ export class ReconciliationService {
         error: null,
         details: {
           attemptCap: this.getConfirmationMaxAttempts(),
-          providerErrorStreakCap:
-            this.getConfirmationMaxProviderErrorStreak(),
+          providerErrorStreakCap: this.getConfirmationMaxProviderErrorStreak(),
           attemptCapEscalations: summary.attemptCapEscalations,
           providerErrorStreakCapEscalations:
             summary.providerErrorStreakCapEscalations,
@@ -450,8 +449,7 @@ export class ReconciliationService {
         details: {
           phase: 'reconciliation',
           attemptCap: this.getConfirmationMaxAttempts(),
-          providerErrorStreakCap:
-            this.getConfirmationMaxProviderErrorStreak(),
+          providerErrorStreakCap: this.getConfirmationMaxProviderErrorStreak(),
         },
       });
     } catch (persistenceError) {
@@ -650,9 +648,7 @@ export class ReconciliationService {
 
   private getReachedCaps(payment: Payment): ReconciliationCap[] {
     const caps: ReconciliationCap[] = [];
-    if (
-      payment.reconciliationAttempts >= this.getConfirmationMaxAttempts()
-    ) {
+    if (payment.reconciliationAttempts >= this.getConfirmationMaxAttempts()) {
       caps.push('attempt');
     }
     if (
@@ -679,8 +675,7 @@ export class ReconciliationService {
       metrics: this.metrics,
     });
     const maxAttempts = this.getConfirmationMaxAttempts();
-    const maxProviderErrorStreak =
-      this.getConfirmationMaxProviderErrorStreak();
+    const maxProviderErrorStreak = this.getConfirmationMaxProviderErrorStreak();
     const capDescriptions: string[] = [];
     if (caps.includes('attempt')) {
       capDescriptions.push(
@@ -736,8 +731,7 @@ export class ReconciliationService {
       ? payment.providerErrorStreak + 1
       : 0;
     const maxAttempts = this.getConfirmationMaxAttempts();
-    const maxProviderErrorStreak =
-      this.getConfirmationMaxProviderErrorStreak();
+    const maxProviderErrorStreak = this.getConfirmationMaxProviderErrorStreak();
 
     await this.paymentRepository.update(payment.id, {
       reconciliationAttempts: attempts,
@@ -759,13 +753,13 @@ export class ReconciliationService {
     );
     const ageMs = now.getTime() - payment.createdAt.getTime();
     const attemptCapReached = caps.includes('attempt');
-    const providerErrorStreakCapReached =
-      caps.includes('provider_error_streak');
+    const providerErrorStreakCapReached = caps.includes(
+      'provider_error_streak',
+    );
     const shouldEscalate =
       providerErrorStreakCapReached ||
       (!opts.providerError &&
-        (attemptCapReached ||
-          ageMs >= manualReviewAfterHours * 3_600_000));
+        (attemptCapReached || ageMs >= manualReviewAfterHours * 3_600_000));
 
     if (!shouldEscalate) {
       return {

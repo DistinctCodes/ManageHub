@@ -79,6 +79,9 @@ pub struct RevenueDistributionContract;
 
 fn bump_ttl(env: &Env) {
     env.storage()
+        .instance()
+        .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+    env.storage()
         .persistent()
         .extend_ttl(&DataKey::Config, TTL_THRESHOLD, TTL_EXTEND_TO);
     if env.storage().persistent().has(&DataKey::ConfigVersion) {
@@ -299,7 +302,10 @@ impl RevenueDistributionContract {
 #[cfg(test)]
 mod test {
     use super::*;
-    use soroban_sdk::{testutils::Address as _, vec};
+    use soroban_sdk::{
+        testutils::{Address as _, Events as _},
+        vec,
+    };
 
     fn setup() -> (Env, RevenueDistributionContractClient<'static>, Address) {
         let env = Env::default();
@@ -339,8 +345,8 @@ mod test {
         client.configure(&admin, &recipients(&env, &[6_000, 4_000]));
         assert_eq!(client.get_config_version(), 1);
         client.configure(&admin, &recipients(&env, &[5_000, 5_000]));
-        assert_eq!(client.get_config_version(), 2);
         assert!(!env.events().all().is_empty());
+        assert_eq!(client.get_config_version(), 2);
     }
 
     #[test]

@@ -52,11 +52,7 @@ export class StructuredLoggerService implements LoggerService {
     }
   }
 
-  private write(
-    level: PinoLevel,
-    message: any,
-    optionalParams: any[],
-  ): void {
+  private write(level: PinoLevel, message: any, optionalParams: any[]): void {
     const fields: Record<string, unknown> = {};
     const context =
       typeof optionalParams[0] === 'string' ? optionalParams[0] : undefined;

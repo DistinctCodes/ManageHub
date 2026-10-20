@@ -43,11 +43,11 @@ RUN chown -R nestjs:nodejs /app
 USER nestjs
 
 # Expose port
-EXPOSE 6000
+EXPOSE 6100
 
 # Health check against /health endpoint
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-  CMD curl -f http://localhost:6000/health || exit 1
+  CMD curl -f http://localhost:6100/health || exit 1
 
 # Start the application
 CMD ["node", "dist/main"]

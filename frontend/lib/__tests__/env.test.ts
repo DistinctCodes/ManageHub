@@ -7,11 +7,11 @@ afterEach(() => {
 });
 
 describe("getApiBaseUrl", () => {
-  it("falls back to the backend's port 6000 in development", () => {
+  it("falls back to the backend's port 6100 in development", () => {
     vi.stubEnv("NODE_ENV", "development");
     delete process.env.NEXT_PUBLIC_API_URL;
 
-    expect(getApiBaseUrl()).toBe("http://localhost:6000");
+    expect(getApiBaseUrl()).toBe("http://localhost:6100");
   });
 
   it("honours an explicit value and strips the trailing slash", () => {

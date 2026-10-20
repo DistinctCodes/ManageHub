@@ -13,10 +13,14 @@ export class ReconciliationMetricsResponseDto {
   @ApiProperty({ description: 'Queue depth at which alerting is enabled' })
   alertThreshold: number;
 
-  @ApiProperty({ description: 'True when the queue exceeds the alert threshold' })
+  @ApiProperty({
+    description: 'True when the queue exceeds the alert threshold',
+  })
   alerting: boolean;
 
-  static fromView(view: ReconciliationMetrics): ReconciliationMetricsResponseDto {
+  static fromView(
+    view: ReconciliationMetrics,
+  ): ReconciliationMetricsResponseDto {
     return Object.assign(new ReconciliationMetricsResponseDto(), view);
   }
 }

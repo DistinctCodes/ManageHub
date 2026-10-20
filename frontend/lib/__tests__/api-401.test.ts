@@ -1,12 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { toast } from "sonner";
 
 import { useSessionStore } from "../stores/session-store";
 
+const toastMocks = vi.hoisted(() => ({ error: vi.fn() }));
+
 vi.mock("sonner", () => ({
-  toast: {
-    error: vi.fn(),
-  },
+  toast: toastMocks,
+}));
+
+vi.mock("@sentry/nextjs", () => ({
+  captureException: vi.fn(),
 }));
 
 /**
@@ -24,37 +27,38 @@ const CASES: Array<{
   {
     name: "wallet-api",
     modulePath: "../wallet-api",
-    update: (m) => (m as { getWalletStatus(): unknown }).getWalletStatus(),
+    update: (m) => (m as { getWalletStatus(): Promise<unknown> }).getWalletStatus(),
   },
   {
     name: "credits-api",
     modulePath: "../credits-api",
-    update: (m) => (m as { getCreditBalance(): unknown }).getCreditBalance(),
+    update: (m) => (m as { getCreditBalance(): Promise<unknown> }).getCreditBalance(),
   },
   {
     name: "admin-api queries",
     modulePath: "../admin-api",
-    update: (m) => (m as { listAccounts(): unknown }).listAccounts(),
+    update: (m) => (m as { listAccounts(): Promise<unknown> }).listAccounts(),
   },
   {
     name: "admin-api mutations",
     modulePath: "../admin-api",
-    update: (m) => (m as { listSplits(): unknown }).listSplits(),
+    update: (m) => (m as { listSplits(): Promise<unknown> }).listSplits(),
   },
   {
     name: "payments-api queries",
     modulePath: "../payments-api",
-    update: (m) => (m as { getPayments(): unknown }).getPayments(),
+    update: (m) => (m as { getPayments(): Promise<unknown> }).getPayments(),
   },
   {
     name: "payments-api detail",
     modulePath: "../payments-api",
-    update: (m) => (m as { getPayment(id: string): unknown }).getPayment("pay_1"),
+    update: (m) =>
+      (m as { getPayment(id: string): Promise<unknown> }).getPayment("pay_1"),
   },
   {
     name: "payments-api usage",
     modulePath: "../payments-api",
-    update: (m) => (m as { listMyUsage(): unknown }).listMyUsage(),
+    update: (m) => (m as { listMyUsage(): Promise<unknown> }).listMyUsage(),
   },
 ];
 
@@ -86,6 +90,12 @@ describe("401 reactions across shared helpers (issue #1977)", () => {
     it(`${name} clears the session and redirects to login on 401`, async () => {
       vi.resetModules();
       const api = await import(modulePath);
+      const { useSessionStore: freshStore } = await import(
+        "../stores/session-store"
+      );
+      freshStore
+        .getState()
+        .setSession({ id: "u1", email: "a@example.com", role: "admin" });
 
       const fetchMock = vi.fn().mockResolvedValue(
         new Response(JSON.stringify({ message: "Unauthorized" }), {
@@ -97,19 +107,25 @@ describe("401 reactions across shared helpers (issue #1977)", () => {
 
       await expect(update(api)).rejects.toThrow();
 
-      expect(toast.error).toHaveBeenCalledWith(
+      expect(toastMocks.error).toHaveBeenCalledWith(
         "Your session has expired. Please sign in again.",
       );
-      expect(useSessionStore.getState().user).toBeNull();
-      expect(useSessionStore.getState().status).toBe("unauthenticated");
+      expect(freshStore.getState().user).toBeNull();
+      expect(freshStore.getState().status).toBe("unauthenticated");
       expect(assignSpy).toHaveBeenCalledTimes(1);
       expect(assignSpy).toHaveBeenCalledWith("/login?returnTo=%2Fwallet");
-    }, 100);
+    });
   }
 
   it("does not react on non-401 errors", async () => {
     vi.resetModules();
     const { getWalletStatus } = await import("../wallet-api");
+    const { useSessionStore: freshStore } = await import(
+      "../stores/session-store"
+    );
+    freshStore
+      .getState()
+      .setSession({ id: "u1", email: "a@example.com", role: "admin" });
 
     vi.stubGlobal(
       "fetch",
@@ -123,8 +139,8 @@ describe("401 reactions across shared helpers (issue #1977)", () => {
 
     await expect(getWalletStatus()).rejects.toThrow("Wallet not found");
 
-    expect(toast.error).not.toHaveBeenCalled();
-    expect(useSessionStore.getState().user).not.toBeNull();
+    expect(toastMocks.error).not.toHaveBeenCalled();
+    expect(freshStore.getState().user).not.toBeNull();
     expect(assignSpy).not.toHaveBeenCalled();
-  }, 100);
+  });
 });
