@@ -1,9 +1,10 @@
 import type { NextConfig } from "next";
+import bundleAnalyzer from "@next/bundle-analyzer";
 import { securityHeaders } from "./lib/csp";
 
 const withBundleAnalyzer =
   process.env.ANALYZE === "true"
-    ? require("@next/bundle-analyzer")({ enabled: true })
+    ? bundleAnalyzer({ enabled: true })
     : (config: NextConfig) => config;
 
 const nextConfig: NextConfig = {

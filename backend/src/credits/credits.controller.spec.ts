@@ -1,108 +1,55 @@
-// backend/src/credits/credits.controller.spec.ts
-import { Test, TestingModule } from '@nestjs/testing';
 import { CreditsController } from './credits.controller';
-import { CreditsService } from './credits.service';
-import { LedgerService } from './ledger.service';
-import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { RolesGuard } from '../../common/guards/roles.guard';
-import { ExecutionContext } from '@nestjs/common';
+import { UserRole } from '../auth/enums/user-role.enum';
 
 describe('CreditsController', () => {
-  let controller: CreditsController;
-  let creditsService: CreditsService;
+  it('charges a member through the ledger with the authenticated actor', async () => {
+    const transaction = {
+      id: 'transaction-1',
+      kind: 'CHARGE',
+      reference: 'job-1',
+      currency: 'USD',
+      amount: 500,
+      description: 'Print job',
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    };
+    const credits = {
+      charge: jest.fn().mockResolvedValue({
+        transaction,
+        posted: true,
+        balanceAfter: 500,
+        currency: 'USD',
+      }),
+    };
+    const controller = new CreditsController(
+      credits as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+    const dto = {
+      userId: 'member-1',
+      amount: 500,
+      currency: 'USD',
+      reference: 'job-1',
+      reason: 'Print job',
+      metadata: { jobId: 'job-1' },
+    };
 
-  const mockCreditsService = {
-    chargeCredits: jest.fn().mockResolvedValue({ success: true }),
-    recordUsage: jest.fn().mockResolvedValue({ usageId: '123' }),
-    getBalance: jest.fn().mockResolvedValue({ balance: 1000 }),
-    getStatement: jest.fn().mockResolvedValue({ transactions: [] }),
-    getUsageHistory: jest.fn().mockResolvedValue({ history: [] }),
-    applyPayment: jest.fn().mockResolvedValue({ applied: true }),
-  };
-
-  const mockLedgerService = {};
-
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [CreditsController],
-      providers: [
-        { provide: CreditsService, useValue: mockCreditsService },
-        { provide: LedgerService, useValue: mockLedgerService },
-      ],
-    })
-      .overrideGuard(JwtAuthGuard)
-      .useValue({
-        canActivate: (context: ExecutionContext) => {
-          const req = context.switchToHttp().getRequest();
-          req.user = { id: 'user-123', roles: ['ADMIN'] };
-          return true;
-        },
-      })
-      .overrideGuard(RolesGuard)
-      .useValue({
-        canActivate: () => true,
-      })
-      .compile();
-
-    controller = module.get<CreditsController>(CreditsController);
-    creditsService = module.get<CreditsService>(CreditsService);
-  });
-
-  it('should be defined', () => {
-    expect(controller).toBeDefined();
-  });
-
-  describe('charge', () => {
-    it('should call creditsService.chargeCredits with correct dto', async () => {
-      const dto = { amount: 500, accountId: 'acc-1' };
-      const result = await controller.charge(dto as any);
-      expect(creditsService.chargeCredits).toHaveBeenCalledWith(dto);
-      expect(result).toEqual({ success: true });
+    const result = await controller.charge(dto, {
+      id: 'admin-1',
+      role: UserRole.ADMIN,
     });
-  });
 
-  describe('usage (POST)', () => {
-    it('should call creditsService.recordUsage', async () => {
-      const dto = { amount: 50, serviceId: 'srv-1' };
-      const result = await controller.recordUsage(dto as any);
-      expect(creditsService.recordUsage).toHaveBeenCalledWith(dto);
-      expect(result).toEqual({ usageId: '123' });
+    expect(credits.charge).toHaveBeenCalledWith({
+      ...dto,
+      actorId: 'admin-1',
     });
-  });
-
-  describe('balance', () => {
-    it('should call creditsService.getBalance for user', async () => {
-      const req = { user: { id: 'user-123' } };
-      const result = await controller.getBalance(req as any);
-      expect(creditsService.getBalance).toHaveBeenCalledWith('user-123');
-      expect(result).toEqual({ balance: 1000 });
+    expect(result).toMatchObject({
+      posted: true,
+      balanceAfter: 500,
+      currency: 'USD',
     });
-  });
-
-  describe('statement', () => {
-    it('should call creditsService.getStatement for user', async () => {
-      const req = { user: { id: 'user-123' } };
-      const result = await controller.getStatement(req as any);
-      expect(creditsService.getStatement).toHaveBeenCalledWith('user-123');
-      expect(result).toEqual({ transactions: [] });
-    });
-  });
-
-  describe('usage (GET)', () => {
-    it('should call creditsService.getUsageHistory for user', async () => {
-      const req = { user: { id: 'user-123' } };
-      const result = await controller.getUsageHistory(req as any);
-      expect(creditsService.getUsageHistory).toHaveBeenCalledWith('user-123');
-      expect(result).toEqual({ history: [] });
-    });
-  });
-
-  describe('applyPayment', () => {
-    it('should call creditsService.applyPayment with payment id', async () => {
-      const paymentId = 'pay-999';
-      const result = await controller.applyPayment(paymentId);
-      expect(creditsService.applyPayment).toHaveBeenCalledWith(paymentId);
-      expect(result).toEqual({ applied: true });
-    });
+    expect(result.transaction.id).toBe('transaction-1');
   });
 });

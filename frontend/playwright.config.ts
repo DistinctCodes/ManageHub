@@ -21,5 +21,13 @@ export default defineConfig({
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
+    env: {
+      // Keep Next.js on its configured port while the backend uses 6100.
+      PORT: "3000",
+      NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:6100",
+      // A fixed test-only key keeps the frontend middleware and the local
+      // backend on the same JWT contract when running Playwright manually.
+      JWT_SECRET: process.env.JWT_SECRET ?? "managehub-e2e-only-secret",
+    },
   },
 });

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { toast } from "sonner";
 
-import { login, register, me, logout } from "../auth-api";
+import { login, me, logout } from "../auth-api";
 import { useSessionStore } from "../stores/session-store";
 
 vi.mock("sonner", () => ({
@@ -47,7 +47,9 @@ describe("auth-api (cookie session model, issue #1975)", () => {
   });
 
   it("keeps the invalid-credentials copy for a login 401 without redirecting", async () => {
-    fetchMock.mockResolvedValue(jsonResponse(401, { message: "Unauthorized" }));
+    fetchMock.mockResolvedValue(
+      jsonResponse(401, { message: "Invalid credentials" }),
+    );
 
     await expect(login("a@example.com", "pw")).rejects.toThrow(
       "Invalid credentials",

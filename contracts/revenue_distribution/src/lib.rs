@@ -1,7 +1,7 @@
 #![no_std]
 
 use soroban_sdk::{
-    contract, contractimpl, contractmeta, contracterror, contracttype, token, Address, Env, Symbol,
+    contract, contracterror, contractimpl, contractmeta, contracttype, token, Address, Env, Symbol,
     Vec,
 };
 
@@ -79,12 +79,17 @@ pub struct RevenueDistributionContract;
 
 fn bump_ttl(env: &Env) {
     env.storage()
+        .instance()
+        .extend_ttl(TTL_THRESHOLD, TTL_EXTEND_TO);
+    env.storage()
         .persistent()
         .extend_ttl(&DataKey::Config, TTL_THRESHOLD, TTL_EXTEND_TO);
     if env.storage().persistent().has(&DataKey::ConfigVersion) {
-        env.storage()
-            .persistent()
-            .extend_ttl(&DataKey::ConfigVersion, TTL_THRESHOLD, TTL_EXTEND_TO);
+        env.storage().persistent().extend_ttl(
+            &DataKey::ConfigVersion,
+            TTL_THRESHOLD,
+            TTL_EXTEND_TO,
+        );
     }
 }
 
@@ -104,7 +109,9 @@ pub fn allocate(env: &Env, recipients: &Vec<Recipient>, amount: i128) -> Result<
         let base = product / total;
         shares.push_back(base);
         remainders.push_back(product % total);
-        allocated = allocated.checked_add(base).ok_or(Error::ArithmeticOverflow)?;
+        allocated = allocated
+            .checked_add(base)
+            .ok_or(Error::ArithmeticOverflow)?;
     }
 
     let mut leftover = amount
@@ -157,7 +164,9 @@ impl RevenueDistributionContract {
             .get(&DataKey::Admin)
             .ok_or(Error::NotInitialized)?;
         admin.require_auth();
-        env.storage().instance().set(&DataKey::PendingAdmin, &new_admin);
+        env.storage()
+            .instance()
+            .set(&DataKey::PendingAdmin, &new_admin);
         Ok(())
     }
 
@@ -182,11 +191,7 @@ impl RevenueDistributionContract {
     /// recipients with a zero share.
     ///
     /// CT-57: configure entrypoint with basis-point sum validation.
-    pub fn configure(
-        env: Env,
-        admin: Address,
-        recipients: Vec<Recipient>,
-    ) -> Result<(), Error> {
+    pub fn configure(env: Env, admin: Address, recipients: Vec<Recipient>) -> Result<(), Error> {
         // Authenticate the *stored* admin, never just the caller-supplied address.
         let stored: Address = env
             .storage()
@@ -208,7 +213,9 @@ impl RevenueDistributionContract {
             if r.basis_points == 0 {
                 return Err(Error::InvalidShare);
             }
-            total = total.checked_add(r.basis_points).ok_or(Error::ArithmeticOverflow)?;
+            total = total
+                .checked_add(r.basis_points)
+                .ok_or(Error::ArithmeticOverflow)?;
         }
         if total != TOTAL_BASIS_POINTS {
             return Err(Error::InvalidBasisPoints);
@@ -221,9 +228,14 @@ impl RevenueDistributionContract {
             .unwrap_or(0);
         let version = previous.checked_add(1).ok_or(Error::ArithmeticOverflow)?;
 
-        let config = RevenueConfig { recipients, admin: stored };
+        let config = RevenueConfig {
+            recipients,
+            admin: stored,
+        };
         env.storage().persistent().set(&DataKey::Config, &config);
-        env.storage().persistent().set(&DataKey::ConfigVersion, &version);
+        env.storage()
+            .persistent()
+            .set(&DataKey::ConfigVersion, &version);
         bump_ttl(&env);
 
         env.events().publish(
@@ -290,7 +302,10 @@ impl RevenueDistributionContract {
 #[cfg(test)]
 mod test {
     use super::*;
-    use soroban_sdk::{testutils::Address as _, vec};
+    use soroban_sdk::{
+        testutils::{Address as _, Events as _},
+        vec,
+    };
 
     fn setup() -> (Env, RevenueDistributionContractClient<'static>, Address) {
         let env = Env::default();
@@ -317,7 +332,10 @@ mod test {
     fn zero_share_recipient_is_rejected() {
         let (env, client, admin) = setup();
         let r = recipients(&env, &[0, 10_000]);
-        assert_eq!(client.try_configure(&admin, &r), Err(Ok(Error::InvalidShare)));
+        assert_eq!(
+            client.try_configure(&admin, &r),
+            Err(Ok(Error::InvalidShare))
+        );
     }
 
     #[test]
@@ -327,8 +345,8 @@ mod test {
         client.configure(&admin, &recipients(&env, &[6_000, 4_000]));
         assert_eq!(client.get_config_version(), 1);
         client.configure(&admin, &recipients(&env, &[5_000, 5_000]));
-        assert_eq!(client.get_config_version(), 2);
         assert!(!env.events().all().is_empty());
+        assert_eq!(client.get_config_version(), 2);
     }
 
     #[test]
@@ -336,7 +354,8 @@ mod test {
         use soroban_sdk::testutils::Ledger;
         let (env, client, admin) = setup();
         client.configure(&admin, &recipients(&env, &[6_000, 4_000]));
-        env.ledger().with_mut(|l| l.sequence_number += 10 * DAY_IN_LEDGERS);
+        env.ledger()
+            .with_mut(|l| l.sequence_number += 10 * DAY_IN_LEDGERS);
         assert_eq!(client.get_config().recipients.len(), 2);
     }
 
@@ -396,8 +415,14 @@ mod admin_test {
     fn split(env: &Env) -> Vec<Recipient> {
         vec![
             env,
-            Recipient { address: Address::generate(env), basis_points: 6_000 },
-            Recipient { address: Address::generate(env), basis_points: 4_000 },
+            Recipient {
+                address: Address::generate(env),
+                basis_points: 6_000,
+            },
+            Recipient {
+                address: Address::generate(env),
+                basis_points: 4_000,
+            },
         ]
     }
 

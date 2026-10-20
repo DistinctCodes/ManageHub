@@ -4,5 +4,5 @@
 # new stable Rust release affects soroban-sdk support. Record every bump in
 # contracts/CHANGELOG.md so integrators can follow along.
 [toolchain]
-channel = "1.79.0"
+channel = "1.98.1"
 targets = ["wasm32-unknown-unknown"]

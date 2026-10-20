@@ -1,9 +1,6 @@
-import {
-  ConflictException,
-  ServiceUnavailableException,
-} from '@nestjs/common';
+import { ConflictException, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import CircuitBreakerModule = require('opossum');
+import * as CircuitBreakerModule from 'opossum';
 
 export interface PaymentProviderCircuitBreaker<
   TArgs extends unknown[],
@@ -39,8 +36,9 @@ interface CircuitBreakerConstructor {
   ): PaymentProviderCircuitBreakerInstance<TArgs, TResult>;
 }
 
-const CircuitBreaker =
-  CircuitBreakerModule as unknown as CircuitBreakerConstructor;
+const CircuitBreaker = ((
+  CircuitBreakerModule as unknown as { default?: unknown }
+).default ?? CircuitBreakerModule) as unknown as CircuitBreakerConstructor;
 
 /**
  * Creates a breaker for one external provider action. A ConflictException is

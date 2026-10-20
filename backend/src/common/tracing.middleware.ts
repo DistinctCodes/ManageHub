@@ -18,9 +18,11 @@ export class TracingMiddleware implements NestMiddleware {
     // name and target to avoid accidental high-cardinality or sensitive data.
     // `route` is populated by Express at dispatch time but is not part of the
     // published Request typing, so it is read through a narrow local alias.
-    const matchedRoute = (req as Request & {
-      route?: { path?: unknown } | undefined;
-    }).route;
+    const matchedRoute = (
+      req as Request & {
+        route?: { path?: unknown } | undefined;
+      }
+    ).route;
     const routePath = matchedRoute?.path;
     const target =
       typeof routePath === 'string'

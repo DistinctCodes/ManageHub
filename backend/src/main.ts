@@ -151,7 +151,7 @@ async function bootstrap() {
   // SWAGGER_ENABLED=true; see src/common/swagger.ts (issue #1951).
   setupSwagger(app);
 
-  const port = process.env.PORT ?? 6000;
+  const port = process.env.PORT ?? 6100;
   await app.listen(port);
 
   const server = app.getHttpServer() as GracefulShutdownServer;

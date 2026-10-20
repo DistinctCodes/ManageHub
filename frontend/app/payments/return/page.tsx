@@ -21,6 +21,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { verifyPaymentReturn, getPayment } from "@/lib/payments-api";
@@ -81,7 +82,7 @@ function statusTone(status: string): string {
 
 // -- component ----------------------------------------------------------------
 
-export default function PaymentReturnPage() {
+function PaymentReturnContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   useSessionBootstrap();
@@ -540,5 +541,19 @@ export default function PaymentReturnPage() {
         </Card>
       )}
     </main>
+  );
+}
+
+export default function PaymentReturnPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="mx-auto max-w-lg p-6" aria-busy="true">
+          <p role="status">Checking payment status…</p>
+        </main>
+      }
+    >
+      <PaymentReturnContent />
+    </Suspense>
   );
 }

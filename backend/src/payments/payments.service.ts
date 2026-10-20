@@ -22,7 +22,10 @@ import {
   PaymentStatus,
 } from './enums/payment-status.enum';
 import { PaymentRail } from './enums/payment-rail.enum';
-import { assertValidTransition, PaymentTransitionSource } from './payment-state-machine';
+import {
+  assertValidTransition,
+  PaymentTransitionSource,
+} from './payment-state-machine';
 import {
   PaymentRailRegistry,
   PaymentRailResolution,

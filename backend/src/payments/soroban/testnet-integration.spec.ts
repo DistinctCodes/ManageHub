@@ -11,10 +11,11 @@ const RUN_TESTNET_TESTS = process.env.RUN_SOROBAN_TESTNET_TESTS === 'true';
     let client: EscrowContractClient;
 
     beforeAll(() => {
-      client = new EscrowContractClient({
-        network: 'testnet',
-        contractId: process.env.SOROBAN_TESTNET_ESCROW_CONTRACT_ID ?? '',
-      } as any);
+      client = new EscrowContractClient(
+        {} as never,
+        process.env.SOROBAN_TESTNET_ESCROW_CONTRACT_ID ?? '',
+        'testnet',
+      );
     });
 
     it('creates, releases, and reads status from the real contract', async () => {
