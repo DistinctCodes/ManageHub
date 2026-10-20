@@ -65,6 +65,7 @@ function PaymentRow({ payment }: { payment: Payment }) {
             className={inputClass}
             type="number"
             min={1}
+            max={payment.amount}
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             required

@@ -58,6 +58,15 @@ function SplitsInner() {
 
       <Card>
         <CardHeader title={`${splits.data?.length ?? 0} configs`} />
+        {splits.isLoading ? (
+          <p role="status" className="px-5 py-6 text-sm text-gray-500">
+            Loading revenue splits…
+          </p>
+        ) : splits.error ? (
+          <p role="alert" className="px-5 py-6 text-sm text-red-600">
+            {(splits.error as Error).message}
+          </p>
+        ) : null}
         <div className="divide-y divide-gray-100 dark:divide-gray-800">
           {splits.data?.map((split) => (
             <Link
@@ -91,7 +100,7 @@ function SplitsInner() {
               </div>
             </Link>
           ))}
-          {!splits.isLoading && (splits.data?.length ?? 0) === 0 && (
+          {!splits.isLoading && !splits.error && (splits.data?.length ?? 0) === 0 && (
             <p className="px-5 py-8 text-center text-gray-400">
               No revenue split configs yet.
             </p>

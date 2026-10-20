@@ -97,6 +97,15 @@ function SettlementsInner() {
 
       <Card>
         <CardHeader title={`${batches.data?.length ?? 0} batches`} />
+        {batches.isLoading ? (
+          <p role="status" className="px-5 py-6 text-sm text-gray-500">
+            Loading settlement batches…
+          </p>
+        ) : batches.error ? (
+          <p role="alert" className="px-5 py-6 text-sm text-red-600">
+            {(batches.error as Error).message}
+          </p>
+        ) : null}
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-gray-200 text-xs uppercase text-gray-500 dark:border-gray-800 dark:text-gray-400">
@@ -142,7 +151,7 @@ function SettlementsInner() {
                   </td>
                 </tr>
               ))}
-              {!batches.isLoading && (batches.data?.length ?? 0) === 0 && (
+              {!batches.isLoading && !batches.error && (batches.data?.length ?? 0) === 0 && (
                 <tr>
                   <td colSpan={6} className="px-5 py-8 text-center text-gray-400">
                     No settlement batches.

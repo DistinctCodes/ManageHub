@@ -61,6 +61,14 @@ function SplitDetailInner() {
     return <Card className="p-6 text-sm text-gray-500">Loading…</Card>;
   }
 
+  if (configs.error) {
+    return (
+      <Card className="p-6 text-sm text-red-600 dark:text-red-400">
+        {(configs.error as Error).message}
+      </Card>
+    );
+  }
+
   if (!split) {
     return (
       <Card className="p-6 text-sm text-red-600 dark:text-red-400">
