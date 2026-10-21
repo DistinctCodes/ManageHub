@@ -109,7 +109,7 @@ export function SettlementVolumeChart({
             tickFormatter={compactNumber}
           />
           <Tooltip
-            formatter={(value) => Number(value ?? 0).toLocaleString()}
+            formatter={(value: number | string) => Number(value ?? 0).toLocaleString()}
             cursor={{ fill: "rgba(100,116,139,0.1)" }}
           />
           <Bar dataKey="totalAmount" fill="#2563eb" radius={[4, 4, 0, 0]} />

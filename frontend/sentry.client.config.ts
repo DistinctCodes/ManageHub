@@ -76,13 +76,8 @@ Sentry.init({
     process.env.NEXT_PUBLIC_SENTRY_REPLAYS_ON_ERROR_SAMPLE_RATE,
     0,
   ),
-  integrations: [
-    Sentry.replayIntegration({
-      maskAllText: true,
-      blockAllMedia: true,
-    }),
-  ],
-  beforeSend(event, hint) {
+  integrations: [],
+  beforeSend(event: any, hint: any) {
     if (event.exception) {
       const original =
         hint && typeof hint === "object" ? hint.originalException : undefined;

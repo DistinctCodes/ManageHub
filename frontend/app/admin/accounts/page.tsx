@@ -16,6 +16,7 @@ import {
   SecondaryButton,
   inputClass,
 } from "@/components/admin/ui";
+import { DataTable } from "@/components/admin/data-table";
 import { RequireAdmin } from "@/components/admin/require-admin";
 
 const KINDS: LedgerAccountKind[] = [
@@ -41,8 +42,12 @@ function AccountsInner() {
 
   const accounts = useQuery({
     queryKey: ["ledger-accounts"],
-    queryFn: () => listAccounts(),
+    queryFn: () => listAccounts(undefined, 50),
   });
+
+  const rows = Array.isArray(accounts.data)
+    ? accounts.data
+    : accounts.data?.data ?? [];
 
   const freeze = useMutation({
     mutationFn: ({ id, frozen }: { id: string; frozen: boolean }) =>
@@ -76,46 +81,52 @@ function AccountsInner() {
       )}
 
       <Card>
-        <CardHeader title={`${accounts.data?.length ?? 0} accounts`} />
-        {accounts.error && (
-          <p role="alert" className="px-5 py-6 text-sm text-red-600">
-            {(accounts.error as Error).message}
-          </p>
-        )}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-gray-200 text-xs uppercase text-gray-500 dark:border-gray-800 dark:text-gray-400">
-              <tr>
-                <th className="px-5 py-3">Kind</th>
-                <th className="px-5 py-3">Owner</th>
-                <th className="px-5 py-3">Currency</th>
-                <th className="px-5 py-3 text-right">Balance</th>
-                <th className="px-5 py-3 text-right">Overdraft</th>
-                <th className="px-5 py-3">Payout address</th>
-                <th className="px-5 py-3">Status</th>
-                <th className="px-5 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-              {accounts.data?.map((account) => (
-                <AccountRow
-                  key={account.id}
-                  account={account}
-                  onToggleFreeze={(frozen) =>
-                    freeze.mutate({ id: account.id, frozen })
-                  }
-                />
-              ))}
-              {!accounts.isLoading && !accounts.error && (accounts.data?.length ?? 0) === 0 && (
-                <tr>
-                  <td colSpan={8} className="px-5 py-8 text-center text-gray-400">
-                    No accounts found.
-                  </td>
-                </tr>
+        <CardHeader title={`${rows.length} accounts`} />
+        <DataTable
+          columns={[
+            { key: "kind", header: "Kind", render: (account) => (
+              <Badge className="bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                {(account as LedgerAccount).kind}
+              </Badge>
+            ) },
+            { key: "ownerId", header: "Owner", render: (account) => (
+              ((account as LedgerAccount).ownerId ?? (
+                <span className="text-gray-400 dark:text-gray-500">—</span>
+              ))
+            ) },
+            { key: "currency", header: "Currency", render: (account) => (account as LedgerAccount).currency },
+            { key: "balance", header: "Balance", className: "text-right tabular-nums text-gray-900 dark:text-gray-50", render: (account) => (account as LedgerAccount).balance.toLocaleString() },
+            { key: "overdraftLimit", header: "Overdraft", className: "text-right tabular-nums text-gray-700 dark:text-gray-300", render: (account) => (account as LedgerAccount).overdraftLimit.toLocaleString() },
+            { key: "externalPayoutAddress", header: "Payout address", render: (account) => (
+              ((account as LedgerAccount).externalPayoutAddress ?? (
+                <span className="text-gray-400 dark:text-gray-500">—</span>
+              ))
+            ) },
+            { key: "frozen", header: "Status", render: (account) => <StatusBadge status={(account as LedgerAccount).frozen ? "ABANDONED" : "ACTIVE"} /> },
+          ]}
+          rows={rows}
+          rowKey={(account) => (account as LedgerAccount).id}
+          loading={accounts.isLoading}
+          error={accounts.error ? <p role="alert" className="text-sm text-red-600">{(accounts.error as Error).message}</p> : undefined}
+          empty={<span>No accounts found.</span>}
+          rowActions={(account) => (
+            <SecondaryButton
+              type="button"
+              onClick={() => freeze.mutate({ id: (account as LedgerAccount).id, frozen: !(account as LedgerAccount).frozen })}
+              className="px-2.5 py-1 text-xs"
+            >
+              {(account as LedgerAccount).frozen ? (
+                <>
+                  <Unlock className="h-3.5 w-3.5" /> Unfreeze
+                </>
+              ) : (
+                <>
+                  <Snowflake className="h-3.5 w-3.5" /> Freeze
+                </>
               )}
-            </tbody>
-          </table>
-        </div>
+            </SecondaryButton>
+          )}
+        />
       </Card>
     </div>
   );

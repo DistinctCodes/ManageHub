@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Inject,
   Injectable,
   Logger,
@@ -64,6 +65,29 @@ export interface SettlementRunSummary {
   payoutsAwaitingRail: number;
   entriesSettled: number;
   notes: string[];
+}
+
+function encodeSettlementCursor(batch: SettlementBatch): string {
+  return Buffer.from(
+    `${batch.createdAt.toISOString()}|${batch.id}`,
+    'utf8',
+  ).toString('base64url');
+}
+
+function decodeSettlementCursor(cursor: string): {
+  createdAt: Date;
+  id: string;
+} {
+  const decoded = Buffer.from(cursor, 'base64url').toString('utf8');
+  const separator = decoded.lastIndexOf('|');
+  const rawCreatedAt = separator === -1 ? '' : decoded.slice(0, separator);
+  const id = separator === -1 ? '' : decoded.slice(separator + 1);
+  const createdAt = new Date(rawCreatedAt);
+
+  if (!id || Number.isNaN(createdAt.getTime())) {
+    throw new BadRequestException('cursor is not a valid pagination cursor');
+  }
+  return { createdAt, id };
 }
 
 export interface SettlementBatchBreakdown {
@@ -627,12 +651,36 @@ export class SettlementService implements OnModuleInit {
 
   async listBatches(
     status?: SettlementBatchStatus,
-  ): Promise<SettlementBatch[]> {
-    return this.batchRepository.find({
-      where: status ? { status } : {},
-      order: { createdAt: 'DESC' },
-      take: 100,
-    });
+    limit = 50,
+    cursor?: string,
+  ): Promise<{ batches: SettlementBatch[]; nextCursor: string | null }> {
+    const pageLimit = Math.min(Math.max(1, Number(limit) || 50), 200);
+    const query = this.batchRepository
+      .createQueryBuilder('batch')
+      .orderBy('batch.createdAt', 'DESC')
+      .addOrderBy('batch.id', 'DESC')
+      .take(pageLimit + 1);
+
+    if (status) {
+      query.where('batch.status = :status', { status });
+    }
+
+    if (cursor) {
+      const { createdAt, id } = decodeSettlementCursor(cursor);
+      query.andWhere(
+        '(batch.createdAt < :createdAt OR (batch.createdAt = :createdAt AND batch.id < :id))',
+        { createdAt, id },
+      );
+    }
+
+    const rows = await query.getMany();
+    const hasMore = rows.length > pageLimit;
+    const batches = hasMore ? rows.slice(0, pageLimit) : rows;
+
+    return {
+      batches,
+      nextCursor: hasMore ? encodeSettlementCursor(batches[batches.length - 1]) : null,
+    };
   }
 
   /**

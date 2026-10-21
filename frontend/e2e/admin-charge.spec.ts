@@ -70,6 +70,21 @@ test("an authenticated admin can charge a member through the admin page", async 
   await adminPage.getByLabel("Reason").fill("E2E admin charge");
   await adminPage.getByRole("button", { name: "Charge credits" }).click();
 
+  const confirmationDialog = adminPage.getByRole("dialog", {
+    name: "Confirm charge",
+  });
+  await expect(confirmationDialog).toBeVisible();
+
+  const chargeResponse = adminPage.waitForResponse(
+    (response) =>
+      response.url().endsWith("/credits/charge") &&
+      response.request().method() === "POST",
+  );
+  await confirmationDialog
+    .getByRole("button", { name: "Confirm charge" })
+    .click();
+  expect((await chargeResponse).ok()).toBeTruthy();
+
   await expect(adminPage.getByText(/Posted.*new balance/)).toBeVisible();
   await expect(adminPage.getByText("Transaction", { exact: false })).toBeVisible();
   await adminContext.close();

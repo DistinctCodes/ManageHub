@@ -522,12 +522,29 @@ export class CreditsAdminController {
     required: false,
     enum: SettlementBatchStatus,
   })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Page size (1–200)',
+  })
+  @ApiQuery({
+    name: 'cursor',
+    required: false,
+    type: String,
+    description: 'Opaque cursor from a previous page',
+  })
   @ApiResponse({ status: 200, type: [SettlementBatchResponseDto] })
   async listBatches(
     @Query('status') status?: SettlementBatchStatus,
-  ): Promise<SettlementBatchResponseDto[]> {
-    const batches = await this.settlement.listBatches(status);
-    return batches.map((batch) => SettlementBatchResponseDto.fromEntity(batch));
+    @Query('limit') limit?: string,
+    @Query('cursor') cursor?: string,
+  ): Promise<{ data: SettlementBatchResponseDto[]; nextCursor: string | null }> {
+    const page = await this.settlement.listBatches(status, Number(limit) || 50, cursor);
+    return {
+      data: page.batches.map((batch) => SettlementBatchResponseDto.fromEntity(batch)),
+      nextCursor: page.nextCursor,
+    };
   }
 
   @Get('settlement/batches/:id')
