@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import Link from "next/link";
 import { Play } from "lucide-react";
-import type { SettlementBatchStatus } from "@/lib/admin-api";
+import type { SettlementBatch, SettlementBatchStatus } from "@/lib/admin-api";
 import { listBatches, runSettlement } from "@/lib/admin-api";
 import {
   Card,
@@ -13,6 +13,7 @@ import {
   StatusBadge,
   Button,
 } from "@/components/admin/ui";
+import { DataTable } from "@/components/admin/data-table";
 import { RequireAdmin } from "@/components/admin/require-admin";
 import { SettlementVolumeChart } from "@/components/admin/settlement-volume-chart";
 
@@ -46,6 +47,13 @@ function SettlementsInner() {
     queryFn: () =>
       listBatches((status || undefined) as SettlementBatchStatus | undefined),
   });
+
+  const rows = Array.isArray(batches.data)
+    ? batches.data
+    : batches.data?.data ?? [];
+  const chartData = Array.isArray(batches.data)
+    ? batches.data
+    : batches.data?.data ?? [];
 
   const run = useMutation({
     mutationFn: () => runSettlement(),
@@ -92,75 +100,35 @@ function SettlementsInner() {
           title="Settlement volume by status"
           description="Total settled amount aggregated across all batches by current status."
         />
-        <SettlementVolumeChart batches={batches.data ?? []} />
+        <SettlementVolumeChart batches={chartData} />
       </Card>
 
       <Card>
-        <CardHeader title={`${batches.data?.length ?? 0} batches`} />
-        {batches.isLoading ? (
-          <p role="status" className="px-5 py-6 text-sm text-gray-500">
-            Loading settlement batches…
-          </p>
-        ) : batches.error ? (
-          <p role="alert" className="px-5 py-6 text-sm text-red-600">
-            {(batches.error as Error).message}
-          </p>
-        ) : null}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-gray-200 text-xs uppercase text-gray-500 dark:border-gray-800 dark:text-gray-400">
-              <tr>
-                <th className="px-5 py-3">Mode</th>
-                <th className="px-5 py-3">Status</th>
-                <th className="px-5 py-3">Currency</th>
-                <th className="px-5 py-3 text-right">Total</th>
-                <th className="px-5 py-3 text-right">Entries</th>
-                <th className="px-5 py-3">Period end</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-              {batches.data?.map((batch) => (
-                <tr
-                  key={batch.id}
-                  className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50"
-                  onClick={() => {
-                    if (typeof window !== "undefined") {
-                      window.location.href = `/admin/settlements/${batch.id}`;
-                    }
-                  }}
-                >
-                  <td className="px-5 py-3">
-                    <Badge className="bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-400">
-                      {batch.mode}
-                    </Badge>
-                  </td>
-                  <td className="px-5 py-3">
-                    <StatusBadge status={batch.status} />
-                  </td>
-                  <td className="px-5 py-3 text-gray-700 dark:text-gray-300">
-                    {batch.currency}
-                  </td>
-                  <td className="px-5 py-3 text-right tabular-nums">
-                    {batch.totalAmount.toLocaleString()}
-                  </td>
-                  <td className="px-5 py-3 text-right tabular-nums">
-                    {batch.claimedEntryCount}
-                  </td>
-                  <td className="px-5 py-3 text-gray-500 dark:text-gray-400">
-                    {new Date(batch.periodEnd).toLocaleDateString()}
-                  </td>
-                </tr>
-              ))}
-              {!batches.isLoading && !batches.error && (batches.data?.length ?? 0) === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-5 py-8 text-center text-gray-400">
-                    No settlement batches.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <CardHeader title={`${rows.length} batches`} />
+        <DataTable
+          columns={[
+            { key: "mode", header: "Mode", render: (batch) => (
+              <Badge className="bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-400">
+                {(batch as SettlementBatch).mode}
+              </Badge>
+            ) },
+            { key: "status", header: "Status", render: (batch) => <StatusBadge status={(batch as SettlementBatch).status} /> },
+            { key: "currency", header: "Currency", render: (batch) => (batch as SettlementBatch).currency },
+            { key: "totalAmount", header: "Total", className: "text-right tabular-nums", render: (batch) => (batch as SettlementBatch).totalAmount.toLocaleString() },
+            { key: "claimedEntryCount", header: "Entries", className: "text-right tabular-nums", render: (batch) => (batch as SettlementBatch).claimedEntryCount },
+            { key: "periodEnd", header: "Period end", render: (batch) => new Date((batch as SettlementBatch).periodEnd).toLocaleDateString() },
+          ]}
+          rows={rows}
+          rowKey={(batch) => (batch as SettlementBatch).id}
+          loading={batches.isLoading}
+          error={batches.error ? <p role="alert" className="text-sm text-red-600">{(batches.error as Error).message}</p> : undefined}
+          empty={<span>No settlement batches.</span>}
+          onRowClick={(row) => {
+            if (typeof window !== "undefined") {
+              window.location.href = `/admin/settlements/${(row as SettlementBatch).id}`;
+            }
+          }}
+        />
       </Card>
     </div>
   );

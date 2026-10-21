@@ -162,11 +162,26 @@ function adminFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 // ── ledger accounts (FE-111) ─────────────────────────────────────────────
 
+export interface AdminListPage<T> {
+  data: T[];
+  nextCursor?: string | null;
+  total?: number;
+}
+
 export function listAccounts(
   currency?: string,
-): Promise<LedgerAccount[]> {
-  const query = currency ? `?currency=${encodeURIComponent(currency)}` : "";
-  return adminFetch<LedgerAccount[]>(`/credits/admin/accounts${query}`);
+  limit?: number,
+  cursor?: string,
+): Promise<AdminListPage<LedgerAccount> | LedgerAccount[]> {
+  const params = new URLSearchParams();
+  if (currency) params.set("currency", currency);
+  if (typeof limit === "number") params.set("limit", String(limit));
+  if (cursor) params.set("cursor", cursor);
+
+  const query = params.toString() ? `?${params.toString()}` : "";
+  return adminFetch<AdminListPage<LedgerAccount> | LedgerAccount[]>(
+    `/credits/admin/accounts${query}`,
+  );
 }
 
 export function createAccount(
@@ -258,9 +273,16 @@ export function runSettlement(): Promise<unknown> {
 
 export function listBatches(
   status?: SettlementBatchStatus,
-): Promise<SettlementBatch[]> {
-  const query = status ? `?status=${encodeURIComponent(status)}` : "";
-  return adminFetch<SettlementBatch[]>(
+  limit?: number,
+  cursor?: string,
+): Promise<AdminListPage<SettlementBatch> | SettlementBatch[]> {
+  const params = new URLSearchParams();
+  if (status) params.set("status", status);
+  if (typeof limit === "number") params.set("limit", String(limit));
+  if (cursor) params.set("cursor", cursor);
+
+  const query = params.toString() ? `?${params.toString()}` : "";
+  return adminFetch<AdminListPage<SettlementBatch> | SettlementBatch[]>(
     `/credits/admin/settlement/batches${query}`,
   );
 }

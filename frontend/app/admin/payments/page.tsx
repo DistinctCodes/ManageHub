@@ -13,6 +13,7 @@ import {
   Badge,
   StatusBadge,
 } from "@/components/admin/ui";
+import { DataTable } from "@/components/admin/data-table";
 import { RequireAdmin } from "@/components/admin/require-admin";
 
 // Payment amounts arrive as integer minor units.
@@ -40,8 +41,6 @@ function ManualReviewInner() {
 
   const payments = data?.items ?? [];
   const total = data?.total ?? 0;
-  const hasPrevious = offset > 0;
-  const hasNext = offset + PAGE_SIZE < total;
 
   return (
     <div className="space-y-6">
@@ -64,105 +63,46 @@ function ManualReviewInner() {
           description="Auto-refreshes every 30 seconds."
         />
 
-        {error ? (
-          <p className="px-5 py-6 text-sm text-red-600 dark:text-red-400">
-            {(error as Error).message}
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-gray-200 text-xs uppercase text-gray-500 dark:border-gray-800 dark:text-gray-400">
-                <tr>
-                  <th className="px-5 py-3">Payment ID</th>
-                  <th className="px-5 py-3">Booking</th>
-                  <th className="px-5 py-3">Rail</th>
-                  <th className="px-5 py-3">Status</th>
-                  <th className="px-5 py-3 text-right">Amount</th>
-                  <th className="px-5 py-3">Review reason</th>
-                  <th className="px-5 py-3">Created</th>
-                  <th className="px-5 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                {payments.map((p: Payment) => (
-                  <tr
-                    key={p.id}
-                    className="hover:bg-gray-50 dark:hover:bg-gray-800/50"
-                  >
-                    <td className="px-5 py-3 font-mono text-xs text-gray-700 dark:text-gray-300">
-                      {p.id.slice(0, 8)}…
-                    </td>
-                    <td className="px-5 py-3 font-mono text-xs text-gray-500 dark:text-gray-400">
-                      {p.bookingId.slice(0, 8)}…
-                    </td>
-                    <td className="px-5 py-3">
-                      <Badge className="bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-400">
-                        {p.rail}
-                      </Badge>
-                    </td>
-                    <td className="px-5 py-3">
-                      <StatusBadge status={p.status} />
-                    </td>
-                    <td className="px-5 py-3 text-right tabular-nums">
-                      {formatAmount(p.amount, p.currency)}
-                    </td>
-                    <td className="px-5 py-3 max-w-xs truncate text-gray-500 dark:text-gray-400">
-                      {p.manualReviewReason ?? "—"}
-                    </td>
-                    <td className="px-5 py-3 text-gray-500 dark:text-gray-400">
-                      {new Date(p.createdAt).toLocaleDateString()}
-                    </td>
-                    <td className="px-5 py-3">
-                      <Link
-                        href={`/admin/payments/${p.id}`}
-                        className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200"
-                      >
-                        Review <ExternalLink className="h-3 w-3" />
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-                {!isLoading && payments.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={8}
-                      className="px-5 py-10 text-center text-gray-400"
-                    >
-                      No payments in the manual-review queue.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {total > 0 && (
-          <div className="flex items-center justify-between border-t border-gray-200 px-5 py-3 text-sm dark:border-gray-800">
-            <span className="text-gray-500 dark:text-gray-400">
-              Showing {total === 0 ? 0 : offset + 1}–
-              {Math.min(offset + PAGE_SIZE, total)} of {total}
-            </span>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setOffset((current) => Math.max(0, current - PAGE_SIZE))}
-                disabled={!hasPrevious}
-                className="rounded-md border border-gray-200 px-3 py-1 font-medium text-gray-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:text-gray-300"
-              >
-                Previous
-              </button>
-              <button
-                type="button"
-                onClick={() => setOffset((current) => current + PAGE_SIZE)}
-                disabled={!hasNext}
-                className="rounded-md border border-gray-200 px-3 py-1 font-medium text-gray-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-700 dark:text-gray-300"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        )}
+        <DataTable
+          columns={[
+            { key: "id", header: "Payment ID", render: (payment) => (
+              <span className="font-mono text-xs text-gray-700 dark:text-gray-300">{(payment as Payment).id.slice(0, 8)}…</span>
+            ) },
+            { key: "bookingId", header: "Booking", render: (payment) => (
+              <span className="font-mono text-xs text-gray-500 dark:text-gray-400">{(payment as Payment).bookingId.slice(0, 8)}…</span>
+            ) },
+            { key: "rail", header: "Rail", render: (payment) => (
+              <Badge className="bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-400">
+                {(payment as Payment).rail}
+              </Badge>
+            ) },
+            { key: "status", header: "Status", render: (payment) => <StatusBadge status={(payment as Payment).status} /> },
+            { key: "amount", header: "Amount", className: "text-right tabular-nums", render: (payment) => formatAmount((payment as Payment).amount, (payment as Payment).currency) },
+            { key: "manualReviewReason", header: "Review reason", render: (payment) => (
+              <span className="max-w-xs truncate text-gray-500 dark:text-gray-400">{(payment as Payment).manualReviewReason ?? "—"}</span>
+            ) },
+            { key: "createdAt", header: "Created", render: (payment) => (
+              <span className="text-gray-500 dark:text-gray-400">{new Date((payment as Payment).createdAt).toLocaleDateString()}</span>
+            ) },
+          ]}
+          rows={payments}
+          rowKey={(payment) => (payment as Payment).id}
+          loading={isLoading}
+          error={error ? <p className="text-sm text-red-600 dark:text-red-400">{(error as Error).message}</p> : undefined}
+          empty={<span>No payments in the manual-review queue.</span>}
+          page={Math.floor(offset / PAGE_SIZE) + 1}
+          pageSize={PAGE_SIZE}
+          totalRows={total}
+          onPageChange={(nextPage) => setOffset((nextPage - 1) * PAGE_SIZE)}
+          rowActions={(payment) => (
+            <Link
+              href={`/admin/payments/${(payment as Payment).id}`}
+              className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200"
+            >
+              Review <ExternalLink className="h-3 w-3" />
+            </Link>
+          )}
+        />
       </Card>
     </div>
   );
