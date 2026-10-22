@@ -168,6 +168,17 @@ export function AuthForm({ mode }: { mode: Mode }) {
           )}
         </div>
 
+        {isLogin && (
+          <div className="-mt-2 text-right">
+            <Link
+              href="/forgot-password"
+              className="text-sm text-blue-700 underline hover:text-blue-800 dark:text-blue-400"
+            >
+              Forgot password?
+            </Link>
+          </div>
+        )}
+
         {!isLogin && (
           <div>
             <label

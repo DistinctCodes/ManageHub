@@ -34,6 +34,12 @@ export class User {
   @Column({ type: 'int', name: 'token_version', default: 0 })
   tokenVersion: number;
 
+  @Column({ type: 'varchar', name: 'password_reset_token_hash', nullable: true })
+  passwordResetTokenHash: string | null;
+
+  @Column({ type: 'timestamptz', name: 'password_reset_expires_at', nullable: true })
+  passwordResetExpiresAt: Date | null;
+
   /**
    * Timestamp of the most recent successful password login. This is written
    * only by AuthService.login after password comparison succeeds — never on

@@ -109,6 +109,21 @@ or by seeding a user with `role = 'admin'` (see `backend/scripts/demo-data.js`).
 After changing the role, the user must log in again so a fresh JWT carries the
 new `role` claim (the token embeds the role at issue time).
 
+## Account and password recovery
+
+Authenticated users can read their own profile at `GET /auth/me`, change a
+password at `POST /auth/change-password`, or revoke every session at
+`POST /auth/logout-all`. Password changes retain the current session with a
+fresh token and revoke all other sessions.
+
+`POST /auth/forgot-password` responds generically whether or not an email is
+registered. For registered accounts, it sends a one-hour reset link using
+`SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, and
+`SMTP_FROM_EMAIL`; `FRONTEND_URL` determines the link origin. Reset tokens are
+stored only as SHA-256 hashes and can be used once. Run the
+`AddPasswordResetTokens1790008000000` database migration before deploying this
+flow. Completing a reset revokes all existing sessions.
+
 ## Sequence diagram
 
 ```mermaid

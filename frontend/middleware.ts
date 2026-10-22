@@ -8,6 +8,7 @@ import { getSafeReturnTo } from "./lib/auth-redirect";
 // to protect data or actions on its own.
 const protectedRoutePrefixes = [
   "/wallet",
+  "/account",
   "/credits",
   "/usage",
   "/payments",
@@ -113,6 +114,7 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     "/wallet/:path*",
+    "/account/:path*",
     "/credits/:path*",
     "/usage/:path*",
     "/payments/:path*",
