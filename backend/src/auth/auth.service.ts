@@ -1,18 +1,23 @@
 import {
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { compare, hash } from 'bcrypt';
+import { createHash, randomBytes } from 'crypto';
 import { JwtService } from '@nestjs/jwt';
-import { Repository } from 'typeorm';
+import { MoreThan, Repository } from 'typeorm';
+import { createTransport } from 'nodemailer';
 import { User } from './entities/user.entity';
 import { UserRole } from './enums/user-role.enum';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { AuthResponseDto, AuthUserDto } from './dto/auth-response.dto';
 import { RequestUser } from './interfaces/authenticated-request.interface';
 
@@ -43,10 +48,13 @@ function getDummyPasswordHash(): Promise<string> {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly users: Repository<User>,
     private readonly jwtService: JwtService,
+    private readonly config: ConfigService,
   ) {}
 
   async register(dto: RegisterDto): Promise<AuthResponseDto> {
@@ -146,8 +154,86 @@ export class AuthService {
 
     user.passwordHash = await hash(dto.newPassword, 12);
     user.tokenVersion = (user.tokenVersion ?? 0) + 1;
+    user.passwordResetTokenHash = null;
+    user.passwordResetExpiresAt = null;
     const saved = await this.users.save(user);
     return this.issueToken(saved);
+  }
+
+  async requestPasswordReset(emailAddress: string): Promise<void> {
+    const email = emailAddress.trim().toLowerCase();
+    const user = await this.users.findOne({ where: { email } });
+    if (!user) return;
+
+    const token = randomBytes(32).toString('hex');
+    user.passwordResetTokenHash = this.hashResetToken(token);
+    user.passwordResetExpiresAt = new Date(Date.now() + 60 * 60 * 1000);
+    await this.users.save(user);
+
+    const host = this.config.get<string>('SMTP_HOST');
+    const username = this.config.get<string>('SMTP_USER');
+    const password = this.config.get<string>('SMTP_PASS');
+    const from = this.config.get<string>('SMTP_FROM_EMAIL');
+    if (!host || !username || !password || !from) return;
+
+    const transport = createTransport({
+      host,
+      port: this.config.get<number>('SMTP_PORT', 587),
+      secure: this.config.get<string>('SMTP_SECURE', 'false') === 'true',
+      auth: { user: username, pass: password },
+    });
+    const frontendUrl = this.config.get<string>(
+      'FRONTEND_URL',
+      'http://localhost:3000',
+    );
+    const resetUrl = new URL('/reset-password', frontendUrl);
+    resetUrl.searchParams.set('token', token);
+    try {
+      await transport.sendMail({
+        from,
+        to: user.email,
+        subject: 'Reset your ManageHub password',
+        text: `Use this link to reset your password. It expires in one hour: ${resetUrl.toString()}`,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Unable to send password reset email: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  async resetPassword(dto: ResetPasswordDto): Promise<void> {
+    const tokenHash = this.hashResetToken(dto.token);
+    const user = await this.users.findOne({
+      where: {
+        passwordResetTokenHash: tokenHash,
+        passwordResetExpiresAt: MoreThan(new Date()),
+      },
+    });
+    if (!user) {
+      throw new UnauthorizedException('Password reset link is invalid or expired');
+    }
+
+    const result = await this.users.update(
+      {
+        id: user.id,
+        passwordResetTokenHash: tokenHash,
+        passwordResetExpiresAt: MoreThan(new Date()),
+      },
+      {
+        passwordHash: await hash(dto.newPassword, BCRYPT_ROUNDS),
+        tokenVersion: () => '"token_version" + 1',
+        passwordResetTokenHash: null,
+        passwordResetExpiresAt: null,
+      },
+    );
+    if (!result.affected) {
+      throw new UnauthorizedException('Password reset link is invalid or expired');
+    }
+  }
+
+  private hashResetToken(token: string): string {
+    return createHash('sha256').update(token).digest('hex');
   }
 
   /**

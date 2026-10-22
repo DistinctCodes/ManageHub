@@ -21,7 +21,12 @@ describe('AuthService', () => {
   const jwtService = {
     signAsync: jest.fn(async (payload) => `jwt:${payload.sub}:${payload.role}`),
   };
-  const service = new AuthService(users as any, jwtService as any);
+  const configService = { get: jest.fn() };
+  const service = new AuthService(
+    users as any,
+    jwtService as any,
+    configService as any,
+  );
 
   beforeEach(() => {
     jest.clearAllMocks();

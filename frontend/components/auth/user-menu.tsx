@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { LogOut } from "lucide-react";
+import Link from "next/link";
 import { useSessionStore } from "@/lib/stores/session-store";
 import { useSignOut } from "@/components/auth/use-sign-out";
 
@@ -28,6 +29,12 @@ export function UserMenu() {
 
   return (
     <div className="flex items-center gap-3 text-sm">
+      <Link
+        href="/account"
+        className="inline-flex items-center gap-1.5 text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
+      >
+        Account
+      </Link>
       <span
         className="hidden text-gray-500 dark:text-gray-400 sm:inline"
         title={user.email}

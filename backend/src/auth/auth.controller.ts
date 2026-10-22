@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -14,6 +15,8 @@ import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 import { AuthResponseDto, AuthUserDto } from './dto/auth-response.dto';
 import { Response, CookieOptions } from 'express';
@@ -23,6 +26,7 @@ import { Roles } from './decorators/roles.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { RequestUser } from './interfaces/authenticated-request.interface';
 import { UserRole } from './enums/user-role.enum';
+import { Throttle } from '@nestjs/throttler';
 
 const COOKIE_OPTIONS: CookieOptions = {
   httpOnly: true,
@@ -84,6 +88,7 @@ export class AuthController {
   }
 
   @Post('logout-all')
+  @HttpCode(204)
   @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Sign out everywhere: revoke every token issued to this user',
@@ -110,6 +115,26 @@ export class AuthController {
     const result = await this.authService.changePassword(currentUser.id, dto);
     res.cookie('accessToken', result.accessToken, COOKIE_OPTIONS);
     return result;
+  }
+
+  @Post('forgot-password')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Email a single-use password reset link when the account exists' })
+  async forgotPassword(@Body() dto: ForgotPasswordDto): Promise<{ message: string }> {
+    await this.authService.requestPasswordReset(dto.email);
+    return { message: 'If an account exists for that email, a reset link has been sent.' };
+  }
+
+  @Post('reset-password')
+  @HttpCode(204)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Reset a password using a single-use email token' })
+  async resetPassword(
+    @Body() dto: ResetPasswordDto,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void> {
+    await this.authService.resetPassword(dto);
+    res.clearCookie('accessToken', COOKIE_OPTIONS);
   }
 
   @Patch('users/:id/role')

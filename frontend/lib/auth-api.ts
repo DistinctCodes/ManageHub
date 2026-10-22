@@ -117,6 +117,45 @@ export function register(
   return authRequest<AuthResponse>("/auth/register", { email, password });
 }
 
+export function changePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<AuthResponse> {
+  return request<AuthResponse>("/auth/change-password", {
+    service: "auth",
+    method: "POST",
+    body: { currentPassword, newPassword },
+  });
+}
+
+export async function logoutEverywhere(): Promise<void> {
+  await request<void>("/auth/logout-all", {
+    service: "auth",
+    method: "POST",
+  });
+}
+
+export async function requestPasswordReset(email: string): Promise<void> {
+  await request<void>("/auth/forgot-password", {
+    service: "auth",
+    method: "POST",
+    body: { email },
+    expireOn401: false,
+  });
+}
+
+export async function resetPassword(
+  token: string,
+  newPassword: string,
+): Promise<void> {
+  await request<void>("/auth/reset-password", {
+    service: "auth",
+    method: "POST",
+    body: { token, newPassword },
+    expireOn401: false,
+  });
+}
+
 /**
  * Returns the signed-in user from the backend (issue #1973). Used to restore
  * a session after a page reload without reading the HttpOnly cookie from
