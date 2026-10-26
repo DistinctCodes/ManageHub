@@ -106,8 +106,9 @@ as workspace members in [`Cargo.toml`](Cargo.toml) as they are developed.
 
 ## Tooling
 
-- `make build` / `make test` / `make deploy` / `make clean` — see the root
+- `make build` / `make test` / `make deploy` / `make clean` / `make sandbox` — see the root
   [`Makefile`](../Makefile) (CT-70).
+- [`LOCAL.md`](LOCAL.md) — end-to-end local sandbox guide (standalone Docker node, deployment, create/release invocations, and backend `.env` configuration) (#2027).
 - `make audit` — CI-enforced authorization audit; see
   [`scripts/audit_require_auth.sh`](../scripts/audit_require_auth.sh) (CT-72).
 

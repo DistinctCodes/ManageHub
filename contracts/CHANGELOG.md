@@ -10,6 +10,7 @@ backend and indexer integrators can track compatibility across releases (#1877).
   lockfile so CI can build the workspace with current transitive dependencies.
 
 ### Added
+- End-to-end local sandbox (Docker standalone node, deployment, create/release invocations, backend `.env` generation) and `contracts/LOCAL.md` documentation (#2027).
 - `payment_escrow::get_escrow(id)` read-only view function, so integrators no
   longer need a state-changing call to read escrow data (#1878).
 - End-to-end create -> release walkthrough in `contracts/RUNBOOK.md` (#1879).
