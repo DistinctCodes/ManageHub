@@ -11,6 +11,7 @@ requesting review:
 - [ ] `make audit` (CT-72 require_auth() coverage) passes.
 - [ ] Every amount-handling path uses checked arithmetic (CT-73) — no raw
       `+`/`-` on amounts.
+- [ ] Interface and compatibility changes are documented in [`contracts/COMPATIBILITY.md`](../contracts/COMPATIBILITY.md) (or verified unchanged).
 - [ ] Not applicable — this PR does not touch `contracts/`.
 
 ## Test plan
