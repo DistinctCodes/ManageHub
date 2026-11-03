@@ -1,6 +1,6 @@
 # Soroban Contracts — Backend Integration Reference
 
-This directory contains the Soroban smart contract workspace for ManageHub.
+This directory contains the Soroban smart contract workspace for ManageHub. For contract versioning, WASM hashes, and backend release compatibility details, see [`COMPATIBILITY.md`](COMPATIBILITY.md).
 
 ## Backend ↔ Contract Interface
 
