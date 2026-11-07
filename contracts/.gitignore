@@ -1,9 +1,10 @@
-# Rust build artifacts
+# Rust contract build artifacts
 target/
+Cargo.lock
 
-# Compiled WebAssembly files
+# WebAssembly compiled binaries
 *.wasm
 
-# Local environment and deployment configuration
+# Environment secrets and local deployment manifests
 .env*
 deployments/*.local.json

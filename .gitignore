@@ -8,3 +8,8 @@ Desktop.ini
 .idea/
 *.swp
 *.swo
+
+# Rust / contracts build artifacts
+contracts/target/
+target/
+*.wasm
