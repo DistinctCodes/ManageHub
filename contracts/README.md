@@ -52,6 +52,7 @@ backend maps that error to `NOT_FOUND`.
 | `5`  | `ArithmeticOverflow`  | Checked arithmetic failed                            |
 | `20` | `AmountExceedsEscrow` | A partial release would exceed the locked amount     |
 | `21` | `NothingToRefund`     | Nothing remains to refund                            |
+| `22` | `InvalidParties`      | Payer and beneficiary cannot be the same address     |
 
 ### Amount Units and Token Decimals
 
@@ -90,6 +91,18 @@ These environment variables bind the backend to the on-chain contract
 The backend derives escrow IDs as the **SHA-256 hash** of the `Payment` entity UUID,
 passed to the contract as `BytesN<32>`. See `escrow-submission.processor.ts` for the
 exact derivation.
+
+### Parties Validation and ID Uniqueness Rules
+
+1. **Parties Validation**:
+   - `create` strictly forbids identical `payer` and `beneficiary` addresses.
+   - Calling `create` where `payer == beneficiary` is rejected with `Error::InvalidParties` (`#22`).
+
+2. **Single-Use Escrow IDs & Storage Retention**:
+   - Escrow IDs (`BytesN<32>`) are single-use for the entire lifetime of the contract.
+   - Once an escrow is created, its entry in `persistent()` storage is permanently retained through all subsequent lifecycle states (`Locked` → `Released` / `Refunded` / `Completed`).
+   - Re-attempting `create` with an existing ID—even after full release or refund—is rejected with `Error::AlreadyExists` (`#4`).
+   - This prevents state corruption, replay attacks, and unauthorized re-creation.
 
 ## Arithmetic Safety (CT-73)
 

@@ -11,6 +11,7 @@ export enum ContractError {
   InvalidAmount = 3,
   Unauthorized = 4,
   InvalidState = 5,
+  InvalidParties = 22,
 }
 
 export const CONTRACT_ERROR_NAMES: Readonly<Record<number, string>> =
@@ -20,6 +21,7 @@ export const CONTRACT_ERROR_NAMES: Readonly<Record<number, string>> =
     [ContractError.InvalidAmount]: "InvalidAmount",
     [ContractError.Unauthorized]: "Unauthorized",
     [ContractError.InvalidState]: "InvalidState",
+    [ContractError.InvalidParties]: "InvalidParties",
   });
 
 /** Human-readable name for a contract error code, if known. */

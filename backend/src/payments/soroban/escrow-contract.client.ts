@@ -45,6 +45,7 @@ export enum ContractError {
   InvalidAmount = 3,
   AlreadyExists = 4,
   ArithmeticOverflow = 5,
+  InvalidParties = 22,
 }
 
 // ---------------------------------------------------------------------------
