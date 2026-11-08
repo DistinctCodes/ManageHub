@@ -1,25 +1,44 @@
 /**
- * Shared contract `Error` enum codes (#1885).
+ * Shared contract `Error` enum codes (#1885, #2025).
  *
- * The Soroban contracts return numeric error codes. Exposing them here lets the
- * backend client compare against named constants instead of magic numbers, and
- * gives a single place to update when the contract error enum changes.
+ * Generated/synchronized from `payment_escrow.abi.json`. Exposing them here lets
+ * the backend client compare against named constants instead of magic numbers,
+ * and guarantees a single canonical source of truth between the Rust contract
+ * and TypeScript clients.
  */
 export enum ContractError {
-  AlreadyExists = 1,
-  NotFound = 2,
+  NotFound = 1,
+  AlreadyResolved = 2,
   InvalidAmount = 3,
-  Unauthorized = 4,
-  InvalidState = 5,
+  AlreadyExists = 4,
+  ArithmeticOverflow = 5,
+  AlreadyReleased = 6,
+  AlreadyRefunded = 7,
+  AlreadyInitialized = 10,
+  NotInitialized = 11,
+  Unauthorized = 12,
+  Paused = 13,
+  NoPendingAdmin = 14,
+  AmountExceedsEscrow = 20,
+  NothingToRefund = 21,
 }
 
 export const CONTRACT_ERROR_NAMES: Readonly<Record<number, string>> =
   Object.freeze({
-    [ContractError.AlreadyExists]: "AlreadyExists",
     [ContractError.NotFound]: "NotFound",
+    [ContractError.AlreadyResolved]: "AlreadyResolved",
     [ContractError.InvalidAmount]: "InvalidAmount",
+    [ContractError.AlreadyExists]: "AlreadyExists",
+    [ContractError.ArithmeticOverflow]: "ArithmeticOverflow",
+    [ContractError.AlreadyReleased]: "AlreadyReleased",
+    [ContractError.AlreadyRefunded]: "AlreadyRefunded",
+    [ContractError.AlreadyInitialized]: "AlreadyInitialized",
+    [ContractError.NotInitialized]: "NotInitialized",
     [ContractError.Unauthorized]: "Unauthorized",
-    [ContractError.InvalidState]: "InvalidState",
+    [ContractError.Paused]: "Paused",
+    [ContractError.NoPendingAdmin]: "NoPendingAdmin",
+    [ContractError.AmountExceedsEscrow]: "AmountExceedsEscrow",
+    [ContractError.NothingToRefund]: "NothingToRefund",
   });
 
 /** Human-readable name for a contract error code, if known. */

@@ -1,0 +1,145 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "contract": "payment_escrow",
+  "version": 1,
+  "description": "Shared ABI and interface fixture for the payment_escrow Soroban contract",
+  "functions": [
+    {
+      "name": "create",
+      "doc": "Create a new escrow, locking amount from payer for beneficiary in token asset",
+      "inputs": [
+        { "name": "escrow_id", "type": "BytesN<32>" },
+        { "name": "payer", "type": "Address" },
+        { "name": "beneficiary", "type": "Address" },
+        { "name": "amount", "type": "i128" },
+        { "name": "token", "type": "Address" }
+      ],
+      "outputs": { "type": "Result<(), Error>" }
+    },
+    {
+      "name": "release",
+      "doc": "Release all remaining locked escrowed funds to beneficiary",
+      "inputs": [
+        { "name": "escrow_id", "type": "BytesN<32>" }
+      ],
+      "outputs": { "type": "Result<(), Error>" }
+    },
+    {
+      "name": "refund",
+      "doc": "Refund all remaining locked funds back to payer",
+      "inputs": [
+        { "name": "escrow_id", "type": "BytesN<32>" }
+      ],
+      "outputs": { "type": "Result<(), Error>" }
+    },
+    {
+      "name": "release_partial",
+      "doc": "Release a specified amount from escrow to beneficiary",
+      "inputs": [
+        { "name": "escrow_id", "type": "BytesN<32>" },
+        { "name": "amount", "type": "i128" }
+      ],
+      "outputs": { "type": "Result<(), Error>" }
+    },
+    {
+      "name": "refund_remaining",
+      "doc": "Refund any remaining balance back to payer",
+      "inputs": [
+        { "name": "escrow_id", "type": "BytesN<32>" }
+      ],
+      "outputs": { "type": "Result<(), Error>" }
+    },
+    {
+      "name": "get_status",
+      "doc": "Query numeric status of an escrow (1=Locked, 2=Released, 3=Refunded, 4=Completed)",
+      "inputs": [
+        { "name": "escrow_id", "type": "BytesN<32>" }
+      ],
+      "outputs": { "type": "Result<u32, Error>" }
+    },
+    {
+      "name": "get_escrow",
+      "doc": "Query full escrow struct from persistent storage",
+      "inputs": [
+        { "name": "escrow_id", "type": "BytesN<32>" }
+      ],
+      "outputs": { "type": "Result<Escrow, Error>" }
+    },
+    {
+      "name": "initialize",
+      "doc": "One-time setup to record the admin address",
+      "inputs": [
+        { "name": "admin", "type": "Address" }
+      ],
+      "outputs": { "type": "Result<(), Error>" }
+    },
+    {
+      "name": "version",
+      "doc": "Interface version reported by the contract",
+      "inputs": [],
+      "outputs": { "type": "u32" }
+    },
+    {
+      "name": "upgrade",
+      "doc": "Replace contract code with new WASM hash (admin only)",
+      "inputs": [
+        { "name": "new_wasm_hash", "type": "BytesN<32>" }
+      ],
+      "outputs": { "type": "Result<(), Error>" }
+    },
+    {
+      "name": "propose_admin",
+      "doc": "Step one of two-step admin transfer",
+      "inputs": [
+        { "name": "new_admin", "type": "Address" }
+      ],
+      "outputs": { "type": "Result<(), Error>" }
+    },
+    {
+      "name": "accept_admin",
+      "doc": "Step two of two-step admin transfer",
+      "inputs": [],
+      "outputs": { "type": "Result<(), Error>" }
+    },
+    {
+      "name": "pause",
+      "doc": "Emergency stop for create entrypoint (admin only)",
+      "inputs": [],
+      "outputs": { "type": "Result<(), Error>" }
+    },
+    {
+      "name": "unpause",
+      "doc": "Lift the pause on create entrypoint (admin only)",
+      "inputs": [],
+      "outputs": { "type": "Result<(), Error>" }
+    },
+    {
+      "name": "is_paused",
+      "doc": "Check whether contract is currently paused",
+      "inputs": [],
+      "outputs": { "type": "bool" }
+    }
+  ],
+  "errors": {
+    "1": "NotFound",
+    "2": "AlreadyResolved",
+    "3": "InvalidAmount",
+    "4": "AlreadyExists",
+    "5": "ArithmeticOverflow",
+    "6": "AlreadyReleased",
+    "7": "AlreadyRefunded",
+    "10": "AlreadyInitialized",
+    "11": "NotInitialized",
+    "12": "Unauthorized",
+    "13": "Paused",
+    "14": "NoPendingAdmin",
+    "20": "AmountExceedsEscrow",
+    "21": "NothingToRefund"
+  },
+  "states": {
+    "1": "Locked",
+    "2": "Released",
+    "3": "Refunded",
+    "4": "Completed"
+  }
+}

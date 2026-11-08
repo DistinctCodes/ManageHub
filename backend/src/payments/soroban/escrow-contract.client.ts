@@ -37,7 +37,7 @@ import { SorobanRpcClient } from './soroban-rpc-client';
 import { EscrowStatus } from './escrow-status.enum';
 
 // ---------------------------------------------------------------------------
-// Generated contract-error enum (mirrors contracts/payment_escrow Error)
+// Generated contract-error enum (mirrors contracts/shared/payment_escrow.abi.json)
 // ---------------------------------------------------------------------------
 export enum ContractError {
   NotFound = 1,
@@ -45,6 +45,15 @@ export enum ContractError {
   InvalidAmount = 3,
   AlreadyExists = 4,
   ArithmeticOverflow = 5,
+  AlreadyReleased = 6,
+  AlreadyRefunded = 7,
+  AlreadyInitialized = 10,
+  NotInitialized = 11,
+  Unauthorized = 12,
+  Paused = 13,
+  NoPendingAdmin = 14,
+  AmountExceedsEscrow = 20,
+  NothingToRefund = 21,
 }
 
 // ---------------------------------------------------------------------------
@@ -63,13 +72,18 @@ export class EscrowContractClient {
     payerAddress: string,
     beneficiaryAddress: string,
     amount: bigint,
+    tokenAddress?: string,
   ): Promise<any> {
-    return this.buildAndAssemble(sourceAccountPublicKey, 'create', [
+    const args: xdr.ScVal[] = [
       nativeToScVal(escrowId, { type: 'bytes' }),
       new Address(payerAddress).toScVal(),
       new Address(beneficiaryAddress).toScVal(),
       nativeToScVal(amount, { type: 'i128' }),
-    ]);
+    ];
+    if (tokenAddress) {
+      args.push(new Address(tokenAddress).toScVal());
+    }
+    return this.buildAndAssemble(sourceAccountPublicKey, 'create', args);
   }
 
   async buildReleaseTx(
