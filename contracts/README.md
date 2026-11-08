@@ -91,6 +91,68 @@ The backend derives escrow IDs as the **SHA-256 hash** of the `Payment` entity U
 passed to the contract as `BytesN<32>`. See `escrow-submission.processor.ts` for the
 exact derivation.
 
+## Escrow Lifecycle & Backend Idempotency/Retry Specification (#2026)
+
+This specification defines transaction semantics, idempotency guarantees, error handling, and reconciliation behavior for backend operations (`create`, `release`, `release_partial`, `refund`, `refund_remaining`, `get_status`).
+
+### 1. State Machine & Terminal Finality
+
+```
+                 ┌────────────────────────────────┐
+                 │          [Non-Existent]        │
+                 └──────────────┬─────────────────┘
+                                │ create()
+                                ▼
+                       ┌─────────────────┐
+                       │   Locked (1)    │
+                       └─┬──────┬──────┬─┘
+           release()     │      │      │     refund()
+        ┌────────────────┘      │      └─────────────────┐
+        ▼                       ▼ partial_release()       ▼
+┌──────────────┐      ┌──────────────────┐      ┌────────────────┐
+│ Released (2) │      │   Locked (1)     │      │  Refunded (3)  │
+│  (Terminal)  │      │  (Partial: <100%)│      │   (Terminal)   │
+└──────────────┘      └─────────┬────────┘      └────────────────┘
+                                │
+                                │ release_partial() completes
+                                ▼
+                      ┌──────────────────┐
+                      │  Completed (4)   │
+                      │   (Terminal)     │
+                      └──────────────────┘
+```
+
+- **Terminal States**: `Released` (2), `Refunded` (3), and `Completed` (4) are strictly terminal and immutable. Once an escrow enters any of these states:
+  - No further token transfers or settlement transitions can occur.
+  - Subsequent settlement attempts return `Error::AlreadyResolved` (2), `Error::AlreadyReleased` (6), or `Error::AlreadyRefunded` (7).
+
+### 2. Idempotency & Retry Guarantees
+
+| Operation | First Call | Retry with Identical Arguments | Contract Error Code | Backend Interpretation |
+|---|---|---|---|---|
+| `create` | Locks funds, transitions to `Locked` (1) | Rejected with `AlreadyExists` (4) | `Error::AlreadyExists` (4) | Prevents double-debiting payer tokens. Backend catches `AlreadyExists` / error code 4 and triggers state reconciliation via `get_status`. |
+| `release` | Transfers full balance to beneficiary, transitions to `Released` (2) | Rejected with `AlreadyReleased` (6) | `Error::AlreadyReleased` (6) | Treated by backend as `alreadySucceeded: true` (funds already delivered). |
+| `release_partial` | Transfers partial amount to beneficiary | If already completed: `AlreadyResolved` (2). If remaining available: executes next increment. | `Error::AlreadyResolved` (2) or `Error::AmountExceedsEscrow` (20) | Replay safe via caller idempotency checks. |
+| `refund` | Returns full balance to payer, transitions to `Refunded` (3) | Rejected with `AlreadyRefunded` (7) | `Error::AlreadyRefunded` (7) | Treated by backend as `alreadySucceeded: true` (refund already issued). |
+| `refund_remaining` | Returns remaining locked balance to payer | If already completed/refunded: `AlreadyResolved` (2). | `Error::AlreadyResolved` (2) / `Error::NothingToRefund` (21) | Treated as terminal resolution. |
+| `get_status` | Read-only state inspection | Deterministic read-only query; safe to retry indefinitely | `Error::NotFound` (1) if non-existent | Never alters state; provides ground-truth on-chain reconciliation. |
+
+### 3. Duplicate `create` vs No-Op Rationale
+
+A duplicate `create` call explicitly returns `Error::AlreadyExists` (#4) instead of acting as a silent no-op (`Ok(())`).
+- **Authorization & Debit Safety**: `create` requires `payer.require_auth()` and transfers tokens from `payer` to the contract. A silent no-op returning `Ok(())` could mask client configuration bugs (e.g., unintended ID collisions, parameter mismatches, or failed initial transfers where the caller assumes new funds were escrowed).
+- **Explicit Signal**: Returning `Error::AlreadyExists` gives callers unambiguous confirmation that an escrow with this ID already occupies the contract storage. The backend submission processor intercepts this error, queries `get_status(escrow_id)`, and confirms whether the escrow is active in state `Locked` without risking accidental duplicate fund transfers.
+
+### 4. Unconfirmed Transaction Reconciliation
+
+When a submitted transaction encounters timeouts, network partitions, or RPC drops (`reason: null` / indeterminate status):
+1. **Never Resubmit Blindly**: The processor does not resubmit `create`, `release`, or `refund` immediately, avoiding sequence errors and duplicate intents.
+2. **Reconcile via `get_status`**:
+   - If `get_status(escrow_id)` returns `Locked` (1) or `Released` (2), the transaction successfully landed on-chain. The backend reconciles payment status to `CONFIRMED`.
+   - If `get_status(escrow_id)` returns `Refunded` (3), the backend reconciles payment status to `FAILED` (`CONTRACT_REVERTED`).
+   - If `get_status(escrow_id)` returns `Error::NotFound` (1), the transaction did not land. It remains safely in `AWAITING_CONFIRMATION` for the next reconciliation pass.
+
+
 ## Arithmetic Safety (CT-73)
 
 Amount-handling paths must use checked arithmetic (`checked_add` / `checked_sub`) rather than raw `+` / `-`. `revenue_distribution` already does this for its basis-point sum. `payment_escrow` stores a single amount per escrow and performs no arithmetic on it today; when partial releases or batch totals are added they must use the same checked pattern inline.
