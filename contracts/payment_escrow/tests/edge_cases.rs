@@ -115,3 +115,28 @@ fn unauthorized_refund_is_rejected() {
     }]);
     assert!(c.try_refund(&id).is_err());
 }
+
+#[test]
+fn identical_payer_and_beneficiary_is_rejected() {
+    let f = fixture();
+    let c = client(&f);
+    let id = escrow_id(&f, 7);
+    assert_eq!(
+        c.try_create(&id, &f.payer, &f.payer, &100, &f.token),
+        Err(Ok(Error::InvalidParties))
+    );
+}
+
+#[test]
+fn id_reuse_after_release_is_rejected() {
+    let f = fixture();
+    let c = client(&f);
+    let id = escrow_id(&f, 8);
+    c.create(&id, &f.payer, &f.beneficiary, &100, &f.token);
+    c.release(&id);
+    // Attempting to recreate an escrow with the same id must fail with AlreadyExists
+    assert_eq!(
+        c.try_create(&id, &f.payer, &f.beneficiary, &100, &f.token),
+        Err(Ok(Error::AlreadyExists))
+    );
+}

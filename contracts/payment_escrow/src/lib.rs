@@ -74,6 +74,8 @@ pub enum Error {
     AmountExceedsEscrow = 20,
     /// Nothing remains to refund.
     NothingToRefund = 21,
+    /// Payer and beneficiary cannot be the same address.
+    InvalidParties = 22,
 }
 
 #[contract]
@@ -182,6 +184,10 @@ impl PaymentEscrowContract {
 
         if amount <= 0 {
             return Err(Error::InvalidAmount);
+        }
+
+        if payer == beneficiary {
+            return Err(Error::InvalidParties);
         }
 
         if env
