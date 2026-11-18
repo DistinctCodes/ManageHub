@@ -1,4 +1,5 @@
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
+import { QueryFailedError } from 'typeorm';
 import { AuthService } from './auth.service';
 import { UserRole } from './enums/user-role.enum';
 
@@ -46,6 +47,21 @@ describe('AuthService', () => {
 
   it('rejects duplicate registration', async () => {
     users.findOne.mockResolvedValueOnce({ id: 'user-1' });
+
+    await expect(
+      service.register({ email: 'user@example.com', password: 'password123' }),
+    ).rejects.toThrow(ConflictException);
+  });
+
+  it('maps a concurrent duplicate-email insert to 409 instead of a 500', async () => {
+    users.findOne.mockResolvedValueOnce(null);
+    const uniqueViolation = new QueryFailedError(
+      'INSERT INTO "user" ...',
+      [],
+      new Error('duplicate key value violates unique constraint'),
+    );
+    (uniqueViolation as any).code = '23505';
+    users.save.mockRejectedValueOnce(uniqueViolation);
 
     await expect(
       service.register({ email: 'user@example.com', password: 'password123' }),

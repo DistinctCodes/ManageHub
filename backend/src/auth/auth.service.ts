@@ -7,7 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { compare, hash } from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
-import { Repository } from 'typeorm';
+import { QueryFailedError, Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { UserRole } from './enums/user-role.enum';
 import { RegisterDto } from './dto/register.dto';
@@ -41,6 +41,24 @@ function getDummyPasswordHash(): Promise<string> {
   return dummyPasswordHash;
 }
 
+/**
+ * A concurrent registration can pass the findOne check and then collide with
+ * another request's insert on the email unique index (Postgres error 23505).
+ * TypeORM surfaces that as QueryFailedError with the driver code, so treat it
+ * as the same conflict the pre-check would have reported.
+ */
+function isUniqueViolation(error: unknown): boolean {
+  if (!(error instanceof QueryFailedError)) {
+    return false;
+  }
+  const driverError = (
+    error as QueryFailedError & { driverError?: { code?: unknown } }
+  ).driverError;
+  const code =
+    (error as QueryFailedError & { code?: unknown }).code ?? driverError?.code;
+  return code === '23505';
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -63,12 +81,20 @@ export class AuthService {
       throw new ConflictException('Email is already registered');
     }
 
-    const user = await this.users.save(
-      this.users.create({
-        email,
-        passwordHash: await hash(dto.password, BCRYPT_ROUNDS),
-      }),
-    );
+    let user: User;
+    try {
+      user = await this.users.save(
+        this.users.create({
+          email,
+          passwordHash: await hash(dto.password, BCRYPT_ROUNDS),
+        }),
+      );
+    } catch (error: unknown) {
+      if (isUniqueViolation(error)) {
+        throw new ConflictException('Email is already registered');
+      }
+      throw error;
+    }
     return this.issueToken(user);
   }
 
