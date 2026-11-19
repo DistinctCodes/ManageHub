@@ -1,14 +1,18 @@
 #![no_std]
 
+mod events;
+pub mod fuzz_guard;
+
 use soroban_sdk::{
-    contract, contracterror, contractimpl, contractmeta, contracttype, token, Address, BytesN, Env,
+    contract, contracterror, contractimpl, contractmeta, contracttype, symbol_short, token, Address,
+    BytesN, Env,
 };
 
 contractmeta!(key = "name", val = "payment_escrow");
-contractmeta!(key = "interface_version", val = "1");
+contractmeta!(key = "interface_version", val = "2");
 
 /// Interface version reported by `version()`. Bump on any ABI change.
-pub const VERSION: u32 = 1;
+pub const VERSION: u32 = 2;
 
 /// On-chain escrow status codes.
 /// Maps to backend EscrowStatus enum: 0=NotFound, 1=Locked, 2=Released, 3=Refunded.
@@ -119,6 +123,10 @@ impl PaymentEscrowContract {
         env.storage()
             .instance()
             .set(&DataKey::PendingAdmin, &new_admin);
+        env.events().publish(
+            (symbol_short!("admin"), symbol_short!("proposed")),
+            (admin, new_admin),
+        );
         Ok(())
     }
 
@@ -130,8 +138,28 @@ impl PaymentEscrowContract {
             .get(&DataKey::PendingAdmin)
             .ok_or(Error::NoPendingAdmin)?;
         pending.require_auth();
+        let previous = load_admin(&env)?;
         env.storage().instance().set(&DataKey::Admin, &pending);
         env.storage().instance().remove(&DataKey::PendingAdmin);
+        env.events().publish(
+            (symbol_short!("admin"), symbol_short!("changed")),
+            (previous, pending),
+        );
+        Ok(())
+    }
+
+    /// Cancel a pending admin transfer. Current admin only.
+    pub fn cancel_admin_transfer(env: Env) -> Result<(), Error> {
+        let admin = load_admin(&env)?;
+        admin.require_auth();
+        if !env.storage().instance().has(&DataKey::PendingAdmin) {
+            return Err(Error::NoPendingAdmin);
+        }
+        env.storage().instance().remove(&DataKey::PendingAdmin);
+        env.events().publish(
+            (symbol_short!("admin"), symbol_short!("canceled")),
+            admin,
+        );
         Ok(())
     }
 
@@ -180,7 +208,7 @@ impl PaymentEscrowContract {
             return Err(Error::Paused);
         }
 
-        if amount <= 0 {
+        if !fuzz_guard::is_valid_amount(amount) {
             return Err(Error::InvalidAmount);
         }
 
@@ -196,8 +224,8 @@ impl PaymentEscrowContract {
         token::Client::new(&env, &token).transfer(&payer, &env.current_contract_address(), &amount);
 
         let escrow = Escrow {
-            payer,
-            beneficiary,
+            payer: payer.clone(),
+            beneficiary: beneficiary.clone(),
             token,
             amount,
             released: 0,
@@ -206,7 +234,8 @@ impl PaymentEscrowContract {
 
         env.storage()
             .persistent()
-            .set(&DataKey::Escrow(escrow_id), &escrow);
+            .set(&DataKey::Escrow(escrow_id.clone()), &escrow);
+        events::emit_created(&env, &escrow_id, &payer, &beneficiary);
         Ok(())
     }
 
@@ -241,7 +270,8 @@ impl PaymentEscrowContract {
         escrow.state = EscrowState::Released;
         env.storage()
             .persistent()
-            .set(&DataKey::Escrow(escrow_id), &escrow);
+            .set(&DataKey::Escrow(escrow_id.clone()), &escrow);
+        events::emit_released(&env, &escrow_id, &escrow.beneficiary);
         Ok(())
     }
 
@@ -262,7 +292,7 @@ impl PaymentEscrowContract {
         if escrow.state != EscrowState::Locked {
             return Err(Error::AlreadyResolved);
         }
-        if amount <= 0 {
+        if !fuzz_guard::is_valid_amount(amount) {
             return Err(Error::InvalidAmount);
         }
         let released = escrow
@@ -284,7 +314,8 @@ impl PaymentEscrowContract {
         }
         env.storage()
             .persistent()
-            .set(&DataKey::Escrow(escrow_id), &escrow);
+            .set(&DataKey::Escrow(escrow_id.clone()), &escrow);
+        events::emit_partial_release(&env, &escrow_id, &escrow.beneficiary, amount);
         Ok(())
     }
 
@@ -319,7 +350,8 @@ impl PaymentEscrowContract {
         escrow.state = EscrowState::Refunded;
         env.storage()
             .persistent()
-            .set(&DataKey::Escrow(escrow_id), &escrow);
+            .set(&DataKey::Escrow(escrow_id.clone()), &escrow);
+        events::emit_refunded(&env, &escrow_id, &escrow.beneficiary);
         Ok(remaining)
     }
 
@@ -353,7 +385,8 @@ impl PaymentEscrowContract {
         escrow.state = EscrowState::Refunded;
         env.storage()
             .persistent()
-            .set(&DataKey::Escrow(escrow_id), &escrow);
+            .set(&DataKey::Escrow(escrow_id.clone()), &escrow);
+        events::emit_refunded(&env, &escrow_id, &escrow.beneficiary);
         Ok(())
     }
 
@@ -583,7 +616,7 @@ mod partial_release_test {
 
 #[cfg(test)]
 mod model_test {
-    use super::*;
+    use super::{fuzz_guard, *};
     use proptest::prelude::*;
     use soroban_sdk::testutils::Address as _;
 
@@ -645,6 +678,7 @@ mod model_test {
                 match op {
                     Op::Create(i, a) => {
                         let id = BytesN::from_array(&env, &[i; 32]);
+                        prop_assert!(fuzz_guard::is_valid_amount(a));
                         let r = client.try_create(&id, &payer, &ben, &a, &token);
                         if model[i as usize].is_some() {
                             prop_assert!(matches!(r, Err(Ok(Error::AlreadyExists))));
@@ -683,6 +717,7 @@ mod model_test {
                     }
                     Op::Partial(i, amt) => {
                         let id = BytesN::from_array(&env, &[i; 32]);
+                        prop_assert!(fuzz_guard::checked_amount(amt).is_some());
                         let r = client.try_release_partial(&id, &amt);
                         match model[i as usize] {
                             None => prop_assert!(matches!(r, Err(Ok(Error::NotFound)))),
@@ -792,5 +827,18 @@ mod admin_test {
         client.propose_admin(&next);
         client.accept_admin();
         client.pause();
+    }
+
+    #[test]
+    fn admin_transfer_can_be_canceled() {
+        let (env, client, _admin) = setup();
+        let next = Address::generate(&env);
+        client.propose_admin(&next);
+        client.cancel_admin_transfer();
+        assert_eq!(client.try_accept_admin(), Err(Ok(Error::NoPendingAdmin)));
+        assert_eq!(
+            client.try_cancel_admin_transfer(),
+            Err(Ok(Error::NoPendingAdmin))
+        );
     }
 }

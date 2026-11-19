@@ -1,15 +1,20 @@
 #![no_std]
 
+#[allow(dead_code)]
+mod beneficiary_limit;
+#[allow(dead_code)]
+mod beneficiary_validation;
+
 use soroban_sdk::{
-    contract, contracterror, contractimpl, contractmeta, contracttype, token, Address, Env, Symbol,
-    Vec,
+    contract, contracterror, contractimpl, contractmeta, contracttype, symbol_short, token, Address,
+    Env, Symbol, Vec,
 };
 
 contractmeta!(key = "name", val = "revenue_distribution");
-contractmeta!(key = "interface_version", val = "1");
+contractmeta!(key = "interface_version", val = "2");
 
 /// Interface version reported by `version()`. Bump on any ABI change.
-pub const VERSION: u32 = 1;
+pub const VERSION: u32 = 2;
 
 /// Total basis points a valid configuration must sum to (100.00%).
 /// Mirrors the off-chain `TOTAL_BASIS_POINTS` constant and the
@@ -38,7 +43,6 @@ pub struct Recipient {
 #[derive(Clone, Debug)]
 pub struct RevenueConfig {
     pub recipients: Vec<Recipient>,
-    pub admin: Address,
 }
 
 #[contracttype]
@@ -47,6 +51,7 @@ pub enum DataKey {
     Admin,
     PendingAdmin,
     ConfigVersion,
+    PaymentToken(Address),
 }
 
 #[contracterror]
@@ -72,6 +77,8 @@ pub enum Error {
     InvalidShare = 6,
     /// The amount to distribute must be positive.
     InvalidAmount = 7,
+    /// Token is not in the admin-managed allow-list.
+    TokenNotAllowed = 8,
 }
 
 #[contract]
@@ -167,6 +174,10 @@ impl RevenueDistributionContract {
         env.storage()
             .instance()
             .set(&DataKey::PendingAdmin, &new_admin);
+        env.events().publish(
+            (symbol_short!("admin"), symbol_short!("proposed")),
+            (admin, new_admin),
+        );
         Ok(())
     }
 
@@ -178,9 +189,63 @@ impl RevenueDistributionContract {
             .get(&DataKey::PendingAdmin)
             .ok_or(Error::NoPendingAdmin)?;
         pending.require_auth();
+        let previous: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(Error::NotInitialized)?;
         env.storage().instance().set(&DataKey::Admin, &pending);
         env.storage().instance().remove(&DataKey::PendingAdmin);
+        env.events().publish(
+            (symbol_short!("admin"), symbol_short!("changed")),
+            (previous, pending),
+        );
         Ok(())
+    }
+
+    /// Cancel a pending admin transfer. Current admin only.
+    pub fn cancel_admin_transfer(env: Env) -> Result<(), Error> {
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(Error::NotInitialized)?;
+        admin.require_auth();
+        if !env.storage().instance().has(&DataKey::PendingAdmin) {
+            return Err(Error::NoPendingAdmin);
+        }
+        env.storage().instance().remove(&DataKey::PendingAdmin);
+        env.events().publish(
+            (symbol_short!("admin"), symbol_short!("canceled")),
+            admin,
+        );
+        Ok(())
+    }
+
+    /// Manage the allow-list of tokens accepted by `distribute`.
+    pub fn set_payment_token(env: Env, token: Address, allowed: bool) -> Result<(), Error> {
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(Error::NotInitialized)?;
+        admin.require_auth();
+        if allowed {
+            env.storage()
+                .instance()
+                .set(&DataKey::PaymentToken(token), &true);
+        } else {
+            env.storage().instance().remove(&DataKey::PaymentToken(token));
+        }
+        Ok(())
+    }
+
+    /// Return the current admin address.
+    pub fn get_admin(env: Env) -> Result<Address, Error> {
+        env.storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(Error::NotInitialized)
     }
 
     /// Set the distribution configuration.
@@ -228,10 +293,7 @@ impl RevenueDistributionContract {
             .unwrap_or(0);
         let version = previous.checked_add(1).ok_or(Error::ArithmeticOverflow)?;
 
-        let config = RevenueConfig {
-            recipients,
-            admin: stored,
-        };
+        let config = RevenueConfig { recipients };
         env.storage().persistent().set(&DataKey::Config, &config);
         env.storage()
             .persistent()
@@ -275,6 +337,14 @@ impl RevenueDistributionContract {
         from.require_auth();
         if amount <= 0 {
             return Err(Error::InvalidAmount);
+        }
+        if !env
+            .storage()
+            .instance()
+            .get::<_, bool>(&DataKey::PaymentToken(token.clone()))
+            .unwrap_or(false)
+        {
+            return Err(Error::TokenNotAllowed);
         }
         let config: RevenueConfig = env
             .storage()
@@ -387,6 +457,7 @@ mod test {
         let sac = env.register_stellar_asset_contract_v2(token_admin);
         let token_addr = sac.address();
         token::StellarAssetClient::new(&env, &token_addr).mint(&payer, &1_000);
+        client.set_payment_token(&token_addr, &true);
 
         let shares = client.distribute(&token_addr, &payer, &1_000);
         assert_eq!(shares, vec![&env, 250i128, 750i128]);
@@ -394,6 +465,24 @@ mod test {
         assert_eq!(t.balance(&r.get(0).unwrap().address), 250);
         assert_eq!(t.balance(&r.get(1).unwrap().address), 750);
         assert_eq!(t.balance(&payer), 0);
+    }
+
+    #[test]
+    fn distribute_rejects_unapproved_token() {
+        let (env, client, admin) = setup();
+        let r = recipients(&env, &[10_000]);
+        client.configure(&admin, &r);
+
+        let payer = Address::generate(&env);
+        let token_addr = env
+            .register_stellar_asset_contract_v2(Address::generate(&env))
+            .address();
+        token::StellarAssetClient::new(&env, &token_addr).mint(&payer, &1_000);
+
+        assert_eq!(
+            client.try_distribute(&token_addr, &payer, &1_000),
+            Err(Ok(Error::TokenNotAllowed))
+        );
     }
 }
 
@@ -463,6 +552,21 @@ mod admin_test {
             Err(Ok(Error::Unauthorized))
         );
         client.configure(&next, &split(&env));
+        assert_eq!(client.get_admin(), next);
+    }
+
+    #[test]
+    fn admin_transfer_can_be_canceled() {
+        let (env, client, admin) = setup();
+        let next = Address::generate(&env);
+        client.propose_admin(&next);
+        client.cancel_admin_transfer();
+        assert_eq!(client.try_accept_admin(), Err(Ok(Error::NoPendingAdmin)));
+        assert_eq!(
+            client.try_cancel_admin_transfer(),
+            Err(Ok(Error::NoPendingAdmin))
+        );
+        client.configure(&admin, &split(&env));
     }
 
     #[test]
