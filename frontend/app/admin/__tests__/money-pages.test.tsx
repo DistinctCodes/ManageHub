@@ -19,6 +19,16 @@ const mocks = vi.hoisted(() => ({
     executeBatch: vi.fn(),
     retryBatch: vi.fn(),
     abandonBatch: vi.fn(),
+    checkIntegrity: vi.fn(),
+    listPayments: vi.fn(),
+    getPaymentCreditApplication: vi.fn(),
+    attachSplitConfig: vi.fn(),
+    attachSplitConfigToPayment: vi.fn(),
+    getKeyRotationStatus: vi.fn(),
+    rotateKeys: vi.fn(),
+    rotateWalletKeys: vi.fn(),
+    getReconciliationMetrics: vi.fn(),
+    listReconciliationRuns: vi.fn(),
   },
   payments: {
     chargeCredits: vi.fn(),
@@ -126,6 +136,19 @@ function payment(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function creditApplication(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "application-1",
+    paymentId: "payment-1",
+    kind: "REVENUE_SPLIT",
+    splitConfigId: "split-1",
+    ledgerTransactionId: "txn-1",
+    appliedAt: null,
+    lastError: null,
+    ...overrides,
+  };
+}
+
 function split(overrides: Record<string, unknown> = {}) {
   return {
     id: "split-1",
@@ -219,6 +242,42 @@ beforeEach(() => {
   mocks.admin.executeBatch.mockResolvedValue(batch());
   mocks.admin.retryBatch.mockResolvedValue(batch({ status: "IN_PROGRESS" }));
   mocks.admin.abandonBatch.mockResolvedValue(batch({ status: "ABANDONED" }));
+  mocks.admin.checkIntegrity.mockResolvedValue({
+    accountsChecked: 2,
+    balanceDrift: [],
+    unbalancedTransactions: [],
+  });
+  mocks.admin.listPayments.mockImplementation(
+    async (filters: { offset?: number; limit?: number } = {}) => {
+      const items = [payment()];
+      const offset = filters.offset ?? 0;
+      const limit = filters.limit ?? 25;
+      return { items: items.slice(offset, offset + limit), total: items.length };
+    },
+  );
+  mocks.admin.getPaymentCreditApplication.mockResolvedValue(null);
+  mocks.admin.attachSplitConfig.mockResolvedValue(creditApplication());
+  mocks.admin.attachSplitConfigToPayment.mockResolvedValue(creditApplication());
+  mocks.admin.getKeyRotationStatus.mockResolvedValue({
+    activeKeyId: "local-master-key-v1",
+    configuredKeyIds: ["local-master-key-v1"],
+    keys: [{ keyId: "local-master-key-v1", count: 1 }],
+  });
+  const rotationSummary = {
+    fromKeyId: "local-master-key-v1",
+    toKeyId: "local-master-key-v2",
+    rotated: 1,
+    failed: 0,
+    remaining: 0,
+  };
+  mocks.admin.rotateKeys.mockResolvedValue(rotationSummary);
+  mocks.admin.rotateWalletKeys.mockResolvedValue(rotationSummary);
+  mocks.admin.getReconciliationMetrics.mockResolvedValue({
+    manualReviewQueueDepth: 0,
+    alertThreshold: 5,
+    alerting: false,
+  });
+  mocks.admin.listReconciliationRuns.mockResolvedValue([]);
   mocks.payments.chargeCredits.mockResolvedValue({
     transaction: { id: "txn-1", kind: "CHARGE", reference: "ref-1", currency: "USD", amount: 500, description: null, createdAt: "2025-01-01T00:00:00.000Z" },
     posted: true,

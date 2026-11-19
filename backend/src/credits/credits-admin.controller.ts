@@ -446,6 +446,28 @@ export class CreditsAdminController {
     return PaymentCreditApplicationResponseDto.fromEntity(application);
   }
 
+  @Get('payments/:paymentId/credit-application')
+  @ApiParam({ name: 'paymentId', type: String, format: 'uuid' })
+  @ApiOperation({
+    summary: 'Get the credit application attached to a payment',
+    description:
+      'Null until a config or top-up is attached. `appliedAt` is the cut-off ' +
+      'after which the application can no longer be changed.',
+  })
+  @ApiResponse({
+    status: 200,
+    type: PaymentCreditApplicationResponseDto,
+    nullable: true,
+  })
+  async getPaymentCreditApplication(
+    @Param('paymentId', ParseUUIDPipe) paymentId: string,
+  ): Promise<PaymentCreditApplicationResponseDto | null> {
+    const application = await this.paymentCredits.getApplication(paymentId);
+    return application
+      ? PaymentCreditApplicationResponseDto.fromEntity(application)
+      : null;
+  }
+
   @Post('payments/:paymentId/top-up')
   @ApiParam({ name: 'paymentId', type: String, format: 'uuid' })
   @ApiOperation({

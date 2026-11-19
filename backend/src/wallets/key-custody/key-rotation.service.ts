@@ -32,6 +32,12 @@ export interface KeyRotationSummary {
   remaining: number;
 }
 
+export interface KeyRotationStatus {
+  activeKeyId: string;
+  configuredKeyIds: string[];
+  keys: Array<{ keyId: string; count: number }>;
+}
+
 /**
  * Admin-only, resumable re-wrap of custodial data keys from an old KEK to
  * a new one (issue #1945).
@@ -57,6 +63,21 @@ export class KeyRotationService {
     private readonly metrics: MetricsService,
     private readonly config: ConfigService,
   ) {}
+
+  async getStatus(): Promise<KeyRotationStatus> {
+    const rows = await this.materialRepository.find({
+      select: { kmsKeyId: true },
+    });
+    const counts = new Map<string, number>();
+    for (const row of rows) {
+      counts.set(row.kmsKeyId, (counts.get(row.kmsKeyId) ?? 0) + 1);
+    }
+    return {
+      activeKeyId: this.kms.getActiveKeyId(),
+      configuredKeyIds: this.kms.getConfiguredKeyIds(),
+      keys: [...counts.entries()].map(([keyId, count]) => ({ keyId, count })),
+    };
+  }
 
   async rotate(input: RotateKeysInput): Promise<KeyRotationSummary> {
     if (input.fromKeyId === input.toKeyId) {

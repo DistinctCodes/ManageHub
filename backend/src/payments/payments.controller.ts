@@ -5,6 +5,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -21,6 +22,8 @@ import { PaymentConfirmationService } from './payment-confirmation.service';
 import { InitiatePaymentDto } from './dto/initiate-payment.dto';
 import { PaymentResponseDto } from './dto/payment-response.dto';
 import { VerifyReturnResponseDto } from './dto/verify-return-response.dto';
+import { ListPaymentsQueryDto } from './dto/list-payments-query.dto';
+import { PaymentPageResponseDto } from './dto/payment-page-response.dto';
 import { Throttle } from '@nestjs/throttler';
 import { withSpan } from '../common/tracing';
 import { IdempotencyKey } from './idempotency-key.decorator';
@@ -79,13 +82,34 @@ export class PaymentsController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'List payments (own for users, all for admins)' })
-  @ApiResponse({ status: 200, type: [PaymentResponseDto] })
+  @ApiOperation({
+    summary: 'List payments (own for users, all for admins)',
+    description:
+      'Without query parameters this returns the full legacy array. Admins ' +
+      'can filter by id / user / booking / status / date and pass limit + ' +
+      'offset to receive a bounded `{ items, total }` page.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'An array without filters, or a page when filters are given',
+    type: PaymentPageResponseDto,
+  })
   async findAll(
     @CurrentUser() currentUser: RequestUser,
-  ): Promise<PaymentResponseDto[]> {
-    const payments = await this.paymentsService.findAll(currentUser);
-    return payments.map((payment) => PaymentResponseDto.fromEntity(payment));
+    @Query() query: ListPaymentsQueryDto = new ListPaymentsQueryDto(),
+  ): Promise<PaymentResponseDto[] | PaymentPageResponseDto> {
+    const hasQuery = Object.values(query).some(
+      (value) => value !== undefined && value !== '',
+    );
+    if (!hasQuery) {
+      const payments = await this.paymentsService.findAll(currentUser);
+      return payments.map((payment) => PaymentResponseDto.fromEntity(payment));
+    }
+    const page = await this.paymentsService.findAll(currentUser, query);
+    return {
+      items: page.items.map((payment) => PaymentResponseDto.fromEntity(payment)),
+      total: page.total,
+    };
   }
 
   @Post(':id/verify-return')

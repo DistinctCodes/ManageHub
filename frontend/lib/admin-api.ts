@@ -81,6 +81,18 @@ export interface RevenueSplitConfig {
   createdAt: string;
 }
 
+export type PaymentCreditApplicationKind = "TOP_UP" | "REVENUE_SPLIT";
+
+export interface PaymentCreditApplication {
+  id: string;
+  paymentId: string;
+  kind: PaymentCreditApplicationKind;
+  splitConfigId: string | null;
+  ledgerTransactionId: string | null;
+  appliedAt: string | null;
+  lastError: string | null;
+}
+
 export interface SplitRecipientInput {
   label: string;
   basisPoints: number;
@@ -130,6 +142,27 @@ export interface SettlementPayout {
   attempts: number;
   lastError: string | null;
   confirmedAt: string | null;
+}
+
+export interface KeyRotationStatus {
+  activeKeyId: string;
+  configuredKeyIds: string[];
+  keys: Array<{ keyId: string; count: number }>;
+}
+
+export interface KeyRotationSummary {
+  fromKeyId: string;
+  toKeyId: string;
+  rotated: number;
+  failed: number;
+  remaining: number;
+}
+
+export interface RotateKeysInput {
+  fromKeyId: string;
+  toKeyId: string;
+  batchSize?: number;
+  maxBatches?: number;
 }
 
 export interface LedgerEntry {
@@ -300,3 +333,50 @@ export function abandonBatch(
     { method: "POST", body: JSON.stringify({ reason }) },
   );
 }
+
+export function getPaymentCreditApplication(
+  paymentId: string,
+): Promise<PaymentCreditApplication | null> {
+  return adminFetch<PaymentCreditApplication | null>(
+    `/credits/admin/payments/${paymentId}/credit-application`,
+  );
+}
+
+export function attachSplitConfig(
+  paymentId: string,
+  splitConfigId: string,
+): Promise<PaymentCreditApplication> {
+  return adminFetch<PaymentCreditApplication>(
+    `/credits/admin/payments/${paymentId}/split-config`,
+    { method: "POST", body: JSON.stringify({ splitConfigId }) },
+  );
+}
+
+export const attachSplitConfigToPayment = attachSplitConfig;
+
+export function getKeyRotationStatus(): Promise<KeyRotationStatus> {
+  return adminFetch<KeyRotationStatus>("/wallets/admin/key-rotation");
+}
+
+export function rotateKeys(
+  input: RotateKeysInput,
+): Promise<KeyRotationSummary> {
+  return adminFetch<KeyRotationSummary>("/wallets/admin/key-rotation", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export const rotateWalletKeys = rotateKeys;
+
+export {
+  listPayments,
+  getReconciliationMetrics,
+  listReconciliationRuns,
+} from "@/lib/payments-api";
+export type {
+  PaymentPage,
+  PaymentListFilters,
+  ReconciliationMetrics,
+  ReconciliationRun,
+} from "@/lib/payments-api";

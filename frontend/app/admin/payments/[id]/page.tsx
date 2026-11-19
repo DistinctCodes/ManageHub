@@ -10,6 +10,7 @@ import {
   CheckCircle,
   XCircle,
   AlertTriangle,
+  Split,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -19,11 +20,18 @@ import {
   voidPayment,
 } from "@/lib/payments-api";
 import {
+  attachSplitConfig,
+  getPaymentCreditApplication,
+  listSplits,
+} from "@/lib/admin-api";
+import {
   Card,
   CardHeader,
   Badge,
   StatusBadge,
   Button,
+  Field,
+  inputClass,
 } from "@/components/admin/ui";
 import { RequireAdmin } from "@/components/admin/require-admin";
 
@@ -116,6 +124,7 @@ function PaymentDetailInner() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [pendingAction, setPendingAction] = useState<Action>(null);
+  const [selectedSplitId, setSelectedSplitId] = useState("");
 
   const {
     data: payment,
@@ -124,6 +133,26 @@ function PaymentDetailInner() {
   } = useQuery({
     queryKey: ["payment", id],
     queryFn: () => getPayment(id),
+  });
+
+  const application = useQuery({
+    queryKey: ["payment-credit-application", id],
+    queryFn: () => getPaymentCreditApplication(id),
+  });
+  const splits = useQuery({
+    queryKey: ["admin-splits"],
+    queryFn: () => listSplits(),
+  });
+
+  const attach = useMutation({
+    mutationFn: (splitConfigId: string) => attachSplitConfig(id, splitConfigId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["payment-credit-application", id],
+      });
+      toast.success("Revenue split config attached.");
+    },
+    onError: (err) => toast.error((err as Error).message),
   });
 
   const invalidate = () => {
@@ -262,7 +291,7 @@ function PaymentDetailInner() {
             href="/admin/payments"
             className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400"
           >
-            ← Review queue
+            ← Payments
           </Link>
         </div>
 
@@ -281,6 +310,97 @@ function PaymentDetailInner() {
               </div>
             ))}
           </dl>
+        </Card>
+
+        <Card>
+          <CardHeader
+            title="Credit application"
+            description="How this payment is applied to the credit ledger once confirmed."
+          />
+          <div className="space-y-4 px-5 py-5">
+            {application.isLoading ? (
+              <p className="text-sm text-gray-500">Loading credit application…</p>
+            ) : application.error ? (
+              <p className="text-sm text-red-600 dark:text-red-400">
+                {(application.error as Error).message}
+              </p>
+            ) : application.data ? (
+              <dl className="divide-y divide-gray-100 dark:divide-gray-800">
+                <ApplicationRow label="Kind" value={application.data.kind} />
+                <ApplicationRow
+                  label="Split config"
+                  value={
+                    splits.data?.find(
+                      (config) => config.id === application.data?.splitConfigId,
+                    )?.name ?? application.data.splitConfigId ?? "—"
+                  }
+                />
+                <ApplicationRow
+                  label="Ledger transaction"
+                  value={application.data.ledgerTransactionId ?? "—"}
+                />
+                <ApplicationRow
+                  label="Applied"
+                  value={
+                    application.data.appliedAt
+                      ? new Date(application.data.appliedAt).toLocaleString()
+                      : "Not yet applied"
+                  }
+                />
+                {application.data.lastError ? (
+                  <ApplicationRow label="Last error" value={application.data.lastError} />
+                ) : null}
+              </dl>
+            ) : (
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                No credit application attached yet.
+              </p>
+            )}
+
+            {application.data?.appliedAt ? (
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                This payment has been applied to the ledger — its split config
+                can no longer be changed.
+              </p>
+            ) : (
+              <div className="space-y-3 border-t border-gray-200 pt-4 dark:border-gray-800">
+                <div className="flex items-center gap-2">
+                  <Split className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm font-medium text-gray-900 dark:text-gray-50">
+                    Attach a revenue split config
+                  </span>
+                </div>
+                <Field label="Revenue split config">
+                  <select
+                    id="split-config"
+                    className={inputClass}
+                    value={selectedSplitId}
+                    onChange={(event) => setSelectedSplitId(event.target.value)}
+                    disabled={splits.isLoading || attach.isPending}
+                  >
+                    <option value="">Select a config…</option>
+                    {(splits.data ?? []).map((config) => (
+                      <option key={config.id} value={config.id}>
+                        {config.name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                {splits.error ? (
+                  <p className="text-sm text-red-600 dark:text-red-400">
+                    {(splits.error as Error).message}
+                  </p>
+                ) : null}
+                <Button
+                  type="button"
+                  onClick={() => attach.mutate(selectedSplitId)}
+                  disabled={!selectedSplitId || attach.isPending}
+                >
+                  Attach split config
+                </Button>
+              </div>
+            )}
+          </div>
         </Card>
 
         <Card>
@@ -320,5 +440,24 @@ function PaymentDetailInner() {
         </Card>
       </div>
     </>
+  );
+}
+
+function ApplicationRow({
+  label,
+  value,
+}: {
+  label: string;
+  value: React.ReactNode;
+}) {
+  return (
+    <div className="flex px-1 py-2 text-sm">
+      <dt className="w-44 shrink-0 font-medium text-gray-500 dark:text-gray-400">
+        {label}
+      </dt>
+      <dd className="font-mono text-xs text-gray-900 dark:text-gray-50">
+        {value}
+      </dd>
+    </div>
   );
 }
