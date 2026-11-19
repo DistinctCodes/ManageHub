@@ -17,6 +17,12 @@ import {
   inputClass,
 } from "@/components/admin/ui";
 import { RequireAdmin } from "@/components/admin/require-admin";
+import {
+  LedgerAccountPicker,
+  accountLabel,
+} from "@/components/admin/entity-pickers";
+
+type RecipientDraft = SplitRecipientInput & { accountLabel?: string };
 
 export default function SplitsPage() {
   return (
@@ -115,15 +121,21 @@ function CreateSplitForm({ onDone }: { onDone: () => void }) {
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [recipients, setRecipients] = useState<SplitRecipientInput[]>([]);
+  const [recipients, setRecipients] = useState<RecipientDraft[]>([]);
 
   const addRecipient = () =>
     setRecipients((r) => [
       ...r,
-      { label: "", basisPoints: 0, accountId: "", externalAddress: "" },
+      {
+        label: "",
+        basisPoints: 0,
+        accountId: "",
+        accountLabel: "",
+        externalAddress: "",
+      },
     ]);
 
-  const updateRecipient = (idx: number, patch: Partial<SplitRecipientInput>) =>
+  const updateRecipient = (idx: number, patch: Partial<RecipientDraft>) =>
     setRecipients((r) =>
       r.map((rec, i) => (i === idx ? { ...rec, ...patch } : rec)),
     );
@@ -212,17 +224,30 @@ function CreateSplitForm({ onDone }: { onDone: () => void }) {
                 }
                 required
               />
-              <input
-                className={`${inputClass} sm:col-span-3`}
-                placeholder="Account ID (uuid)"
-                value={rec.accountId ?? ""}
-                onChange={(e) => updateRecipient(idx, { accountId: e.target.value })}
-              />
+              <div className="sm:col-span-3">
+                <LedgerAccountPicker
+                  value={rec.accountId ?? ""}
+                  selectedLabel={rec.accountLabel ?? null}
+                  onSelect={(account) =>
+                    updateRecipient(idx, {
+                      accountId: account.id,
+                      accountLabel: accountLabel(account),
+                      externalAddress: "",
+                    })
+                  }
+                />
+              </div>
               <input
                 className={`${inputClass} sm:col-span-3`}
                 placeholder="Or external address"
                 value={rec.externalAddress ?? ""}
-                onChange={(e) => updateRecipient(idx, { externalAddress: e.target.value })}
+                onChange={(e) =>
+                  updateRecipient(idx, {
+                    externalAddress: e.target.value,
+                    accountId: "",
+                    accountLabel: "",
+                  })
+                }
               />
               <button
                 type="button"

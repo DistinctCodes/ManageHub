@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -11,6 +12,7 @@ import {
 import {
   ApiBearerAuth,
   ApiOperation,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -30,11 +32,35 @@ import { RecordMeteredUsageDto } from './dto/record-metered-usage.dto';
 import {
   ChargeCreditsResponseDto,
   CreditBalanceResponseDto,
+  LedgerAccountResponseDto,
   LedgerEntryResponseDto,
   LedgerTransactionResponseDto,
   MeteredUsageResponseDto,
   PaymentCreditApplicationResponseDto,
 } from './dto/credits-response.dto';
+
+interface CreditStatementPage {
+  entries: LedgerEntryResponseDto[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+function parsePositiveInt(
+  value: string | undefined,
+  fallback: number,
+  name: string,
+  max: number,
+): number {
+  if (value === undefined || value === '') {
+    return fallback;
+  }
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new BadRequestException(`${name} must be a positive integer`);
+  }
+  return Math.min(parsed, max);
+}
 
 @ApiTags('credits')
 @ApiBearerAuth()
@@ -121,6 +147,18 @@ export class CreditsController {
     return MeteredUsageResponseDto.fromEntity(event, charged);
   }
 
+  @Get('accounts')
+  @ApiOperation({ summary: 'Your own credit accounts' })
+  @ApiResponse({ status: 200, type: [LedgerAccountResponseDto] })
+  async myAccounts(
+    @CurrentUser() currentUser: RequestUser,
+  ): Promise<LedgerAccountResponseDto[]> {
+    const accounts = await this.ledger.listAccountsForOwner(currentUser.id);
+    return accounts.map((account) =>
+      LedgerAccountResponseDto.fromEntity(account),
+    );
+  }
+
   @Get('balance')
   @ApiOperation({ summary: 'Your own credit balance' })
   @ApiResponse({ status: 200, type: CreditBalanceResponseDto })
@@ -139,17 +177,35 @@ export class CreditsController {
       'The append-only movements behind the balance — every charge, top-up ' +
       'and adjustment, with nothing ever edited or deleted.',
   })
-  @ApiResponse({ status: 200, type: [LedgerEntryResponseDto] })
+  @ApiQuery({ name: 'currency', required: false, type: String })
+  @ApiQuery({ name: 'page', required: false, type: Number })
+  @ApiQuery({ name: 'pageSize', required: false, type: Number })
+  @ApiResponse({ status: 200, description: 'A page of ledger entries' })
   async myStatement(
     @CurrentUser() currentUser: RequestUser,
     @Query('currency') currency?: string,
-  ): Promise<LedgerEntryResponseDto[]> {
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+  ): Promise<CreditStatementPage> {
+    const pageNumber = parsePositiveInt(page, 1, 'page', 100000);
+    const size = parsePositiveInt(pageSize, 20, 'pageSize', 100);
     const view = await this.credits.getBalance(currentUser.id, currency);
     if (!view.accountId) {
-      return [];
+      return { entries: [], total: 0, page: pageNumber, pageSize: size };
     }
-    const entries = await this.ledger.listEntries(view.accountId);
-    return entries.map((entry) => LedgerEntryResponseDto.fromEntity(entry));
+    const result = await this.ledger.listEntriesPage(
+      view.accountId,
+      pageNumber,
+      size,
+    );
+    return {
+      entries: result.entries.map((entry) =>
+        LedgerEntryResponseDto.fromEntity(entry),
+      ),
+      total: result.total,
+      page: pageNumber,
+      pageSize: size,
+    };
   }
 
   @Get('usage')

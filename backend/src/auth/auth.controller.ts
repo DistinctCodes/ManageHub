@@ -5,6 +5,7 @@ import {
   Param,
   ParseUUIDPipe,
   Patch,
+  Query,
   Post,
   Res,
   UseGuards,
@@ -57,6 +58,14 @@ export class AuthController {
     const result = await this.authService.login(dto);
     res.cookie('accessToken', result.accessToken, COOKIE_OPTIONS);
     return result;
+  }
+
+  @Get('users/search')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Admin: search users by email' })
+  async searchUsers(@Query('email') email = ''): Promise<AuthUserDto[]> {
+    return this.authService.searchUsers(email);
   }
 
   @Get('me')

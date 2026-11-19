@@ -9,6 +9,16 @@ export interface CreditBalance {
   overdraftLimit: number;
 }
 
+export interface CreditAccount {
+  id: string;
+  currency: string;
+  label: string | null;
+  kind: string;
+  balance: number;
+  overdraftLimit: number;
+  frozen: boolean;
+}
+
 export interface CreditStatementEntry {
   id: string;
   transactionId: string;
@@ -26,6 +36,7 @@ export interface CreditStatement {
   total: number;
   page: number;
   pageSize: number;
+  nextCursor?: string | null;
 }
 
 export interface CreditsApiErrorBody {
@@ -80,15 +91,38 @@ function creditsFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 // -- member credit balance (FE-108) -----------------------------------------------
 
-export function getCreditBalance(): Promise<CreditBalance> {
-  return creditsFetch<CreditBalance>("/credits/balance");
+export function getMyAccounts(): Promise<CreditAccount[]> {
+  return creditsFetch<CreditAccount[]>("/credits/accounts");
 }
 
-export function getCreditStatement(
+export function getCreditBalance(currency?: string): Promise<CreditBalance> {
+  const query = currency
+    ? `?currency=${encodeURIComponent(currency.toUpperCase())}`
+    : "";
+  return creditsFetch<CreditBalance>(`/credits/balance${query}`);
+}
+
+export async function getCreditStatement(
   page = 1,
   pageSize = 20,
+  currency?: string,
 ): Promise<CreditStatement> {
-  return creditsFetch<CreditStatement>(
-    `/credits/statement?page=${page}&pageSize=${pageSize}`,
-  );
+  const params = new URLSearchParams({
+    page: String(page),
+    pageSize: String(pageSize),
+  });
+  if (currency) {
+    params.set("currency", currency.toUpperCase());
+  }
+  const response = await creditsFetch<
+    CreditStatement | CreditStatementEntry[] | null
+  >(`/credits/statement?${params}`);
+
+  if (Array.isArray(response)) {
+    return { entries: response, total: response.length, page, pageSize };
+  }
+  if (response && Array.isArray(response.entries)) {
+    return response;
+  }
+  return { entries: [], total: 0, page, pageSize };
 }

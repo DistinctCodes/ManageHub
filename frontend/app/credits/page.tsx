@@ -6,7 +6,11 @@ import { Wallet, ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight } from "
 import { useSessionBootstrap } from "@/lib/stores/use-session-bootstrap";
 import { useSessionStore } from "@/lib/stores/session-store";
 import { UserMenu } from "@/components/auth/user-menu";
-import { getCreditBalance, getCreditStatement } from "@/lib/credits-api";
+import {
+  getCreditBalance,
+  getCreditStatement,
+  getMyAccounts,
+} from "@/lib/credits-api";
 import type { CreditStatementEntry } from "@/lib/credits-api";
 import { formatCurrency, fromMinorUnits } from "@/lib/utils";
 
@@ -51,24 +55,65 @@ export default function CreditsPage() {
 
 function CreditsInner() {
   const [page, setPage] = useState(1);
+  const [selectedCurrency, setSelectedCurrency] = useState("");
+
+  const accounts = useQuery({
+    queryKey: ["credit-accounts"],
+    queryFn: () =>
+      typeof getMyAccounts === "function" ? getMyAccounts() : Promise.resolve([]),
+  });
+
+  const currencies = Array.from(
+    new Set((accounts.data ?? []).map((account) => account.currency)),
+  ).sort();
+  const currency =
+    selectedCurrency && currencies.includes(selectedCurrency)
+      ? selectedCurrency
+      : (currencies[0] ?? "");
 
   const balance = useQuery({
-    queryKey: ["credit-balance"],
-    queryFn: () => getCreditBalance(),
+    queryKey: ["credit-balance", currency || null],
+    queryFn: () => getCreditBalance(currency || undefined),
+    enabled: !accounts.isLoading,
   });
 
   const statement = useQuery({
-    queryKey: ["credit-statement", page],
-    queryFn: () => getCreditStatement(page, PAGE_SIZE),
+    queryKey: ["credit-statement", page, currency || null],
+    queryFn: () => getCreditStatement(page, PAGE_SIZE, currency || undefined),
+    enabled: !accounts.isLoading,
   });
 
+  const entries = statement.data?.entries ?? [];
   const totalPages = statement.data
     ? Math.ceil(statement.data.total / PAGE_SIZE)
     : 1;
 
   return (
     <div className="mx-auto max-w-3xl space-y-8 px-4 py-8">
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-between gap-4">
+        <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+          Currency
+          <select
+            aria-label="Currency"
+            className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-900 shadow-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-50"
+            value={currency}
+            onChange={(event) => {
+              setSelectedCurrency(event.target.value);
+              setPage(1);
+            }}
+            disabled={currencies.length === 0}
+          >
+            {currencies.length === 0 ? (
+              <option value="">No accounts</option>
+            ) : (
+              currencies.map((code) => (
+                <option key={code} value={code}>
+                  {code}
+                </option>
+              ))
+            )}
+          </select>
+        </label>
         <UserMenu />
       </div>
       {/* Balance card */}
@@ -76,29 +121,31 @@ function CreditsInner() {
         <div className="flex items-start justify-between">
           <div>
             <p className="text-sm font-medium text-blue-100">Available balance</p>
-            {balance.isLoading ? (
+            {accounts.isPending || balance.isPending ? (
               <p className="mt-2 text-4xl font-bold tracking-tight">—</p>
             ) : balance.error ? (
               <p className="mt-2 text-sm text-red-300">
                 {(balance.error as Error).message}
               </p>
-            ) : (
+            ) : balance.data ? (
               <>
                 <p className="mt-2 text-4xl font-bold tracking-tight">
-                  {fromMinorUnits(balance.data!.balance, balance.data!.currency).toLocaleString(undefined, {
+                  {fromMinorUnits(balance.data.balance, balance.data.currency).toLocaleString(undefined, {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
                   })}
                   <span className="ml-2 text-xl font-normal text-blue-200">
-                    {balance.data!.currency}
+                    {balance.data.currency}
                   </span>
                 </p>
-                {balance.data!.overdraftLimit > 0 && (
+                {balance.data.overdraftLimit > 0 && (
                   <p className="mt-1 text-xs text-blue-200">
-                    Overdraft limit: {formatMinorAmount(balance.data!.overdraftLimit, balance.data!.currency)}
+                    Overdraft limit: {formatMinorAmount(balance.data.overdraftLimit, balance.data.currency)}
                   </p>
                 )}
               </>
+            ) : (
+              <p className="mt-2 text-4xl font-bold tracking-tight">—</p>
             )}
           </div>
           <Wallet className="h-8 w-8 text-blue-200 opacity-70" />
@@ -119,17 +166,17 @@ function CreditsInner() {
             <p className="px-5 py-8 text-center text-sm text-red-500">
               {(statement.error as Error).message}
             </p>
-          ) : statement.isLoading ? (
+          ) : accounts.isLoading || statement.isLoading ? (
             <p className="px-5 py-8 text-center text-sm text-gray-400">
               Loading…
             </p>
-          ) : (statement.data?.entries.length ?? 0) === 0 ? (
+          ) : entries.length === 0 ? (
             <p className="px-5 py-12 text-center text-sm text-gray-400">
               No transactions yet.
             </p>
           ) : (
             <ul className="divide-y divide-gray-100 dark:divide-gray-800">
-              {statement.data!.entries.map((entry: CreditStatementEntry) => (
+              {entries.map((entry: CreditStatementEntry) => (
                 <li key={entry.id} className="flex items-center gap-4 px-5 py-4">
                   <div
                     className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${

@@ -75,6 +75,42 @@ describe("credits-api", () => {
     });
   });
 
+  it("passes the selected currency to balance and statement queries", async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse(200, { entries: [], total: 0, page: 1, pageSize: 20 }),
+    );
+
+    await getCreditBalance("eur");
+    await getCreditStatement(1, 20, "eur");
+
+    expect(String(fetchMock.mock.calls[0][0])).toContain("/credits/balance?currency=EUR");
+    expect(String(fetchMock.mock.calls[1][0])).toContain(
+      "/credits/statement?page=1&pageSize=20&currency=EUR",
+    );
+  });
+
+  it("normalizes a plain statement array into a page", async () => {
+    const entry = {
+      id: "entry-1",
+      transactionId: "txn-1",
+      direction: "CREDIT",
+      amount: 500,
+      currency: "USD",
+      description: null,
+      kind: "ADJUSTMENT",
+      reference: "ref-1",
+      createdAt: "2026-01-01T00:00:00.000Z",
+    };
+    fetchMock.mockResolvedValue(jsonResponse(200, [entry]));
+
+    await expect(getCreditStatement(1, 20)).resolves.toEqual({
+      entries: [entry],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    });
+  });
+
   it("preserves the statement query parameters", async () => {
     fetchMock.mockResolvedValue(
       jsonResponse(200, { entries: [], total: 0, page: 2, pageSize: 10 }),
