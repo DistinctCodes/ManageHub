@@ -106,6 +106,70 @@ describe("AuthForm registration confirmation", () => {
   });
 });
 
+describe("AuthForm role-aware landing route (issue #2143)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.searchParams = new URLSearchParams();
+  });
+
+  it("sends an admin without a returnTo to /admin", async () => {
+    const user = userEvent.setup();
+    mocks.login.mockResolvedValue({
+      accessToken: "admin-token",
+      user: { id: "admin-1", email: "admin@example.com", role: "admin" },
+    });
+    renderForm("login");
+
+    await user.type(screen.getByLabelText("Email"), "admin@example.com");
+    await user.type(screen.getByLabelText("Password"), "correct-password");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+
+    await waitFor(() => expect(mocks.push).toHaveBeenCalledWith("/admin"));
+  });
+});
+
+describe("AuthForm client-side password policy (issue #2142)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("shows the byte hint and a strength meter when registering", () => {
+    renderForm("register");
+
+    expect(screen.getByText(/at most 72 bytes/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("progressbar", { name: "Password strength" }),
+    ).toBeInTheDocument();
+  });
+
+  it("rejects a password shorter than 8 bytes before calling register", async () => {
+    const user = userEvent.setup();
+    renderForm("register");
+
+    await user.type(screen.getByLabelText("Email"), "person@example.com");
+    await user.type(screen.getByLabelText("Password"), "short");
+    await user.type(screen.getByLabelText("Confirm password"), "short");
+    await user.click(screen.getByRole("button", { name: "Create account" }));
+
+    expect(mocks.register).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent("at least 8 bytes");
+  });
+
+  it("rejects a password longer than 72 bytes before calling register", async () => {
+    const user = userEvent.setup();
+    renderForm("register");
+    const longPassword = "a".repeat(73);
+
+    await user.type(screen.getByLabelText("Email"), "person@example.com");
+    await user.type(screen.getByLabelText("Password"), longPassword);
+    await user.type(screen.getByLabelText("Confirm password"), longPassword);
+    await user.click(screen.getByRole("button", { name: "Create account" }));
+
+    expect(mocks.register).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent("at most 72 bytes");
+  });
+});
+
 describe("AuthForm per-field API errors (issue #1988)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -126,8 +190,8 @@ describe("AuthForm per-field API errors (issue #1988)", () => {
     renderForm("register");
 
     await user.type(screen.getByLabelText("Email"), "not-an-email");
-    await user.type(screen.getByLabelText("Password"), "short");
-    await user.type(screen.getByLabelText("Confirm password"), "short");
+    await user.type(screen.getByLabelText("Password"), "long-enough-password");
+    await user.type(screen.getByLabelText("Confirm password"), "long-enough-password");
     fireEvent.submit(
       screen.getByRole("button", { name: "Create account" }).closest("form")!,
     );

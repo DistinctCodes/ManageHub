@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import robots from "../robots";
+import {
+  authRoutePrefixes,
+  protectedRoutePrefixes,
+} from "@/lib/protected-routes";
 
 // robots() declares MetadataRoute.Robots whose `rules` may be a single rule,
 // an array of rules, or even a plain path string; normalise before checking.
@@ -20,6 +24,23 @@ describe("robots", () => {
 
     expect(disallow).toContain("/admin/");
     expect(disallow).toContain("/components/");
+  });
+
+  it("disallows every protected route, including /credits/", () => {
+    const disallow = disallowedPaths();
+
+    for (const prefix of protectedRoutePrefixes) {
+      expect(disallow).toContain(`${prefix}/`);
+    }
+    expect(disallow).toContain("/credits/");
+  });
+
+  it("disallows every auth route", () => {
+    const disallow = disallowedPaths();
+
+    for (const prefix of authRoutePrefixes) {
+      expect(disallow).toContain(`${prefix}/`);
+    }
   });
 
   it("allows the rest of the site for everyone", () => {

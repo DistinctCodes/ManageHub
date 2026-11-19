@@ -1,8 +1,10 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import PaymentsPage from "../page";
+import { getPayments } from "@/lib/payments-api";
 import { useSessionStore } from "@/lib/stores/session-store";
 
 vi.mock("next/navigation", () => ({
@@ -72,5 +74,46 @@ describe("PaymentsPage with a rejected session after reload (issue #1977)", () =
     renderWithClient(<PaymentsPage />);
 
     expect(screen.getByRole("link", { name: "Sign in" })).toBeInTheDocument();
+  });
+});
+
+describe("PaymentsPage cursor pagination (issue #2144)", () => {
+  it("loads the next page with the cursor returned by the first page", async () => {
+    const user = userEvent.setup();
+    const payment = {
+      id: "pay-1",
+      bookingId: "booking-1",
+      userId: "u1",
+      amount: 1000,
+      currency: "USD",
+      rail: "FIAT",
+      status: "CONFIRMED",
+      provider: null,
+      providerReference: null,
+      expiresAt: null,
+      failureReason: null,
+      reconciliationAttempts: 0,
+      manualReviewReason: null,
+      createdAt: "2026-01-01T10:00:00.000Z",
+      updatedAt: "2026-01-01T10:00:00.000Z",
+    };
+    vi.mocked(getPayments)
+      .mockResolvedValueOnce({ data: [payment as never], nextCursor: "next-page" })
+      .mockResolvedValueOnce({ data: [], nextCursor: null });
+
+    renderWithClient(<PaymentsPage />);
+
+    const loadMore = await screen.findByRole("button", { name: "Load more" });
+    expect(getPayments).toHaveBeenCalled();
+    await user.click(loadMore);
+
+    await waitFor(() =>
+      expect(getPayments).toHaveBeenCalledWith(
+        expect.objectContaining({ cursor: "next-page" }),
+      ),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Load more" })).toBeNull(),
+    );
   });
 });

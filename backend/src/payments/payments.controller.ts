@@ -5,6 +5,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
@@ -20,6 +21,8 @@ import { PaymentsService } from './payments.service';
 import { PaymentConfirmationService } from './payment-confirmation.service';
 import { InitiatePaymentDto } from './dto/initiate-payment.dto';
 import { PaymentResponseDto } from './dto/payment-response.dto';
+import { ListPaymentsQueryDto } from './dto/list-payments-query.dto';
+import { PaymentPageResponseDto } from './dto/payment-page-response.dto';
 import { VerifyReturnResponseDto } from './dto/verify-return-response.dto';
 import { Throttle } from '@nestjs/throttler';
 import { withSpan } from '../common/tracing';
@@ -79,13 +82,30 @@ export class PaymentsController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'List payments (own for users, all for admins)' })
-  @ApiResponse({ status: 200, type: [PaymentResponseDto] })
+  @ApiOperation({
+    summary: 'List one page of payments (own for users, all for admins)',
+    description:
+      'Newest first. `limit` defaults to 25 and is capped at 100. ' +
+      '`status`, `from` and `to` filter the list; `from`/`to` are inclusive ' +
+      'ISO bounds on createdAt. Pass `nextCursor` back as `cursor` to fetch ' +
+      'the next page — it is null on the last page.',
+  })
+  @ApiResponse({ status: 200, type: PaymentPageResponseDto })
   async findAll(
     @CurrentUser() currentUser: RequestUser,
-  ): Promise<PaymentResponseDto[]> {
-    const payments = await this.paymentsService.findAll(currentUser);
-    return payments.map((payment) => PaymentResponseDto.fromEntity(payment));
+    @Query() query: ListPaymentsQueryDto = new ListPaymentsQueryDto(),
+  ): Promise<PaymentPageResponseDto> {
+    const page = await this.paymentsService.findAllPage(currentUser, {
+      limit: query.limit,
+      cursor: query.cursor,
+      status: query.status,
+      from: query.from,
+      to: query.to,
+    });
+    return {
+      data: page.items.map((payment) => PaymentResponseDto.fromEntity(payment)),
+      nextCursor: page.nextCursor,
+    };
   }
 
   @Post(':id/verify-return')

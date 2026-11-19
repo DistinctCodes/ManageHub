@@ -72,6 +72,14 @@ describe("middleware role gate (issue #1973)", () => {
     expect(response.headers.get("location")).toBe("http://localhost/wallet");
   });
 
+  it("redirects authenticated admins away from login to /admin", async () => {
+    verifiedToken("admin");
+    const response = await middleware(requestWithCookie("/login"));
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("http://localhost/admin");
+  });
+
   it("still redirects to /admin/forbidden when the token cannot be verified", async () => {
     vi.mocked(jwtVerify).mockRejectedValue(new Error("bad token"));
 

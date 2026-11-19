@@ -91,6 +91,19 @@ export interface ManualReviewPage {
   total: number;
 }
 
+export interface PaymentPage {
+  data: Payment[];
+  nextCursor: string | null;
+}
+
+export interface GetPaymentsOptions {
+  cursor?: string | null;
+  limit?: number;
+  status?: PaymentStatus | "";
+  from?: string;
+  to?: string;
+}
+
 function apiFetch<T>(
   path: string,
   init?: RequestInit,
@@ -119,8 +132,15 @@ export function initiatePayment(
   }, idempotencyKey);
 }
 
-export function getPayments(): Promise<Payment[]> {
-  return apiFetch<Payment[]>("/payments");
+export function getPayments(options: GetPaymentsOptions = {}): Promise<PaymentPage> {
+  const params = new URLSearchParams();
+  if (options.cursor) params.set("cursor", options.cursor);
+  if (options.limit) params.set("limit", String(options.limit));
+  if (options.status) params.set("status", options.status);
+  if (options.from) params.set("from", options.from);
+  if (options.to) params.set("to", options.to);
+  const query = params.toString();
+  return apiFetch<PaymentPage>(`/payments${query ? `?${query}` : ""}`);
 }
 
 export function getPayment(id: string): Promise<Payment> {

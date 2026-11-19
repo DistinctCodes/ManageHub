@@ -35,6 +35,14 @@ import type { PaymentInitiationResult } from './interfaces/payment-rail-adapter.
 import { createPaymentProviderCircuitBreaker } from './utils/circuit-breaker';
 import type { PaymentProviderCircuitBreaker } from './utils/circuit-breaker';
 import { hashPaymentRequest } from './utils/idempotency-hash';
+import {
+  decodePaymentCursor,
+  encodePaymentCursor,
+  PAYMENT_PAGE_DEFAULT_LIMIT,
+  PAYMENT_PAGE_MAX_LIMIT,
+  PaymentListOptions,
+  PaymentPage,
+} from './payment-cursor.util';
 
 const USER_IDEMPOTENCY_KEY_CONSTRAINT = 'uq_payments_user_id_idempotency_key';
 const BOOKING_NON_TERMINAL_CONSTRAINT = 'uq_payments_booking_id_non_terminal';
@@ -124,6 +132,64 @@ export class PaymentsService {
       return this.paymentRepository.find();
     }
     return this.paymentRepository.find({ where: { userId: currentUser.id } });
+  }
+
+  async findAllPage(
+    currentUser: RequestUser,
+    options: PaymentListOptions = {},
+  ): Promise<PaymentPage<Payment>> {
+    const limit = Math.min(
+      PAYMENT_PAGE_MAX_LIMIT,
+      Math.max(1, options.limit ?? PAYMENT_PAGE_DEFAULT_LIMIT),
+    );
+    const from = options.from ? new Date(options.from) : null;
+    const to = options.to ? new Date(options.to) : null;
+
+    if (from && Number.isNaN(from.getTime())) {
+      throw new BadRequestException('from must be a valid date');
+    }
+    if (to && Number.isNaN(to.getTime())) {
+      throw new BadRequestException('to must be a valid date');
+    }
+    if (from && to && from > to) {
+      throw new BadRequestException('from must not be after to');
+    }
+
+    const query = this.paymentRepository
+      .createQueryBuilder('payment')
+      .orderBy('payment.createdAt', 'DESC')
+      .addOrderBy('payment.id', 'DESC')
+      .take(limit + 1);
+
+    if (currentUser.role !== UserRole.ADMIN) {
+      query.andWhere('payment.userId = :userId', { userId: currentUser.id });
+    }
+    if (options.status) {
+      query.andWhere('payment.status = :status', { status: options.status });
+    }
+    if (from) {
+      query.andWhere('payment.createdAt >= :from', { from });
+    }
+    if (to) {
+      query.andWhere('payment.createdAt <= :to', { to });
+    }
+    if (options.cursor) {
+      const { createdAt, id } = decodePaymentCursor(options.cursor);
+      query.andWhere(
+        '(payment.createdAt, payment.id) < (:cursorCreatedAt, :cursorId)',
+        { cursorCreatedAt: createdAt, cursorId: id },
+      );
+    }
+
+    const rows = await query.getMany();
+    const hasMore = rows.length > limit;
+    const items = hasMore ? rows.slice(0, limit) : rows;
+    const last = items[items.length - 1];
+
+    return {
+      items,
+      nextCursor: hasMore && last ? encodePaymentCursor(last) : null,
+    };
   }
 
   /**

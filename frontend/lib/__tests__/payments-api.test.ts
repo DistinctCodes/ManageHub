@@ -31,13 +31,16 @@ describe("payments-api retries", () => {
   it("retries an idempotent GET once after a network failure", async () => {
     fetchMock
       .mockRejectedValueOnce(new TypeError("Network unavailable"))
-      .mockResolvedValueOnce(jsonResponse(200, []));
+      .mockResolvedValueOnce(jsonResponse(200, { data: [], nextCursor: null }));
 
     const resultPromise = getPayments();
     await Promise.resolve();
     await vi.advanceTimersByTimeAsync(250);
 
-    await expect(resultPromise).resolves.toEqual([]);
+    await expect(resultPromise).resolves.toEqual({
+      data: [],
+      nextCursor: null,
+    });
     expect(fetchMock).toHaveBeenCalledTimes(2);
     const [url, init] = fetchMock.mock.calls[0];
     expect(String(url)).toContain("/payments");
@@ -49,14 +52,41 @@ describe("payments-api retries", () => {
   it("retries a transient server response for an idempotent GET", async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse(503, { message: "Unavailable" }))
-      .mockResolvedValueOnce(jsonResponse(200, []));
+      .mockResolvedValueOnce(jsonResponse(200, { data: [], nextCursor: null }));
 
     const resultPromise = getPayments();
     await Promise.resolve();
     await vi.advanceTimersByTimeAsync(250);
 
-    await expect(resultPromise).resolves.toEqual([]);
+    await expect(resultPromise).resolves.toEqual({
+      data: [],
+      nextCursor: null,
+    });
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("forwards cursor, limit, status and date filters to the paginated endpoint", async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(200, { data: [], nextCursor: null }),
+    );
+
+    await getPayments({
+      cursor: "next-page",
+      limit: 10,
+      status: "CONFIRMED",
+      from: "2026-01-01T00:00:00.000Z",
+      to: "2026-01-31T23:59:59.999Z",
+    });
+
+    const [url] = fetchMock.mock.calls[0];
+    const params = new URLSearchParams(String(url).split("?")[1] ?? "");
+    expect(Object.fromEntries(params.entries())).toEqual({
+      cursor: "next-page",
+      limit: "10",
+      status: "CONFIRMED",
+      from: "2026-01-01T00:00:00.000Z",
+      to: "2026-01-31T23:59:59.999Z",
+    });
   });
 
   it("does not retry a payment mutation", async () => {
