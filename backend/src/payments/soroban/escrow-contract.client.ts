@@ -9,10 +9,14 @@
  * SimulationFailedError) so no call-site changes are required.
  *
  * Contract ABI (from contracts/payment_escrow/src/lib.rs):
- *   fn create(escrow_id: BytesN<32>, payer: Address, beneficiary: Address, amount: i128) -> Result<(), Error>
- *   fn release(escrow_id: BytesN<32>) -> Result<(), Error>
- *   fn refund(escrow_id: BytesN<32>) -> Result<(), Error>
- *   fn get_status(escrow_id: BytesN<32>) -> Result<u32, Error>  // 1=Locked 2=Released 3=Refunded
+ *   fn create(escrow_id: BytesN<32>, payer: Address, beneficiary: Address, amount: i128, token: Address) -> Result<(), Error>
+ *   fn release(escrow_id: BytesN<32>, payer: Address) -> Result<(), Error>
+ *   fn refund(escrow_id: BytesN<32>, payer: Address) -> Result<(), Error>
+ *   fn get_status(escrow_id: BytesN<32>, payer: Address) -> Result<u32, Error>  // 1=Locked 2=Released 3=Refunded 4=Completed
+ *
+ * Escrow records are keyed on-chain by (payer, escrow_id) (#2162), so every
+ * call beyond `create` must pass the same payer address used to create the
+ * escrow in order to locate it.
  *
  * To regenerate after a contract redeploy run:
  *   stellar contract bindings typescript \
@@ -45,6 +49,8 @@ export enum ContractError {
   InvalidAmount = 3,
   AlreadyExists = 4,
   ArithmeticOverflow = 5,
+  TokenNotAllowed = 22,
+  TransferShortfall = 23,
 }
 
 // ---------------------------------------------------------------------------
@@ -63,30 +69,36 @@ export class EscrowContractClient {
     payerAddress: string,
     beneficiaryAddress: string,
     amount: bigint,
+    tokenAddress: string,
   ): Promise<any> {
     return this.buildAndAssemble(sourceAccountPublicKey, 'create', [
       nativeToScVal(escrowId, { type: 'bytes' }),
       new Address(payerAddress).toScVal(),
       new Address(beneficiaryAddress).toScVal(),
       nativeToScVal(amount, { type: 'i128' }),
+      new Address(tokenAddress).toScVal(),
     ]);
   }
 
   async buildReleaseTx(
     sourceAccountPublicKey: string,
     escrowId: Buffer,
+    payerAddress: string,
   ): Promise<any> {
     return this.buildAndAssemble(sourceAccountPublicKey, 'release', [
       nativeToScVal(escrowId, { type: 'bytes' }),
+      new Address(payerAddress).toScVal(),
     ]);
   }
 
   async buildRefundTx(
     sourceAccountPublicKey: string,
     escrowId: Buffer,
+    payerAddress: string,
   ): Promise<any> {
     return this.buildAndAssemble(sourceAccountPublicKey, 'refund', [
       nativeToScVal(escrowId, { type: 'bytes' }),
+      new Address(payerAddress).toScVal(),
     ]);
   }
 
@@ -131,10 +143,12 @@ export class EscrowContractClient {
   async getEscrowStatus(
     sourceAccountPublicKey: string,
     escrowId: Buffer,
+    payerAddress: string,
   ): Promise<EscrowStatus> {
     return withSpan('soroban.escrow-contract.get-status', async () => {
       const tx = await this.build(sourceAccountPublicKey, 'get_status', [
         nativeToScVal(escrowId, { type: 'bytes' }),
+        new Address(payerAddress).toScVal(),
       ]);
       const sim = await this.rpc.simulateTransaction(tx);
       if (SorobanRpc.Api.isSimulationError(sim)) {
@@ -154,6 +168,8 @@ export class EscrowContractClient {
         return EscrowStatus.RELEASED;
       case 3:
         return EscrowStatus.REFUNDED;
+      case 4:
+        return EscrowStatus.COMPLETED;
       default:
         return EscrowStatus.NOT_FOUND;
     }

@@ -148,6 +148,7 @@ describe('EscrowContractClient', () => {
       const status = await client.getEscrowStatus(
         Keypair.random().publicKey(),
         Buffer.alloc(32, 1),
+        Keypair.random().publicKey(),
       );
 
       expect(status).toBe(EscrowStatus.NOT_FOUND);

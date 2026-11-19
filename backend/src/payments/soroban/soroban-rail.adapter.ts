@@ -1,8 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { withSpan } from '../../common/tracing';
 import { Queue } from 'bull';
 import { Payment } from '../entities/payment.entity';
+import { WalletsService } from '../../wallets/wallets.service';
 import {
   PaymentInitiationResult,
   PaymentRailAdapter,
@@ -41,7 +44,45 @@ export class SorobanRailAdapter implements PaymentRailAdapter {
     @Inject(ESCROW_CONTRACT_CLIENT)
     private readonly contractClient: EscrowContractClient,
     @Inject(SOROBAN_CONFIG) private readonly sorobanConfig: SorobanConfig,
+    @InjectRepository(Payment)
+    private readonly paymentRepository: Repository<Payment>,
+    private readonly walletsService: WalletsService,
   ) {}
+
+  /**
+   * Escrows are keyed on-chain by (payer, escrow_id) (#2162), so every read
+   * beyond `create` needs the same payer address. `providerReference` is
+   * the escrow_id hex, which `Payment#providerReference` already stores —
+   * looking the Payment back up by it recovers `userId`, and from there the
+   * payer's custodial wallet address, without widening the shared
+   * PaymentRailAdapter interface.
+   */
+  private async resolvePaymentByReference(
+    providerReference: string,
+  ): Promise<Payment> {
+    const payment = await this.paymentRepository.findOne({
+      where: { providerReference },
+    });
+    if (!payment) {
+      throw new Error(
+        `No payment found for escrow reference ${providerReference}`,
+      );
+    }
+    return payment;
+  }
+
+  private async resolvePayerAddress(providerReference: string): Promise<string> {
+    const payment = await this.resolvePaymentByReference(providerReference);
+    const walletStatus = await this.walletsService.getWalletStatus(
+      payment.userId,
+    );
+    if (!walletStatus.account) {
+      throw new Error(
+        `User ${payment.userId} has no custodial wallet for escrow ${providerReference}`,
+      );
+    }
+    return walletStatus.account.address;
+  }
 
   async initiate(payment: Payment): Promise<PaymentInitiationResult> {
     return withSpan(
@@ -99,13 +140,16 @@ export class SorobanRailAdapter implements PaymentRailAdapter {
       'soroban-rail.verifyByReference',
       async (): Promise<PaymentVerificationResult> => {
         const escrowId = Buffer.from(providerReference, 'hex');
+        const payerAddress = await this.resolvePayerAddress(providerReference);
         const status = await this.contractClient.getEscrowStatus(
           this.sorobanConfig.treasuryPublicKey,
           escrowId,
+          payerAddress,
         );
         switch (status) {
           case EscrowStatus.LOCKED:
           case EscrowStatus.RELEASED:
+          case EscrowStatus.COMPLETED:
             return { outcome: 'confirmed' };
           case EscrowStatus.REFUNDED:
             return { outcome: 'failed' };
@@ -117,9 +161,16 @@ export class SorobanRailAdapter implements PaymentRailAdapter {
   }
 
   async refund(providerReference: string, _amount: number): Promise<void> {
+    // paymentId lets the processor recover the payer address (#2162) via
+    // the same wallet lookup `create` already uses.
+    const payment = await this.resolvePaymentByReference(providerReference);
     await this.queue.add(
       'submit',
-      { kind: 'refund', escrowIdHex: providerReference },
+      {
+        kind: 'refund',
+        escrowIdHex: providerReference,
+        paymentId: payment.id,
+      },
       { jobId: `refund:${providerReference}`, attempts: 1 },
     );
   }

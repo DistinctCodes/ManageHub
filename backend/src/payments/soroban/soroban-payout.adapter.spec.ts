@@ -43,6 +43,7 @@ describe('SorobanPayoutAdapter', () => {
           escrowIdHex,
           beneficiaryAddress: payout.destinationAddress,
           amount: payout.amount,
+          currency: payout.currency,
         },
         { jobId: `payout:${escrowIdHex}`, attempts: 1 },
       );
@@ -118,6 +119,13 @@ describe('SorobanPayoutAdapter', () => {
       expect(contractClient.getEscrowStatus).toHaveBeenCalledWith(
         'GTREASURY',
         Buffer.from('a1b2c3', 'hex'),
+        'GTREASURY',
+      );
+    });
+
+    it('confirms a COMPLETED escrow too', async () => {
+      await expect(statusFor(EscrowStatus.COMPLETED)).resolves.toBe(
+        'confirmed',
       );
     });
 

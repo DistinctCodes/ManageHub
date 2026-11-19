@@ -1,5 +1,5 @@
 import { Keypair } from '@stellar/stellar-sdk';
-import { loadSorobanConfig } from './soroban-config';
+import { getEscrowTokenAddress, loadSorobanConfig } from './soroban-config';
 
 const TREASURY = Keypair.random();
 
@@ -26,7 +26,7 @@ describe('loadSorobanConfig', () => {
     const config = makeConfig({ SOROBAN_ENABLED: 'true' });
 
     expect(() => loadSorobanConfig(config as any)).toThrow(
-      /STELLAR_ESCROW_CONTRACT_ID.*STELLAR_SECRET_KEY.*STELLAR_NETWORK.*STELLAR_BENEFICIARY_ADDRESS/,
+      /STELLAR_ESCROW_CONTRACT_ID.*STELLAR_SECRET_KEY.*STELLAR_NETWORK.*STELLAR_BENEFICIARY_ADDRESS.*STELLAR_ESCROW_TOKEN_ADDRESSES/,
     );
   });
 
@@ -38,6 +38,7 @@ describe('loadSorobanConfig', () => {
       STELLAR_NETWORK: 'Test SDF Network ; September 2015',
       STELLAR_BENEFICIARY_ADDRESS: 'GBENEFICIARY',
       STELLAR_RPC_URLS: ' https://rpc-a.example, https://rpc-b.example ',
+      STELLAR_ESCROW_TOKEN_ADDRESSES: 'USD:CTOKENUSD,NGN:CTOKENNGN',
     });
 
     expect(loadSorobanConfig(config as any)).toEqual({
@@ -47,6 +48,7 @@ describe('loadSorobanConfig', () => {
       treasuryPublicKey: TREASURY.publicKey(),
       beneficiaryAddress: 'GBENEFICIARY',
       rpcUrls: ['https://rpc-a.example', 'https://rpc-b.example'],
+      escrowTokenAddresses: { USD: 'CTOKENUSD', NGN: 'CTOKENNGN' },
     });
   });
 
@@ -57,10 +59,27 @@ describe('loadSorobanConfig', () => {
       STELLAR_SECRET_KEY: TREASURY.secret(),
       STELLAR_NETWORK: 'Test SDF Network ; September 2015',
       STELLAR_BENEFICIARY_ADDRESS: 'GBENEFICIARY',
+      STELLAR_ESCROW_TOKEN_ADDRESSES: 'USD:CTOKENUSD',
     });
 
     expect(loadSorobanConfig(config as any)?.rpcUrls).toEqual([
       'https://soroban-testnet.stellar.org',
     ]);
+  });
+});
+
+describe('getEscrowTokenAddress', () => {
+  it('returns the configured address for a currency, case-insensitively', () => {
+    const config = {
+      escrowTokenAddresses: { USD: 'CTOKENUSD' },
+    } as any;
+
+    expect(getEscrowTokenAddress(config, 'usd')).toBe('CTOKENUSD');
+  });
+
+  it('throws naming the missing currency', () => {
+    const config = { escrowTokenAddresses: {} } as any;
+
+    expect(() => getEscrowTokenAddress(config, 'NGN')).toThrow(/NGN/);
   });
 });

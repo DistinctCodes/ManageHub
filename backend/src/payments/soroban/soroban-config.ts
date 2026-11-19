@@ -9,6 +9,12 @@ export interface SorobanConfig {
   treasuryPublicKey: string;
   beneficiaryAddress: string;
   rpcUrls: string[];
+  /**
+   * Token contract address to escrow, keyed by 3-letter currency code
+   * (#2165 — `create` requires the token on-chain). Every currency this
+   * rail is used for must appear here or `create` has no token to pass.
+   */
+  escrowTokenAddresses: Record<string, string>;
 }
 
 const REQUIRED_KEYS = [
@@ -16,7 +22,37 @@ const REQUIRED_KEYS = [
   'STELLAR_SECRET_KEY',
   'STELLAR_NETWORK',
   'STELLAR_BENEFICIARY_ADDRESS',
+  'STELLAR_ESCROW_TOKEN_ADDRESSES',
 ] as const;
+
+/**
+ * Parses `STELLAR_ESCROW_TOKEN_ADDRESSES` as `CUR:ADDRESS,CUR:ADDRESS`
+ * pairs into a currency -> token contract address map.
+ */
+function parseEscrowTokenAddresses(raw: string): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const pair of raw.split(',').map((p) => p.trim()).filter(Boolean)) {
+    const [currency, address] = pair.split(':').map((p) => p.trim());
+    if (currency && address) {
+      result[currency.toUpperCase()] = address;
+    }
+  }
+  return result;
+}
+
+/** Looks up the escrow token address for `currency`, or throws naming it. */
+export function getEscrowTokenAddress(
+  config: SorobanConfig,
+  currency: string,
+): string {
+  const address = config.escrowTokenAddresses[currency.toUpperCase()];
+  if (!address) {
+    throw new Error(
+      `No STELLAR_ESCROW_TOKEN_ADDRESSES entry configured for currency ${currency}`,
+    );
+  }
+  return address;
+}
 
 /**
  * When SOROBAN_ENABLED=true, every variable this rail needs must be
@@ -59,5 +95,8 @@ export function loadSorobanConfig(config: ConfigService): SorobanConfig | null {
     treasuryPublicKey: Keypair.fromSecret(treasurySecretKey).publicKey(),
     beneficiaryAddress: config.get<string>('STELLAR_BENEFICIARY_ADDRESS')!,
     rpcUrls,
+    escrowTokenAddresses: parseEscrowTokenAddresses(
+      config.get<string>('STELLAR_ESCROW_TOKEN_ADDRESSES')!,
+    ),
   };
 }

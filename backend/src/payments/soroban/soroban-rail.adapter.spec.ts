@@ -34,16 +34,28 @@ describe('SorobanRailAdapter', () => {
   let queue: { add: jest.Mock };
   let contractClient: { getEscrowStatus: jest.Mock };
   let sorobanConfig: { treasuryPublicKey: string };
+  let paymentRepository: { findOne: jest.Mock };
+  let walletsService: { getWalletStatus: jest.Mock };
   let adapter: SorobanRailAdapter;
 
   beforeEach(() => {
     queue = { add: jest.fn().mockResolvedValue(undefined) };
     contractClient = { getEscrowStatus: jest.fn() };
     sorobanConfig = { treasuryPublicKey: 'GTREASURY' };
+    paymentRepository = {
+      findOne: jest.fn().mockResolvedValue(makePayment()),
+    };
+    walletsService = {
+      getWalletStatus: jest
+        .fn()
+        .mockResolvedValue({ account: { address: 'GPAYER' } }),
+    };
     adapter = new SorobanRailAdapter(
       queue as any,
       contractClient as any,
       sorobanConfig as any,
+      paymentRepository as any,
+      walletsService as any,
     );
   });
 
@@ -109,7 +121,14 @@ describe('SorobanRailAdapter', () => {
       expect(contractClient.getEscrowStatus).toHaveBeenCalledWith(
         'GTREASURY',
         Buffer.from(escrowIdHex, 'hex'),
+        'GPAYER',
       );
+    });
+
+    it('maps COMPLETED to confirmed too', async () => {
+      contractClient.getEscrowStatus.mockResolvedValue(EscrowStatus.COMPLETED);
+      const result = await adapter.verifyByReference('ab'.repeat(32));
+      expect(result).toEqual({ outcome: 'confirmed' });
     });
   });
 
@@ -119,7 +138,11 @@ describe('SorobanRailAdapter', () => {
 
       expect(queue.add).toHaveBeenCalledWith(
         'submit',
-        { kind: 'refund', escrowIdHex: 'ab'.repeat(32) },
+        {
+          kind: 'refund',
+          escrowIdHex: 'ab'.repeat(32),
+          paymentId: 'payment-1',
+        },
         expect.objectContaining({ jobId: `refund:${'ab'.repeat(32)}` }),
       );
     });

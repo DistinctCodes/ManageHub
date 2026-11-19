@@ -59,6 +59,7 @@ describe('EscrowSubmissionProcessor', () => {
     beneficiaryAddress: string;
     treasuryPublicKey: string;
     treasurySecretKey: string;
+    escrowTokenAddresses: Record<string, string>;
   };
   let config: { get: jest.Mock };
   let processor: EscrowSubmissionProcessor;
@@ -86,6 +87,7 @@ describe('EscrowSubmissionProcessor', () => {
       beneficiaryAddress: Keypair.random().publicKey(),
       treasuryPublicKey: TREASURY.publicKey(),
       treasurySecretKey: TREASURY.secret(),
+      escrowTokenAddresses: { USD: 'CTOKENUSD' },
     };
     config = { get: jest.fn((_key: string, fallback: number) => fallback) };
 
@@ -141,6 +143,7 @@ describe('EscrowSubmissionProcessor', () => {
       expect(contractClient.getEscrowStatus).toHaveBeenCalledWith(
         TREASURY.publicKey(),
         deriveEscrowId(payment.id),
+        PAYER_WALLET,
       );
       expect(confirmationService.apply).toHaveBeenCalledWith(
         deriveEscrowId(payment.id).toString('hex'),
@@ -233,6 +236,10 @@ describe('EscrowSubmissionProcessor', () => {
   });
 
   describe('release', () => {
+    beforeEach(() => {
+      paymentRepository.findOne.mockResolvedValue(makePayment());
+    });
+
     it('submits the release transaction and never touches Payment/confirmation state', async () => {
       await submitJob({
         kind: 'release',
@@ -243,6 +250,7 @@ describe('EscrowSubmissionProcessor', () => {
       expect(contractClient.buildReleaseTx).toHaveBeenCalledWith(
         TREASURY.publicKey(),
         Buffer.from('ab'.repeat(32), 'hex'),
+        PAYER_WALLET,
       );
       expect(contractClient.submit).toHaveBeenCalledTimes(1);
       expect(confirmationService.apply).not.toHaveBeenCalled();
@@ -260,15 +268,36 @@ describe('EscrowSubmissionProcessor', () => {
         }),
       ).resolves.toBeUndefined();
     });
+
+    it('does nothing when the payment for the job id cannot be found', async () => {
+      paymentRepository.findOne.mockResolvedValue(null);
+
+      await submitJob({
+        kind: 'release',
+        escrowIdHex: 'ab'.repeat(32),
+        paymentId: 'missing',
+      });
+
+      expect(contractClient.buildReleaseTx).not.toHaveBeenCalled();
+    });
   });
 
   describe('refund', () => {
+    beforeEach(() => {
+      paymentRepository.findOne.mockResolvedValue(makePayment());
+    });
+
     it('submits the refund transaction against the treasury account', async () => {
-      await submitJob({ kind: 'refund', escrowIdHex: 'cd'.repeat(32) });
+      await submitJob({
+        kind: 'refund',
+        escrowIdHex: 'cd'.repeat(32),
+        paymentId: 'payment-1',
+      });
 
       expect(contractClient.buildRefundTx).toHaveBeenCalledWith(
         TREASURY.publicKey(),
         Buffer.from('cd'.repeat(32), 'hex'),
+        PAYER_WALLET,
       );
     });
 
@@ -276,7 +305,11 @@ describe('EscrowSubmissionProcessor', () => {
       contractClient.submit.mockRejectedValue(new Error('txBAD_SEQ'));
 
       await expect(
-        submitJob({ kind: 'refund', escrowIdHex: 'cd'.repeat(32) }),
+        submitJob({
+          kind: 'refund',
+          escrowIdHex: 'cd'.repeat(32),
+          paymentId: 'payment-1',
+        }),
       ).resolves.toBeUndefined();
     });
   });
@@ -293,6 +326,7 @@ describe('EscrowSubmissionProcessor', () => {
       escrowIdHex: 'ef'.repeat(32),
       beneficiaryAddress: Keypair.random().publicKey(),
       amount: 25_000,
+      currency: 'USD',
     };
 
     it('creates the escrow from the treasury, then releases it', async () => {
@@ -308,11 +342,22 @@ describe('EscrowSubmissionProcessor', () => {
         TREASURY.publicKey(),
         payoutJob.beneficiaryAddress,
         BigInt(payoutJob.amount),
+        'CTOKENUSD',
       );
       expect(contractClient.buildReleaseTx).toHaveBeenCalledWith(
         TREASURY.publicKey(),
         Buffer.from(payoutJob.escrowIdHex, 'hex'),
+        TREASURY.publicKey(),
       );
+    });
+
+    it('treats a COMPLETED escrow as already released — no double payout', async () => {
+      contractClient.getEscrowStatus.mockResolvedValue(EscrowStatus.COMPLETED);
+
+      await submitJob(payoutJob);
+
+      expect(contractClient.buildCreateTx).not.toHaveBeenCalled();
+      expect(contractClient.buildReleaseTx).not.toHaveBeenCalled();
     });
 
     it('does not re-create an escrow that already exists', async () => {
