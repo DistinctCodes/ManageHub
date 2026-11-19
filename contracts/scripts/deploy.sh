@@ -24,12 +24,22 @@ for crate in $CRATES; do
   [ -f "$optimized" ] || optimized="$wasm"
 
   echo "Deploying $crate to $NETWORK..."
-  id="$(stellar contract deploy --wasm "$optimized" --source "$SOURCE" --network "$NETWORK")"
-
-  # Contracts that expose initialize(admin) are initialised with the deployer.
   admin="$(stellar keys address "$SOURCE")"
-  stellar contract invoke --id "$id" --source "$SOURCE" --network "$NETWORK" -- initialize --admin "$admin" >/dev/null 2>&1 \
-    || echo "  (no initialize entrypoint or already initialised for $crate)"
+  id="$(stellar contract deploy --wasm "$optimized" --source "$SOURCE" --network "$NETWORK" -- --admin "$admin")"
+
+  # The constructor already stored this admin; initialize is a compatibility
+  # no-op for older tooling. A failure here is fatal, not a message to ignore.
+  if ! stellar contract invoke --id "$id" --source "$SOURCE" --network "$NETWORK" -- initialize --admin "$admin" >/dev/null; then
+    echo "  initialize failed for $crate" >&2
+    exit 1
+  fi
+
+  stored="$(stellar contract invoke --id "$id" --source "$SOURCE" --network "$NETWORK" -- get_admin)"
+  stored="$(printf '%s' "$stored" | tr -d '"[:space:]')"
+  if [ "$stored" != "$admin" ]; then
+    echo "  admin mismatch for $crate: expected $admin, got $stored" >&2
+    exit 1
+  fi
 
   [ "$first" -eq 1 ] || printf ',\n' >> "$OUT_FILE"
   printf '  "%s": "%s"' "$crate" "$id" >> "$OUT_FILE"

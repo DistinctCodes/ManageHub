@@ -15,5 +15,5 @@ describe("UsagePage", () => {
   afterEach(() => useSessionStore.setState({ user: null, accessToken: null, status: "unknown" }, false));
   it("shows loading", () => { mocks.listMyUsage.mockReturnValue(new Promise(() => {})); renderPage(); expect(screen.getByText("Loading…")).toBeInTheDocument(); });
   it("shows API errors", async () => { mocks.listMyUsage.mockRejectedValue(new Error("Usage unavailable")); renderPage(); expect(await screen.findByText("Usage unavailable")).toBeInTheDocument(); });
-  it("shows the empty state for a successful empty response", async () => { mocks.listMyUsage.mockResolvedValue([]); renderPage(); expect(await screen.findByText("No usage recorded.")).toBeInTheDocument(); });
+  it("shows the empty state for a successful empty response", async () => { mocks.listMyUsage.mockResolvedValue({ data: [], nextCursor: null }); renderPage(); expect(await screen.findByText("No usage recorded.")).toBeInTheDocument(); });
 });

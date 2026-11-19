@@ -4,6 +4,7 @@
 //! zero/negative allocations. These helpers give the configure path a single
 //! place to reject such inputs.
 
+use crate::Recipient;
 use soroban_sdk::Vec;
 
 /// Returns `true` when every basis-point allocation is strictly positive (#1884).
@@ -14,6 +15,18 @@ pub fn all_positive(basis_points: &Vec<u32>) -> bool {
         }
     }
     true
+}
+
+/// Returns `true` when the same address is listed more than once (#1883).
+pub fn has_duplicate_addresses(recipients: &Vec<Recipient>) -> bool {
+    for i in 0..recipients.len() {
+        for j in (i + 1)..recipients.len() {
+            if recipients.get(i).unwrap().address == recipients.get(j).unwrap().address {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 /// Returns `true` when the allocations sum to exactly 10 000 basis points.

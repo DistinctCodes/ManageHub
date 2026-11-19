@@ -193,7 +193,47 @@ describe('MeteredUsageService', () => {
     const revenue = await credits.getSystemAccount(LedgerAccountKind.REVENUE);
     expect(harness.balanceOf(revenue.id)).toBe(60 + 40 + 150);
     expect((await credits.getBalance('user-1')).balance).toBe(1000 - 250);
-    expect(await usage.listForUser('user-1')).toHaveLength(3);
+    expect((await usage.listForUser({ userId: 'user-1' })).events).toHaveLength(
+      3,
+    );
+  });
+
+  it('paginates usage with a resumable cursor', async () => {
+    const { usage, credits } = build();
+    await fund(credits, 1000);
+    for (let i = 0; i < 5; i++) {
+      await usage.recordUsage({
+        ...meterReading,
+        usageReference: `paged-${i}`,
+      });
+    }
+
+    const first = await usage.listForUser({ userId: 'user-1', limit: 2 });
+    expect(first.events).toHaveLength(2);
+    expect(first.nextCursor).toBeTruthy();
+
+    const second = await usage.listForUser({
+      userId: 'user-1',
+      limit: 2,
+      cursor: first.nextCursor ?? undefined,
+    });
+    expect(second.events).toHaveLength(2);
+    expect(second.events[0].id).not.toBe(first.events[0].id);
+  });
+
+  it('filters usage by an inclusive date range', async () => {
+    const { usage, credits, harness } = build();
+    await fund(credits, 1000);
+    await usage.recordUsage({ ...meterReading, usageReference: 'older' });
+    harness.usageEvents.rows[0].createdAt = new Date('2026-01-01T00:00:00.000Z');
+    await usage.recordUsage({ ...meterReading, usageReference: 'newer' });
+    harness.usageEvents.rows[1].createdAt = new Date('2026-06-01T00:00:00.000Z');
+
+    const page = await usage.listForUser({
+      userId: 'user-1',
+      from: new Date('2026-02-01T00:00:00.000Z'),
+    });
+    expect(page.events.map((event) => event.usageReference)).toEqual(['newer']);
   });
 
   it('does not alert when the current window is below the spike threshold', async () => {

@@ -88,15 +88,27 @@ fn load_admin(env: &Env) -> Result<Address, Error> {
 
 #[contractimpl]
 impl PaymentEscrowContract {
-    /// One-time setup: record the admin. Escrow entrypoints work without it,
-    /// but upgrade, pause and admin rotation need it.
-    pub fn initialize(env: Env, admin: Address) -> Result<(), Error> {
-        if env.storage().instance().has(&DataKey::Admin) {
-            return Err(Error::AlreadyInitialized);
-        }
-        admin.require_auth();
+    /// Deploy-time setup: the admin is stored atomically with the contract
+    /// instance, so no later caller can front-run `initialize`.
+    pub fn __constructor(env: Env, admin: Address) {
         env.storage().instance().set(&DataKey::Admin, &admin);
+    }
+
+    /// Compatibility no-op for deployment scripts that still call
+    /// `initialize`. The admin is fixed by the constructor; only that stored
+    /// address may call this entrypoint.
+    pub fn initialize(env: Env, admin: Address) -> Result<(), Error> {
+        let stored = load_admin(&env)?;
+        if stored != admin {
+            return Err(Error::Unauthorized);
+        }
+        stored.require_auth();
         Ok(())
+    }
+
+    /// The admin recorded at deploy time.
+    pub fn get_admin(env: Env) -> Result<Address, Error> {
+        load_admin(&env)
     }
 
     /// Interface version of this contract; the backend checks it at startup.
@@ -406,7 +418,11 @@ mod escrow_test {
         let env = Env::default();
         env.mock_all_auths();
 
-        let contract_id = env.register(PaymentEscrowContract, ());
+        let admin = Address::generate(&env);
+        let contract_id = env.register(
+            PaymentEscrowContract,
+            PaymentEscrowContractArgs::__constructor(&admin,),
+        );
         let client = PaymentEscrowContractClient::new(&env, &contract_id);
 
         let token_admin = Address::generate(&env);
@@ -529,7 +545,11 @@ mod partial_release_test {
     ) {
         let env = Env::default();
         env.mock_all_auths();
-        let id = env.register(PaymentEscrowContract, ());
+        let admin = Address::generate(&env);
+        let id = env.register(
+            PaymentEscrowContract,
+            PaymentEscrowContractArgs::__constructor(&admin,),
+        );
         let client = PaymentEscrowContractClient::new(&env, &id);
         let payer = Address::generate(&env);
         let token = env
@@ -630,7 +650,11 @@ mod model_test {
         fn contract_matches_the_model(ops in proptest::collection::vec(op_strategy(), 1..30)) {
             let env = Env::default();
             env.mock_all_auths();
-            let cid = env.register(PaymentEscrowContract, ());
+            let admin = Address::generate(&env);
+            let cid = env.register(
+                PaymentEscrowContract,
+                PaymentEscrowContractArgs::__constructor(&admin,),
+            );
             let client = PaymentEscrowContractClient::new(&env, &cid);
             let payer = Address::generate(&env);
             let ben = Address::generate(&env);
@@ -727,21 +751,28 @@ mod admin_test {
     fn setup() -> (Env, PaymentEscrowContractClient<'static>, Address) {
         let env = Env::default();
         env.mock_all_auths();
-        let id = env.register(PaymentEscrowContract, ());
-        let client = PaymentEscrowContractClient::new(&env, &id);
         let admin = Address::generate(&env);
-        client.initialize(&admin);
+        let id = env.register(
+            PaymentEscrowContract,
+            PaymentEscrowContractArgs::__constructor(&admin,),
+        );
+        let client = PaymentEscrowContractClient::new(&env, &id);
         (env, client, admin)
     }
 
     #[test]
-    fn initialize_runs_once() {
-        let (env, client, _) = setup();
+    fn non_deployer_cannot_initialize() {
+        let (env, client, admin) = setup();
         let other = Address::generate(&env);
-        assert_eq!(
-            client.try_initialize(&other),
-            Err(Ok(Error::AlreadyInitialized))
-        );
+        assert_eq!(client.try_initialize(&other), Err(Ok(Error::Unauthorized)));
+        assert_eq!(client.get_admin(), admin);
+    }
+
+    #[test]
+    fn initialize_is_a_no_op_for_the_stored_admin() {
+        let (_, client, admin) = setup();
+        client.initialize(&admin);
+        assert_eq!(client.get_admin(), admin);
     }
 
     #[test]
@@ -776,12 +807,13 @@ mod admin_test {
     }
 
     #[test]
-    fn non_admin_cannot_pause_or_propose() {
-        let env = Env::default();
-        let id = env.register(PaymentEscrowContract, ());
-        let client = PaymentEscrowContractClient::new(&env, &id);
-        // No admin has been initialised, so admin-only calls are refused.
-        assert_eq!(client.try_pause(), Err(Ok(Error::NotInitialized)));
+    fn admin_transfer_updates_the_stored_admin() {
+        let (env, client, _) = setup();
+        let next = Address::generate(&env);
+        client.propose_admin(&next);
+        client.accept_admin();
+        assert_eq!(client.get_admin(), next);
+        client.pause();
     }
 
     #[test]

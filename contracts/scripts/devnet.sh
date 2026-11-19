@@ -19,9 +19,10 @@ echo "==> 2. Building the contracts"
 cargo build --manifest-path contracts/Cargo.toml --target wasm32-unknown-unknown --release
 
 echo "==> 3. Deploying payment_escrow"
+ADMIN="$(soroban keys address "$DEPLOYER")"
 ESCROW_ID="$(soroban contract deploy \
   --wasm contracts/target/wasm32-unknown-unknown/release/payment_escrow.wasm \
-  --source "$DEPLOYER" --network "$NETWORK")"
+  --source "$DEPLOYER" --network "$NETWORK" -- --admin "$ADMIN")"
 echo "    escrow contract: $ESCROW_ID"
 
 echo "==> 4. Seeding one escrow (created_at #1891)"

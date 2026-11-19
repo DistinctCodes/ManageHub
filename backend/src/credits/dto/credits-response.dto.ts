@@ -151,6 +151,11 @@ export class MeteredUsageResponseDto {
   }
 }
 
+export class MeteredUsagePageResponseDto {
+  @ApiProperty({ type: [MeteredUsageResponseDto] }) data: MeteredUsageResponseDto[];
+  @ApiProperty({ nullable: true }) nextCursor: string | null;
+}
+
 export class PaymentCreditApplicationResponseDto {
   @ApiProperty() id: string;
   @ApiProperty() paymentId: string;

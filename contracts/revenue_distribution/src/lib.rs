@@ -1,5 +1,8 @@
 #![no_std]
 
+mod beneficiary_limit;
+mod beneficiary_validation;
+
 use soroban_sdk::{
     contract, contracterror, contractimpl, contractmeta, contracttype, token, Address, Env, Symbol,
     Vec,
@@ -72,6 +75,10 @@ pub enum Error {
     InvalidShare = 6,
     /// The amount to distribute must be positive.
     InvalidAmount = 7,
+    /// More than `beneficiary_limit::MAX_BENEFICIARIES` recipients were supplied.
+    TooManyBeneficiaries = 8,
+    /// The same address appears in more than one recipient entry.
+    DuplicateBeneficiary = 9,
 }
 
 #[contract]
@@ -141,14 +148,34 @@ pub fn allocate(env: &Env, recipients: &Vec<Recipient>, amount: i128) -> Result<
 
 #[contractimpl]
 impl RevenueDistributionContract {
-    /// One-time setup: record the admin allowed to call `configure`.
-    pub fn initialize(env: Env, admin: Address) -> Result<(), Error> {
-        if env.storage().instance().has(&DataKey::Admin) {
-            return Err(Error::AlreadyInitialized);
-        }
-        admin.require_auth();
+    /// Deploy-time setup: the admin is stored atomically with the contract
+    /// instance, so no later caller can front-run it.
+    pub fn __constructor(env: Env, admin: Address) {
         env.storage().instance().set(&DataKey::Admin, &admin);
+    }
+
+    /// Compatibility no-op for deployment scripts that still call
+    /// `initialize`. The admin is fixed by the constructor; only that stored
+    /// address may call this entrypoint.
+    pub fn initialize(env: Env, admin: Address) -> Result<(), Error> {
+        let stored: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(Error::NotInitialized)?;
+        if stored != admin {
+            return Err(Error::Unauthorized);
+        }
+        stored.require_auth();
         Ok(())
+    }
+
+    /// The admin recorded at deploy time.
+    pub fn get_admin(env: Env) -> Result<Address, Error> {
+        env.storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(Error::NotInitialized)
     }
 
     /// Interface version of this contract; the backend checks it at startup.
@@ -205,6 +232,12 @@ impl RevenueDistributionContract {
 
         if recipients.is_empty() {
             return Err(Error::EmptyRecipients);
+        }
+        if !beneficiary_limit::within_beneficiary_cap(recipients.len()) {
+            return Err(Error::TooManyBeneficiaries);
+        }
+        if beneficiary_validation::has_duplicate_addresses(&recipients) {
+            return Err(Error::DuplicateBeneficiary);
         }
 
         // Validate that basis points sum to exactly TOTAL_BASIS_POINTS.
@@ -310,10 +343,12 @@ mod test {
     fn setup() -> (Env, RevenueDistributionContractClient<'static>, Address) {
         let env = Env::default();
         env.mock_all_auths();
-        let id = env.register(RevenueDistributionContract, ());
-        let client = RevenueDistributionContractClient::new(&env, &id);
         let admin = Address::generate(&env);
-        client.initialize(&admin);
+        let id = env.register(
+            RevenueDistributionContract,
+            RevenueDistributionContractArgs::__constructor(&admin,),
+        );
+        let client = RevenueDistributionContractClient::new(&env, &id);
         (env, client, admin)
     }
 
@@ -335,6 +370,69 @@ mod test {
         assert_eq!(
             client.try_configure(&admin, &r),
             Err(Ok(Error::InvalidShare))
+        );
+    }
+
+    #[test]
+    fn too_many_beneficiaries_are_rejected() {
+        let (env, client, admin) = setup();
+        let mut r = Vec::new(&env);
+        for i in 0..=beneficiary_limit::MAX_BENEFICIARIES {
+            r.push_back(Recipient {
+                address: Address::generate(&env),
+                basis_points: if i == beneficiary_limit::MAX_BENEFICIARIES {
+                    TOTAL_BASIS_POINTS - beneficiary_limit::MAX_BENEFICIARIES
+                } else {
+                    1
+                },
+            });
+        }
+        assert_eq!(
+            client.try_configure(&admin, &r),
+            Err(Ok(Error::TooManyBeneficiaries))
+        );
+    }
+
+    #[test]
+    fn exactly_max_beneficiaries_is_accepted() {
+        let (env, client, admin) = setup();
+        let mut r = Vec::new(&env);
+        let last = beneficiary_limit::MAX_BENEFICIARIES - 1;
+        for i in 0..=last {
+            r.push_back(Recipient {
+                address: Address::generate(&env),
+                basis_points: if i == last {
+                    TOTAL_BASIS_POINTS - last
+                } else {
+                    1
+                },
+            });
+        }
+        client.configure(&admin, &r);
+        assert_eq!(
+            client.get_config().recipients.len(),
+            beneficiary_limit::MAX_BENEFICIARIES
+        );
+    }
+
+    #[test]
+    fn duplicate_beneficiary_addresses_are_rejected() {
+        let (env, client, admin) = setup();
+        let shared = Address::generate(&env);
+        let r = vec![
+            &env,
+            Recipient {
+                address: shared.clone(),
+                basis_points: 5_000,
+            },
+            Recipient {
+                address: shared,
+                basis_points: 5_000,
+            },
+        ];
+        assert_eq!(
+            client.try_configure(&admin, &r),
+            Err(Ok(Error::DuplicateBeneficiary))
         );
     }
 
@@ -405,10 +503,12 @@ mod admin_test {
     fn setup() -> (Env, RevenueDistributionContractClient<'static>, Address) {
         let env = Env::default();
         env.mock_all_auths();
-        let id = env.register(RevenueDistributionContract, ());
-        let client = RevenueDistributionContractClient::new(&env, &id);
         let admin = Address::generate(&env);
-        client.initialize(&admin);
+        let id = env.register(
+            RevenueDistributionContract,
+            RevenueDistributionContractArgs::__constructor(&admin,),
+        );
+        let client = RevenueDistributionContractClient::new(&env, &id);
         (env, client, admin)
     }
 
@@ -439,16 +539,22 @@ mod admin_test {
     }
 
     #[test]
-    fn configure_requires_initialize_first() {
-        let env = Env::default();
-        env.mock_all_auths();
-        let id = env.register(RevenueDistributionContract, ());
-        let client = RevenueDistributionContractClient::new(&env, &id);
-        let anyone = Address::generate(&env);
+    fn non_deployer_cannot_initialize() {
+        let (env, client, admin) = setup();
+        let attacker = Address::generate(&env);
         assert_eq!(
-            client.try_configure(&anyone, &split(&env)),
-            Err(Ok(Error::NotInitialized))
+            client.try_initialize(&attacker),
+            Err(Ok(Error::Unauthorized))
         );
+        assert_eq!(client.get_admin(), admin);
+        client.configure(&admin, &split(&env));
+    }
+
+    #[test]
+    fn initialize_is_a_no_op_for_the_stored_admin() {
+        let (_, client, admin) = setup();
+        client.initialize(&admin);
+        assert_eq!(client.get_admin(), admin);
     }
 
     #[test]
