@@ -34,3 +34,4 @@ applyDefault('REDIS_DB', '0');
 // to sign payloads in the tests; use obvious test-only values.
 applyDefault('JWT_SECRET', 'e2e-jwt-secret');
 applyDefault('PAYMENT_WEBHOOK_SECRET', 'e2e-payment-webhook-secret');
+applyDefault('CREDITS_USAGE_API_KEY', 'e2e-credits-usage-key');

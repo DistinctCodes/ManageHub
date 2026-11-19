@@ -6,6 +6,7 @@ import { io, type Socket } from "socket.io-client";
 import type { Payment } from "@/lib/payments-api";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
+const API_ORIGIN = API_BASE_URL ? new URL(API_BASE_URL).origin : "";
 /** Poll when the socket is down or silent for this long (matches the backend docs). */
 const POLL_FALLBACK_MS = 60_000;
 
@@ -23,13 +24,14 @@ export function usePaymentStatus(paymentId: string, accessToken: string | null):
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    if (!paymentId || !accessToken) return;
+    if (!paymentId) return;
 
     const queryKey = ["payments", "detail", paymentId];
     let lastEventAt = Date.now();
 
-    const socket: Socket = io(`${API_BASE_URL}/payments`, {
-      auth: { token: accessToken },
+    const socket: Socket = io(`${API_ORIGIN}/payments`, {
+      auth: accessToken ? { token: accessToken } : {},
+      withCredentials: true,
       transports: ["websocket"],
     });
 

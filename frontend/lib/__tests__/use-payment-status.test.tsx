@@ -1,5 +1,6 @@
 import { act, render } from "@testing-library/react";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
+import { io } from "socket.io-client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { usePaymentStatus } from "../use-payment-status";
 
@@ -18,9 +19,9 @@ vi.mock("socket.io-client", () => ({
   })),
 }));
 
-function Probe() {
+function Probe({ accessToken }: { accessToken: string | null }) {
   const client = useQueryClient();
-  usePaymentStatus("pay-123", "secret-token");
+  usePaymentStatus("pay-123", accessToken);
   return <button onClick={() => client.setQueryData(["payments", "detail", "pay-123"], { id: "pay-123", status: "INITIATED" })}>Seed</button>;
 }
 
@@ -37,7 +38,7 @@ describe("usePaymentStatus", () => {
   it("subscribes to payment updates and refreshes cached status for matching events", async () => {
     const client = new QueryClient();
     const invalidate = vi.spyOn(client, "invalidateQueries").mockResolvedValue();
-    const view = render(<QueryClientProvider client={client}><Probe /></QueryClientProvider>);
+    const view = render(<QueryClientProvider client={client}><Probe accessToken="secret-token" /></QueryClientProvider>);
     act(() => { socketMocks.handlers.connect(); });
     expect(socketMocks.emit).toHaveBeenCalledWith("subscribe", "pay-123");
     view.getByRole("button", { name: "Seed" }).click();
@@ -54,9 +55,25 @@ describe("usePaymentStatus", () => {
   it("invalidates the payment query on the polling fallback while disconnected", () => {
     const client = new QueryClient();
     const invalidate = vi.spyOn(client, "invalidateQueries").mockResolvedValue();
-    const view = render(<QueryClientProvider client={client}><Probe /></QueryClientProvider>);
+    const view = render(<QueryClientProvider client={client}><Probe accessToken="secret-token" /></QueryClientProvider>);
     act(() => { vi.advanceTimersByTime(60_000); });
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["payments", "detail", "pay-123"] });
+    view.unmount();
+    client.clear();
+  });
+
+  it("uses cookie-authenticated socket and polling when accessToken is null", () => {
+    const client = new QueryClient();
+    const invalidate = vi.spyOn(client, "invalidateQueries").mockResolvedValue();
+    const view = render(<QueryClientProvider client={client}><Probe accessToken={null} /></QueryClientProvider>);
+
+    expect(io).toHaveBeenLastCalledWith("/payments", expect.objectContaining({
+      auth: {},
+      withCredentials: true,
+    }));
+    act(() => { vi.advanceTimersByTime(60_000); });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["payments", "detail", "pay-123"] });
+
     view.unmount();
     client.clear();
   });

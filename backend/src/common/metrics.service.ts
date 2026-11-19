@@ -24,13 +24,13 @@ const HISTOGRAM_BUCKETS_SECONDS = [
 
 @Injectable()
 export class MetricsService {
-  private readonly counters = new Map<string, MetricSample[]>();
-  private readonly gauges = new Map<string, MetricSample[]>();
+  private readonly counters = new Map<string, Map<string, MetricSample>>();
+  private readonly gauges = new Map<string, Map<string, MetricSample>>();
   private readonly summaries = new Map<
     string,
     { count: number; sum: number; labels: Record<string, string> }
   >();
-  private readonly histograms = new Map<string, HistogramSample[]>();
+  private readonly histograms = new Map<string, Map<string, HistogramSample>>();
 
   recordPaymentTransition(from: string, to: string): void {
     this.incrementCounter('managehub_payment_status_transitions_total', {
@@ -216,14 +216,13 @@ export class MetricsService {
     labels: Record<string, string>,
     delta = 1,
   ): void {
-    const series = this.counters.get(name) ?? [];
-    const existing = series.find((item) =>
-      this.sameLabels(item.labels, labels),
-    );
+    const series = this.counters.get(name) ?? new Map<string, MetricSample>();
+    const key = this.serializeLabels(labels);
+    const existing = series.get(key);
     if (existing) {
       existing.value += delta;
     } else {
-      series.push({ labels, value: delta });
+      series.set(key, { labels, value: delta });
       this.counters.set(name, series);
     }
   }
@@ -233,14 +232,13 @@ export class MetricsService {
     labels: Record<string, string>,
     value: number,
   ): void {
-    const series = this.gauges.get(name) ?? [];
-    const existing = series.find((item) =>
-      this.sameLabels(item.labels, labels),
-    );
+    const series = this.gauges.get(name) ?? new Map<string, MetricSample>();
+    const key = this.serializeLabels(labels);
+    const existing = series.get(key);
     if (existing) {
       existing.value = value;
     } else {
-      series.push({ labels, value });
+      series.set(key, { labels, value });
       this.gauges.set(name, series);
     }
   }
@@ -267,8 +265,10 @@ export class MetricsService {
     labels: Record<string, string>,
     valueSeconds: number,
   ): void {
-    const series = this.histograms.get(name) ?? [];
-    let sample = series.find((item) => this.sameLabels(item.labels, labels));
+    const series =
+      this.histograms.get(name) ?? new Map<string, HistogramSample>();
+    const key = this.serializeLabels(labels);
+    let sample = series.get(key);
     if (!sample) {
       sample = {
         labels,
@@ -276,7 +276,7 @@ export class MetricsService {
         sum: 0,
         buckets: new Array(HISTOGRAM_BUCKETS_SECONDS.length + 1).fill(0),
       };
-      series.push(sample);
+      series.set(key, sample);
       this.histograms.set(name, series);
     }
     sample.count += 1;
@@ -293,7 +293,7 @@ export class MetricsService {
   private appendCounters(lines: string[]): void {
     for (const [name, series] of this.counters.entries()) {
       lines.push(`# TYPE ${name} counter`);
-      for (const sample of series) {
+      for (const sample of series.values()) {
         lines.push(
           `${name}${this.formatLabels(sample.labels)} ${sample.value}`,
         );
@@ -304,7 +304,7 @@ export class MetricsService {
   private appendGauges(lines: string[]): void {
     for (const [name, series] of this.gauges.entries()) {
       lines.push(`# TYPE ${name} gauge`);
-      for (const sample of series) {
+      for (const sample of series.values()) {
         lines.push(
           `${name}${this.formatLabels(sample.labels)} ${sample.value}`,
         );
@@ -327,7 +327,7 @@ export class MetricsService {
   private appendHistograms(lines: string[]): void {
     for (const [name, series] of this.histograms.entries()) {
       lines.push(`# TYPE ${name} histogram`);
-      for (const sample of series) {
+      for (const sample of series.values()) {
         HISTOGRAM_BUCKETS_SECONDS.forEach((bound, index) => {
           lines.push(
             `${name}_bucket${this.formatLabels({ ...sample.labels, le: String(bound) })} ${sample.buckets[index]}`,
@@ -366,5 +366,11 @@ export class MetricsService {
       return false;
     }
     return aEntries.every(([key, value]) => b[key] === value);
+  }
+
+  private serializeLabels(labels: Record<string, string>): string {
+    return JSON.stringify(
+      Object.entries(labels).sort(([a], [b]) => a.localeCompare(b)),
+    );
   }
 }

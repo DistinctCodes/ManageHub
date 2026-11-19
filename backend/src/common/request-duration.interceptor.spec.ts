@@ -40,7 +40,7 @@ describe('RequestDurationInterceptor (issue #1780)', () => {
     });
   });
 
-  it('still records duration when the handler throws', (done) => {
+  it('uses the fixed unmatched route label when no route matched', (done) => {
     const recordHttpRequestDuration = jest.fn();
     const metrics = { recordHttpRequestDuration } as unknown as MetricsService;
     const interceptor = new RequestDurationInterceptor(metrics);
@@ -52,10 +52,35 @@ describe('RequestDurationInterceptor (issue #1780)', () => {
         error: () => {
           expect(recordHttpRequestDuration).toHaveBeenCalledTimes(1);
           const [route] = recordHttpRequestDuration.mock.calls[0];
-          // Falls back to the raw path when no route pattern was matched.
-          expect(route).toBe('/wallets/abc-123');
+          expect(route).toBe('unmatched');
           done();
         },
+      });
+  });
+
+  it('does not create distinct labels for different unmatched URLs', (done) => {
+    const recordHttpRequestDuration = jest.fn();
+    const metrics = { recordHttpRequestDuration } as unknown as MetricsService;
+    const interceptor = new RequestDurationInterceptor(metrics);
+
+    interceptor
+      .intercept(
+        buildContext({ route: undefined, path: '/random/one' }),
+        { handle: () => of('not found') },
+      )
+      .subscribe(() => {
+        interceptor
+          .intercept(
+            buildContext({ route: undefined, path: '/random/two' }),
+            { handle: () => of('not found') },
+          )
+          .subscribe(() => {
+            expect(recordHttpRequestDuration.mock.calls.map(([route]) => route)).toEqual([
+              'unmatched',
+              'unmatched',
+            ]);
+            done();
+          });
       });
   });
 

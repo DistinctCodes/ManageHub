@@ -37,6 +37,11 @@ body **and** set it as an `accessToken` cookie:
 ```
 httpOnly, sameSite=strict, path=/, maxAge=7 days, secure in production
 ```
+Set `COOKIE_DOMAIN=.example.com` when the frontend and API are on sibling
+hosts (such as `app.example.com` and `api.example.com`) so the browser sends
+the cookie to both. Alternatively, proxy the API under the frontend origin;
+the proxied response can use a host-only cookie that the frontend middleware
+can read.
 
 `JwtAuthGuard` accepts the token from either place, checking the cookie first
 and falling back to `Authorization: Bearer <token>`:
@@ -44,11 +49,8 @@ and falling back to `Authorization: Bearer <token>`:
 1. `request.cookies.accessToken`
 2. `Authorization: Bearer <token>`
 
-> Gap: the guard reads `request.cookies`, which is populated by
-> `cookie-parser`. That middleware is a dependency but is not currently
-> registered in `main.ts`, so in practice only the bearer path works until
-> `app.use(cookieParser())` is added. The cookie is still set/cleared by
-> `POST /auth/logout`.
+`main.ts` registers `cookie-parser` before guarded routes, so cookie and
+bearer authentication are both supported.
 
 ## Account enumeration
 
@@ -90,9 +92,10 @@ issued.
 
 The payments gateway (`PaymentsGateway`, namespace `/payments`) authenticates
 in the Socket.IO handshake, not with a Nest guard. On `handleConnection` it
-reads the token from `client.handshake.auth.token`, verifies it with the same
-`JwtTokenVerifierService`, and stores the user on `client.data.user`. A
-missing or invalid token emits `connection:error` and disconnects the socket.
+reads the token from `client.handshake.auth.token` or the `accessToken` cookie,
+verifies it with the same `JwtTokenVerifierService`, and stores the user on
+`client.data.user`. A missing or invalid token emits `connection:error` and
+disconnects the socket.
 Each `subscribe` message re-checks access via `PaymentsService.findOne`, so a
 socket can only join a room for a payment it is allowed to see.
 

@@ -1,7 +1,29 @@
 import { CreditsController } from './credits.controller';
+import { CreditsUsageWriteGuard } from './credits-usage-write.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UserRole } from '../auth/enums/user-role.enum';
 
 describe('CreditsController', () => {
+  it('limits service credentials to the charge and metered-usage routes', () => {
+    const chargeGuards = Reflect.getMetadata(
+      '__guards__',
+      CreditsController.prototype.charge,
+    );
+    const usageGuards = Reflect.getMetadata(
+      '__guards__',
+      CreditsController.prototype.recordUsage,
+    );
+    const balanceGuards = Reflect.getMetadata(
+      '__guards__',
+      CreditsController.prototype.myBalance,
+    );
+
+    expect(chargeGuards).toContain(CreditsUsageWriteGuard);
+    expect(usageGuards).toContain(CreditsUsageWriteGuard);
+    expect(balanceGuards).toContain(JwtAuthGuard);
+    expect(balanceGuards).not.toContain(CreditsUsageWriteGuard);
+  });
+
   it('charges a member through the ledger with the authenticated actor', async () => {
     const transaction = {
       id: 'transaction-1',

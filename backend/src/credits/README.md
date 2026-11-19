@@ -54,11 +54,17 @@ balance is therefore the negation of what the platform owes, and it is
 
 ## The spend path
 
-`POST /credits/charge` — internal, ADMIN-guarded, meant for resource-usage
-features running with a service identity rather than for end users (a
+`POST /credits/charge` — internal, guarded by a dedicated usage-write key or
+an ADMIN JWT, meant for resource-usage features rather than end users (a
 member must not be able to name the amount they are charged). It debits the
 member and credits `REVENUE` synchronously. No payment rail, no chain call,
 nothing in the hot path but one locked row.
+
+Set `CREDITS_USAGE_API_KEY` to a high-entropy secret and send it as
+`X-Service-Key` for service-to-service requests to `/credits/charge` and
+`/credits/usage`. This credential is accepted only by those two endpoints;
+member and admin routes continue to require their normal JWT authentication.
+Administrator JWTs remain accepted on both usage-write endpoints.
 
 ### Overdraft policy
 
@@ -217,8 +223,8 @@ says so explicitly: payouts stay PENDING and the run summary reports
 
 | Endpoint | Who | What |
 | --- | --- | --- |
-| `POST /credits/charge` | admin/service | Debit a member's balance (idempotent on `reference`) |
-| `POST /credits/usage` | admin/service | Price and charge a metered reading |
+| `POST /credits/charge` | admin or `usage:write` service key | Debit a member's balance (idempotent on `reference`) |
+| `POST /credits/usage` | admin or `usage:write` service key | Price and charge a metered reading |
 | `GET /credits/balance` | member | Own balance, ceiling and spendable amount |
 | `GET /credits/statement` | member | Own append-only entries |
 | `GET /credits/usage` | member | Own metered usage history |
@@ -255,10 +261,6 @@ says so explicitly: payouts stay PENDING and the run summary reports
 - No dedicated resource-usage module exists in this backend yet, so the
   metered call site is `POST /credits/usage` (see above) rather than a
   per-minute session tracker.
-- `POST /credits/charge` and `POST /credits/usage` are guarded by the ADMIN
-  role because that is the closest primitive this codebase has to a service
-  identity. In a deployment with a service mesh, these are the endpoints to
-  put behind a service token.
 - Settlement executes one step per pass (submit, then poll on the next
   pass). That keeps each pass bounded and predictable; it also means a
   payout takes at least two passes to reach CONFIRMED.
