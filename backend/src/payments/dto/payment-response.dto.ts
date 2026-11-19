@@ -3,6 +3,7 @@ import { PaymentRail } from '../enums/payment-rail.enum';
 import { PaymentStatus } from '../enums/payment-status.enum';
 import { PaymentFailureReason } from '../enums/payment-failure-reason.enum';
 import { Payment } from '../entities/payment.entity';
+import { currencyExponent } from '../../common/currency-code';
 
 export class PaymentResponseDto {
   @ApiProperty() id: string;
@@ -10,6 +11,8 @@ export class PaymentResponseDto {
   @ApiProperty() userId: string;
   @ApiProperty() amount: number;
   @ApiProperty() currency: string;
+  @ApiProperty({ description: 'Minor-unit exponent for currency' })
+  currencyExponent: number;
   @ApiProperty({ enum: PaymentRail }) rail: PaymentRail;
   @ApiProperty({
     enum: PaymentStatus,
@@ -33,6 +36,7 @@ export class PaymentResponseDto {
     dto.userId = payment.userId;
     dto.amount = payment.amount;
     dto.currency = payment.currency;
+    dto.currencyExponent = currencyExponent(payment.currency);
     dto.rail = payment.rail;
     dto.status = payment.status;
     dto.provider = payment.provider;

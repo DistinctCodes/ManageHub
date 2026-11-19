@@ -16,8 +16,17 @@ import {
 import { RequireAdmin } from "@/components/admin/require-admin";
 
 // Payment amounts arrive as integer minor units.
-function formatAmount(amount: number, currency: string): string {
-  return formatCurrency(fromMinorUnits(amount, currency), currency);
+function formatAmount(
+  amount: number,
+  currency: string,
+  exponent?: number,
+): string {
+  return formatCurrency(
+    fromMinorUnits(amount, currency, exponent),
+    currency,
+    undefined,
+    exponent,
+  );
 }
 
 const PAGE_SIZE = 25;
@@ -104,7 +113,11 @@ function ManualReviewInner() {
                       <StatusBadge status={p.status} />
                     </td>
                     <td className="px-5 py-3 text-right tabular-nums">
-                      {formatAmount(p.amount, p.currency)}
+                      {formatAmount(
+                        p.amount,
+                        p.currency,
+                        p.currencyExponent,
+                      )}
                     </td>
                     <td className="px-5 py-3 max-w-xs truncate text-gray-500 dark:text-gray-400">
                       {p.manualReviewReason ?? "—"}

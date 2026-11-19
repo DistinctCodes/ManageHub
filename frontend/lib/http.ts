@@ -19,7 +19,13 @@ export class ApiError extends Error {
 }
 
 // Shared Sentry-facing api names for every backend client module.
-export type ApiService = "auth" | "admin" | "payments" | "wallet" | "credits";
+export type ApiService =
+  | "auth"
+  | "admin"
+  | "payments"
+  | "wallet"
+  | "credits"
+  | "currencies";
 
 export interface RequestOptions {
   method?: string;

@@ -88,6 +88,30 @@ export class PaymentsController {
     return payments.map((payment) => PaymentResponseDto.fromEntity(payment));
   }
 
+  @Post(':id/cancel')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @ApiOperation({
+    summary: 'Cancel a payment you own (pre-confirmation states only)',
+    description:
+      'Owner-only. Cancelling releases the booking unique index so the ' +
+      'booking can be paid again. Confirmed/terminal payments cannot be ' +
+      'cancelled and are rejected with 422.',
+  })
+  @ApiResponse({ status: 200, type: PaymentResponseDto })
+  async cancel(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() currentUser: RequestUser,
+  ): Promise<PaymentResponseDto> {
+    return withSpan(
+      'payments.controller.cancel',
+      async () => {
+        const payment = await this.paymentsService.cancel(id, currentUser);
+        return PaymentResponseDto.fromEntity(payment);
+      },
+      { 'payment.id': id },
+    );
+  }
+
   @Post(':id/verify-return')
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOperation({

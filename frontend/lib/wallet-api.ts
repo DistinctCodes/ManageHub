@@ -10,6 +10,7 @@ export interface WalletStatusResponse {
   status: WalletStatus | null;
   balance: number;
   currency: string;
+  currencyExponent?: number;
 }
 
 export interface LinkChallengeResponse {
@@ -17,11 +18,23 @@ export interface LinkChallengeResponse {
   expiresAt: string;
 }
 
-function walletFetch<T>(path: string, init?: RequestInit): Promise<T> {
+export function createWalletIdempotencyKey(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return `wallet-${crypto.randomUUID()}`;
+  }
+  return `wallet-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function walletFetch<T>(
+  path: string,
+  init?: RequestInit,
+  idempotencyKey?: string,
+): Promise<T> {
   return request<T>(path, {
     service: "wallet",
     method: init?.method,
     body: init?.body,
+    idempotencyKey,
     fallbackMessage: (status) => `Wallet request failed (${status})`,
   });
 }
@@ -30,10 +43,14 @@ export function getWalletStatus(): Promise<WalletStatusResponse> {
   return walletFetch<WalletStatusResponse>("/wallets/me");
 }
 
-export function provisionCustodialWallet(): Promise<WalletStatusResponse> {
-  return walletFetch<WalletStatusResponse>("/wallets/provision", {
-    method: "POST",
-  });
+export function provisionCustodialWallet(
+  idempotencyKey: string = createWalletIdempotencyKey(),
+): Promise<WalletStatusResponse> {
+  return walletFetch<WalletStatusResponse>(
+    "/wallets/provision",
+    { method: "POST" },
+    idempotencyKey,
+  );
 }
 
 export function requestLinkChallenge(): Promise<LinkChallengeResponse> {
@@ -42,13 +59,20 @@ export function requestLinkChallenge(): Promise<LinkChallengeResponse> {
   });
 }
 
-export function verifyLinkChallenge(params: {
-  nonce: string;
-  address: string;
-  signature: string;
-}): Promise<WalletStatusResponse> {
-  return walletFetch<WalletStatusResponse>("/wallets/link/verify", {
-    method: "POST",
-    body: JSON.stringify(params),
-  });
+export function verifyLinkChallenge(
+  params: {
+    nonce: string;
+    address: string;
+    signature: string;
+  },
+  idempotencyKey: string = createWalletIdempotencyKey(),
+): Promise<WalletStatusResponse> {
+  return walletFetch<WalletStatusResponse>(
+    "/wallets/link/verify",
+    {
+      method: "POST",
+      body: JSON.stringify(params),
+    },
+    idempotencyKey,
+  );
 }

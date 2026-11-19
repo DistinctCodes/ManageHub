@@ -12,6 +12,7 @@ export type PaymentTransitionSource =
   | 'admin'
   | 'refund'
   | 'verify_return'
+  | 'cancellation'
   | 'api';
 
 /**
@@ -49,11 +50,13 @@ const ALLOWED_TRANSITIONS: Record<PaymentStatus, PaymentStatus[]> = {
     PaymentStatus.AWAITING_CONFIRMATION,
     PaymentStatus.FAILED,
     PaymentStatus.EXPIRED,
+    PaymentStatus.CANCELLED,
   ],
   [PaymentStatus.AWAITING_CONFIRMATION]: [
     PaymentStatus.CONFIRMED,
     PaymentStatus.FAILED,
     PaymentStatus.EXPIRED,
+    PaymentStatus.CANCELLED,
     // Escalation tier (issue #1572) — reconciliation couldn't resolve this
     // automatically after the long threshold.
     PaymentStatus.MANUAL_REVIEW,
@@ -80,6 +83,7 @@ const ALLOWED_TRANSITIONS: Record<PaymentStatus, PaymentStatus[]> = {
   // the payments admin surface is allowed to take this path.
   [PaymentStatus.DISPUTED]: [PaymentStatus.REFUNDED, PaymentStatus.CONFIRMED],
   [PaymentStatus.VOIDED]: [],
+  [PaymentStatus.CANCELLED]: [],
 };
 
 export function canTransition(from: PaymentStatus, to: PaymentStatus): boolean {

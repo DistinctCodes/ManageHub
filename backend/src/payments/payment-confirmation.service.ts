@@ -37,6 +37,7 @@ const TERMINAL_STATUSES: ReadonlySet<PaymentStatus> = new Set([
   PaymentStatus.EXPIRED,
   PaymentStatus.REFUNDED,
   PaymentStatus.PARTIALLY_REFUNDED,
+  PaymentStatus.CANCELLED,
 ]);
 
 /**

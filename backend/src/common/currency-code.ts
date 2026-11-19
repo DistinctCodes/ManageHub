@@ -196,6 +196,61 @@ export const ISO_4217_CURRENCY_CODES: ReadonlySet<string> = new Set([
 /** Native Stellar asset — not ISO 4217 but valid across the ledger. */
 export const NATIVE_STELLAR_ASSET = 'XLM';
 
+/** Every Stellar asset (including XLM) uses 7-decimal stroops. */
+export const STELLAR_ASSET_DECIMALS = 7;
+
+const ZERO_DECIMAL_CURRENCIES: ReadonlySet<string> = new Set([
+  'BIF', 'CLP', 'DJF', 'GNF', 'JPY', 'KMF', 'KRW', 'PYG', 'RWF',
+  'UGX', 'UYI', 'VND', 'VUV', 'XAF', 'XOF', 'XPF',
+]);
+
+const THREE_DECIMAL_CURRENCIES: ReadonlySet<string> = new Set([
+  'BHD', 'IQD', 'JOD', 'KWD', 'LYD', 'OMR', 'TND',
+]);
+
+const FOUR_DECIMAL_CURRENCIES: ReadonlySet<string> = new Set([
+  'CLF', 'UYW',
+]);
+
+/**
+ * Minor-unit exponent for a currency code: how many digits after the decimal
+ * one major unit has. Unknown codes default to 2, matching the frontend's
+ * previous fallback, while configured Stellar assets use stroop precision.
+ */
+export function currencyExponent(
+  value: unknown,
+  env: NodeJS.ProcessEnv = process.env,
+): number {
+  const code = typeof value === 'string' ? value.trim().toUpperCase() : '';
+  if (
+    code === NATIVE_STELLAR_ASSET ||
+    configuredStellarAssetCodes(env).includes(code)
+  ) {
+    return STELLAR_ASSET_DECIMALS;
+  }
+  if (ZERO_DECIMAL_CURRENCIES.has(code)) return 0;
+  if (THREE_DECIMAL_CURRENCIES.has(code)) return 3;
+  if (FOUR_DECIMAL_CURRENCIES.has(code)) return 4;
+  return 2;
+}
+
+export interface CurrencyMetadata {
+  code: string;
+  exponent: number;
+}
+
+export function supportedCurrencies(
+  env: NodeJS.ProcessEnv = process.env,
+): CurrencyMetadata[] {
+  const codes = new Set<string>(ISO_4217_CURRENCY_CODES);
+  codes.add(NATIVE_STELLAR_ASSET);
+  for (const code of configuredStellarAssetCodes(env)) codes.add(code);
+  return [...codes].sort().map((code) => ({
+    code,
+    exponent: currencyExponent(code, env),
+  }));
+}
+
 /**
  * Comma-separated list of additional Stellar asset codes (e.g. `USDC`)
  * that are accepted alongside the ISO 4217 and native XLM allow-lists.

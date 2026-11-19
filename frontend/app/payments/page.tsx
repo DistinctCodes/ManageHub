@@ -16,8 +16,17 @@ import {
 import { Button } from "@/components/ui/button";
 
 // Payment amounts arrive as integer minor units.
-function formatAmount(amount: number, currency: string): string {
-  return formatCurrency(fromMinorUnits(amount, currency), currency);
+function formatAmount(
+  amount: number,
+  currency: string,
+  exponent?: number,
+): string {
+  return formatCurrency(
+    fromMinorUnits(amount, currency, exponent),
+    currency,
+    undefined,
+    exponent,
+  );
 }
 
 function statusTone(status: string): string {
@@ -115,7 +124,11 @@ export default function PaymentsPage() {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">
-                    {formatAmount(payment.amount, payment.currency)}
+                    {formatAmount(
+                      payment.amount,
+                      payment.currency,
+                      payment.currencyExponent,
+                    )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="flex items-center justify-between text-sm">

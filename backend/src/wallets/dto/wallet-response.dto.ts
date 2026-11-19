@@ -2,6 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { WalletCustodyType } from '../enums/wallet-custody-type.enum';
 import { WalletStatus } from '../enums/wallet-status.enum';
 import { WalletStatusView } from '../wallets.service';
+import { currencyExponent } from '../../common/currency-code';
 
 /**
  * Deliberately excludes any key-material field — there is no field here
@@ -21,6 +22,8 @@ export class WalletResponseDto {
   @ApiProperty({ description: 'Balance in minor units (e.g. stroops)' })
   balance: number;
   @ApiProperty() currency: string;
+  @ApiProperty({ description: 'Minor-unit exponent for currency' })
+  currencyExponent: number;
 
   static fromView(view: WalletStatusView): WalletResponseDto {
     const dto = new WalletResponseDto();
@@ -30,6 +33,7 @@ export class WalletResponseDto {
     dto.status = view.account?.status ?? null;
     dto.balance = view.balance;
     dto.currency = view.currency;
+    dto.currencyExponent = currencyExponent(view.currency);
     return dto;
   }
 }

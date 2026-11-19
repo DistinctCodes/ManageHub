@@ -48,7 +48,17 @@ function PaymentRow({ payment }: { payment: Payment }) {
             {payment.id}
           </p>
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            {formatCurrency(fromMinorUnits(payment.amount, payment.currency), payment.currency)} ·{" "}
+            {formatCurrency(
+              fromMinorUnits(
+                payment.amount,
+                payment.currency,
+                payment.currencyExponent,
+              ),
+              payment.currency,
+              undefined,
+              payment.currencyExponent,
+            )}{" "}
+            ·{" "}
             {new Date(payment.createdAt).toLocaleString()}
           </p>
         </div>
