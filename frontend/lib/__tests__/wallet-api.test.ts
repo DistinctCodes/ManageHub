@@ -82,14 +82,22 @@ describe("wallet-api", () => {
   });
 
   describe("requestLinkChallenge", () => {
-    it("POSTs to /wallets/link/challenge and returns the nonce", async () => {
+    it("POSTs to /wallets/link/challenge and returns the nonce and message", async () => {
       fetchMock.mockResolvedValue(
-        jsonResponse(200, { nonce: "n-1", expiresAt: "2099-01-01T00:00:00Z" }),
+        jsonResponse(200, {
+          nonce: "n-1",
+          expiresAt: "2099-01-01T00:00:00Z",
+          message: "ManageHub wallet link\nnonce:n-1",
+        }),
       );
 
       const result = await requestLinkChallenge();
 
-      expect(result).toEqual({ nonce: "n-1", expiresAt: "2099-01-01T00:00:00Z" });
+      expect(result).toEqual({
+        nonce: "n-1",
+        expiresAt: "2099-01-01T00:00:00Z",
+        message: "ManageHub wallet link\nnonce:n-1",
+      });
       const [url, init] = fetchMock.mock.calls[0];
       expect(String(url)).toContain("/wallets/link/challenge");
       expect(init).toMatchObject({ method: "POST" });

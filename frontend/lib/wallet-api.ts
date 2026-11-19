@@ -15,6 +15,7 @@ export interface WalletStatusResponse {
 export interface LinkChallengeResponse {
   nonce: string;
   expiresAt: string;
+  message: string;
 }
 
 function walletFetch<T>(path: string, init?: RequestInit): Promise<T> {

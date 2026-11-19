@@ -138,6 +138,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Dead module check
+        run: npm run dead-modules
+
       - name: Unit & Component Tests
         run: npm run test:cov
 

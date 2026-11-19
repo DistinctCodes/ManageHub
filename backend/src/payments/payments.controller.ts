@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Optional,
   Param,
   ParseUUIDPipe,
   Post,
@@ -18,12 +19,23 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequestUser } from '../auth/interfaces/authenticated-request.interface';
 import { PaymentsService } from './payments.service';
 import { PaymentConfirmationService } from './payment-confirmation.service';
+import { RefundsService } from './refunds.service';
+import { Payment } from './entities/payment.entity';
 import { InitiatePaymentDto } from './dto/initiate-payment.dto';
 import { PaymentResponseDto } from './dto/payment-response.dto';
 import { VerifyReturnResponseDto } from './dto/verify-return-response.dto';
 import { Throttle } from '@nestjs/throttler';
 import { withSpan } from '../common/tracing';
 import { IdempotencyKey } from './idempotency-key.decorator';
+
+async function toPaymentResponse(
+  payment: Payment,
+  refundsService?: RefundsService,
+): Promise<PaymentResponseDto> {
+  if (!refundsService) return PaymentResponseDto.fromEntity(payment);
+  const totals = await refundsService.getRefundedAmounts([payment.id]);
+  return PaymentResponseDto.fromEntity(payment, totals.get(payment.id) ?? 0);
+}
 
 @ApiTags('payments')
 @ApiBearerAuth()
@@ -33,6 +45,7 @@ export class PaymentsController {
   constructor(
     private readonly paymentsService: PaymentsService,
     private readonly confirmationService: PaymentConfirmationService,
+    @Optional() private readonly refundsService?: RefundsService,
   ) {}
 
   @Post('initiate')
@@ -58,7 +71,7 @@ export class PaymentsController {
           idempotencyKey,
           dto,
         );
-        return PaymentResponseDto.fromEntity(payment);
+        return toPaymentResponse(payment, this.refundsService);
       },
       {
         'payment.booking_id': dto.bookingId,
@@ -75,7 +88,7 @@ export class PaymentsController {
     @CurrentUser() currentUser: RequestUser,
   ): Promise<PaymentResponseDto> {
     const payment = await this.paymentsService.findOne(id, currentUser);
-    return PaymentResponseDto.fromEntity(payment);
+    return toPaymentResponse(payment, this.refundsService);
   }
 
   @Get()
@@ -85,7 +98,11 @@ export class PaymentsController {
     @CurrentUser() currentUser: RequestUser,
   ): Promise<PaymentResponseDto[]> {
     const payments = await this.paymentsService.findAll(currentUser);
-    return payments.map((payment) => PaymentResponseDto.fromEntity(payment));
+    return Promise.all(
+      payments.map((payment) =>
+        toPaymentResponse(payment, this.refundsService),
+      ),
+    );
   }
 
   @Post(':id/verify-return')
@@ -111,7 +128,7 @@ export class PaymentsController {
           await this.confirmationService.verifyOnReturn(payment);
 
         return {
-          payment: PaymentResponseDto.fromEntity(updated),
+          payment: await toPaymentResponse(updated, this.refundsService),
           verified,
         };
       },

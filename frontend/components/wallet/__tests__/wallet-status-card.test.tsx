@@ -166,9 +166,15 @@ describe("WalletStatusCard", () => {
       vi.spyOn(walletApi, "getWalletStatus").mockResolvedValue(
         PROVISIONED_CUSTODIAL,
       );
+      const challengeMessage =
+        "ManageHub wallet link\nuser:member-1\nnonce:test-nonce\nexpires:2099-01-01T00:00:00.000Z";
       const challengeSpy = vi
         .spyOn(walletApi, "requestLinkChallenge")
-        .mockResolvedValue({ nonce: "test-nonce", expiresAt: "2099-01-01T00:00:00Z" });
+        .mockResolvedValue({
+          nonce: "test-nonce",
+          expiresAt: "2099-01-01T00:00:00Z",
+          message: challengeMessage,
+        });
 
       renderCard();
       await waitFor(() =>
@@ -189,6 +195,10 @@ describe("WalletStatusCard", () => {
       await waitFor(() =>
         expect(screen.getByText("test-nonce")).toBeInTheDocument(),
       );
+      expect(screen.getByText(/Sign this exact message/)).toBeInTheDocument();
+      expect(screen.getByText(/ManageHub wallet link/).textContent).toBe(
+        challengeMessage,
+      );
       expect(
         screen.getByRole("button", { name: "Connect wallet" }),
       ).toBeInTheDocument();
@@ -203,6 +213,8 @@ describe("WalletStatusCard", () => {
       vi.spyOn(walletApi, "requestLinkChallenge").mockResolvedValue({
         nonce: "test-nonce",
         expiresAt: "2099-01-01T00:00:00Z",
+        message:
+          "ManageHub wallet link\nuser:member-1\nnonce:test-nonce\nexpires:2099-01-01T00:00:00.000Z",
       });
 
       renderCard();
