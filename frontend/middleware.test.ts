@@ -45,6 +45,18 @@ describe("middleware role gate (issue #1973)", () => {
     expect(response.headers.get("location")).toBe("http://localhost/admin/forbidden");
   });
 
+  it("redirects a member token away from payment metrics to /admin/forbidden", async () => {
+    verifiedToken("user");
+    const response = await middleware(
+      requestWithCookie("/admin/payments/metrics"),
+    );
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      "http://localhost/admin/forbidden",
+    );
+  });
+
   it("does not loop when rendering the forbidden page itself", async () => {
     verifiedToken("user");
     const response = await middleware(requestWithCookie("/admin/forbidden"));

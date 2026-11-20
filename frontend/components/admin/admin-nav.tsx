@@ -12,6 +12,7 @@ import {
   RotateCcw,
   Scale,
   Split,
+  TrendingUp,
   Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -30,6 +31,7 @@ export const ADMIN_NAV: AdminNavItem[] = [
   { href: "/admin/splits", label: "Revenue splits", icon: Split },
   { href: "/admin/settlements", label: "Settlement", icon: RefreshCw },
   { href: "/admin/payments", label: "Payments", icon: CreditCard },
+  { href: "/admin/payments/metrics", label: "Payment metrics", icon: TrendingUp },
   { href: "/admin/charge", label: "Charge credits", icon: Zap },
   { href: "/admin/refund", label: "Refunds", icon: RotateCcw },
   { href: "/admin/key-rotation", label: "Key rotation", icon: KeyRound },
