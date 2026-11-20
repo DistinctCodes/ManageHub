@@ -14,6 +14,17 @@ contractmeta!(key = "interface_version", val = "2");
 /// Interface version reported by `version()`. Bump on any ABI change.
 pub const VERSION: u32 = 2;
 
+/// Ledgers in a day at ~5 s per ledger.
+const DAY_IN_LEDGERS: u32 = 17_280;
+const INSTANCE_TTL_THRESHOLD: u32 = 30 * DAY_IN_LEDGERS;
+const INSTANCE_TTL_EXTEND_TO: u32 = 60 * DAY_IN_LEDGERS;
+
+fn bump_instance_ttl(env: &Env) {
+    env.storage()
+        .instance()
+        .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
+}
+
 /// On-chain escrow status codes.
 /// Maps to backend EscrowStatus enum: 0=NotFound, 1=Locked, 2=Released, 3=Refunded, 4=Completed.
 #[contracttype]
@@ -139,7 +150,13 @@ impl PaymentEscrowContract {
     pub fn upgrade(env: Env, new_wasm_hash: BytesN<32>) -> Result<(), Error> {
         let admin = load_admin(&env)?;
         admin.require_auth();
-        env.deployer().update_current_contract_wasm(new_wasm_hash);
+        bump_instance_ttl(&env);
+        env.deployer()
+            .update_current_contract_wasm(new_wasm_hash.clone());
+        env.events().publish(
+            (symbol_short!("escrow"), symbol_short!("upgraded")),
+            (admin, new_wasm_hash),
+        );
         Ok(())
     }
 
@@ -194,7 +211,10 @@ impl PaymentEscrowContract {
     pub fn pause(env: Env) -> Result<(), Error> {
         let admin = load_admin(&env)?;
         admin.require_auth();
+        bump_instance_ttl(&env);
         env.storage().instance().set(&DataKey::Paused, &true);
+        env.events()
+            .publish((symbol_short!("escrow"), symbol_short!("paused")), admin);
         Ok(())
     }
 
@@ -202,7 +222,10 @@ impl PaymentEscrowContract {
     pub fn unpause(env: Env) -> Result<(), Error> {
         let admin = load_admin(&env)?;
         admin.require_auth();
+        bump_instance_ttl(&env);
         env.storage().instance().set(&DataKey::Paused, &false);
+        env.events()
+            .publish((symbol_short!("escrow"), symbol_short!("unpaused")), admin);
         Ok(())
     }
 
