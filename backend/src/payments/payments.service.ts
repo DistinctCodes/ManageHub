@@ -9,7 +9,14 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import {
+  Between,
+  FindOptionsWhere,
+  In,
+  LessThanOrEqual,
+  MoreThanOrEqual,
+  Repository,
+} from 'typeorm';
 import { RequestUser } from '../auth/interfaces/authenticated-request.interface';
 import { UserRole } from '../auth/enums/user-role.enum';
 import { assertCurrencyCode } from '../common/currency-code';
@@ -35,6 +42,28 @@ import type { PaymentInitiationResult } from './interfaces/payment-rail-adapter.
 import { createPaymentProviderCircuitBreaker } from './utils/circuit-breaker';
 import type { PaymentProviderCircuitBreaker } from './utils/circuit-breaker';
 import { hashPaymentRequest } from './utils/idempotency-hash';
+import {
+  DEFAULT_PAGE_SIZE,
+  MAX_PAGE_SIZE,
+} from './payments-admin-pagination.util';
+
+export interface PaymentListFilters {
+  id?: string;
+  userId?: string;
+  bookingId?: string;
+  status?: PaymentStatus;
+  from?: string;
+  to?: string;
+  limit?: number;
+  offset?: number;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface PaymentPage {
+  items: Payment[];
+  total: number;
+}
 
 const USER_IDEMPOTENCY_KEY_CONSTRAINT = 'uq_payments_user_id_idempotency_key';
 const BOOKING_NON_TERMINAL_CONSTRAINT = 'uq_payments_booking_id_non_terminal';
@@ -119,11 +148,90 @@ export class PaymentsService {
     return payment;
   }
 
-  async findAll(currentUser: RequestUser): Promise<Payment[]> {
-    if (currentUser.role === UserRole.ADMIN) {
-      return this.paymentRepository.find();
+  async findAll(currentUser: RequestUser): Promise<Payment[]>;
+  async findAll(
+    currentUser: RequestUser,
+    filters: PaymentListFilters,
+  ): Promise<PaymentPage>;
+  async findAll(
+    currentUser: RequestUser,
+    filters?: PaymentListFilters,
+  ): Promise<Payment[] | PaymentPage> {
+    const isAdmin = currentUser.role === UserRole.ADMIN;
+    if (!filters) {
+      return isAdmin
+        ? this.paymentRepository.find()
+        : this.paymentRepository.find({ where: { userId: currentUser.id } });
     }
-    return this.paymentRepository.find({ where: { userId: currentUser.id } });
+
+    const where: FindOptionsWhere<Payment> = isAdmin
+      ? {}
+      : { userId: currentUser.id };
+    if (isAdmin) {
+      if (filters.id) {
+        where.id = filters.id;
+      }
+      if (filters.userId) {
+        where.userId = filters.userId;
+      }
+      if (filters.bookingId) {
+        where.bookingId = filters.bookingId;
+      }
+    }
+    if (filters.status) {
+      where.status = filters.status;
+    }
+
+    const range = this.parseDateRange(filters.from, filters.to);
+    if (range.from && range.to) {
+      where.createdAt = Between(range.from, range.to);
+    } else if (range.from) {
+      where.createdAt = MoreThanOrEqual(range.from);
+    } else if (range.to) {
+      where.createdAt = LessThanOrEqual(range.to);
+    }
+
+    const limitSource = filters.limit ?? filters.pageSize;
+    const requestedLimit = Number(limitSource);
+    const take = Number.isFinite(requestedLimit)
+      ? Math.min(Math.max(Math.floor(requestedLimit), 1), MAX_PAGE_SIZE)
+      : DEFAULT_PAGE_SIZE;
+    const offsetSource =
+      filters.offset ??
+      (filters.page ? (filters.page - 1) * (limitSource ?? DEFAULT_PAGE_SIZE) : 0);
+    const requestedOffset = Number(offsetSource);
+    const skip = Number.isFinite(requestedOffset)
+      ? Math.max(Math.floor(requestedOffset), 0)
+      : 0;
+
+    const [items, total] = await this.paymentRepository.findAndCount({
+      where,
+      order: { createdAt: 'DESC' },
+      take,
+      skip,
+    });
+    return { items, total };
+  }
+
+  private parseDateRange(
+    from: string | undefined,
+    to: string | undefined,
+  ): { from?: Date; to?: Date } {
+    const parse = (value: string | undefined, endOfDay: boolean) => {
+      if (!value) {
+        return undefined;
+      }
+      const dateOnly = /^\d{4}-\d{2}-\d{2}$/.exec(value);
+      if (dateOnly) {
+        const [year, month, day] = value.split('-').map(Number);
+        return endOfDay
+          ? new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999))
+          : new Date(Date.UTC(year, month - 1, day));
+      }
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? undefined : date;
+    };
+    return { from: parse(from, false), to: parse(to, true) };
   }
 
   /**

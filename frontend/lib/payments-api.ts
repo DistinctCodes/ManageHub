@@ -91,6 +91,44 @@ export interface ManualReviewPage {
   total: number;
 }
 
+export interface PaymentPage {
+  items: Payment[];
+  total: number;
+}
+
+export interface PaymentListFilters {
+  id?: string;
+  userId?: string;
+  bookingId?: string;
+  status?: PaymentStatus;
+  from?: string;
+  to?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface ReconciliationMetrics {
+  manualReviewQueueDepth: number;
+  alertThreshold: number;
+  alerting: boolean;
+}
+
+export interface ReconciliationRun {
+  id: string;
+  startedAt: string;
+  finishedAt: string | null;
+  durationMs: number | null;
+  candidates: number;
+  resolved: number;
+  pending: number;
+  providerErrors: number;
+  escalatedToManualReview: number;
+  expiredSwept: number;
+  outcome: "succeeded" | "failed" | null;
+  error: string | null;
+  details: Record<string, unknown> | null;
+}
+
 function apiFetch<T>(
   path: string,
   init?: RequestInit,
@@ -127,6 +165,19 @@ export function getPayment(id: string): Promise<Payment> {
   return apiFetch<Payment>(`/payments/${id}`);
 }
 
+export function listPayments(
+  filters: PaymentListFilters = {},
+): Promise<PaymentPage> {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (value !== undefined && value !== null && value !== "") {
+      params.set(key, String(value));
+    }
+  }
+  const query = params.toString();
+  return apiFetch<PaymentPage>(`/payments${query ? `?${query}` : ""}`);
+}
+
 export function verifyPaymentReturn(
   id: string,
 ): Promise<{ payment: Payment; verified: boolean }> {
@@ -152,6 +203,18 @@ export function listManualReviewPayments(
   });
   return apiFetch<ManualReviewPage>(
     `/payments/admin/manual-review?${params.toString()}`,
+  );
+}
+
+export function getReconciliationMetrics(): Promise<ReconciliationMetrics> {
+  return apiFetch<ReconciliationMetrics>("/payments/admin/metrics");
+}
+
+export function listReconciliationRuns(
+  limit = 1,
+): Promise<ReconciliationRun[]> {
+  return apiFetch<ReconciliationRun[]>(
+    `/payments/admin/reconciliation-runs?limit=${limit}`,
   );
 }
 

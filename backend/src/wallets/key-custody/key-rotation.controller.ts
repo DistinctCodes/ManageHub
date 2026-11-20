@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Post, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -12,7 +12,11 @@ import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { RequestUser } from '../../auth/interfaces/authenticated-request.interface';
 import { UserRole } from '../../auth/enums/user-role.enum';
 import { RotateKeysDto } from '../dto/rotate-keys.dto';
-import { KeyRotationService, KeyRotationSummary } from './key-rotation.service';
+import {
+  KeyRotationService,
+  KeyRotationStatus,
+  KeyRotationSummary,
+} from './key-rotation.service';
 
 /**
  * Admin-only custodial key rotation (issue #1945). Re-wraps every
@@ -27,6 +31,18 @@ import { KeyRotationService, KeyRotationSummary } from './key-rotation.service';
 @Controller('wallets/admin/key-rotation')
 export class KeyRotationController {
   constructor(private readonly keyRotation: KeyRotationService) {}
+
+  @Get()
+  @ApiOperation({
+    summary: 'Admin-only: active KMS key id and per-key material counts',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Active key id, configured key ids, and material counts',
+  })
+  async status(): Promise<KeyRotationStatus> {
+    return this.keyRotation.getStatus();
+  }
 
   @Post()
   @HttpCode(200)
