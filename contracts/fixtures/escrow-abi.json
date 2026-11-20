@@ -1,0 +1,11 @@
+{
+  "_comment": "#2025 shared escrow ABI fixture used by Rust tests and the backend client",
+  "contract": "payment_escrow",
+  "version": "1.0.0",
+  "functions": [
+    { "name": "create_escrow", "args": ["payer:Address", "payee:Address", "amount:i128"], "returns": "u64" },
+    { "name": "release", "args": ["escrow_id:u64"], "returns": "void" },
+    { "name": "refund", "args": ["escrow_id:u64"], "returns": "void" },
+    { "name": "get_escrow", "args": ["escrow_id:u64"], "returns": "Escrow" }
+  ]
+}
