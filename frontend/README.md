@@ -26,12 +26,24 @@ for your environment. Documented variables include:
   defaults to `http://localhost:6100` (the backend's configured port); in
   production this variable is **required** and the build fails fast at request
   time when it is missing.
+- `API_PROXY_TARGET` (server-only, optional) - backend origin for the Next.js
+  same-origin `/api/*` rewrite and `/socket.io/*` proxy. Set
+  `NEXT_PUBLIC_API_URL` to `https://app.example.com/api` when using this proxy.
+  The browser then receives the API's host-only auth cookie on the frontend
+  origin, where middleware can read it.
 - `NEXT_PUBLIC_APP_URL` - canonical origin of this frontend (defaults to
   `https://managehub.app`).
 - `NEXT_PUBLIC_SENTRY_*`, `NEXT_PUBLIC_GOOGLE_VERIFICATION` - optional
   observability and search-console settings.
 - `JWT_SECRET` (server-only) - used by `middleware.ts` to verify the session
   cookie.
+
+For a separately hosted API, use this same-origin proxy or set the backend's
+`COOKIE_DOMAIN` to the shared parent domain (for example, `.example.com` for
+`app.example.com` and `api.example.com`). In the latter setup, use the HTTPS
+API URL for `NEXT_PUBLIC_API_URL` and allow the frontend origin in backend
+`CORS_ORIGINS`. The proxy deployment is covered by the Playwright payment
+flow, including a protected-page reload.
 
 ## Frontend foundations
 

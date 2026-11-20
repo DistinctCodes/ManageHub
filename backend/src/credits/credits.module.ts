@@ -15,6 +15,7 @@ import { SettlementPayout } from './entities/settlement-payout.entity';
 import { CreditsController } from './credits.controller';
 import { CreditsAdminController } from './credits-admin.controller';
 import { CreditsService } from './credits.service';
+import { CreditsUsageWriteGuard } from './credits-usage-write.guard';
 import { LedgerService } from './ledger.service';
 import { MeteredUsageService } from './metered-usage.service';
 import { PaymentCreditsService } from './payment-credits.service';
@@ -60,6 +61,7 @@ import { SettlementService } from './settlement.service';
     SettlementService,
     PaymentCreditsService,
     MeteredUsageService,
+    CreditsUsageWriteGuard,
   ],
   exports: [LedgerService, CreditsService, RevenueSplitService],
 })

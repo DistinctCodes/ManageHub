@@ -64,10 +64,12 @@ export class PaymentsGateway
   ) {}
 
   // Guards decorate message handlers, not the initial handshake, so the JWT
-  // is verified here and the socket is dropped immediately if it's missing
-  // or invalid — matching the HTTP JwtAuthGuard's behavior for this domain.
+  // (from the auth payload or HttpOnly cookie) is verified here and the
+  // socket is dropped immediately if it's missing or invalid.
   async handleConnection(client: Socket): Promise<void> {
-    const token = client.handshake.auth?.token as string | undefined;
+    const token =
+      (client.handshake.auth?.token as string | undefined) ??
+      this.getCookieToken(client.handshake.headers.cookie);
 
     if (!token) {
       this.rejectConnection(client, 'Missing authentication token');
@@ -121,5 +123,13 @@ export class PaymentsGateway
   private rejectConnection(client: Socket, reason: string): void {
     client.emit('connection:error', { message: reason });
     client.disconnect(true);
+  }
+
+  private getCookieToken(cookieHeader?: string): string | undefined {
+    return cookieHeader
+      ?.split(';')
+      .map((cookie) => cookie.trim())
+      .find((cookie) => cookie.startsWith('accessToken='))
+      ?.slice('accessToken='.length);
   }
 }

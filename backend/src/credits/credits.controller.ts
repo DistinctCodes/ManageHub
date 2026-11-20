@@ -10,16 +10,14 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiHeader,
   ApiOperation,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequestUser } from '../auth/interfaces/authenticated-request.interface';
-import { UserRole } from '../auth/enums/user-role.enum';
 import { PaymentsService } from '../payments/payments.service';
 import { CreditsService } from './credits.service';
 import { LedgerService } from './ledger.service';
@@ -35,10 +33,10 @@ import {
   MeteredUsageResponseDto,
   PaymentCreditApplicationResponseDto,
 } from './dto/credits-response.dto';
+import { CreditsUsageWriteGuard } from './credits-usage-write.guard';
 
 @ApiTags('credits')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller('credits')
 export class CreditsController {
   constructor(
@@ -49,17 +47,13 @@ export class CreditsController {
     private readonly payments: PaymentsService,
   ) {}
 
-  /**
-   * The internal spend boundary. Restricted to the ADMIN role because it
-   * is meant to be called by resource-usage features running with a
-   * service identity, never by an end user against their own balance — a
-   * member must not be able to name the amount they are charged. (In a
-   * deployment with a service-mesh identity, this is the endpoint to move
-   * behind a service token; the role guard is the closest primitive this
-   * codebase has today.)
-   */
   @Post('charge')
-  @Roles(UserRole.ADMIN)
+  @UseGuards(CreditsUsageWriteGuard)
+  @ApiHeader({
+    name: 'X-Service-Key',
+    required: false,
+    description: 'Scoped CREDITS_USAGE_API_KEY credential for usage writes',
+  })
   @ApiOperation({
     summary: 'Charge a member’s credit balance (internal, service-to-service)',
     description:
@@ -73,7 +67,7 @@ export class CreditsController {
   @ApiResponse({ status: 201, type: ChargeCreditsResponseDto })
   async charge(
     @Body() dto: ChargeCreditsDto,
-    @CurrentUser() currentUser: RequestUser,
+    @CurrentUser() currentUser: RequestUser | undefined,
   ): Promise<ChargeCreditsResponseDto> {
     const result = await this.credits.charge({
       userId: dto.userId,
@@ -82,7 +76,7 @@ export class CreditsController {
       reference: dto.reference,
       reason: dto.reason,
       metadata: dto.metadata ?? null,
-      actorId: currentUser.id,
+      actorId: currentUser?.id ?? null,
     });
 
     return {
@@ -94,11 +88,16 @@ export class CreditsController {
   }
 
   /**
-   * The metered call site for the charge path: prices a usage reading and
-   * charges it. Same service-identity reasoning as `charge` above.
+   * Prices a usage reading and charges it. This route accepts the scoped
+   * usage-write credential or an administrator JWT.
    */
   @Post('usage')
-  @Roles(UserRole.ADMIN)
+  @UseGuards(CreditsUsageWriteGuard)
+  @ApiHeader({
+    name: 'X-Service-Key',
+    required: false,
+    description: 'Scoped CREDITS_USAGE_API_KEY credential for usage writes',
+  })
   @ApiOperation({
     summary: 'Record metered resource usage and charge it to credit',
     description:
@@ -122,6 +121,7 @@ export class CreditsController {
   }
 
   @Get('balance')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Your own credit balance' })
   @ApiResponse({ status: 200, type: CreditBalanceResponseDto })
   async myBalance(
@@ -133,6 +133,7 @@ export class CreditsController {
   }
 
   @Get('statement')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Your own recent ledger entries, newest first',
     description:
@@ -153,6 +154,7 @@ export class CreditsController {
   }
 
   @Get('usage')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Your own metered usage history, newest first' })
   @ApiResponse({ status: 200, type: [MeteredUsageResponseDto] })
   async myUsage(
@@ -170,6 +172,7 @@ export class CreditsController {
    * payment (an admin, any).
    */
   @Post('payments/:paymentId/apply')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Apply a confirmed payment to the credit ledger now',
     description:

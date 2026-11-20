@@ -5,7 +5,7 @@ import {
 } from '../interfaces/authenticated-request.interface';
 
 export const CurrentUser = createParamDecorator(
-  (_data: unknown, ctx: ExecutionContext): RequestUser => {
+  (_data: unknown, ctx: ExecutionContext): RequestUser | undefined => {
     const request = ctx.switchToHttp().getRequest<AuthenticatedRequest>();
     return request.user;
   },

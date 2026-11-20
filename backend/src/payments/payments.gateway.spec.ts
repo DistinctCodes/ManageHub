@@ -5,7 +5,7 @@ import { UserRole } from '../auth/enums/user-role.enum';
 function makeSocket(token?: string) {
   return {
     id: 'socket-1',
-    handshake: { auth: { token } },
+    handshake: { auth: { token }, headers: {} as Record<string, string> },
     data: {} as Record<string, unknown>,
     join: jest.fn(),
     emit: jest.fn(),
@@ -54,6 +54,21 @@ describe('PaymentsGateway', () => {
 
       await gateway.handleConnection(socket as any);
 
+      expect(socket.data.user).toEqual({ id: 'user-1', role: UserRole.USER });
+      expect(socket.disconnect).not.toHaveBeenCalled();
+    });
+
+    it('authenticates with the HttpOnly accessToken cookie', async () => {
+      verifier.verify.mockResolvedValueOnce({
+        id: 'user-1',
+        role: UserRole.USER,
+      });
+      const socket = makeSocket(undefined);
+      socket.handshake.headers.cookie = 'theme=dark; accessToken=cookie-token';
+
+      await gateway.handleConnection(socket as any);
+
+      expect(verifier.verify).toHaveBeenCalledWith('cookie-token');
       expect(socket.data.user).toEqual({ id: 'user-1', role: UserRole.USER });
       expect(socket.disconnect).not.toHaveBeenCalled();
     });

@@ -132,6 +132,23 @@ npm run dev
 
 Open `http://localhost:3000` in your browser.
 
+### Production frontend/API host setup
+
+The frontend middleware verifies the `accessToken` cookie on protected pages.
+When the API uses a different hostname, either configure a same-origin proxy
+(`NEXT_PUBLIC_API_URL=https://app.example.com/api` and
+`API_PROXY_TARGET=https://api.example.com` on the frontend), or set the
+backend's `COOKIE_DOMAIN=.example.com` for sibling frontend/API hosts. The
+proxy forwards `/api/*` to the backend and `/socket.io/*` for payment updates;
+the browser then stores the auth cookie for the frontend host. For direct
+cross-origin API access, the shared cookie domain makes the cookie visible to
+both hosts; also allow the frontend origin in backend `CORS_ORIGINS`.
+
+The dedicated `CREDITS_USAGE_API_KEY` backend setting authenticates only
+`POST /credits/usage` and `POST /credits/charge` through the `X-Service-Key`
+header. Do not reuse `JWT_SECRET` or an administrator's session token for
+metering integrations.
+
 ---
 
 ## Project Structure

@@ -131,6 +131,31 @@ describe('Auth & admin authorization (e2e)', () => {
     });
   });
 
+  describe('scoped credits usage credential', () => {
+    it('authenticates the charge and usage endpoints without a user JWT', async () => {
+      const charge = await request(server)
+        .post('/credits/charge')
+        .set('X-Service-Key', 'e2e-credits-usage-key')
+        .send({});
+      const usage = await request(server)
+        .post('/credits/usage')
+        .set('X-Service-Key', 'e2e-credits-usage-key')
+        .send({});
+
+      // Validation runs only after the scoped credential authenticates.
+      expect(charge.status).toBe(400);
+      expect(usage.status).toBe(400);
+    });
+
+    it('does not authorize an admin route', async () => {
+      const res = await request(server)
+        .get('/credits/admin/ledger/integrity')
+        .set('X-Service-Key', 'e2e-credits-usage-key');
+
+      expect(res.status).toBe(401);
+    });
+  });
+
   describe('admin route GET /admin/audit/actions', () => {
     it('rejects a missing token (401)', async () => {
       const res = await request(server).get('/admin/audit/actions');

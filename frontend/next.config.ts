@@ -7,6 +7,8 @@ const withBundleAnalyzer =
     ? bundleAnalyzer({ enabled: true })
     : (config: NextConfig) => config;
 
+const apiProxyTarget = process.env.API_PROXY_TARGET?.replace(/\/+$/, "");
+
 const nextConfig: NextConfig = {
   turbopack: {
     root: import.meta.dirname,
@@ -15,6 +17,20 @@ const nextConfig: NextConfig = {
   // route (issue #1868). See lib/csp.ts for how the policy is built.
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders() }];
+  },
+  async rewrites() {
+    if (!apiProxyTarget) return [];
+
+    return [
+      {
+        source: "/api/:path*",
+        destination: `${apiProxyTarget}/:path*`,
+      },
+      {
+        source: "/socket.io/:path*",
+        destination: `${apiProxyTarget}/socket.io/:path*`,
+      },
+    ];
   },
 };
 

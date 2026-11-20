@@ -34,7 +34,7 @@ export class RequestDurationInterceptor implements NestInterceptor {
       // per distinct path param value.
       const route = request.route?.path
         ? `${request.baseUrl ?? ''}${request.route.path}`
-        : (request.path ?? request.url);
+        : 'unmatched';
       this.metrics.recordHttpRequestDuration(
         route,
         request.method,

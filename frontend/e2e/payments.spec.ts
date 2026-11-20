@@ -12,6 +12,8 @@ test("creates a FIAT sandbox payment and confirms it on the payment return page"
   await page.getByLabel("Confirm password").fill(password);
   await page.getByRole("button", { name: "Create account" }).click();
   await expect(page).toHaveURL(/\/wallet$/);
+  await page.reload();
+  await expect(page).toHaveURL(/\/wallet$/);
 
   await page.goto("/payments/new");
   await page.getByLabel("Booking ID").fill(crypto.randomUUID());
