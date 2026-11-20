@@ -1,7 +1,6 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { BullModule } from '@nestjs/bull';
-import { CacheModule } from '@nestjs/cache-manager';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -31,11 +30,6 @@ import { buildDatabaseSslOptions } from './database/database-ssl';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    CacheModule.register({
-      isGlobal: true,
-      ttl: 60_000,
-      max: 1_000,
-    }),
     // Powers ReconciliationService's @Cron job (issue #1572).
     ScheduleModule.forRoot(),
     // Rate limiting (issue #1955): the default throttler storage keeps
@@ -84,12 +78,15 @@ import { buildDatabaseSslOptions } from './database/database-ssl';
           DATABASE_SSL: config.get<string>('DATABASE_SSL'),
           DATABASE_SSL_CA: config.get<string>('DATABASE_SSL_CA'),
         }),
-        // Env-configurable pool bounds (issue #1778) — see
+        // Env-configurable pool bounds and timeouts (#2202) — see
         // src/database/data-source.ts for the matching CLI/migration
         // DataSource and the defaults these fall back to.
         extra: {
           min: config.get<number>('DB_POOL_MIN', 2),
           max: config.get<number>('DB_POOL_MAX', 10),
+          connectionTimeoutMillis: config.get<number>('DB_CONNECTION_TIMEOUT_MS', 10_000),
+          idleTimeoutMillis: config.get<number>('DB_IDLE_TIMEOUT_MS', 30_000),
+          statement_timeout: config.get<number>('DB_STATEMENT_TIMEOUT_MS', 30_000),
         },
       }),
     }),
