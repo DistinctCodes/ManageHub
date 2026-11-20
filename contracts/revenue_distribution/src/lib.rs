@@ -252,22 +252,22 @@ impl RevenueDistributionContract {
             .get(&DataKey::Admin)
             .ok_or(Error::NotInitialized)?;
         admin.require_auth();
-        if allowed {
-            env.storage()
-                .instance()
-                .set(&DataKey::PaymentToken(token), &true);
-        } else {
-            env.storage().instance().remove(&DataKey::PaymentToken(token));
+        let key = DataKey::PaymentToken(token.clone());
+        let was = env.storage().instance().has(&key);
+        if allowed && !was {
+            env.storage().instance().set(&key, &true);
+            env.events().publish(
+                (symbol_short!("token"), symbol_short!("allowed")),
+                (admin, token),
+            );
+        } else if !allowed && was {
+            env.storage().instance().remove(&key);
+            env.events().publish(
+                (symbol_short!("token"), symbol_short!("removed")),
+                (admin, token),
+            );
         }
         Ok(())
-    }
-
-    /// Return the current admin address.
-    pub fn get_admin(env: Env) -> Result<Address, Error> {
-        env.storage()
-            .instance()
-            .get(&DataKey::Admin)
-            .ok_or(Error::NotInitialized)
     }
 
     /// Set the distribution configuration.
