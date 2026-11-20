@@ -3,6 +3,7 @@ import { Keypair } from '@stellar/stellar-sdk';
 
 export interface SorobanConfig {
   contractId: string;
+  revenueDistributionContractId: string;
   networkPassphrase: string;
   treasurySecretKey: string;
   /** Derived once at load time — the treasury's own signing key never leaves loadSorobanConfig. */
@@ -19,6 +20,7 @@ export interface SorobanConfig {
 
 const REQUIRED_KEYS = [
   'STELLAR_ESCROW_CONTRACT_ID',
+  'STELLAR_REVENUE_DISTRIBUTION_CONTRACT_ID',
   'STELLAR_SECRET_KEY',
   'STELLAR_NETWORK',
   'STELLAR_BENEFICIARY_ADDRESS',
@@ -31,7 +33,10 @@ const REQUIRED_KEYS = [
  */
 function parseEscrowTokenAddresses(raw: string): Record<string, string> {
   const result: Record<string, string> = {};
-  for (const pair of raw.split(',').map((p) => p.trim()).filter(Boolean)) {
+  for (const pair of raw
+    .split(',')
+    .map((p) => p.trim())
+    .filter(Boolean)) {
     const [currency, address] = pair.split(':').map((p) => p.trim());
     if (currency && address) {
       result[currency.toUpperCase()] = address;
@@ -90,6 +95,9 @@ export function loadSorobanConfig(config: ConfigService): SorobanConfig | null {
 
   return {
     contractId: config.get<string>('STELLAR_ESCROW_CONTRACT_ID')!,
+    revenueDistributionContractId: config.get<string>(
+      'STELLAR_REVENUE_DISTRIBUTION_CONTRACT_ID',
+    )!,
     networkPassphrase: config.get<string>('STELLAR_NETWORK')!,
     treasurySecretKey,
     treasuryPublicKey: Keypair.fromSecret(treasurySecretKey).publicKey(),

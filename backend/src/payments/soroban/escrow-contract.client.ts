@@ -40,20 +40,8 @@ import { withSpan } from '../../common/tracing';
 import { SorobanRpcClient } from './soroban-rpc-client';
 import { EscrowStatus } from './escrow-status.enum';
 
-// ---------------------------------------------------------------------------
-// Generated contract-error enum (mirrors contracts/payment_escrow Error)
-// ---------------------------------------------------------------------------
-export enum ContractError {
-  NotFound = 1,
-  AlreadyResolved = 2,
-  InvalidAmount = 3,
-  AlreadyExists = 4,
-  ArithmeticOverflow = 5,
-  TokenNotAllowed = 22,
-  TransferShortfall = 23,
-}
+export { PaymentEscrowError as ContractError } from '../../../../contracts/shared/error-codes';
 
-// ---------------------------------------------------------------------------
 // Generated client class — preserves all public method names / signatures
 // ---------------------------------------------------------------------------
 export class EscrowContractClient {
@@ -158,6 +146,26 @@ export class EscrowContractClient {
       const raw = Number(scValToNative(retval));
       return EscrowContractClient.mapRawStatus(raw);
     });
+  }
+
+  async getContractVersion(sourceAccountPublicKey: string): Promise<number> {
+    const tx = await this.build(sourceAccountPublicKey, 'version', []);
+    const sim = await this.rpc.simulateTransaction(tx);
+    if (SorobanRpc.Api.isSimulationError(sim)) {
+      throw new Error(`Contract version() simulation failed: ${sim.error}`);
+    }
+
+    const retval = sim.result?.retval ?? sim.results?.[0]?.retval;
+    if (!retval) {
+      throw new Error('Contract version() simulation returned no value');
+    }
+    const version = Number(scValToNative(retval));
+    if (!Number.isSafeInteger(version) || version < 0) {
+      throw new Error(
+        `Contract version() returned an invalid value: ${version}`,
+      );
+    }
+    return version;
   }
 
   private static mapRawStatus(raw: number): EscrowStatus {

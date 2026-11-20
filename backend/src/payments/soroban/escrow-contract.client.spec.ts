@@ -4,7 +4,7 @@ import {
   attachSignature,
 } from './escrow-contract.client';
 import { EscrowStatus } from './escrow-status.enum';
-import { Account, Keypair, StrKey } from '@stellar/stellar-sdk';
+import { Account, Keypair, nativeToScVal, StrKey } from '@stellar/stellar-sdk';
 
 const CONTRACT_ID = StrKey.encodeContract(Buffer.alloc(32, 1));
 
@@ -152,6 +152,29 @@ describe('EscrowContractClient', () => {
       );
 
       expect(status).toBe(EscrowStatus.NOT_FOUND);
+    });
+  });
+
+  describe('getContractVersion', () => {
+    it('simulates version() and returns the contract interface version', async () => {
+      const rpc = makeRpc({
+        getAccount: jest
+          .fn()
+          .mockResolvedValue(new Account(Keypair.random().publicKey(), '1')),
+        simulateTransaction: jest.fn().mockResolvedValue({
+          result: { retval: nativeToScVal(2, { type: 'u32' }) },
+        }),
+      });
+      const client = new EscrowContractClient(
+        rpc as any,
+        CONTRACT_ID,
+        'passphrase',
+      );
+
+      await expect(
+        client.getContractVersion(Keypair.random().publicKey()),
+      ).resolves.toBe(2);
+      expect(rpc.simulateTransaction).toHaveBeenCalledTimes(1);
     });
   });
 
