@@ -61,10 +61,14 @@ export interface RequestOptions {
   expireOn401?: boolean;
   /** Default "include" so the HttpOnly session cookie is sent cross-origin. */
   credentials?: RequestCredentials;
+  /** Abort the request after this many milliseconds (default 15000). */
+  timeoutMs?: number;
 }
 
 const TRANSIENT_RETRY_DELAY_MS = 250;
-const RETRYABLE_STATUS_CODES = new Set([408, 425, 429, 500, 502, 503, 504]);
+const DEFAULT_TIMEOUT_MS = 15_000;
+// 429 is handled by rate-limit UX and is not auto-retried (#2208).
+const RETRYABLE_STATUS_CODES = new Set([408, 425, 500, 502, 503, 504]);
 
 function isRetryableMethod(init: RequestInit): boolean {
   return (init.method ?? "GET").toUpperCase() === "GET";
@@ -78,14 +82,34 @@ function waitForRetry(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, TRANSIENT_RETRY_DELAY_MS));
 }
 
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (error) {
+    if (isAbortError(error)) {
+      throw new ApiError(0, "TIMEOUT", "Request timed out");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function fetchWithRetry(
   url: string,
   init: RequestInit,
   retriable: boolean,
+  timeoutMs: number,
 ): Promise<Response> {
   for (let attempt = 0; ; attempt += 1) {
     try {
-      const response = await fetch(url, init);
+      const response = await fetchWithTimeout(url, init, timeoutMs);
       if (
         !retriable ||
         attempt >= 1 ||
@@ -95,7 +119,8 @@ async function fetchWithRetry(
       }
       await response.body?.cancel();
     } catch (error) {
-      if (!retriable || attempt >= 1 || isAbortError(error)) {
+      const timeout = error instanceof ApiError && error.code === "TIMEOUT";
+      if (!retriable || attempt >= 1 || (isAbortError(error) && !timeout)) {
         throw error;
       }
     }
@@ -149,6 +174,7 @@ export async function request<T>(
     report = true,
     expireOn401 = true,
     credentials = "include",
+    timeoutMs = DEFAULT_TIMEOUT_MS,
   } = options;
 
   const init: RequestInit = {
@@ -167,6 +193,7 @@ export async function request<T>(
     `${getApiBaseUrl()}${path}`,
     init,
     retriable && isRetryableMethod(init),
+    timeoutMs,
   );
 
   if (!response.ok) {
