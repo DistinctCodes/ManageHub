@@ -41,6 +41,12 @@ A missing escrow is **not** a status code: `get_status` returns
 `Err(Error::NotFound)`, which surfaces to clients as `Error(Contract, #1)`. The
 backend maps that error to `NOT_FOUND`.
 
+### Escrow terminal states (#2196)
+
+- `Released` (`2`): the escrow was fully paid out by a single `release` call.
+- `Completed` (`4`): the escrow was fully paid out in instalments via `release_partial`.
+- If `release` is called after one or more partial releases, the remainder is transferred and the escrow currently settles as `Released` (`2`). Consumers must therefore treat both `2` and `4` as fully paid out and must not infer whether instalments happened from the status alone. Backend status mapping and ABI consumers should follow this rule consistently.
+
 ### Error Codes
 
 | Code | Error                 | Meaning                                              |
@@ -90,6 +96,14 @@ These environment variables bind the backend to the on-chain contract
 The backend derives escrow IDs as the **SHA-256 hash** of the `Payment` entity UUID,
 passed to the contract as `BytesN<32>`. See `escrow-submission.processor.ts` for the
 exact derivation.
+
+## Revenue distribution
+
+### Recipient transfer failures (#2197)
+
+`revenue_distribution::distribute` transfers to each recipient in sequence and is **all-or-nothing**: if any transfer fails (for example a missing trustline, a deauthorised/blocklisted account, or a contract recipient that traps), the whole invocation aborts and no recipient is paid. This prevents partial payouts but means one bad recipient can block distributions for everyone.
+
+**Recovery:** an admin should replace the failing recipient via `configure` (updating the split/configuration to remove or replace that address) and then retry `distribute`.
 
 ## Arithmetic Safety (CT-73)
 
