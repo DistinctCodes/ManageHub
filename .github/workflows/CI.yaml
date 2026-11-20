@@ -309,6 +309,9 @@ jobs:
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
 
+      - name: Check for orphaned contract modules
+        run: bash scripts/check-orphan-modules.sh
+
       # Native target: .cargo/config.toml has no default wasm target, so the
       # unit and integration tests actually execute.
       - name: Test
