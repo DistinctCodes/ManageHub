@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   admin: {
     listAccounts: vi.fn(),
+    searchUsers: vi.fn(),
     createAccount: vi.fn(),
     updateAccount: vi.fn(),
     listSplits: vi.fn(),
@@ -41,6 +42,7 @@ const mocks = vi.hoisted(() => ({
   },
   toast: { success: vi.fn(), error: vi.fn() },
   routeId: "payment-1",
+  searchParams: new URLSearchParams(),
 }));
 
 vi.mock("@/lib/admin-api", () => mocks.admin);
@@ -55,6 +57,7 @@ vi.mock("@/components/admin/settlement-volume-chart", () => ({
 vi.mock("next/navigation", () => ({
   useParams: () => ({ id: mocks.routeId }),
   useRouter: () => ({ back: vi.fn(), push: vi.fn(), replace: vi.fn() }),
+  useSearchParams: () => mocks.searchParams,
 }));
 vi.mock("next/link", () => ({
   default: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
@@ -229,7 +232,11 @@ function batchBreakdown() {
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.routeId = "payment-1";
-  mocks.admin.listAccounts.mockResolvedValue([]);
+  mocks.searchParams = new URLSearchParams();
+  mocks.admin.listAccounts.mockResolvedValue({ data: [], nextCursor: null });
+  mocks.admin.searchUsers.mockResolvedValue([
+    { id: "member-1", email: "member@example.com", role: "user" },
+  ]);
   mocks.admin.createAccount.mockResolvedValue(account());
   mocks.admin.updateAccount.mockResolvedValue(account({ frozen: true }));
   mocks.admin.listSplits.mockResolvedValue([]);
@@ -303,7 +310,8 @@ describe("admin charge page", () => {
     await user.click(screen.getByRole("button", { name: "Charge credits" }));
     expect(mocks.payments.chargeCredits).not.toHaveBeenCalled();
 
-    await user.type(screen.getByLabelText("User ID"), "member-1");
+    await user.type(screen.getByLabelText("User email"), "member@");
+    await user.click(await screen.findByRole("option", { name: "member@example.com" }));
     await user.type(screen.getByLabelText("Amount (minor units)"), "500");
     await user.type(screen.getByLabelText("Reference (idempotency key)"), "ref-1");
     await user.type(screen.getByLabelText("Reason"), "Manual correction");
@@ -323,7 +331,8 @@ describe("admin charge page", () => {
     mocks.payments.chargeCredits.mockRejectedValueOnce(new Error("Charge rejected"));
     const user = userEvent.setup();
     renderPage(<ChargePage />);
-    await user.type(screen.getByLabelText("User ID"), "member-1");
+    await user.type(screen.getByLabelText("User email"), "member@");
+    await user.click(await screen.findByRole("option", { name: "member@example.com" }));
     await user.type(screen.getByLabelText("Amount (minor units)"), "500");
     await user.type(screen.getByLabelText("Reference (idempotency key)"), "ref-1");
     await user.type(screen.getByLabelText("Reason"), "Manual correction");
@@ -386,12 +395,25 @@ describe("admin refund page", () => {
 describe("admin accounts page", () => {
   it("lists accounts and freezes an account", async () => {
     const user = userEvent.setup();
-    mocks.admin.listAccounts.mockResolvedValueOnce([account()]);
+    mocks.admin.listAccounts.mockResolvedValueOnce({ data: [account()], nextCursor: null });
     renderPage(<AccountsPage />);
     expect(await screen.findByText("member-1")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Freeze" }));
     expect(mocks.admin.updateAccount).toHaveBeenCalledWith("account-1", { frozen: true });
     await waitFor(() => expect(mocks.toast.success).toHaveBeenCalledWith("Account policy updated"));
+  });
+
+  it("loads the next page with Load more", async () => {
+    const user = userEvent.setup();
+    mocks.admin.listAccounts
+      .mockResolvedValueOnce({ data: [account()], nextCursor: "cursor-2" })
+      .mockResolvedValueOnce({ data: [account({ id: "account-2", ownerId: "member-2" })], nextCursor: null });
+    renderPage(<AccountsPage />);
+    expect(await screen.findByText("member-1")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Load more" }));
+    expect(await screen.findByText("member-2")).toBeInTheDocument();
+    expect(mocks.admin.listAccounts).toHaveBeenLastCalledWith(undefined, "cursor-2");
+    expect(screen.queryByRole("button", { name: "Load more" })).not.toBeInTheDocument();
   });
 
   it("shows a list error and can create an account", async () => {
@@ -467,13 +489,14 @@ describe("admin credits page", () => {
     const user = userEvent.setup();
     renderPage(<CreditsPage />);
     expect(await screen.findByText("Manual Credit Adjustment")).toBeInTheDocument();
-    await user.type(screen.getAllByRole("textbox")[0], "member-1");
-    await user.type(screen.getAllByRole("spinbutton")[0], "5");
-    await user.type(screen.getAllByRole("textbox")[1], "Correction");
+    await user.type(screen.getByRole("combobox", { name: "User email" }), "member@");
+    await user.click(await screen.findByRole("option", { name: "member@example.com" }));
+    await user.type(screen.getByLabelText("Adjustment Amount (+/-)"), "5");
+    await user.type(screen.getByLabelText("Reason"), "Correction");
     await user.click(screen.getByRole("button", { name: "Apply Adjustment" }));
     await waitFor(() => expect(mocks.toast.success).toHaveBeenCalledWith("Manual credit adjustment applied successfully."));
-    await user.type(screen.getAllByRole("textbox")[2], "payment-1");
-    await user.type(screen.getAllByRole("spinbutton")[1], "5");
+    await user.type(screen.getByLabelText("Payment ID"), "payment-1");
+    await user.type(screen.getByLabelText("Top-Up Amount"), "5");
     await user.click(screen.getByRole("button", { name: "Trigger Top-Up" }));
     await waitFor(() => expect(mocks.toast.error).toHaveBeenCalledWith("Failed to trigger payment top-up."));
   });
@@ -508,6 +531,32 @@ describe("admin revenue splits pages", () => {
     expect(screen.getByText(/Total: 10000 basis points/)).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /^Create$/ }));
     await waitFor(() => expect(mocks.admin.createSplit).toHaveBeenCalledWith(expect.objectContaining({ name: "New config" })));
+  });
+
+  it("resolves a ledger account before submitting a split", async () => {
+    const user = userEvent.setup();
+    mocks.admin.listAccounts
+      .mockResolvedValueOnce({
+        data: [account({ id: "account-0", label: "Primary", ownerId: "member-0" })],
+        nextCursor: "cursor-2",
+      })
+      .mockResolvedValueOnce({
+        data: [account({ id: "account-1", label: "Reserve", ownerId: null })],
+        nextCursor: null,
+      });
+    renderPage(<SplitsPage />);
+    await user.click(await screen.findByRole("button", { name: "New split" }));
+    await user.type(screen.getByLabelText("Name"), "New config");
+    await user.click(screen.getByRole("button", { name: "Add" }));
+    await user.type(screen.getByPlaceholderText("Label"), "Operations");
+    await user.type(screen.getByPlaceholderText("Basis points"), "10000");
+    await user.type(screen.getByPlaceholderText("Search by label or owner"), "Reserve");
+    await user.click(await screen.findByRole("option", { name: /Reserve/ }));
+    expect(screen.getByText("Selected: Reserve")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /^Create$/ }));
+    await waitFor(() => expect(mocks.admin.createSplit).toHaveBeenCalledWith(expect.objectContaining({
+      recipients: [expect.objectContaining({ accountId: "account-1" })],
+    })));
   });
 
   it("renders split details, previews allocations, and handles lookup errors", async () => {
@@ -554,6 +603,15 @@ describe("admin settlements pages", () => {
     mocks.admin.listBatches.mockResolvedValueOnce([]);
     renderPage(<SettlementsPage />);
     expect(await screen.findByText("No settlement batches.")).toBeInTheDocument();
+  });
+
+  it("filters batches from the URL without reloading", async () => {
+    mocks.searchParams = new URLSearchParams("status=FAILED");
+    mocks.admin.listBatches.mockResolvedValueOnce([]);
+    renderPage(<SettlementsPage />);
+    expect(await screen.findByText("No settlement batches.")).toBeInTheDocument();
+    expect(mocks.admin.listBatches).toHaveBeenCalledWith("FAILED");
+    expect(screen.getByRole("link", { name: "Failed" })).toHaveAttribute("href", "?status=FAILED");
   });
 
   it("shows settlement list errors and run failures", async () => {

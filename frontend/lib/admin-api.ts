@@ -20,6 +20,12 @@ export type SettlementBatchStatus =
 
 export type SettlementBatchMode = "DISTRIBUTION" | "NET_PAYABLE";
 
+export interface AdminUser {
+  id: string;
+  email: string;
+  role: "user" | "admin";
+}
+
 export interface LedgerAccount {
   id: string;
   kind: LedgerAccountKind;
@@ -30,6 +36,11 @@ export interface LedgerAccount {
   externalPayoutAddress: string | null;
   frozen: boolean;
   label: string | null;
+}
+
+export interface LedgerAccountPage {
+  data: LedgerAccount[];
+  nextCursor: string | null;
 }
 
 export interface CreateLedgerAccountInput {
@@ -197,9 +208,22 @@ function adminFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 export function listAccounts(
   currency?: string,
-): Promise<LedgerAccount[]> {
-  const query = currency ? `?currency=${encodeURIComponent(currency)}` : "";
-  return adminFetch<LedgerAccount[]>(`/credits/admin/accounts${query}`);
+  cursor?: string,
+  limit?: number,
+): Promise<LedgerAccountPage> {
+  const params = new URLSearchParams();
+  if (currency) params.set("currency", currency);
+  if (cursor) params.set("cursor", cursor);
+  if (limit) params.set("limit", String(limit));
+  const serialized = params.toString();
+  const query = serialized ? `?${serialized}` : "";
+  return adminFetch<LedgerAccountPage>(`/credits/admin/accounts${query}`);
+}
+
+export function searchUsers(query: string): Promise<AdminUser[]> {
+  return adminFetch<AdminUser[]>(
+    `/auth/users/search?email=${encodeURIComponent(query)}`,
+  );
 }
 
 export function createAccount(

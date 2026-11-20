@@ -233,6 +233,13 @@ export class LedgerService {
     });
   }
 
+  async listAccountsForOwner(ownerId: string): Promise<LedgerAccount[]> {
+    return this.accounts().find({
+      where: { kind: LedgerAccountKind.USER, ownerId },
+      order: { createdAt: 'ASC', id: 'ASC' },
+    });
+  }
+
   /**
    * Idempotent under concurrency: the partial unique indexes on
    * (kind, owner_id, currency) — one for owned accounts, one for the
@@ -468,6 +475,20 @@ export class LedgerService {
       order: { createdAt: 'DESC' },
       take: limit,
     });
+  }
+
+  async listEntriesPage(
+    accountId: string,
+    page: number,
+    pageSize: number,
+  ): Promise<{ entries: LedgerEntry[]; total: number }> {
+    const [entries, total] = await this.entryRepository.findAndCount({
+      where: { accountId },
+      order: { createdAt: 'DESC', id: 'DESC' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    });
+    return { entries, total };
   }
 
   async listEntriesForTransactions(

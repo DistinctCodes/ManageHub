@@ -63,7 +63,8 @@ test("an authenticated admin can charge a member through the admin page", async 
   expect(adjustment.ok()).toBeTruthy();
 
   await adminPage.goto("/admin/charge");
-  await adminPage.getByLabel("User ID").fill(memberId);
+  await adminPage.getByLabel("User email").fill(email);
+  await adminPage.getByRole("option", { name: email }).click();
   await adminPage.getByLabel("Amount (minor units)").fill("125");
   await adminPage.getByLabel("Currency (optional)").fill("USD");
   await adminPage.getByLabel("Reference (idempotency key)").fill(`e2e-charge-${crypto.randomUUID()}`);

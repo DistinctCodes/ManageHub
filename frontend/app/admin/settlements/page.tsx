@@ -1,8 +1,10 @@
 "use client";
 
+import { Suspense } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Play } from "lucide-react";
 import type { SettlementBatchStatus } from "@/lib/admin-api";
 import { listBatches, runSettlement } from "@/lib/admin-api";
@@ -29,17 +31,23 @@ const STATUSES: Array<{ value: SettlementBatchStatus | ""; label: string }> = [
 export default function SettlementsPage() {
   return (
     <RequireAdmin>
-      <SettlementsInner />
+      <Suspense
+        fallback={
+          <p role="status" className="px-5 py-6 text-sm text-gray-500">
+            Loading settlement filters…
+          </p>
+        }
+      >
+        <SettlementsInner />
+      </Suspense>
     </RequireAdmin>
   );
 }
 
 function SettlementsInner() {
   const queryClient = useQueryClient();
-  const status =
-    typeof window !== "undefined"
-      ? new URLSearchParams(window.location.search).get("status") ?? ""
-      : "";
+  const searchParams = useSearchParams();
+  const status = searchParams.get("status") ?? "";
 
   const batches = useQuery({
     queryKey: ["settlement-batches", status],

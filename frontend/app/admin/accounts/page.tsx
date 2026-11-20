@@ -1,6 +1,10 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useState } from "react";
 import { Plus, Snowflake, Unlock } from "lucide-react";
@@ -39,10 +43,14 @@ function AccountsInner() {
   const queryClient = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
 
-  const accounts = useQuery({
+  const accounts = useInfiniteQuery({
     queryKey: ["ledger-accounts"],
-    queryFn: () => listAccounts(),
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam }) => listAccounts(undefined, pageParam ?? undefined),
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
   });
+
+  const accountRows = accounts.data?.pages.flatMap((page) => page.data) ?? [];
 
   const freeze = useMutation({
     mutationFn: ({ id, frozen }: { id: string; frozen: boolean }) =>
@@ -76,7 +84,7 @@ function AccountsInner() {
       )}
 
       <Card>
-        <CardHeader title={`${accounts.data?.length ?? 0} accounts`} />
+        <CardHeader title={`${accountRows.length} accounts`} />
         {accounts.error && (
           <p role="alert" className="px-5 py-6 text-sm text-red-600">
             {(accounts.error as Error).message}
@@ -97,7 +105,7 @@ function AccountsInner() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-              {accounts.data?.map((account) => (
+              {accountRows.map((account) => (
                 <AccountRow
                   key={account.id}
                   account={account}
@@ -106,7 +114,7 @@ function AccountsInner() {
                   }
                 />
               ))}
-              {!accounts.isLoading && !accounts.error && (accounts.data?.length ?? 0) === 0 && (
+              {!accounts.isPending && !accounts.error && accountRows.length === 0 && (
                 <tr>
                   <td colSpan={8} className="px-5 py-8 text-center text-gray-400">
                     No accounts found.
@@ -116,6 +124,17 @@ function AccountsInner() {
             </tbody>
           </table>
         </div>
+        {accounts.hasNextPage ? (
+          <div className="flex justify-center border-t border-gray-200 px-5 py-4 dark:border-gray-800">
+            <SecondaryButton
+              type="button"
+              onClick={() => accounts.fetchNextPage()}
+              disabled={accounts.isFetchingNextPage}
+            >
+              {accounts.isFetchingNextPage ? "Loading…" : "Load more"}
+            </SecondaryButton>
+          </div>
+        ) : null}
       </Card>
     </div>
   );

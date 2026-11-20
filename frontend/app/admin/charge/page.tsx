@@ -8,6 +8,7 @@ import {
   inputClass,
 } from "@/components/app-ui";
 import { RequireAdmin } from "@/components/admin/require-admin";
+import { UserPicker } from "@/components/admin/entity-pickers";
 import { chargeCredits, type ChargeCreditsResponse } from "@/lib/payments-api";
 import { formatCurrency, fromMinorUnits } from "@/lib/utils";
 import { useState } from "react";
@@ -15,6 +16,7 @@ import { toast } from "sonner";
 
 export default function AdminChargePage() {
   const [userId, setUserId] = useState("");
+  const [userEmail, setUserEmail] = useState("");
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState("");
   const [reference, setReference] = useState("");
@@ -60,15 +62,14 @@ export default function AdminChargePage() {
             }}
             className="space-y-4 px-5 py-5"
           >
-            <Field label="User ID">
-              <input
-                className={inputClass}
-                value={userId}
-                onChange={(e) => setUserId(e.target.value)}
-                placeholder="member uuid"
-                required
-              />
-            </Field>
+            <UserPicker
+              value={userId}
+              selectedLabel={userEmail || null}
+              onSelect={(user) => {
+                setUserId(user.id);
+                setUserEmail(user.email);
+              }}
+            />
             <Field label="Amount (minor units)">
               <input
                 className={inputClass}
@@ -105,7 +106,7 @@ export default function AdminChargePage() {
                 required
               />
             </Field>
-            <Button type="submit" disabled={busy}>
+            <Button type="submit" disabled={busy || !userId}>
               {busy ? "Charging…" : "Charge credits"}
             </Button>
           </form>
@@ -122,7 +123,8 @@ export default function AdminChargePage() {
               Confirm charge
             </h2>
             <p className="mt-1">
-              Charge {amount || "0"} minor units to {userId || "this member"}?
+              Charge {amount || "0"} minor units to{" "}
+              {userEmail || userId || "this member"}?
             </p>
             <div className="mt-4 flex gap-3">
               <Button type="button" onClick={confirmCharge} disabled={busy}>

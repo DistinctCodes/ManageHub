@@ -7,7 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { compare, hash } from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
-import { Repository } from 'typeorm';
+import { Raw, Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { UserRole } from './enums/user-role.enum';
 import { RegisterDto } from './dto/register.dto';
@@ -177,6 +177,29 @@ export class AuthService {
       throw new NotFoundException('User not found');
     }
     return { id: user.id, email: user.email, role: user.role };
+  }
+
+  async searchUsers(query: string): Promise<AuthUserDto[]> {
+    const term = query.trim().toLowerCase();
+    if (!term) {
+      return [];
+    }
+
+    const users = await this.users.find({
+      select: { id: true, email: true, role: true },
+      where: {
+        email: Raw((alias) => `LOWER(${alias}) LIKE :search`, {
+          search: `%${term}%`,
+        }),
+      },
+      order: { email: 'ASC' },
+      take: 20,
+    });
+    return users.map((user) => ({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    }));
   }
 
   private async bumpTokenVersion(userId: string): Promise<void> {

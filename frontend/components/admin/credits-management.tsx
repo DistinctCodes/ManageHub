@@ -4,9 +4,11 @@
 import React, { useState } from 'react';
 import { Sliders, ArrowUpRight, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+import { UserPicker } from '@/components/admin/entity-pickers';
 
 export default function AdminCreditsManagement() {
   const [userId, setUserId] = useState('');
+  const [userEmail, setUserEmail] = useState('');
   const [adjustmentAmount, setAdjustmentAmount] = useState('');
   const [adjustmentReason, setAdjustmentReason] = useState('');
   const [paymentId, setPaymentId] = useState('');
@@ -25,6 +27,7 @@ export default function AdminCreditsManagement() {
       if (!res.ok) throw new Error('Failed to process manual adjustment.');
       toast.success('Manual credit adjustment applied successfully.');
       setUserId('');
+      setUserEmail('');
       setAdjustmentAmount('');
       setAdjustmentReason('');
     } catch (err: unknown) {
@@ -85,19 +88,18 @@ export default function AdminCreditsManagement() {
             Manual Credit Adjustment
           </h2>
           <form onSubmit={handleManualAdjustment} className="space-y-4">
+            <UserPicker
+              value={userId}
+              selectedLabel={userEmail || null}
+              onSelect={(user) => {
+                setUserId(user.id);
+                setUserEmail(user.email);
+              }}
+            />
             <div>
-              <label className="block text-sm font-medium text-gray-700">User ID</label>
+              <label htmlFor="adjustment-amount" className="block text-sm font-medium text-gray-700">Adjustment Amount (+/-)</label>
               <input
-                type="text"
-                value={userId}
-                onChange={(e) => setUserId(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Adjustment Amount (+/-)</label>
-              <input
+                id="adjustment-amount"
                 type="number"
                 step="0.01"
                 value={adjustmentAmount}
@@ -107,8 +109,9 @@ export default function AdminCreditsManagement() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700">Reason</label>
+              <label htmlFor="adjustment-reason" className="block text-sm font-medium text-gray-700">Reason</label>
               <input
+                id="adjustment-reason"
                 type="text"
                 value={adjustmentReason}
                 onChange={(e) => setAdjustmentReason(e.target.value)}
@@ -118,7 +121,7 @@ export default function AdminCreditsManagement() {
             </div>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !userId}
               className="w-full px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
             >
               Apply Adjustment
@@ -135,8 +138,9 @@ export default function AdminCreditsManagement() {
             </h2>
             <form onSubmit={handlePaymentTopUp} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700">Payment ID</label>
+                <label htmlFor="payment-id" className="block text-sm font-medium text-gray-700">Payment ID</label>
                 <input
+                  id="payment-id"
                   type="text"
                   value={paymentId}
                   onChange={(e) => setPaymentId(e.target.value)}
@@ -145,8 +149,9 @@ export default function AdminCreditsManagement() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700">Top-Up Amount</label>
+                <label htmlFor="top-up-amount" className="block text-sm font-medium text-gray-700">Top-Up Amount</label>
                 <input
+                  id="top-up-amount"
                   type="number"
                   step="0.01"
                   value={topUpAmount}
