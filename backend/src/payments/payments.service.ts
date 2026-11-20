@@ -157,6 +157,24 @@ export class PaymentsService {
     return payment;
   }
 
+  async cancel(id: string, currentUser: RequestUser): Promise<Payment> {
+    return withSpan(
+      'payments.service.cancel',
+      async () => {
+        const payment = await this.paymentRepository.findOne({ where: { id } });
+        if (!payment) {
+          throw new NotFoundException('Payment not found');
+        }
+        if (payment.userId !== currentUser.id) {
+          throw new ForbiddenException('You may not cancel this payment');
+        }
+        this.transitionStatus(payment, PaymentStatus.CANCELLED, 'cancellation');
+        return this.paymentRepository.save(payment);
+      },
+      { 'payment.id': id },
+    );
+  }
+
   async findAll(currentUser: RequestUser): Promise<Payment[]>;
   async findAll(
     currentUser: RequestUser,

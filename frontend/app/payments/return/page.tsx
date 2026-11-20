@@ -58,6 +58,7 @@ function terminalStatus(status: string): boolean {
   return [
     "CONFIRMED", "FAILED", "EXPIRED", "REFUNDED",
     "PARTIALLY_REFUNDED", "MANUAL_REVIEW", "DISPUTED", "VOIDED",
+    "CANCELLED",
   ].includes(status);
 }
 
@@ -407,10 +408,16 @@ function PaymentReturnContent() {
 
               <dt className="text-gray-500 dark:text-gray-400">Amount</dt>
               <dd>
-                {formatCurrency(
-                  fromMinorUnits(payment.amount, payment.currency),
+              {formatCurrency(
+                fromMinorUnits(
+                  payment.amount,
                   payment.currency,
-                )}
+                  payment.currencyExponent,
+                ),
+                payment.currency,
+                undefined,
+                payment.currencyExponent,
+              )}
               </dd>
 
               {payment.provider && (

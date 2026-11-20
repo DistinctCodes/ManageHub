@@ -79,6 +79,7 @@ const STATUS_STYLES: Record<string, string> = {
   FAILED: "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-400",
   EXPIRED: "bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-400",
   VOIDED: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+  CANCELLED: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
   REFUNDED: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
   ABANDONED: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
 };

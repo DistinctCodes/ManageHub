@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   QueryCache,
   QueryClient,
@@ -9,6 +9,8 @@ import {
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { toast, Toaster } from "sonner";
 import { ThemeProvider } from "next-themes";
+import { getCurrencies } from "@/lib/currencies-api";
+import { registerCurrencyExponents } from "@/lib/utils";
 
 /**
  * Decide whether an error represents an expired session (401) or a missing
@@ -34,6 +36,12 @@ export function isAuthError(error: unknown): boolean {
 }
 
 export function Providers({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    getCurrencies()
+      .then((currencies) => registerCurrencyExponents(currencies))
+      .catch(() => {});
+  }, []);
+
   const [queryClient] = useState(
     () =>
       new QueryClient({

@@ -5,51 +5,84 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-/**
- * Minor-unit decimal places per currency that Intl does not know about or
- * that matter regardless of runtime Intl data. Backend amounts arrive as
- * integer minor units (see backend/src/payments/utils/minor-units.ts), so
- * `fromMinorUnits` has to know each currency's exponent to display a decimal.
- *
- * - XLM uses 7 decimals (stroops) even though it is not an ISO 4217 code.
- * - ISO 4217 zero-decimal and three-decimal currencies are listed explicitly
- *   so they resolve identically on runtimes with incomplete Intl data.
- * Anything not listed here (and any invalid code) falls through to Intl's
- * resolved fraction digits, ultimately 2 (the ISO 4217 default).
- */
+export interface CurrencyMetadata {
+  code: string;
+  exponent: number;
+}
+
+const serverExponents = new Map<string, number>();
+
+export function registerCurrencyExponents(currencies: CurrencyMetadata[]): void {
+  for (const { code, exponent } of currencies) {
+    if (
+      typeof code === "string" &&
+      Number.isInteger(exponent) &&
+      exponent >= 0 &&
+      exponent <= 20
+    ) {
+      serverExponents.set(code.toUpperCase(), exponent);
+    }
+  }
+}
+
 const MINOR_UNIT_DECIMALS: Record<string, number> = {
   XLM: 7,
   JPY: 0, KRW: 0, VND: 0,
   BHD: 3, JOD: 3, KWD: 3, OMR: 3, IQD: 3, LYD: 3, TND: 3,
 };
 
-export function minorUnitDecimals(currency: string): number {
+export function minorUnitDecimals(
+  currency: string,
+  serverExponent?: number,
+): number {
+  if (
+    typeof serverExponent === "number" &&
+    Number.isInteger(serverExponent) &&
+    serverExponent >= 0
+  ) {
+    return serverExponent;
+  }
   const code = currency.toUpperCase();
+  const fromServer = serverExponents.get(code);
+  if (fromServer !== undefined) return fromServer;
   if (code in MINOR_UNIT_DECIMALS) return MINOR_UNIT_DECIMALS[code];
   try {
-    const digits = new Intl.NumberFormat("en", { style: "currency", currency: code }).resolvedOptions().maximumFractionDigits;
+    const digits = new Intl.NumberFormat("en", {
+      style: "currency",
+      currency: code,
+    }).resolvedOptions().maximumFractionDigits;
     if (typeof digits === "number") return digits;
   } catch { /* invalid currency code, fall through */ }
   return 2;
 }
 
-/**
- * Convert an integer minor-unit amount (what the backend stores and returns)
- * into a displayable decimal amount for the currency's real exponent.
- * Non-finite input is mapped to 0 so a bad payload cannot break rendering.
- */
-export function fromMinorUnits(amount: number, currency: string): number {
+export function fromMinorUnits(
+  amount: number,
+  currency: string,
+  serverExponent?: number,
+): number {
   if (!Number.isFinite(amount)) return 0;
-  return amount / 10 ** minorUnitDecimals(currency);
+  return amount / 10 ** minorUnitDecimals(currency, serverExponent);
 }
 
 export function formatCurrency(
   amount: number,
   currency: string,
   locale?: string,
+  serverExponent?: number,
 ): string {
-  return new Intl.NumberFormat(locale, {
-    style: "currency",
-    currency,
-  }).format(amount);
+  const decimals = minorUnitDecimals(currency, serverExponent);
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: "currency",
+      currency,
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    }).format(amount);
+  } catch {
+    return `${new Intl.NumberFormat(locale, {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    }).format(amount)} ${currency}`;
+  }
 }

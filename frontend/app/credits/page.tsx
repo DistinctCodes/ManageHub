@@ -12,7 +12,11 @@ import {
   getMyAccounts,
 } from "@/lib/credits-api";
 import type { CreditStatementEntry } from "@/lib/credits-api";
-import { formatCurrency, fromMinorUnits } from "@/lib/utils";
+import {
+  formatCurrency,
+  fromMinorUnits,
+  minorUnitDecimals,
+} from "@/lib/utils";
 
 // Credit balances and statement amounts arrive as integer minor units.
 function formatMinorAmount(amount: number, currency: string): string {
@@ -131,8 +135,8 @@ function CreditsInner() {
               <>
                 <p className="mt-2 text-4xl font-bold tracking-tight">
                   {fromMinorUnits(balance.data.balance, balance.data.currency).toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
+                    minimumFractionDigits: minorUnitDecimals(balance.data.currency),
+                    maximumFractionDigits: minorUnitDecimals(balance.data.currency),
                   })}
                   <span className="ml-2 text-xl font-normal text-blue-200">
                     {balance.data.currency}

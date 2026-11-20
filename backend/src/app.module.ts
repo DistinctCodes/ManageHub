@@ -17,6 +17,7 @@ import { AdminAuditModule } from './admin-audit/admin-audit.module';
 import { HealthModule } from './health/health.module';
 import { MetricsModule } from './common/metrics.module';
 import { MetricsController } from './common/metrics.controller';
+import { CurrenciesController } from './common/currencies.controller';
 import { RequestContextMiddleware } from './common/request-context.middleware';
 import { RequestDurationInterceptor } from './common/request-duration.interceptor';
 import { NoCacheInterceptor } from './common/no-cache.interceptor';
@@ -125,7 +126,7 @@ import { buildDatabaseSslOptions } from './database/database-ssl';
     // Process-wide metrics registry shared with /metrics (issue #1948).
     MetricsModule,
   ],
-  controllers: [AppController, MetricsController],
+  controllers: [AppController, MetricsController, CurrenciesController],
   providers: [
     AppService,
     {

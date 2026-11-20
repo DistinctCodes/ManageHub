@@ -10,9 +10,11 @@ describe('payment state machine', () => {
     [PaymentStatus.INITIATED, PaymentStatus.AWAITING_CONFIRMATION],
     [PaymentStatus.INITIATED, PaymentStatus.FAILED],
     [PaymentStatus.INITIATED, PaymentStatus.EXPIRED],
+    [PaymentStatus.INITIATED, PaymentStatus.CANCELLED],
     [PaymentStatus.AWAITING_CONFIRMATION, PaymentStatus.CONFIRMED],
     [PaymentStatus.AWAITING_CONFIRMATION, PaymentStatus.FAILED],
     [PaymentStatus.AWAITING_CONFIRMATION, PaymentStatus.EXPIRED],
+    [PaymentStatus.AWAITING_CONFIRMATION, PaymentStatus.CANCELLED],
     [PaymentStatus.AWAITING_CONFIRMATION, PaymentStatus.MANUAL_REVIEW],
     [PaymentStatus.CONFIRMED, PaymentStatus.REFUNDED],
     [PaymentStatus.CONFIRMED, PaymentStatus.PARTIALLY_REFUNDED],
@@ -53,6 +55,7 @@ describe('payment state machine', () => {
       PaymentStatus.EXPIRED,
       PaymentStatus.REFUNDED,
       PaymentStatus.VOIDED,
+      PaymentStatus.CANCELLED,
     ];
     for (const status of terminal) {
       for (const to of ALL_STATUSES) {

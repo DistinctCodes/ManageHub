@@ -2,8 +2,8 @@
 
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
-import { getPayment } from "@/lib/payments-api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { cancelPayment, getPayment } from "@/lib/payments-api";
 import { useSessionStore } from "@/lib/stores/session-store";
 import { usePaymentStatus } from "@/lib/use-payment-status";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,8 +11,17 @@ import { Button } from "@/components/ui/button";
 import { formatCurrency, fromMinorUnits } from "@/lib/utils";
 
 // Payment amounts arrive as integer minor units.
-function formatAmount(amount: number, currency: string): string {
-  return formatCurrency(fromMinorUnits(amount, currency), currency);
+function formatAmount(
+  amount: number,
+  currency: string,
+  exponent?: number,
+): string {
+  return formatCurrency(
+    fromMinorUnits(amount, currency, exponent),
+    currency,
+    undefined,
+    exponent,
+  );
 }
 
 function statusTone(status: string): string {
@@ -33,6 +42,7 @@ export default function PaymentDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? "";
   const accessToken = useSessionStore((state) => state.accessToken);
+  const queryClient = useQueryClient();
 
   const {
     data: payment,
@@ -42,6 +52,14 @@ export default function PaymentDetailPage() {
     queryKey: ["payments", "detail", id],
     queryFn: () => getPayment(id),
     enabled: Boolean(accessToken && id),
+  });
+
+  const cancel = useMutation({
+    mutationFn: () => cancelPayment(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["payments", "detail", id] });
+      queryClient.invalidateQueries({ queryKey: ["payments"] });
+    },
   });
 
   usePaymentStatus(id, accessToken);
@@ -92,7 +110,11 @@ export default function PaymentDetailPage() {
         <Card>
           <CardHeader>
             <CardTitle>
-              {formatAmount(payment.amount, payment.currency)}{" "}
+              {formatAmount(
+                payment.amount,
+                payment.currency,
+                payment.currencyExponent,
+              )}{" "}
               <span className={`ml-2 font-medium ${statusTone(payment.status)}`}>
                 {payment.status}
               </span>
@@ -151,6 +173,24 @@ export default function PaymentDetailPage() {
                 </div>
               )}
             </div>
+
+            {(payment.status === "INITIATED" ||
+              payment.status === "AWAITING_CONFIRMATION") && (
+              <div className="pt-2">
+                <Button
+                  variant="destructive"
+                  onClick={() => cancel.mutate()}
+                  disabled={cancel.isPending}
+                >
+                  {cancel.isPending ? "Cancelling..." : "Cancel payment"}
+                </Button>
+                {cancel.error && (
+                  <p className="mt-2 text-sm text-red-600 dark:text-red-400">
+                    {cancel.error.message}
+                  </p>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

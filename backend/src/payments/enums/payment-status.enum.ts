@@ -15,6 +15,7 @@ export enum PaymentStatus {
   // Admin recovery action: a MANUAL_REVIEW payment deliberately closed out
   // without resolving to CONFIRMED or FAILED (e.g. abandoned booking).
   VOIDED = 'VOIDED',
+  CANCELLED = 'CANCELLED',
 }
 
 /**

@@ -253,11 +253,14 @@ describe("WalletStatusCard", () => {
       await user.click(screen.getByRole("button", { name: "Connect wallet" }));
 
       await waitFor(() =>
-        expect(verifySpy).toHaveBeenCalledWith({
-          nonce: "test-nonce",
-          address: VALID_STELLAR_ADDRESS,
-          signature: "a-valid-signature",
-        }),
+        expect(verifySpy).toHaveBeenCalledWith(
+          {
+            nonce: "test-nonce",
+            address: VALID_STELLAR_ADDRESS,
+            signature: "a-valid-signature",
+          },
+          expect.any(String),
+        ),
       );
       // The form closes and the balance view returns on success.
       await waitFor(() =>

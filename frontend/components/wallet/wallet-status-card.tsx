@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  createWalletIdempotencyKey,
   getWalletStatus,
   provisionCustodialWallet,
   requestLinkChallenge,
@@ -13,15 +14,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { WalletLinkForm } from "@/components/wallet/wallet-link-form";
 import type { WalletLinkInput } from "@/lib/schemas/wallet-link";
-import { fromMinorUnits } from "@/lib/utils";
+import { fromMinorUnits, minorUnitDecimals } from "@/lib/utils";
 import { useSignOut } from "@/components/auth/use-sign-out";
 
-// Minor-unit conversion (and the currency exponent table it uses) lives in
-// lib/utils.ts so every money surface parses amounts the same way. The
-// formatBalance contract tested by __tests__/format-balance.test.ts is
-// unchanged: "<value>.<2 digits> <CURRENCY> credit".
-export function formatBalance(minorUnits: number, currency: string): string {
-  return `${fromMinorUnits(minorUnits, currency).toFixed(2)} ${currency} credit`;
+export function formatBalance(
+  minorUnits: number,
+  currency: string,
+  exponent?: number,
+): string {
+  const decimals = exponent ?? minorUnitDecimals(currency);
+  return `${fromMinorUnits(minorUnits, currency, decimals).toFixed(decimals)} ${currency} credit`;
 }
 
 const WALLET_STATUS_KEY = ["wallet", "status"] as const;
@@ -41,6 +43,9 @@ export function WalletStatusCard() {
   const [lastLinkValues, setLastLinkValues] = useState<
     WalletLinkInput | undefined
   >(undefined);
+  const provisionKey = useRef<string | null>(null);
+  const verifyKey = useRef<string | null>(null);
+  const verifyAttempt = useRef<string | null>(null);
 
   const {
     data: status,
@@ -56,8 +61,11 @@ export function WalletStatusCard() {
   }
 
   const provision = useMutation({
-    mutationFn: () => provisionCustodialWallet(),
-    onSuccess: applyStatus,
+    mutationFn: (key: string) => provisionCustodialWallet(key),
+    onSuccess: (result) => {
+      applyStatus(result);
+      provisionKey.current = null;
+    },
   });
 
   const challenge = useMutation({
@@ -75,13 +83,22 @@ export function WalletStatusCard() {
   // server rejects the signature. The nonce is kept until the server
   // confirms so a rolled-back attempt can be retried without a new challenge.
   const verify = useMutation({
-    mutationFn: (values: WalletLinkInput) =>
-      verifyLinkChallenge({
-        nonce: nonce ?? "",
-        address: values.address,
-        signature: values.signature,
-      }),
-    onMutate: async (values) => {
+    mutationFn: ({
+      values,
+      key,
+    }: {
+      values: WalletLinkInput;
+      key: string;
+    }) =>
+      verifyLinkChallenge(
+        {
+          nonce: nonce ?? "",
+          address: values.address,
+          signature: values.signature,
+        },
+        key,
+      ),
+    onMutate: async ({ values }) => {
       // Stop an in-flight status refetch from overwriting the optimistic state.
       await queryClient.cancelQueries({ queryKey: WALLET_STATUS_KEY });
       const previous =
@@ -96,7 +113,7 @@ export function WalletStatusCard() {
       setLinking(false);
       return { previous };
     },
-    onError: (_error, values, context) => {
+    onError: (_error, { values }, context) => {
       if (context?.previous) applyStatus(context.previous);
       setLastLinkValues(values);
       setLinking(true);
@@ -179,7 +196,15 @@ export function WalletStatusCard() {
               create one for you automatically the first time you need it - no
               downloads or extra passwords required.
             </p>
-            <Button onClick={() => provision.mutate()} disabled={pending}>
+            <Button
+              onClick={() => {
+                if (!provisionKey.current) {
+                  provisionKey.current = createWalletIdempotencyKey();
+                }
+                provision.mutate(provisionKey.current);
+              }}
+              disabled={pending}
+            >
               {provision.isPending ? "Setting up..." : "Get started"}
             </Button>
           </div>
@@ -188,7 +213,11 @@ export function WalletStatusCard() {
         {status?.provisioned && (
           <div className="space-y-3">
             <p className="text-2xl font-semibold">
-              {formatBalance(status.balance, status.currency)}
+              {formatBalance(
+                status.balance,
+                status.currency,
+                status.currencyExponent,
+              )}
             </p>
             <p className="text-sm text-gray-600 dark:text-gray-400">
               {status.custodyType === "CUSTODIAL"
@@ -234,7 +263,18 @@ export function WalletStatusCard() {
               setMessage(null);
               setLastLinkValues(undefined);
             }}
-            onSubmit={(values) => verify.mutate(values)}
+            onSubmit={(values) => {
+              const attempt = JSON.stringify({
+                nonce,
+                address: values.address,
+                signature: values.signature,
+              });
+              if (!verifyKey.current || verifyAttempt.current !== attempt) {
+                verifyKey.current = createWalletIdempotencyKey();
+                verifyAttempt.current = attempt;
+              }
+              verify.mutate({ values, key: verifyKey.current });
+            }}
           />
         )}
       </CardContent>

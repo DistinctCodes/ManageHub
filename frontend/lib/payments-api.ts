@@ -12,7 +12,8 @@ export type PaymentStatus =
   | "PARTIALLY_REFUNDED"
   | "MANUAL_REVIEW"
   | "DISPUTED"
-  | "VOIDED";
+  | "VOIDED"
+  | "CANCELLED";
 
 export interface Payment {
   id: string;
@@ -20,6 +21,7 @@ export interface Payment {
   userId: string;
   amount: number;
   currency: string;
+  currencyExponent?: number;
   rail: PaymentRail;
   status: PaymentStatus;
   provider: string | null;
@@ -216,6 +218,10 @@ export function verifyPaymentReturn(
     `/payments/${id}/verify-return`,
     { method: "POST" },
   );
+}
+
+export function cancelPayment(id: string): Promise<Payment> {
+  return apiFetch<Payment>(`/payments/${id}/cancel`, { method: "POST" });
 }
 
 // ── metered usage (FE-109) ───────────────────────────────────────────────
