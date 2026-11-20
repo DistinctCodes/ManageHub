@@ -5,6 +5,14 @@ backend and indexer integrators can track compatibility across releases (#1877).
 
 ## Unreleased
 
+### Changed
+- Route the legacy `payment_escrow::refund` entrypoint through the same
+  validation and transfer path as `refund_remaining`; new integrations should
+  use `refund_remaining`, which returns the amount refunded (#2169).
+- Check both contract error enums against the shared TypeScript error codes
+  and map each escrow error code to an explicit backend disposition (#2166,
+  #2167).
+
 ### Toolchain
 - Bump the contracts toolchain to Rust 1.98.1 and check in the resolved Cargo
   lockfile so CI can build the workspace with current transitive dependencies.

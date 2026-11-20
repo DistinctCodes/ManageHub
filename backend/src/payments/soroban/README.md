@@ -14,7 +14,8 @@ skipped:
 
 - **No live testnet deployment.** `SOROBAN_ENABLED` defaults to `false`;
   nothing here activates until an operator deploys a contract and sets
-  `STELLAR_ESCROW_CONTRACT_ID` and friends (see `.env.example`). Doing an
+  `STELLAR_ESCROW_CONTRACT_ID`, `STELLAR_REVENUE_DISTRIBUTION_CONTRACT_ID`,
+  and friends (see `.env.example`). Doing an
   actual testnet deployment is an operational action (funding an account,
   running the Stellar CLI) outside what a PR's CI can respons­ibly do.
 - **`escrow-contract.client.ts` is hand-written, not generated.**
@@ -24,6 +25,9 @@ skipped:
   swap them in — nothing else in this module depends on how a call is
   XDR-encoded, only on the method signatures `EscrowContractClient`
   exposes now.
+- On startup, the backend simulates `version()` on both configured contracts.
+  A mismatch or failed version check disables the Soroban rail and marks it
+  unhealthy in `/health/dependencies`.
 
 ## Escrow-ID discipline
 

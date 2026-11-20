@@ -2,12 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import Redis from 'ioredis';
+import { SorobanRailStatus } from './payments/soroban/soroban-rail-status';
 
 @Injectable()
 export class AppService {
   constructor(
     private readonly dataSource: DataSource,
     private readonly config: ConfigService,
+    private readonly sorobanRailStatus: SorobanRailStatus,
   ) {}
 
   async getHealth(): Promise<{
@@ -15,22 +17,27 @@ export class AppService {
     dependencies: {
       postgres: { status: 'up' | 'down'; detail?: string };
       redis: { status: 'up' | 'down'; detail?: string };
+      soroban:
+        | { status: 'disabled' | 'up' }
+        | { status: 'down'; detail: string };
     };
   }> {
     const [postgres, redis] = await Promise.all([
       this.checkPostgres(),
       this.checkRedis(),
     ]);
+    const soroban = this.sorobanRailStatus.getHealth();
 
-    const failed = [postgres, redis].filter((entry) => entry.status === 'down');
+    const dependencies = [postgres, redis, soroban];
+    const failed = dependencies.filter((entry) => entry.status === 'down');
     const status =
       failed.length === 0
         ? 'ok'
-        : failed.length === 2
+        : failed.length === dependencies.length
           ? 'unhealthy'
           : 'degraded';
 
-    return { status, dependencies: { postgres, redis } };
+    return { status, dependencies: { postgres, redis, soroban } };
   }
 
   private async checkPostgres(): Promise<{

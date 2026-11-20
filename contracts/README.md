@@ -49,15 +49,44 @@ backend maps that error to `NOT_FOUND`.
 
 ### Error Codes
 
-| Code | Error                 | Meaning                                              |
-| ---- | --------------------- | ---------------------------------------------------- |
-| `1`  | `NotFound`            | No escrow exists for the id                          |
-| `2`  | `AlreadyResolved`     | The escrow is no longer `Locked`                     |
-| `3`  | `InvalidAmount`       | Amount must be positive                              |
-| `4`  | `AlreadyExists`       | An escrow with this id already exists                |
-| `5`  | `ArithmeticOverflow`  | Checked arithmetic failed                            |
-| `20` | `AmountExceedsEscrow` | A partial release would exceed the locked amount     |
-| `21` | `NothingToRefund`     | Nothing remains to refund                            |
+`contracts/shared/error-codes.ts` exports separate enums for each contract;
+`backend/src/payments/soroban/contract-error-codes.spec.ts` verifies every
+numeric value against its Rust `Error` enum.
+
+| Code | `payment_escrow` error | Meaning |
+| ---- | --------------------- | ------- |
+| `1` | `NotFound` | No escrow exists for the id |
+| `2` | `AlreadyResolved` | The escrow is no longer `Locked` |
+| `3` | `InvalidAmount` | Amount must be positive |
+| `4` | `AlreadyExists` | An escrow with this id already exists |
+| `5` | `ArithmeticOverflow` | Checked arithmetic failed |
+| `6` | `AlreadyReleased` | The escrow has already been released |
+| `7` | `AlreadyRefunded` | The escrow has already been refunded |
+| `10` | `AlreadyInitialized` | Initialization has already completed |
+| `11` | `NotInitialized` | The contract has no admin yet |
+| `12` | `Unauthorized` | Caller is not authorized |
+| `13` | `Paused` | Creating escrows is paused |
+| `14` | `NoPendingAdmin` | No admin transfer is pending |
+| `20` | `AmountExceedsEscrow` | A partial release exceeds the locked amount |
+| `21` | `NothingToRefund` | Nothing remains to refund |
+| `22` | `TokenNotAllowed` | The token is not allow-listed |
+| `23` | `TransferShortfall` | Token transfer did not deliver the exact amount |
+
+| Code | `revenue_distribution` error | Meaning |
+| ---- | ----------------------------- | ------- |
+| `1` | `InvalidBasisPoints` | Shares do not total 10,000 basis points |
+| `2` | `NotConfigured` | No distribution configuration exists |
+| `3` | `Unauthorized` | Caller is not authorized |
+| `4` | `EmptyRecipients` | Recipient list is empty |
+| `5` | `ArithmeticOverflow` | Checked arithmetic failed |
+| `6` | `InvalidShare` | A recipient share is zero |
+| `7` | `InvalidAmount` | Amount must be positive |
+| `8` | `TokenNotAllowed` | The token is not allow-listed |
+| `9` | `TooManyBeneficiaries` | Recipient limit exceeded |
+| `10` | `AlreadyInitialized` | Initialization has already completed |
+| `11` | `NotInitialized` | The contract has no admin yet |
+| `12` | `NoPendingAdmin` | No admin transfer is pending |
+| `13` | `DuplicateBeneficiary` | A recipient address is duplicated |
 
 ### Amount Units and Token Decimals
 
@@ -86,10 +115,16 @@ These environment variables bind the backend to the on-chain contract
 | ------------------------------ | --------------------------------------------------------------------------- |
 | `SOROBAN_ENABLED`              | `"true"` to activate the Stellar escrow rail; any other value disables it   |
 | `STELLAR_ESCROW_CONTRACT_ID`   | StrKey-encoded address of the deployed `payment_escrow` contract            |
+| `STELLAR_REVENUE_DISTRIBUTION_CONTRACT_ID` | StrKey-encoded address of the deployed `revenue_distribution` contract |
 | `STELLAR_NETWORK`              | Stellar network passphrase (e.g. `Test SDF Network ; September 2015`)       |
 | `STELLAR_RPC_URLS`             | Comma-separated Soroban RPC endpoints                                       |
 | `STELLAR_SECRET_KEY`           | Treasury/operator secret key for signing releases and refunds               |
 | `STELLAR_BENEFICIARY_ADDRESS`  | Default beneficiary Stellar address                                          |
+
+When enabled, startup simulates `version()` on both configured contracts. A
+version mismatch or failed check disables the Soroban rail and reports the
+reason in `/health/dependencies`; update the deployed contracts or expected
+interface versions before enabling it.
 
 ### Escrow ID Derivation
 

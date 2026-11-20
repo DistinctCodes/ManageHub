@@ -26,7 +26,7 @@ describe('loadSorobanConfig', () => {
     const config = makeConfig({ SOROBAN_ENABLED: 'true' });
 
     expect(() => loadSorobanConfig(config as any)).toThrow(
-      /STELLAR_ESCROW_CONTRACT_ID.*STELLAR_SECRET_KEY.*STELLAR_NETWORK.*STELLAR_BENEFICIARY_ADDRESS.*STELLAR_ESCROW_TOKEN_ADDRESSES/,
+      /STELLAR_ESCROW_CONTRACT_ID.*STELLAR_REVENUE_DISTRIBUTION_CONTRACT_ID.*STELLAR_SECRET_KEY.*STELLAR_NETWORK.*STELLAR_BENEFICIARY_ADDRESS.*STELLAR_ESCROW_TOKEN_ADDRESSES/,
     );
   });
 
@@ -34,6 +34,7 @@ describe('loadSorobanConfig', () => {
     const config = makeConfig({
       SOROBAN_ENABLED: 'true',
       STELLAR_ESCROW_CONTRACT_ID: 'CCONTRACT',
+      STELLAR_REVENUE_DISTRIBUTION_CONTRACT_ID: 'CDISTRIBUTION',
       STELLAR_SECRET_KEY: TREASURY.secret(),
       STELLAR_NETWORK: 'Test SDF Network ; September 2015',
       STELLAR_BENEFICIARY_ADDRESS: 'GBENEFICIARY',
@@ -43,6 +44,7 @@ describe('loadSorobanConfig', () => {
 
     expect(loadSorobanConfig(config as any)).toEqual({
       contractId: 'CCONTRACT',
+      revenueDistributionContractId: 'CDISTRIBUTION',
       networkPassphrase: 'Test SDF Network ; September 2015',
       treasurySecretKey: TREASURY.secret(),
       treasuryPublicKey: TREASURY.publicKey(),
@@ -56,6 +58,7 @@ describe('loadSorobanConfig', () => {
     const config = makeConfig({
       SOROBAN_ENABLED: 'true',
       STELLAR_ESCROW_CONTRACT_ID: 'CCONTRACT',
+      STELLAR_REVENUE_DISTRIBUTION_CONTRACT_ID: 'CDISTRIBUTION',
       STELLAR_SECRET_KEY: TREASURY.secret(),
       STELLAR_NETWORK: 'Test SDF Network ; September 2015',
       STELLAR_BENEFICIARY_ADDRESS: 'GBENEFICIARY',

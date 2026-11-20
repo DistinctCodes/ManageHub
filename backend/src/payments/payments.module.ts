@@ -37,6 +37,8 @@ import {
   createSorobanRpcServer,
   parseSorobanRpcTimeoutMs,
 } from './soroban/soroban-rpc-client';
+import { assertSorobanContractVersions } from './soroban/soroban-contract-version';
+import { SorobanRailStatus } from './soroban/soroban-rail-status';
 import {
   ESCROW_CONTRACT_CLIENT,
   SOROBAN_CONFIG,
@@ -78,10 +80,51 @@ import {
     // SOROBAN_RAIL_ADAPTER itself, which is what PaymentRailRegistry
     // checks. A disabled rail never makes an RPC call or touches a
     // wallet; it's simply unavailable, with a clear error if selected.
+    SorobanRailStatus,
     {
       provide: SOROBAN_CONFIG,
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => loadSorobanConfig(config),
+      inject: [ConfigService, SorobanRailStatus],
+      useFactory: async (
+        config: ConfigService,
+        railStatus: SorobanRailStatus,
+      ) => {
+        const sorobanConfig = loadSorobanConfig(config);
+        if (!sorobanConfig) {
+          railStatus.markDisabled();
+          return null;
+        }
+
+        const timeoutMs = parseSorobanRpcTimeoutMs(
+          config.get<unknown>(
+            'SOROBAN_RPC_TIMEOUT_MS',
+            DEFAULT_SOROBAN_RPC_TIMEOUT_MS,
+          ),
+        );
+        try {
+          const startupRpc = new SorobanRpcClient(
+            sorobanConfig.rpcUrls.map(createSorobanRpcServer),
+            timeoutMs,
+          );
+          await assertSorobanContractVersions(
+            sorobanConfig,
+            async (contractId, sourceAccountPublicKey) =>
+              new EscrowContractClient(
+                startupRpc,
+                contractId,
+                sorobanConfig.networkPassphrase,
+              ).getContractVersion(sourceAccountPublicKey),
+          );
+          railStatus.markReady();
+          return sorobanConfig;
+        } catch (error) {
+          const detail = error instanceof Error ? error.message : String(error);
+          railStatus.markUnavailable(detail);
+          new Logger(PaymentsModule.name).error(
+            `Soroban rail disabled: ${detail}`,
+          );
+          return null;
+        }
+      },
     },
     {
       provide: SorobanRpcClient,
@@ -167,6 +210,7 @@ import {
     PaymentConfirmationService,
     ReconciliationService,
     EXTERNAL_PAYOUT_RAIL,
+    SorobanRailStatus,
   ],
 })
 export class PaymentsModule implements OnModuleInit {

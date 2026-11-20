@@ -1,8 +1,16 @@
 import { PaymentFailureReason } from '../enums/payment-failure-reason.enum';
 import {
+  ContractError,
   EscrowSubmissionError,
   SimulationFailedError,
 } from './escrow-contract.client';
+
+export type SorobanErrorDisposition =
+  | 'already-succeeded'
+  | 'retry'
+  | 'terminal'
+  | 'manual-review'
+  | 'indeterminate';
 
 export interface SorobanErrorMapping {
   /**
@@ -11,75 +19,112 @@ export interface SorobanErrorMapping {
    * must be treated as success, not an error.
    */
   alreadySucceeded: boolean;
-  /**
-   * Null means "indeterminate" (network error, RPC unreachable, timeout)
-   * — NOT a definite on-chain rejection. The caller must never fail a
-   * Payment on a null reason; the chain must be asked again later.
-   */
+  disposition: SorobanErrorDisposition;
+  /** Null means the contract error should not immediately fail the payment. */
   reason: PaymentFailureReason | null;
+}
+
+const CONTRACT_ERROR_DISPOSITIONS: Record<
+  ContractError,
+  Exclude<SorobanErrorDisposition, 'indeterminate'>
+> = {
+  [ContractError.NotFound]: 'terminal',
+  [ContractError.AlreadyResolved]: 'already-succeeded',
+  [ContractError.InvalidAmount]: 'terminal',
+  [ContractError.AlreadyExists]: 'retry',
+  [ContractError.ArithmeticOverflow]: 'manual-review',
+  [ContractError.AlreadyReleased]: 'already-succeeded',
+  [ContractError.AlreadyRefunded]: 'already-succeeded',
+  [ContractError.AlreadyInitialized]: 'manual-review',
+  [ContractError.NotInitialized]: 'manual-review',
+  [ContractError.Unauthorized]: 'manual-review',
+  [ContractError.Paused]: 'retry',
+  [ContractError.NoPendingAdmin]: 'terminal',
+  [ContractError.AmountExceedsEscrow]: 'manual-review',
+  [ContractError.NothingToRefund]: 'terminal',
+  [ContractError.TokenNotAllowed]: 'manual-review',
+  [ContractError.TransferShortfall]: 'manual-review',
+};
+
+function mapContractError(code: number): SorobanErrorMapping | undefined {
+  if (!Object.values(ContractError).includes(code)) {
+    return undefined;
+  }
+  const disposition = CONTRACT_ERROR_DISPOSITIONS[code as ContractError];
+  return {
+    alreadySucceeded: disposition === 'already-succeeded',
+    disposition,
+    reason:
+      disposition === 'terminal'
+        ? PaymentFailureReason.CONTRACT_REVERTED
+        : null,
+  };
 }
 
 /**
  * Maps a Soroban submission/simulation error to the failure taxonomy
- * (issue #1574, feeding #1572's pattern). Pattern-matches on the error
- * message because we don't have a live contract's exact error codes to
- * match against structurally — once one exists, replace the regexes below
- * with the contract's real typed error enum.
+ * (issue #1574, feeding #1572's pattern).
  */
 export function mapSorobanError(error: unknown): SorobanErrorMapping {
   const message = error instanceof Error ? error.message : String(error);
 
   if (/already[_ ]?(released|refunded|resolved)/i.test(message)) {
-    return { alreadySucceeded: true, reason: null };
+    return {
+      alreadySucceeded: true,
+      disposition: 'already-succeeded',
+      reason: null,
+    };
   }
 
-  // Try to decode structured Error(Contract, #N) from Soroban
-  try {
-    // Look for patterns like Error(Contract, #2) or Error(Object, #2)
-    const contractErrorMatch = message.match(/Error\([^,]+,\s*#(\d+)\)/i);
-    if (contractErrorMatch) {
-      const code = parseInt(contractErrorMatch[1], 10);
-      // Already resolved = error code 2 for escrow contract
-      if (code === 2) {
-        return { alreadySucceeded: true, reason: null };
-      }
+  const contractErrorMatch = message.match(/Error\([^,]+,\s*#(\d+)\)/i);
+  if (contractErrorMatch) {
+    const mapping = mapContractError(Number(contractErrorMatch[1]));
+    if (mapping) {
+      return mapping;
     }
-  } catch {
-    // ignore
   }
 
   if (error instanceof SimulationFailedError) {
     return {
       alreadySucceeded: false,
+      disposition: 'terminal',
       reason: PaymentFailureReason.SIMULATION_FAILED,
     };
   }
   if (/bad_seq|sequence/i.test(message)) {
     return {
       alreadySucceeded: false,
+      disposition: 'terminal',
       reason: PaymentFailureReason.SEQUENCE_CONFLICT,
     };
   }
   if (/insufficient.*fee|underpriced|txINSUFFICIENT_FEE/i.test(message)) {
     return {
       alreadySucceeded: false,
+      disposition: 'terminal',
       reason: PaymentFailureReason.INSUFFICIENT_FEE,
     };
   }
   if (/expired|too_late|txTOO_LATE/i.test(message)) {
     return {
       alreadySucceeded: false,
+      disposition: 'terminal',
       reason: PaymentFailureReason.TRANSACTION_EXPIRED,
     };
   }
   if (error instanceof EscrowSubmissionError || /contract/i.test(message)) {
     return {
       alreadySucceeded: false,
+      disposition: 'terminal',
       reason: PaymentFailureReason.CONTRACT_REVERTED,
     };
   }
 
   // Unrecognized — most likely a network/timeout/RPC-unreachable error,
   // not a definite on-chain verdict. Never map this to a failure reason.
-  return { alreadySucceeded: false, reason: null };
+  return {
+    alreadySucceeded: false,
+    disposition: 'indeterminate',
+    reason: null,
+  };
 }

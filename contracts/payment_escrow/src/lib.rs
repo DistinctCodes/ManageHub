@@ -106,6 +106,42 @@ pub enum Error {
     TransferShortfall = 23,
 }
 
+fn refund_escrow(
+    env: &Env,
+    escrow_id: &BytesN<32>,
+    payer: &Address,
+) -> Result<i128, Error> {
+    let key = DataKey::Escrow(payer.clone(), escrow_id.clone());
+    let mut escrow: Escrow = env
+        .storage()
+        .persistent()
+        .get(&key)
+        .ok_or(Error::NotFound)?;
+
+    escrow.beneficiary.require_auth();
+
+    if escrow.state != EscrowState::Locked {
+        return Err(Error::AlreadyResolved);
+    }
+    let remaining = escrow
+        .amount
+        .checked_sub(escrow.released)
+        .ok_or(Error::ArithmeticOverflow)?;
+    if remaining <= 0 {
+        return Err(Error::NothingToRefund);
+    }
+
+    token::Client::new(env, &escrow.token).transfer(
+        &env.current_contract_address(),
+        &escrow.payer,
+        &remaining,
+    );
+    escrow.state = EscrowState::Refunded;
+    env.storage().persistent().set(&key, &escrow);
+    events::emit_refunded(env, escrow_id, &escrow.beneficiary);
+    Ok(remaining)
+}
+
 #[contract]
 pub struct PaymentEscrowContract;
 
@@ -424,69 +460,15 @@ impl PaymentEscrowContract {
     /// escrow as `Refunded`. Only the beneficiary may authorise it. Returns
     /// the refunded amount.
     pub fn refund_remaining(env: Env, escrow_id: BytesN<32>, payer: Address) -> Result<i128, Error> {
-        let key = DataKey::Escrow(payer, escrow_id.clone());
-        let mut escrow: Escrow = env
-            .storage()
-            .persistent()
-            .get(&key)
-            .ok_or(Error::NotFound)?;
-
-        escrow.beneficiary.require_auth();
-
-        if escrow.state != EscrowState::Locked {
-            return Err(Error::AlreadyResolved);
-        }
-        let remaining = escrow
-            .amount
-            .checked_sub(escrow.released)
-            .ok_or(Error::ArithmeticOverflow)?;
-        if remaining <= 0 {
-            return Err(Error::NothingToRefund);
-        }
-
-        token::Client::new(&env, &escrow.token).transfer(
-            &env.current_contract_address(),
-            &escrow.payer,
-            &remaining,
-        );
-        escrow.state = EscrowState::Refunded;
-        env.storage().persistent().set(&key, &escrow);
-        events::emit_refunded(&env, &escrow_id, &escrow.beneficiary);
-        Ok(remaining)
+        refund_escrow(&env, &escrow_id, &payer)
     }
 
     /// Refund escrowed funds back to the payer. Only the beneficiary — the
     /// party giving up their claim — may authorize a refund (CT-72).
+    /// Kept as a compatibility entrypoint; shares `refund_remaining`'s
+    /// validation and transfer behavior.
     pub fn refund(env: Env, escrow_id: BytesN<32>, payer: Address) -> Result<(), Error> {
-        let key = DataKey::Escrow(payer, escrow_id.clone());
-        let mut escrow: Escrow = env
-            .storage()
-            .persistent()
-            .get(&key)
-            .ok_or(Error::NotFound)?;
-
-        escrow.beneficiary.require_auth();
-
-        match escrow.state {
-            EscrowState::Locked => {}
-            EscrowState::Released => return Err(Error::AlreadyReleased),
-            EscrowState::Refunded => return Err(Error::AlreadyRefunded),
-            EscrowState::Completed => return Err(Error::AlreadyResolved),
-        }
-
-        let remaining = escrow
-            .amount
-            .checked_sub(escrow.released)
-            .ok_or(Error::ArithmeticOverflow)?;
-        token::Client::new(&env, &escrow.token).transfer(
-            &env.current_contract_address(),
-            &escrow.payer,
-            &remaining,
-        );
-        escrow.state = EscrowState::Refunded;
-        env.storage().persistent().set(&key, &escrow);
-        events::emit_refunded(&env, &escrow_id, &escrow.beneficiary);
-        Ok(())
+        refund_escrow(&env, &escrow_id, &payer).map(|_| ())
     }
 
     /// Return the full escrow record, including the token and held amount.
@@ -638,7 +620,7 @@ mod escrow_test {
         );
         assert_eq!(
             f.client.try_refund(&refunded, &f.payer),
-            Err(Ok(Error::AlreadyRefunded))
+            Err(Ok(Error::AlreadyResolved))
         );
         assert_eq!(
             f.client.try_release(&refunded, &f.payer),
@@ -646,7 +628,7 @@ mod escrow_test {
         );
         assert_eq!(
             f.client.try_refund(&released, &f.payer),
-            Err(Ok(Error::AlreadyReleased))
+            Err(Ok(Error::AlreadyResolved))
         );
     }
 
@@ -771,6 +753,26 @@ mod partial_release_test {
         assert_eq!(client.refund_remaining(&id, &payer), 750);
         assert_eq!(client.get_status(&id, &payer), 3);
     }
+
+    #[test]
+    fn both_refund_entrypoints_reject_a_zero_remainder_consistently() {
+        let (env, client, payer, ben, token) = setup();
+        let id = BytesN::from_array(&env, &[4u8; 32]);
+        client.create(&id, &payer, &ben, &1_000, &token);
+        client.release_partial(&id, &payer, &1_000);
+        let payer_balance = token::Client::new(&env, &token).balance(&payer);
+
+        assert_eq!(
+            client.try_refund(&id, &payer),
+            Err(Ok(Error::AlreadyResolved))
+        );
+        assert_eq!(
+            client.try_refund_remaining(&id, &payer),
+            Err(Ok(Error::AlreadyResolved))
+        );
+        assert_eq!(token::Client::new(&env, &token).balance(&payer), payer_balance);
+        assert_eq!(client.get_status(&id, &payer), 4);
+    }
 }
 
 #[cfg(test)]
@@ -876,8 +878,8 @@ mod model_test {
                                 prop_assert!(r.is_ok());
                                 model[i as usize] = Some((M::Refunded, a, rel));
                             }
-                            Some((M::Released, _, _)) => prop_assert!(matches!(r, Err(Ok(Error::AlreadyReleased)))),
-                            Some((M::Refunded, _, _)) => prop_assert!(matches!(r, Err(Ok(Error::AlreadyRefunded)))),
+                            Some((M::Released, _, _)) => prop_assert!(matches!(r, Err(Ok(Error::AlreadyResolved)))),
+                            Some((M::Refunded, _, _)) => prop_assert!(matches!(r, Err(Ok(Error::AlreadyResolved)))),
                             Some(_) => prop_assert!(matches!(r, Err(Ok(Error::AlreadyResolved)))),
                         }
                     }

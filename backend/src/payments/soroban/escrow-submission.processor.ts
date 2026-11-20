@@ -201,27 +201,35 @@ export class EscrowSubmissionProcessor {
   ): Promise<void> {
     const mapping = mapSorobanError(error);
 
-    if (mapping.alreadySucceeded) {
+    if (mapping.disposition === 'already-succeeded') {
       // A retried create against the contract's own idempotent guard —
       // resolve from fresh state rather than assuming anything.
-      await this.resolveFromFreshState(payment, escrowId, payerAddress, 'retry');
+      await this.resolveFromFreshState(
+        payment,
+        escrowId,
+        payerAddress,
+        'retry',
+      );
       return;
     }
 
-    if (mapping.reason === null) {
-      // Indeterminate (network/timeout/RPC down) — NOT a definite verdict
-      // that the transaction didn't land. Never fail the payment and
-      // never resubmit here; reconciliation asks the chain directly,
-      // independent of this attempt's own bounded poll.
+    if (mapping.disposition !== 'terminal') {
+      // Retryable, manual-review and indeterminate errors stay pending so
+      // reconciliation can re-read the chain without trusting this attempt.
       this.logger.warn(
-        `Payment ${payment.id}: create submission indeterminate (` +
+        `Payment ${payment.id}: create submission ${mapping.disposition} (` +
           (error instanceof Error ? error.message : String(error)) +
           ') — leaving AWAITING_CONFIRMATION',
       );
       return;
     }
 
-    await this.applyOutcome(payment, escrowId, 'failed', mapping.reason);
+    await this.applyOutcome(
+      payment,
+      escrowId,
+      'failed',
+      mapping.reason ?? PaymentFailureReason.CONTRACT_REVERTED,
+    );
   }
 
   private async applyOutcome(
@@ -372,7 +380,11 @@ export class EscrowSubmissionProcessor {
         );
         return;
       }
-      await this.submitTreasuryAction(data.escrowIdHex, 'release', payerAddress);
+      await this.submitTreasuryAction(
+        data.escrowIdHex,
+        'release',
+        payerAddress,
+      );
     } catch (error) {
       const mapping = mapSorobanError(error);
       if (mapping.alreadySucceeded) {
