@@ -50,6 +50,18 @@ export class RefundsService {
     private readonly gateway: PaymentsGateway,
   ) {}
 
+  async getRefundedAmounts(paymentIds: string[]): Promise<Map<string, number>> {
+    if (paymentIds.length === 0) return new Map();
+    const rows = await this.refundRepository
+      .createQueryBuilder('refund')
+      .select('refund.paymentId', 'paymentId')
+      .addSelect('COALESCE(SUM(refund.amount), 0)', 'total')
+      .where('refund.paymentId IN (:...paymentIds)', { paymentIds })
+      .groupBy('refund.paymentId')
+      .getRawMany<{ paymentId: string; total: string }>();
+    return new Map(rows.map((row) => [row.paymentId, Number(row.total)]));
+  }
+
   /**
    * Atomically validates and books a refund against `paymentId`: locks the
    * payment row for the duration of the check-and-insert so two concurrent

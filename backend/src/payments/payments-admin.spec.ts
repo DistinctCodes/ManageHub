@@ -69,7 +69,10 @@ function makePaymentRepository(seed: Payment[]) {
 describe('PaymentsAdminController — manual-review pagination (issue #1944)', () => {
   let controller: PaymentsAdminController;
   let reconciliationService: ReconciliationService;
-  let refundsService: { requestRefund: jest.Mock };
+  let refundsService: {
+    requestRefund: jest.Mock;
+    getRefundedAmounts: jest.Mock;
+  };
   let audit: { record: jest.Mock };
 
   function build(seed: Payment[]) {
@@ -87,7 +90,10 @@ describe('PaymentsAdminController — manual-review pagination (issue #1944)', (
         recordRejectedPaymentTransition: jest.fn(),
       } as any,
     );
-    refundsService = { requestRefund: jest.fn() };
+    refundsService = {
+      requestRefund: jest.fn(),
+      getRefundedAmounts: jest.fn().mockResolvedValue(new Map()),
+    };
     audit = { record: jest.fn() };
     controller = new PaymentsAdminController(
       reconciliationService,
@@ -112,6 +118,26 @@ describe('PaymentsAdminController — manual-review pagination (issue #1944)', (
     expect(page.items).toHaveLength(25);
     expect(page.items[0].id).toBe('p000');
     expect(page.items[24].id).toBe('p024');
+  });
+
+  it('includes real refund totals in the manual-review response', async () => {
+    build(seedReview(2));
+    refundsService.getRefundedAmounts.mockResolvedValue(new Map([['p000', 400]]));
+
+    const page = await controller.listManualReview(query(25, 0));
+
+    expect(refundsService.getRefundedAmounts).toHaveBeenCalledWith([
+      'p000',
+      'p001',
+    ]);
+    expect(page.items[0]).toMatchObject({
+      refundedAmount: 400,
+      remainingAmount: 600,
+    });
+    expect(page.items[1]).toMatchObject({
+      refundedAmount: 0,
+      remainingAmount: 1000,
+    });
   });
 
   it('returns a short last page', async () => {

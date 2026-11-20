@@ -26,6 +26,7 @@ import { ReconciliationService } from './reconciliation.service';
 import { RefundsService } from './refunds.service';
 import { AdminActionLogService } from '../admin-audit/admin-action-log.service';
 import { AdminActionType } from '../admin-audit/admin-action-type.enum';
+import { Payment } from './entities/payment.entity';
 import { PaymentResponseDto } from './dto/payment-response.dto';
 import { ListManualReviewQueryDto } from './dto/list-manual-review-query.dto';
 import { ManualReviewPageResponseDto } from './dto/manual-review-page-response.dto';
@@ -38,6 +39,14 @@ import {
   RefundResponseDto,
   RequestRefundResponseDto,
 } from './dto/refund-response.dto';
+
+async function toPaymentResponse(
+  payment: Payment,
+  refundsService: RefundsService,
+): Promise<PaymentResponseDto> {
+  const totals = await refundsService.getRefundedAmounts([payment.id]);
+  return PaymentResponseDto.fromEntity(payment, totals.get(payment.id) ?? 0);
+}
 
 /**
  * Admin-only payment recovery/refund actions (issue #1572). Every mutating
@@ -71,8 +80,13 @@ export class PaymentsAdminController {
       query.limit,
       query.offset,
     );
+    const refunded = await this.refundsService.getRefundedAmounts(
+      items.map((payment) => payment.id),
+    );
     return {
-      items: items.map((payment) => PaymentResponseDto.fromEntity(payment)),
+      items: items.map((payment) =>
+        PaymentResponseDto.fromEntity(payment, refunded.get(payment.id) ?? 0),
+      ),
       total,
     };
   }
@@ -120,7 +134,7 @@ export class PaymentsAdminController {
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<PaymentResponseDto> {
     const payment = await this.reconciliationService.forceReconcileNow(id);
-    return PaymentResponseDto.fromEntity(payment);
+    return toPaymentResponse(payment, this.refundsService);
   }
 
   @Post(':id/resolve-manually')
@@ -147,7 +161,7 @@ export class PaymentsAdminController {
       targetId: id,
       detail: `Resolution: ${dto.resolution} - ${dto.reason}`,
     });
-    return PaymentResponseDto.fromEntity(payment);
+    return toPaymentResponse(payment, this.refundsService);
   }
 
   @Post(':id/void')
@@ -170,7 +184,7 @@ export class PaymentsAdminController {
       targetId: id,
       detail: dto.reason,
     });
-    return PaymentResponseDto.fromEntity(payment);
+    return toPaymentResponse(payment, this.refundsService);
   }
 
   @Post(':id/refunds')
@@ -192,7 +206,7 @@ export class PaymentsAdminController {
       currentUser.id,
     );
     return {
-      payment: PaymentResponseDto.fromEntity(payment),
+      payment: await toPaymentResponse(payment, this.refundsService),
       refund: refund as unknown as RefundResponseDto,
     };
   }

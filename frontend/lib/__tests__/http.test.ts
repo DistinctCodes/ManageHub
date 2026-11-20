@@ -165,6 +165,16 @@ describe("lib/http request", () => {
     ).rejects.toThrow("Request failed (500)");
   });
 
+  it("uses the Retry-After value in the 429 error message", async () => {
+    const response = jsonResponse(429, { message: "Slow down" });
+    response.headers.set("Retry-After", "5");
+    fetchMock.mockResolvedValue(response);
+
+    await expect(
+      request("/payments", { service: "payments", report: false }),
+    ).rejects.toThrow("Too many requests. Please try again in 5s.");
+  });
+
   it("delegates the typed error to makeError and still reports by default", async () => {
     const sentinel = new Error("typed error");
     fetchMock.mockResolvedValue(jsonResponse(403, { message: "Denied" }));

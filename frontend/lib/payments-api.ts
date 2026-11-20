@@ -28,6 +28,9 @@ export interface Payment {
   failureReason: string | null;
   reconciliationAttempts: number;
   manualReviewReason: string | null;
+  refundedAmount: number;
+  remainingAmount: number;
+  refunds?: Refund[];
   createdAt: string;
   updatedAt: string;
 }

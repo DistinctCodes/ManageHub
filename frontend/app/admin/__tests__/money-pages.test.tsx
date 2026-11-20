@@ -125,6 +125,8 @@ function payment(overrides: Record<string, unknown> = {}) {
     userId: "member-1",
     amount: 2500,
     currency: "USD",
+    refundedAmount: 0,
+    remainingAmount: 2500,
     rail: "FIAT",
     status: "MANUAL_REVIEW",
     provider: "test-provider",
@@ -343,29 +345,57 @@ describe("admin charge page", () => {
 });
 
 describe("admin refund page", () => {
-  it("shows an error when the manual-review list fails", async () => {
-    mocks.payments.listManualReviewPayments.mockRejectedValueOnce(new Error("Payments unavailable"));
+  async function searchPayment(user: ReturnType<typeof userEvent.setup>) {
+    await user.type(screen.getByLabelText("Payment ID"), "payment-1");
+    await user.click(screen.getByRole("button", { name: "Search" }));
+  }
+
+  it("prompts for a payment id without loading the review queue", async () => {
     renderPage(<RefundPage />);
+    expect(
+      await screen.findByText(
+        "Search for a payment by ID to view its refundable balance.",
+      ),
+    ).toBeInTheDocument();
+    expect(mocks.payments.getPayment).not.toHaveBeenCalled();
+    expect(mocks.payments.listManualReviewPayments).not.toHaveBeenCalled();
+  });
+
+  it("shows an error when the payment lookup fails", async () => {
+    const user = userEvent.setup();
+    mocks.payments.getPayment.mockRejectedValueOnce(
+      new Error("Payments unavailable"),
+    );
+    renderPage(<RefundPage />);
+    await searchPayment(user);
+    expect(mocks.payments.getPayment).toHaveBeenCalledWith("payment-1");
     expect(await screen.findByText("Payments unavailable")).toBeInTheDocument();
   });
 
-  it("renders the empty queue state", async () => {
-    renderPage(<RefundPage />);
-    expect(await screen.findByText("No payments found in manual review.")).toBeInTheDocument();
-  });
-
-  it("limits refunds to the payment amount and requires a reason", async () => {
+  it("limits refunds to the payment's remaining amount and requires a reason", async () => {
     const user = userEvent.setup();
-    mocks.payments.listManualReviewPayments.mockResolvedValueOnce({ items: [payment()], total: 1 });
+    mocks.payments.getPayment.mockResolvedValueOnce(
+      payment({
+        status: "COMPLETED",
+        manualReviewReason: null,
+        refundedAmount: 500,
+        remainingAmount: 2000,
+      }),
+    );
     renderPage(<RefundPage />);
+    await searchPayment(user);
 
     const amount = await screen.findByLabelText("Refund amount");
     const reason = screen.getByLabelText("Reason");
     expect(amount).toHaveAttribute("min", "1");
-    expect(amount).toHaveAttribute("max", "2500");
+    expect(amount).toHaveAttribute("max", "2000");
+    expect(amount).toHaveValue(2000);
     expect(reason).toBeRequired();
+    expect(screen.getByText(/Refunded so far:/).textContent).toContain("5");
+    expect(screen.getByText(/Remaining:/).textContent).toContain("20");
+
     await user.clear(amount);
-    await user.type(amount, "2600");
+    await user.type(amount, "2100");
     await user.type(reason, "Requested by member");
     await user.click(screen.getByRole("button", { name: "Refund" }));
     expect(mocks.payments.requestRefund).not.toHaveBeenCalled();
@@ -377,18 +407,34 @@ describe("admin refund page", () => {
     expect(mocks.payments.requestRefund).not.toHaveBeenCalled();
     await user.type(reason, "Requested by member");
     await user.click(screen.getByRole("button", { name: "Refund" }));
-    expect(mocks.payments.requestRefund).toHaveBeenCalledWith("payment-1", 1200, "Requested by member");
-    await waitFor(() => expect(mocks.toast.success).toHaveBeenCalledWith("Refund request submitted"));
+    expect(mocks.payments.requestRefund).toHaveBeenCalledWith(
+      "payment-1",
+      1200,
+      "Requested by member",
+    );
+    await waitFor(() =>
+      expect(mocks.toast.success).toHaveBeenCalledWith("Refund request submitted"),
+    );
   });
 
   it("reports a failed refund request", async () => {
     const user = userEvent.setup();
-    mocks.payments.listManualReviewPayments.mockResolvedValueOnce({ items: [payment()], total: 1 });
-    mocks.payments.requestRefund.mockRejectedValueOnce(new Error("Refund rejected"));
+    mocks.payments.getPayment.mockResolvedValueOnce(
+      payment({ status: "COMPLETED", manualReviewReason: null }),
+    );
+    mocks.payments.requestRefund.mockRejectedValueOnce(
+      new Error("Refund rejected"),
+    );
     renderPage(<RefundPage />);
-    await user.type(await screen.findByLabelText("Reason"), "Duplicate charge");
+    await searchPayment(user);
+    await user.type(
+      await screen.findByLabelText("Reason"),
+      "Duplicate charge",
+    );
     await user.click(screen.getByRole("button", { name: "Refund" }));
-    await waitFor(() => expect(mocks.toast.error).toHaveBeenCalledWith("Refund rejected"));
+    await waitFor(() =>
+      expect(mocks.toast.error).toHaveBeenCalledWith("Refund rejected"),
+    );
   });
 });
 

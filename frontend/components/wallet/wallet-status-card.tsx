@@ -37,6 +37,7 @@ export function WalletStatusCard() {
   const signOut = useSignOut();
   const [linking, setLinking] = useState(false);
   const [nonce, setNonce] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   const [lastLinkValues, setLastLinkValues] = useState<
     WalletLinkInput | undefined
   >(undefined);
@@ -63,6 +64,7 @@ export function WalletStatusCard() {
     mutationFn: () => requestLinkChallenge(),
     onSuccess: (result) => {
       setNonce(result.nonce);
+      setMessage(result.message);
       setLinking(true);
     },
   });
@@ -103,6 +105,7 @@ export function WalletStatusCard() {
       applyStatus(result);
       setLastLinkValues(undefined);
       setNonce(null);
+      setMessage(null);
     },
   });
 
@@ -222,11 +225,13 @@ export function WalletStatusCard() {
         {linking && nonce && (
           <WalletLinkForm
             nonce={nonce}
+            message={message ?? ""}
             busy={verify.isPending}
             defaultValues={lastLinkValues}
             onCancel={() => {
               setLinking(false);
               setNonce(null);
+              setMessage(null);
               setLastLinkValues(undefined);
             }}
             onSubmit={(values) => verify.mutate(values)}

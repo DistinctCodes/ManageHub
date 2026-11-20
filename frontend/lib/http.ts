@@ -4,6 +4,11 @@ import {
   reportApiError,
 } from "@/lib/api-report";
 import { getApiBaseUrl } from "@/lib/env";
+import {
+  isRateLimited,
+  parseRetryAfter,
+  rateLimitMessage,
+} from "@/lib/rateLimitFeedback";
 import { expireSession } from "@/lib/session-expiry";
 
 export class ApiError extends Error {
@@ -165,14 +170,21 @@ export async function request<T>(
       expireSession();
     }
     const payload: unknown = await response.json().catch(() => null);
+    const rateLimited = isRateLimited(response.status);
+    const retryAfter = rateLimited
+      ? parseRetryAfter(response.headers.get("Retry-After"))
+      : undefined;
+    const limitMessage = rateLimited ? rateLimitMessage(retryAfter) : null;
 
     let error: Error;
     if (makeError) {
       // Typed-error modules (e.g. CreditsApiError) own their message and
       // fallback handling for every error body.
       error = makeError(response.status, payload);
+      if (limitMessage) error.message = limitMessage;
     } else {
       const message =
+        limitMessage ??
         extractMessage(payload) ??
         fallbackMessage?.(response.status) ??
         `Request failed (${response.status})`;

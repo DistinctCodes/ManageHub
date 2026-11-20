@@ -23,10 +23,17 @@ export class PaymentResponseDto {
   failureReason: PaymentFailureReason | null;
   @ApiProperty() reconciliationAttempts: number;
   @ApiProperty({ nullable: true }) manualReviewReason: string | null;
+  @ApiProperty({ description: 'Minor units already refunded across all refund rows' })
+  refundedAmount: number;
+  @ApiProperty({ description: 'Minor units still refundable' })
+  remainingAmount: number;
   @ApiProperty() createdAt: Date;
   @ApiProperty() updatedAt: Date;
 
-  static fromEntity(payment: Payment): PaymentResponseDto {
+  static fromEntity(
+    payment: Payment,
+    refundedAmount: number = 0,
+  ): PaymentResponseDto {
     const dto = new PaymentResponseDto();
     dto.id = payment.id;
     dto.bookingId = payment.bookingId;
@@ -41,6 +48,8 @@ export class PaymentResponseDto {
     dto.failureReason = payment.failureReason;
     dto.reconciliationAttempts = payment.reconciliationAttempts;
     dto.manualReviewReason = payment.manualReviewReason;
+    dto.refundedAmount = Math.max(0, refundedAmount);
+    dto.remainingAmount = Math.max(0, payment.amount - dto.refundedAmount);
     dto.createdAt = payment.createdAt;
     dto.updatedAt = payment.updatedAt;
     return dto;

@@ -8,6 +8,7 @@
     "build:analyze": "ANALYZE=true next build --webpack",
     "start": "next start",
     "lint": "eslint",
+    "dead-modules": "node scripts/check-dead-modules.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
