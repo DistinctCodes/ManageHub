@@ -8,4 +8,6 @@ export enum EscrowStatus {
   LOCKED = 'LOCKED',
   RELEASED = 'RELEASED',
   REFUNDED = 'REFUNDED',
+  /** Every unit has been released in instalments (contract status 4). */
+  COMPLETED = 'COMPLETED',
 }

@@ -32,6 +32,20 @@ escrow_id is never a separate stored value, it's always recomputable from
 `Payment#id`. That's a stronger link than a mapping table with its own
 unique constraint could give: there's nothing to get out of sync.
 
+On-chain, escrows are stored keyed by `(payer, escrow_id)`, not `escrow_id`
+alone (#2162) — a caller-chosen id is namespaced per payer, so it can never
+be squatted by a different payer calling `create` first. Every contract
+call beyond `create` (`release`, `refund`, `release_partial`,
+`refund_remaining`, `get_escrow`, `get_status`) takes the escrow's payer
+address for this reason; `EscrowContractClient` and
+`EscrowSubmissionProcessor` resolve it the same way `create` does (the
+payer's custodial wallet address, via `WalletsService`).
+
+`create` also requires `token` to be on the contract's admin-managed
+allow-list, and verifies the contract's own token balance grew by exactly
+`amount` after the transfer (#2163) — guards against an unlisted or
+fee-on-transfer token breaking the `released <= amount` accounting.
+
 ## The submission pipeline
 
 `SorobanRailAdapter.initiate()` never touches the chain on the request

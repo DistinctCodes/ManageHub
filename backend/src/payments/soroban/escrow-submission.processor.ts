@@ -18,7 +18,7 @@ import {
 import { EscrowStatus } from './escrow-status.enum';
 import { deriveEscrowId } from './escrow-id';
 import { mapSorobanError } from './soroban-error-mapping';
-import { SorobanConfig } from './soroban-config';
+import { getEscrowTokenAddress, SorobanConfig } from './soroban-config';
 import {
   ESCROW_CONTRACT_CLIENT,
   SOROBAN_CONFIG,
@@ -28,7 +28,10 @@ import {
 type SubmitJobData =
   | { kind: 'create'; paymentId: string }
   | { kind: 'release'; escrowIdHex: string; paymentId: string }
-  | { kind: 'refund'; escrowIdHex: string }
+  // paymentId lets the processor recover the payer address (#2162) the
+  // same way `create` does, since escrows are keyed on-chain by (payer,
+  // escrow_id) rather than escrow_id alone.
+  | { kind: 'refund'; escrowIdHex: string; paymentId: string }
   // Treasury -> recipient transfer for a settlement batch's off-platform
   // leg (issue #1575). Reuses this rail rather than adding a second one:
   // an escrow created and released to the beneficiary in one job is a
@@ -38,6 +41,7 @@ type SubmitJobData =
       escrowIdHex: string;
       beneficiaryAddress: string;
       amount: number;
+      currency: string;
     };
 
 /**
@@ -75,9 +79,9 @@ export class EscrowSubmissionProcessor {
       case 'create':
         return this.handleCreate(job.data.paymentId);
       case 'release':
-        return this.handleRelease(job.data.escrowIdHex);
+        return this.handleRelease(job.data.escrowIdHex, job.data.paymentId);
       case 'refund':
-        return this.handleRefund(job.data.escrowIdHex);
+        return this.handleRefund(job.data.escrowIdHex, job.data.paymentId);
       case 'payout':
         return this.handlePayout(job.data);
     }
@@ -108,6 +112,10 @@ export class EscrowSubmissionProcessor {
       return; // leave AWAITING_CONFIRMATION — surfaces via manual-review escalation
     }
     const payerAddress = walletStatus.account.address;
+    const tokenAddress = getEscrowTokenAddress(
+      this.sorobanConfig,
+      payment.currency,
+    );
 
     try {
       const tx = await this.contractClient.buildCreateTx(
@@ -116,6 +124,7 @@ export class EscrowSubmissionProcessor {
         payerAddress,
         this.sorobanConfig.beneficiaryAddress,
         BigInt(payment.amount),
+        tokenAddress,
       );
       const signature = await this.walletsService.signPayload(
         payment.userId,
@@ -137,9 +146,9 @@ export class EscrowSubmissionProcessor {
         return;
       }
 
-      await this.resolveFromFreshState(payment, escrowId, hash);
+      await this.resolveFromFreshState(payment, escrowId, payerAddress, hash);
     } catch (error) {
-      await this.handleSubmissionError(payment, escrowId, error);
+      await this.handleSubmissionError(payment, escrowId, payerAddress, error);
     }
   }
 
@@ -152,14 +161,20 @@ export class EscrowSubmissionProcessor {
   private async resolveFromFreshState(
     payment: Payment,
     escrowId: Buffer,
+    payerAddress: string,
     hashForLog: string,
   ): Promise<void> {
     const status = await this.contractClient.getEscrowStatus(
       this.sorobanConfig.treasuryPublicKey,
       escrowId,
+      payerAddress,
     );
 
-    if (status === EscrowStatus.LOCKED || status === EscrowStatus.RELEASED) {
+    if (
+      status === EscrowStatus.LOCKED ||
+      status === EscrowStatus.RELEASED ||
+      status === EscrowStatus.COMPLETED
+    ) {
       await this.applyOutcome(payment, escrowId, 'confirmed');
       return;
     }
@@ -181,6 +196,7 @@ export class EscrowSubmissionProcessor {
   private async handleSubmissionError(
     payment: Payment,
     escrowId: Buffer,
+    payerAddress: string,
     error: unknown,
   ): Promise<void> {
     const mapping = mapSorobanError(error);
@@ -188,7 +204,7 @@ export class EscrowSubmissionProcessor {
     if (mapping.alreadySucceeded) {
       // A retried create against the contract's own idempotent guard —
       // resolve from fresh state rather than assuming anything.
-      await this.resolveFromFreshState(payment, escrowId, 'retry');
+      await this.resolveFromFreshState(payment, escrowId, payerAddress, 'retry');
       return;
     }
 
@@ -229,8 +245,40 @@ export class EscrowSubmissionProcessor {
     }
   }
 
-  private async handleRelease(escrowIdHex: string): Promise<void> {
-    await this.submitTreasuryAction(escrowIdHex, 'release');
+  private async handleRelease(
+    escrowIdHex: string,
+    paymentId: string,
+  ): Promise<void> {
+    const payerAddress = await this.resolvePayerAddressForPayment(paymentId);
+    if (!payerAddress) return;
+    await this.submitTreasuryAction(escrowIdHex, 'release', payerAddress);
+  }
+
+  /**
+   * Escrows are keyed on-chain by (payer, escrow_id) (#2162) — every job
+   * that isn't `create` needs the same payer address to locate its record,
+   * resolved the same way `create` does.
+   */
+  private async resolvePayerAddressForPayment(
+    paymentId: string,
+  ): Promise<string | null> {
+    const payment = await this.paymentRepository.findOne({
+      where: { id: paymentId },
+    });
+    if (!payment) {
+      this.logger.error(`No payment found for id ${paymentId}`);
+      return null;
+    }
+    const walletStatus = await this.walletsService.getWalletStatus(
+      payment.userId,
+    );
+    if (!walletStatus.account) {
+      this.logger.error(
+        `User ${payment.userId} has no custodial wallet for payment ${paymentId}`,
+      );
+      return null;
+    }
+    return walletStatus.account.address;
   }
 
   /**
@@ -254,19 +302,27 @@ export class EscrowSubmissionProcessor {
     escrowIdHex: string;
     beneficiaryAddress: string;
     amount: number;
+    currency: string;
   }): Promise<void> {
     const escrowId = Buffer.from(data.escrowIdHex, 'hex');
     const treasuryKeypair = Keypair.fromSecret(
       this.sorobanConfig.treasurySecretKey,
     );
+    // The treasury funds and owns every payout escrow, so it is also the
+    // payer half of the (payer, escrow_id) storage key (#2162).
+    const payerAddress = treasuryKeypair.publicKey();
 
     try {
       const existing = await this.contractClient.getEscrowStatus(
         this.sorobanConfig.treasuryPublicKey,
         escrowId,
+        payerAddress,
       );
 
-      if (existing === EscrowStatus.RELEASED) {
+      if (
+        existing === EscrowStatus.RELEASED ||
+        existing === EscrowStatus.COMPLETED
+      ) {
         this.logger.log(
           `Payout escrow ${data.escrowIdHex} is already released — nothing to do`,
         );
@@ -274,12 +330,17 @@ export class EscrowSubmissionProcessor {
       }
 
       if (existing === EscrowStatus.NOT_FOUND) {
+        const tokenAddress = getEscrowTokenAddress(
+          this.sorobanConfig,
+          data.currency,
+        );
         const tx = await this.contractClient.buildCreateTx(
-          treasuryKeypair.publicKey(),
+          payerAddress,
           escrowId,
-          treasuryKeypair.publicKey(),
+          payerAddress,
           data.beneficiaryAddress,
           BigInt(data.amount),
+          tokenAddress,
         );
         tx.sign(treasuryKeypair);
         const { hash } = await this.contractClient.submit(tx);
@@ -302,6 +363,7 @@ export class EscrowSubmissionProcessor {
       const beforeRelease = await this.contractClient.getEscrowStatus(
         this.sorobanConfig.treasuryPublicKey,
         escrowId,
+        payerAddress,
       );
       if (beforeRelease !== EscrowStatus.LOCKED) {
         this.logger.warn(
@@ -310,7 +372,7 @@ export class EscrowSubmissionProcessor {
         );
         return;
       }
-      await this.submitTreasuryAction(data.escrowIdHex, 'release');
+      await this.submitTreasuryAction(data.escrowIdHex, 'release', payerAddress);
     } catch (error) {
       const mapping = mapSorobanError(error);
       if (mapping.alreadySucceeded) {
@@ -326,8 +388,13 @@ export class EscrowSubmissionProcessor {
     }
   }
 
-  private async handleRefund(escrowIdHex: string): Promise<void> {
-    await this.submitTreasuryAction(escrowIdHex, 'refund');
+  private async handleRefund(
+    escrowIdHex: string,
+    paymentId: string,
+  ): Promise<void> {
+    const payerAddress = await this.resolvePayerAddressForPayment(paymentId);
+    if (!payerAddress) return;
+    await this.submitTreasuryAction(escrowIdHex, 'refund', payerAddress);
   }
 
   /**
@@ -340,6 +407,7 @@ export class EscrowSubmissionProcessor {
   private async submitTreasuryAction(
     escrowIdHex: string,
     kind: 'release' | 'refund',
+    payerAddress: string,
   ): Promise<void> {
     const escrowId = Buffer.from(escrowIdHex, 'hex');
     const treasuryKeypair = Keypair.fromSecret(
@@ -352,10 +420,12 @@ export class EscrowSubmissionProcessor {
           ? await this.contractClient.buildReleaseTx(
               treasuryKeypair.publicKey(),
               escrowId,
+              payerAddress,
             )
           : await this.contractClient.buildRefundTx(
               treasuryKeypair.publicKey(),
               escrowId,
+              payerAddress,
             );
       tx.sign(treasuryKeypair);
 

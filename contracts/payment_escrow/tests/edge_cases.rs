@@ -48,8 +48,8 @@ fn double_release_is_rejected() {
     let c = client(&f);
     let id = escrow_id(&f, 1);
     c.create(&id, &f.payer, &f.beneficiary, &100, &f.token);
-    c.release(&id);
-    assert!(matches!(c.try_release(&id), Err(Ok(_))));
+    c.release(&id, &f.payer);
+    assert!(matches!(c.try_release(&id, &f.payer), Err(Ok(_))));
 }
 
 #[test]
@@ -58,22 +58,22 @@ fn refund_after_release_is_rejected() {
     let c = client(&f);
     let id = escrow_id(&f, 2);
     c.create(&id, &f.payer, &f.beneficiary, &100, &f.token);
-    c.release(&id);
-    assert!(matches!(c.try_refund(&id), Err(Ok(_))));
+    c.release(&id, &f.payer);
+    assert!(matches!(c.try_refund(&id, &f.payer), Err(Ok(_))));
 }
 
 #[test]
 fn release_of_nonexistent_escrow_is_rejected() {
     let f = fixture();
     let c = client(&f);
-    assert_eq!(c.try_release(&escrow_id(&f, 3)), Err(Ok(Error::NotFound)));
+    assert_eq!(c.try_release(&escrow_id(&f, 3), &f.payer), Err(Ok(Error::NotFound)));
 }
 
 #[test]
 fn refund_of_nonexistent_escrow_is_rejected() {
     let f = fixture();
     let c = client(&f);
-    assert_eq!(c.try_refund(&escrow_id(&f, 4)), Err(Ok(Error::NotFound)));
+    assert_eq!(c.try_refund(&escrow_id(&f, 4), &f.payer), Err(Ok(Error::NotFound)));
 }
 
 #[test]
@@ -89,11 +89,11 @@ fn unauthorized_release_is_rejected() {
         invoke: &MockAuthInvoke {
             contract: &f.contract_id,
             fn_name: "release",
-            args: (id.clone(),).into_val(&f.env),
+            args: (id.clone(), f.payer.clone()).into_val(&f.env),
             sub_invokes: &[],
         },
     }]);
-    assert!(c.try_release(&id).is_err());
+    assert!(c.try_release(&id, &f.payer).is_err());
 }
 
 #[test]
@@ -109,9 +109,9 @@ fn unauthorized_refund_is_rejected() {
         invoke: &MockAuthInvoke {
             contract: &f.contract_id,
             fn_name: "refund",
-            args: (id.clone(),).into_val(&f.env),
+            args: (id.clone(), f.payer.clone()).into_val(&f.env),
             sub_invokes: &[],
         },
     }]);
-    assert!(c.try_refund(&id).is_err());
+    assert!(c.try_refund(&id, &f.payer).is_err());
 }

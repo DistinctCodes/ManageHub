@@ -15,7 +15,7 @@ contractmeta!(key = "interface_version", val = "2");
 pub const VERSION: u32 = 2;
 
 /// On-chain escrow status codes.
-/// Maps to backend EscrowStatus enum: 0=NotFound, 1=Locked, 2=Released, 3=Refunded.
+/// Maps to backend EscrowStatus enum: 0=NotFound, 1=Locked, 2=Released, 3=Refunded, 4=Completed.
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum EscrowState {
@@ -41,10 +41,19 @@ pub struct Escrow {
 
 #[contracttype]
 pub enum DataKey {
-    Escrow(BytesN<32>),
+    /// Keyed by (payer, escrow_id) — NOT escrow_id alone (#2162). Ids are
+    /// caller-chosen and the backend derives them deterministically, so a
+    /// global escrow_id namespace lets anyone who predicts an id squat it
+    /// for a different payer and block the real `create`. Namespacing by
+    /// payer means two different payers can use the identical escrow_id
+    /// without colliding.
+    Escrow(Address, BytesN<32>),
     Admin,
     PendingAdmin,
     Paused,
+    /// Admin-managed allow-list (#2163): only tokens explicitly added here
+    /// may be escrowed.
+    AllowedToken(Address),
 }
 
 #[contracterror]
@@ -78,6 +87,12 @@ pub enum Error {
     AmountExceedsEscrow = 20,
     /// Nothing remains to refund.
     NothingToRefund = 21,
+    /// The token is not on the admin-managed allow-list (#2163).
+    TokenNotAllowed = 22,
+    /// The contract's token balance did not increase by exactly `amount`
+    /// after `transfer` — a fee-on-transfer or otherwise non-conforming
+    /// token (#2163).
+    TransferShortfall = 23,
 }
 
 #[contract]
@@ -186,9 +201,40 @@ impl PaymentEscrowContract {
             .unwrap_or(false)
     }
 
+    /// Admin-only: allow `token` to be escrowed (#2163).
+    pub fn add_allowed_token(env: Env, token: Address) -> Result<(), Error> {
+        let admin = load_admin(&env)?;
+        admin.require_auth();
+        env.storage()
+            .instance()
+            .set(&DataKey::AllowedToken(token), &true);
+        Ok(())
+    }
+
+    /// Admin-only: remove `token` from the allow-list (#2163).
+    pub fn remove_allowed_token(env: Env, token: Address) -> Result<(), Error> {
+        let admin = load_admin(&env)?;
+        admin.require_auth();
+        env.storage().instance().remove(&DataKey::AllowedToken(token));
+        Ok(())
+    }
+
+    pub fn is_token_allowed(env: Env, token: Address) -> bool {
+        env.storage()
+            .instance()
+            .get(&DataKey::AllowedToken(token))
+            .unwrap_or(false)
+    }
+
     /// Create a new escrow, locking `amount` from `payer` for `beneficiary`.
     ///
     /// CT-73: uses checked arithmetic on all amount paths.
+    /// #2162: stored under (payer, escrow_id) so a caller-chosen id can
+    /// never be squatted across payers.
+    /// #2163: `token` must be on the admin allow-list, and the contract's
+    /// own balance must grow by exactly `amount` — guards against
+    /// fee-on-transfer/malicious tokens breaking the `released <= amount`
+    /// accounting.
     pub fn create(
         env: Env,
         escrow_id: BytesN<32>,
@@ -212,16 +258,34 @@ impl PaymentEscrowContract {
             return Err(Error::InvalidAmount);
         }
 
-        if env
+        if !env
             .storage()
-            .persistent()
-            .has(&DataKey::Escrow(escrow_id.clone()))
+            .instance()
+            .get::<_, bool>(&DataKey::AllowedToken(token.clone()))
+            .unwrap_or(false)
         {
+            return Err(Error::TokenNotAllowed);
+        }
+
+        let key = DataKey::Escrow(payer.clone(), escrow_id.clone());
+        if env.storage().persistent().has(&key) {
             return Err(Error::AlreadyExists);
         }
 
-        // Pull the funds into the contract before recording the escrow.
-        token::Client::new(&env, &token).transfer(&payer, &env.current_contract_address(), &amount);
+        // Pull the funds into the contract before recording the escrow,
+        // verifying the contract's own balance actually grew by `amount`
+        // rather than trusting the transfer call's success alone.
+        let token_client = token::Client::new(&env, &token);
+        let contract_address = env.current_contract_address();
+        let balance_before = token_client.balance(&contract_address);
+        token_client.transfer(&payer, &contract_address, &amount);
+        let balance_after = token_client.balance(&contract_address);
+        let delta = balance_after
+            .checked_sub(balance_before)
+            .ok_or(Error::ArithmeticOverflow)?;
+        if delta != amount {
+            return Err(Error::TransferShortfall);
+        }
 
         let escrow = Escrow {
             payer: payer.clone(),
@@ -232,20 +296,20 @@ impl PaymentEscrowContract {
             state: EscrowState::Locked,
         };
 
-        env.storage()
-            .persistent()
-            .set(&DataKey::Escrow(escrow_id.clone()), &escrow);
+        env.storage().persistent().set(&key, &escrow);
         events::emit_created(&env, &escrow_id, &payer, &beneficiary);
         Ok(())
     }
 
     /// Release escrowed funds to the beneficiary. Only the payer — the
     /// party whose funds are locked — may authorize a release (CT-72).
-    pub fn release(env: Env, escrow_id: BytesN<32>) -> Result<(), Error> {
+    /// `payer` locates the (payer, escrow_id)-keyed record (#2162).
+    pub fn release(env: Env, escrow_id: BytesN<32>, payer: Address) -> Result<(), Error> {
+        let key = DataKey::Escrow(payer, escrow_id.clone());
         let mut escrow: Escrow = env
             .storage()
             .persistent()
-            .get(&DataKey::Escrow(escrow_id.clone()))
+            .get(&key)
             .ok_or(Error::NotFound)?;
 
         escrow.payer.require_auth();
@@ -268,9 +332,7 @@ impl PaymentEscrowContract {
         );
         escrow.released = escrow.amount;
         escrow.state = EscrowState::Released;
-        env.storage()
-            .persistent()
-            .set(&DataKey::Escrow(escrow_id.clone()), &escrow);
+        env.storage().persistent().set(&key, &escrow);
         events::emit_released(&env, &escrow_id, &escrow.beneficiary);
         Ok(())
     }
@@ -280,11 +342,17 @@ impl PaymentEscrowContract {
     /// point it becomes `Completed`. Only the payer may authorise it.
     ///
     /// Invariant: `released <= amount`. Uses checked arithmetic.
-    pub fn release_partial(env: Env, escrow_id: BytesN<32>, amount: i128) -> Result<(), Error> {
+    pub fn release_partial(
+        env: Env,
+        escrow_id: BytesN<32>,
+        payer: Address,
+        amount: i128,
+    ) -> Result<(), Error> {
+        let key = DataKey::Escrow(payer, escrow_id.clone());
         let mut escrow: Escrow = env
             .storage()
             .persistent()
-            .get(&DataKey::Escrow(escrow_id.clone()))
+            .get(&key)
             .ok_or(Error::NotFound)?;
 
         escrow.payer.require_auth();
@@ -312,9 +380,7 @@ impl PaymentEscrowContract {
         if released == escrow.amount {
             escrow.state = EscrowState::Completed;
         }
-        env.storage()
-            .persistent()
-            .set(&DataKey::Escrow(escrow_id.clone()), &escrow);
+        env.storage().persistent().set(&key, &escrow);
         events::emit_partial_release(&env, &escrow_id, &escrow.beneficiary, amount);
         Ok(())
     }
@@ -322,11 +388,12 @@ impl PaymentEscrowContract {
     /// Refund whatever has not yet been released to the payer and close the
     /// escrow as `Refunded`. Only the beneficiary may authorise it. Returns
     /// the refunded amount.
-    pub fn refund_remaining(env: Env, escrow_id: BytesN<32>) -> Result<i128, Error> {
+    pub fn refund_remaining(env: Env, escrow_id: BytesN<32>, payer: Address) -> Result<i128, Error> {
+        let key = DataKey::Escrow(payer, escrow_id.clone());
         let mut escrow: Escrow = env
             .storage()
             .persistent()
-            .get(&DataKey::Escrow(escrow_id.clone()))
+            .get(&key)
             .ok_or(Error::NotFound)?;
 
         escrow.beneficiary.require_auth();
@@ -348,20 +415,19 @@ impl PaymentEscrowContract {
             &remaining,
         );
         escrow.state = EscrowState::Refunded;
-        env.storage()
-            .persistent()
-            .set(&DataKey::Escrow(escrow_id.clone()), &escrow);
+        env.storage().persistent().set(&key, &escrow);
         events::emit_refunded(&env, &escrow_id, &escrow.beneficiary);
         Ok(remaining)
     }
 
     /// Refund escrowed funds back to the payer. Only the beneficiary — the
     /// party giving up their claim — may authorize a refund (CT-72).
-    pub fn refund(env: Env, escrow_id: BytesN<32>) -> Result<(), Error> {
+    pub fn refund(env: Env, escrow_id: BytesN<32>, payer: Address) -> Result<(), Error> {
+        let key = DataKey::Escrow(payer, escrow_id.clone());
         let mut escrow: Escrow = env
             .storage()
             .persistent()
-            .get(&DataKey::Escrow(escrow_id.clone()))
+            .get(&key)
             .ok_or(Error::NotFound)?;
 
         escrow.beneficiary.require_auth();
@@ -383,29 +449,27 @@ impl PaymentEscrowContract {
             &remaining,
         );
         escrow.state = EscrowState::Refunded;
-        env.storage()
-            .persistent()
-            .set(&DataKey::Escrow(escrow_id.clone()), &escrow);
+        env.storage().persistent().set(&key, &escrow);
         events::emit_refunded(&env, &escrow_id, &escrow.beneficiary);
         Ok(())
     }
 
     /// Return the full escrow record, including the token and held amount.
-    pub fn get_escrow(env: Env, escrow_id: BytesN<32>) -> Result<Escrow, Error> {
+    pub fn get_escrow(env: Env, escrow_id: BytesN<32>, payer: Address) -> Result<Escrow, Error> {
         env.storage()
             .persistent()
-            .get(&DataKey::Escrow(escrow_id))
+            .get(&DataKey::Escrow(payer, escrow_id))
             .ok_or(Error::NotFound)
     }
 
     /// Query the status of an escrow.
-    /// Returns: 1=Locked, 2=Released, 3=Refunded.
+    /// Returns: 1=Locked, 2=Released, 3=Refunded, 4=Completed.
     /// Returns Error::NotFound if the escrow does not exist.
-    pub fn get_status(env: Env, escrow_id: BytesN<32>) -> Result<u32, Error> {
+    pub fn get_status(env: Env, escrow_id: BytesN<32>, payer: Address) -> Result<u32, Error> {
         let escrow: Escrow = env
             .storage()
             .persistent()
-            .get(&DataKey::Escrow(escrow_id))
+            .get(&DataKey::Escrow(payer, escrow_id))
             .ok_or(Error::NotFound)?;
 
         match escrow.state {
@@ -442,10 +506,14 @@ mod escrow_test {
         let contract_id = env.register(PaymentEscrowContract, ());
         let client = PaymentEscrowContractClient::new(&env, &contract_id);
 
+        let admin = Address::generate(&env);
+        client.initialize(&admin);
+
         let token_admin = Address::generate(&env);
         let token = env
             .register_stellar_asset_contract_v2(token_admin)
             .address();
+        client.add_allowed_token(&token);
         let payer = Address::generate(&env);
         let beneficiary = Address::generate(&env);
         token::StellarAssetClient::new(&env, &token).mint(&payer, &10_000);
@@ -476,12 +544,12 @@ mod escrow_test {
 
         f.client
             .create(&id, &f.payer, &f.beneficiary, &1_000, &f.token);
-        assert_eq!(f.client.get_status(&id), 1);
+        assert_eq!(f.client.get_status(&id, &f.payer), 1);
         assert_eq!(balance(&f, &f.contract_id), 1_000);
         assert_eq!(balance(&f, &f.payer), 9_000);
 
-        f.client.release(&id);
-        assert_eq!(f.client.get_status(&id), 2);
+        f.client.release(&id, &f.payer);
+        assert_eq!(f.client.get_status(&id, &f.payer), 2);
         assert_eq!(balance(&f, &f.contract_id), 0);
         assert_eq!(balance(&f, &f.beneficiary), 1_000);
     }
@@ -496,8 +564,8 @@ mod escrow_test {
             .create(&id, &f.payer, &f.beneficiary, &500, &f.token);
         assert_eq!(balance(&f, &f.payer), 9_500);
 
-        f.client.refund(&id);
-        assert_eq!(f.client.get_status(&id), 3);
+        f.client.refund(&id, &f.payer);
+        assert_eq!(f.client.get_status(&id, &f.payer), 3);
         assert_eq!(balance(&f, &f.payer), 10_000);
         assert_eq!(balance(&f, &f.contract_id), 0);
     }
@@ -508,7 +576,7 @@ mod escrow_test {
         let id = escrow_id(&f.env, 3);
         f.client
             .create(&id, &f.payer, &f.beneficiary, &250, &f.token);
-        let escrow = f.client.get_escrow(&id);
+        let escrow = f.client.get_escrow(&id, &f.payer);
         assert_eq!(escrow.amount, 250);
         assert_eq!(escrow.token, f.token);
     }
@@ -522,24 +590,66 @@ mod escrow_test {
             .create(&released, &f.payer, &f.beneficiary, &100, &f.token);
         f.client
             .create(&refunded, &f.payer, &f.beneficiary, &100, &f.token);
-        f.client.release(&released);
-        f.client.refund(&refunded);
+        f.client.release(&released, &f.payer);
+        f.client.refund(&refunded, &f.payer);
 
         assert_eq!(
-            f.client.try_release(&released),
+            f.client.try_release(&released, &f.payer),
             Err(Ok(Error::AlreadyReleased))
         );
         assert_eq!(
-            f.client.try_refund(&refunded),
+            f.client.try_refund(&refunded, &f.payer),
             Err(Ok(Error::AlreadyRefunded))
         );
         assert_eq!(
-            f.client.try_release(&refunded),
+            f.client.try_release(&refunded, &f.payer),
             Err(Ok(Error::AlreadyRefunded))
         );
         assert_eq!(
-            f.client.try_refund(&released),
+            f.client.try_refund(&released, &f.payer),
             Err(Ok(Error::AlreadyReleased))
+        );
+    }
+
+    /// #2162: a second payer can use the identical raw escrow_id — it is
+    /// namespaced by (payer, escrow_id), so there is no shared namespace to
+    /// squat.
+    #[test]
+    fn test_same_escrow_id_different_payers_do_not_collide() {
+        let f = setup();
+        let other_payer = Address::generate(&f.env);
+        token::StellarAssetClient::new(&f.env, &f.token).mint(&other_payer, &10_000);
+        let id = escrow_id(&f.env, 6);
+
+        f.client
+            .create(&id, &f.payer, &f.beneficiary, &100, &f.token);
+        // Would previously fail with AlreadyExists even though this is a
+        // different payer's escrow.
+        f.client
+            .create(&id, &other_payer, &f.beneficiary, &200, &f.token);
+
+        assert_eq!(f.client.get_status(&id, &f.payer), 1);
+        assert_eq!(f.client.get_status(&id, &other_payer), 1);
+        assert_eq!(f.client.get_escrow(&id, &f.payer).amount, 100);
+        assert_eq!(f.client.get_escrow(&id, &other_payer).amount, 200);
+    }
+
+    /// #2163: a token that was never admin-allow-listed is rejected.
+    #[test]
+    fn test_unlisted_token_is_rejected() {
+        let f = setup();
+        let unlisted_admin = Address::generate(&f.env);
+        let unlisted_token = f
+            .env
+            .register_stellar_asset_contract_v2(unlisted_admin)
+            .address();
+        token::StellarAssetClient::new(&f.env, &unlisted_token).mint(&f.payer, &1_000);
+        let id = escrow_id(&f.env, 7);
+
+        assert_eq!(
+            f.client
+                .try_create(&id, &f.payer, &f.beneficiary, &100, &unlisted_token),
+            Err(Ok(Error::TokenNotAllowed))
         );
     }
 }
@@ -564,10 +674,13 @@ mod partial_release_test {
         env.mock_all_auths();
         let id = env.register(PaymentEscrowContract, ());
         let client = PaymentEscrowContractClient::new(&env, &id);
+        let admin = Address::generate(&env);
+        client.initialize(&admin);
         let payer = Address::generate(&env);
         let token = env
             .register_stellar_asset_contract_v2(Address::generate(&env))
             .address();
+        client.add_allowed_token(&token);
         token::StellarAssetClient::new(&env, &token).mint(&payer, &1_000_000);
         let beneficiary = Address::generate(&env);
         (env, client, payer, beneficiary, token)
@@ -575,9 +688,12 @@ mod partial_release_test {
 
     #[test]
     fn get_status_of_unknown_id_is_not_found() {
-        let (env, client, _, _, _) = setup();
+        let (env, client, payer, _, _) = setup();
         let id = BytesN::from_array(&env, &[9u8; 32]);
-        assert_eq!(client.try_get_status(&id), Err(Ok(Error::NotFound)));
+        assert_eq!(
+            client.try_get_status(&id, &payer),
+            Err(Ok(Error::NotFound))
+        );
     }
 
     #[test]
@@ -585,10 +701,10 @@ mod partial_release_test {
         let (env, client, payer, ben, token) = setup();
         let id = BytesN::from_array(&env, &[1u8; 32]);
         client.create(&id, &payer, &ben, &1_000, &token);
-        client.release_partial(&id, &400);
-        assert_eq!(client.get_status(&id), 1);
-        client.release_partial(&id, &600);
-        assert_eq!(client.get_status(&id), 4);
+        client.release_partial(&id, &payer, &400);
+        assert_eq!(client.get_status(&id, &payer), 1);
+        client.release_partial(&id, &payer, &600);
+        assert_eq!(client.get_status(&id, &payer), 4);
     }
 
     #[test]
@@ -596,9 +712,9 @@ mod partial_release_test {
         let (env, client, payer, ben, token) = setup();
         let id = BytesN::from_array(&env, &[2u8; 32]);
         client.create(&id, &payer, &ben, &500, &token);
-        client.release_partial(&id, &300);
+        client.release_partial(&id, &payer, &300);
         assert_eq!(
-            client.try_release_partial(&id, &300),
+            client.try_release_partial(&id, &payer, &300),
             Err(Ok(Error::AmountExceedsEscrow))
         );
     }
@@ -608,9 +724,9 @@ mod partial_release_test {
         let (env, client, payer, ben, token) = setup();
         let id = BytesN::from_array(&env, &[3u8; 32]);
         client.create(&id, &payer, &ben, &1_000, &token);
-        client.release_partial(&id, &250);
-        assert_eq!(client.refund_remaining(&id), 750);
-        assert_eq!(client.get_status(&id), 3);
+        client.release_partial(&id, &payer, &250);
+        assert_eq!(client.refund_remaining(&id, &payer), 750);
+        assert_eq!(client.get_status(&id, &payer), 3);
     }
 }
 
@@ -665,11 +781,14 @@ mod model_test {
             env.mock_all_auths();
             let cid = env.register(PaymentEscrowContract, ());
             let client = PaymentEscrowContractClient::new(&env, &cid);
+            let admin = Address::generate(&env);
+            client.initialize(&admin);
             let payer = Address::generate(&env);
             let ben = Address::generate(&env);
             let token = env
                 .register_stellar_asset_contract_v2(Address::generate(&env))
                 .address();
+            client.add_allowed_token(&token);
             token::StellarAssetClient::new(&env, &token).mint(&payer, &1_000_000_000);
             // (state, amount, released) per escrow id.
             let mut model: [Option<(M, i128, i128)>; 3] = [None; 3];
@@ -689,7 +808,7 @@ mod model_test {
                     }
                     Op::Release(i) => {
                         let id = BytesN::from_array(&env, &[i; 32]);
-                        let r = client.try_release(&id);
+                        let r = client.try_release(&id, &payer);
                         match model[i as usize] {
                             None => prop_assert!(matches!(r, Err(Ok(Error::NotFound)))),
                             Some((M::Locked, a, _)) => {
@@ -703,7 +822,7 @@ mod model_test {
                     }
                     Op::Refund(i) => {
                         let id = BytesN::from_array(&env, &[i; 32]);
-                        let r = client.try_refund(&id);
+                        let r = client.try_refund(&id, &payer);
                         match model[i as usize] {
                             None => prop_assert!(matches!(r, Err(Ok(Error::NotFound)))),
                             Some((M::Locked, a, rel)) => {
@@ -718,7 +837,7 @@ mod model_test {
                     Op::Partial(i, amt) => {
                         let id = BytesN::from_array(&env, &[i; 32]);
                         prop_assert!(fuzz_guard::checked_amount(amt).is_some());
-                        let r = client.try_release_partial(&id, &amt);
+                        let r = client.try_release_partial(&id, &payer, &amt);
                         match model[i as usize] {
                             None => prop_assert!(matches!(r, Err(Ok(Error::NotFound)))),
                             Some((M::Locked, a, rel)) => {
@@ -735,7 +854,7 @@ mod model_test {
                     }
                     Op::Status(i) => {
                         let id = BytesN::from_array(&env, &[i; 32]);
-                        let r = client.try_get_status(&id);
+                        let r = client.try_get_status(&id, &payer);
                         match model[i as usize] {
                             None => prop_assert!(matches!(r, Err(Ok(Error::NotFound)))),
                             Some((m, _, _)) => prop_assert!(matches!(r, Ok(Ok(c)) if c == code(m))),
@@ -793,6 +912,7 @@ mod admin_test {
         let token = env
             .register_stellar_asset_contract_v2(Address::generate(&env))
             .address();
+        client.add_allowed_token(&token);
         token::StellarAssetClient::new(&env, &token).mint(&payer, &1_000);
         let existing = BytesN::from_array(&env, &[1u8; 32]);
         client.create(&existing, &payer, &beneficiary, &100, &token);
@@ -804,7 +924,7 @@ mod admin_test {
             client.try_create(&blocked, &payer, &beneficiary, &100, &token),
             Err(Ok(Error::Paused))
         );
-        client.release(&existing);
+        client.release(&existing, &payer);
 
         client.unpause();
         client.create(&blocked, &payer, &beneficiary, &100, &token);

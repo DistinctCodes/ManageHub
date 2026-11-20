@@ -68,6 +68,7 @@ export class SorobanPayoutAdapter implements ExternalPayoutRail {
         escrowIdHex,
         beneficiaryAddress: input.destinationAddress,
         amount: input.amount,
+        currency: input.currency,
       },
       { jobId: `payout:${escrowIdHex}`, attempts: 1 },
     );
@@ -85,12 +86,17 @@ export class SorobanPayoutAdapter implements ExternalPayoutRail {
    * to the treasury — is a definite failure.
    */
   async getPayoutStatus(reference: string): Promise<PayoutStatus> {
+    // The treasury funds and owns every payout escrow (#2162's (payer,
+    // escrow_id) storage key), so it doubles as both the simulation source
+    // account and the payer address needed to locate the record.
     const status = await this.contractClient.getEscrowStatus(
       this.sorobanConfig.treasuryPublicKey,
       Buffer.from(reference, 'hex'),
+      this.sorobanConfig.treasuryPublicKey,
     );
     switch (status) {
       case EscrowStatus.RELEASED:
+      case EscrowStatus.COMPLETED:
         return 'confirmed';
       case EscrowStatus.REFUNDED:
         return 'failed';
