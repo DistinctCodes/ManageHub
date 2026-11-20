@@ -1,28 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { jwtVerify } from "jose";
-import { getSafeReturnTo } from "./lib/auth-redirect";
+import { getSafeReturnTo, defaultLandingRoute } from "./lib/auth-redirect";
+import { isAuthRoute, isProtectedRoute } from "./lib/protected-routes";
 
 // NOTE: This middleware is a UX convenience (redirects unauthenticated users
 // to /login). It is NOT a security boundary. Authorization and authentication
 // must always be enforced by the backend API; never rely on this middleware
 // to protect data or actions on its own.
-const protectedRoutePrefixes = [
-  "/wallet",
-  "/credits",
-  "/usage",
-  "/payments",
-  "/admin",
-];
-const authRoutes = ["/login", "/register"];
-
 function getAccessToken(request: NextRequest): string | null {
   return request.cookies.get("accessToken")?.value ?? null;
-}
-
-function isProtectedRoute(pathname: string): boolean {
-  return protectedRoutePrefixes.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-  );
 }
 
 async function isAuthenticated(request: NextRequest): Promise<boolean> {
@@ -82,9 +68,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (authRoutes.includes(pathname) && authenticated) {
+  if (isAuthRoute(pathname) && authenticated) {
     const url = request.nextUrl.clone();
-    url.pathname = "/wallet";
+    url.pathname = defaultLandingRoute(
+      (await isAdminToken(request)) ? "admin" : "user",
+    );
     url.search = "";
     return NextResponse.redirect(url);
   }

@@ -24,9 +24,11 @@ import { RefundsService } from './refunds.service';
 import { Payment } from './entities/payment.entity';
 import { InitiatePaymentDto } from './dto/initiate-payment.dto';
 import { PaymentResponseDto } from './dto/payment-response.dto';
-import { VerifyReturnResponseDto } from './dto/verify-return-response.dto';
 import { ListPaymentsQueryDto } from './dto/list-payments-query.dto';
 import { PaymentPageResponseDto } from './dto/payment-page-response.dto';
+import { ListPaymentsCursorQueryDto } from './dto/list-payments-cursor-query.dto';
+import { PaymentCursorPageResponseDto } from './dto/payment-cursor-page-response.dto';
+import { VerifyReturnResponseDto } from './dto/verify-return-response.dto';
 import { Throttle } from '@nestjs/throttler';
 import { withSpan } from '../common/tracing';
 import { IdempotencyKey } from './idempotency-key.decorator';
@@ -81,6 +83,37 @@ export class PaymentsController {
         'payment.rail': dto.rail,
       },
     );
+  }
+
+  @Get('page')
+  @ApiOperation({
+    summary: 'List one cursor page of payments (own for users, all for admins)',
+    description:
+      'Newest first. `limit` defaults to 25 and is capped at 100. ' +
+      '`status`, `from` and `to` filter the list; `from`/`to` are inclusive ' +
+      'ISO bounds on createdAt. Pass `nextCursor` back as `cursor` to fetch ' +
+      'the next page — it is null on the last page.',
+  })
+  @ApiResponse({ status: 200, type: PaymentCursorPageResponseDto })
+  async findPage(
+    @CurrentUser() currentUser: RequestUser,
+    @Query() query: ListPaymentsCursorQueryDto = new ListPaymentsCursorQueryDto(),
+  ): Promise<PaymentCursorPageResponseDto> {
+    const page = await this.paymentsService.findAllPage(currentUser, {
+      limit: query.limit,
+      cursor: query.cursor,
+      status: query.status,
+      from: query.from,
+      to: query.to,
+    });
+    return {
+      data: await Promise.all(
+        page.items.map((payment) =>
+          toPaymentResponse(payment, this.refundsService),
+        ),
+      ),
+      nextCursor: page.nextCursor,
+    };
   }
 
   @Get(':id')

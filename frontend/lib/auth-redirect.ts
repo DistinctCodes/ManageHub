@@ -1,4 +1,17 @@
+import type { UserRole } from "@/lib/auth-types";
+
 const REDIRECT_BASE = "https://managehub.local";
+
+export const MEMBER_LANDING_ROUTE = "/wallet";
+export const ADMIN_LANDING_ROUTE = "/admin";
+
+export function defaultLandingRoute(
+  role?: UserRole | string | null,
+): string {
+  return role?.toLowerCase() === "admin"
+    ? ADMIN_LANDING_ROUTE
+    : MEMBER_LANDING_ROUTE;
+}
 
 export function buildReturnTo(pathname: string, search: string): string {
   const path = pathname.startsWith("/") ? pathname : "/";
@@ -8,8 +21,10 @@ export function buildReturnTo(pathname: string, search: string): string {
 
 export function getSafeReturnTo(
   value: string | null | undefined,
-  fallback = "/wallet",
+  fallback?: string,
+  role?: UserRole | string | null,
 ): string {
+  const effectiveFallback = fallback ?? defaultLandingRoute(role);
   if (
     !value ||
     !value.startsWith("/") ||
@@ -17,7 +32,7 @@ export function getSafeReturnTo(
     value.includes("\\") ||
     value.includes("\u0000")
   ) {
-    return fallback;
+    return effectiveFallback;
   }
 
   try {
@@ -28,11 +43,11 @@ export function getSafeReturnTo(
       parsed.pathname === "/login" ||
       parsed.pathname === "/register"
     ) {
-      return fallback;
+      return effectiveFallback;
     }
 
     return `${parsed.pathname}${parsed.search}${parsed.hash}`;
   } catch {
-    return fallback;
+    return effectiveFallback;
   }
 }
