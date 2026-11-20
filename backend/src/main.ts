@@ -6,7 +6,11 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { setupSwagger } from './common/swagger';
 import { AllExceptionsFilter } from './common/http-exception.filter';
-import { isOriginAllowed, resolveAllowedOrigins } from './common/cors';
+import {
+  isOriginAllowed,
+  resolveAllowedMethods,
+  resolveAllowedOrigins,
+} from './common/cors';
 import { WsCorsIoAdapter } from './common/ws-cors.io-adapter';
 import {
   GracefulShutdownServer,
@@ -136,7 +140,7 @@ async function bootstrap() {
       callback(new Error(rejection), false);
     },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'OPTIONS'],
+    methods: resolveAllowedMethods(process.env),
     allowedHeaders: [
       'Content-Type',
       'Authorization',

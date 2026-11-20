@@ -289,4 +289,73 @@ describe("lib/http request", () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
   }, 10_000);
+
+  it("does not auto-retry 429 responses even when retriable is true, preserving Retry-After UX (#2208)", async () => {
+    vi.useFakeTimers();
+    const response = jsonResponse(429, { message: "Rate limit exceeded" });
+    response.headers.set("Retry-After", "2");
+    fetchMock.mockResolvedValueOnce(response);
+
+    await expect(
+      request("/payments", {
+        service: "payments",
+        retriable: true,
+        report: false,
+      }),
+    ).rejects.toThrow("Too many requests. Please try again in 2s.");
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("aborts a stalled request after timeoutMs and surfaces ApiError with code TIMEOUT (#2207)", async () => {
+    vi.useFakeTimers();
+    fetchMock.mockImplementation((_url: string, init?: RequestInit) => {
+      return new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => {
+          reject(new DOMException("Aborted", "AbortError"));
+        });
+      });
+    });
+
+    const promise = request("/payments", {
+      service: "payments",
+      timeoutMs: 5000,
+      report: false,
+    });
+    const assertion = expect(promise).rejects.toMatchObject({
+      name: "ApiError",
+      status: 408,
+      code: "TIMEOUT",
+    });
+
+    await vi.advanceTimersByTimeAsync(5000);
+    await assertion;
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries a timed-out retriable GET once and does not auto-retry requests with an idempotencyKey (#2207)", async () => {
+    vi.useFakeTimers();
+    fetchMock
+      .mockImplementationOnce((_url: string, init?: RequestInit) => {
+        return new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            reject(new DOMException("Aborted", "AbortError"));
+          });
+        });
+      })
+      .mockResolvedValueOnce(jsonResponse(200, { ok: true }));
+
+    const getPromise = request("/payments", {
+      service: "payments",
+      retriable: true,
+      timeoutMs: 1000,
+    });
+
+    await vi.advanceTimersByTimeAsync(1000);
+    await flushMicrotasks();
+    await vi.advanceTimersByTimeAsync(250);
+
+    await expect(getPromise).resolves.toEqual({ ok: true });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
 });

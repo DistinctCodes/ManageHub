@@ -244,21 +244,42 @@ export class PaymentsService {
     from: string | undefined,
     to: string | undefined,
   ): { from?: Date; to?: Date } {
-    const parse = (value: string | undefined, endOfDay: boolean) => {
+    const parse = (
+      value: string | undefined,
+      fieldName: 'from' | 'to',
+      endOfDay: boolean,
+    ) => {
       if (!value) {
         return undefined;
       }
       const dateOnly = /^\d{4}-\d{2}-\d{2}$/.exec(value);
       if (dateOnly) {
         const [year, month, day] = value.split('-').map(Number);
-        return endOfDay
+        const constructed = endOfDay
           ? new Date(Date.UTC(year, month - 1, day, 23, 59, 59, 999))
           : new Date(Date.UTC(year, month - 1, day));
+        if (
+          Number.isNaN(constructed.getTime()) ||
+          constructed.getUTCFullYear() !== year ||
+          constructed.getUTCMonth() !== month - 1 ||
+          constructed.getUTCDate() !== day
+        ) {
+          throw new BadRequestException(`${fieldName} must be a valid date`);
+        }
+        return constructed;
       }
       const date = new Date(value);
-      return Number.isNaN(date.getTime()) ? undefined : date;
+      if (Number.isNaN(date.getTime())) {
+        throw new BadRequestException(`${fieldName} must be a valid date`);
+      }
+      return date;
     };
-    return { from: parse(from, false), to: parse(to, true) };
+    const parsedFrom = parse(from, 'from', false);
+    const parsedTo = parse(to, 'to', true);
+    if (parsedFrom && parsedTo && parsedFrom > parsedTo) {
+      throw new BadRequestException('from must not be after to');
+    }
+    return { from: parsedFrom, to: parsedTo };
   }
 
   async findAllPage(
@@ -269,18 +290,12 @@ export class PaymentsService {
       PAYMENT_PAGE_MAX_LIMIT,
       Math.max(1, options.limit ?? PAYMENT_PAGE_DEFAULT_LIMIT),
     );
-    const from = options.from ? new Date(options.from) : null;
-    const to = options.to ? new Date(options.to) : null;
-
-    if (from && Number.isNaN(from.getTime())) {
-      throw new BadRequestException('from must be a valid date');
-    }
-    if (to && Number.isNaN(to.getTime())) {
-      throw new BadRequestException('to must be a valid date');
-    }
-    if (from && to && from > to) {
-      throw new BadRequestException('from must not be after to');
-    }
+    const { from: parsedFrom, to: parsedTo } = this.parseDateRange(
+      options.from,
+      options.to,
+    );
+    const from = parsedFrom ?? null;
+    const to = parsedTo ?? null;
 
     const query = this.paymentRepository
       .createQueryBuilder('payment')

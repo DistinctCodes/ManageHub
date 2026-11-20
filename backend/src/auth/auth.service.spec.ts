@@ -10,6 +10,7 @@ jest.mock('bcrypt', () => ({
 describe('AuthService', () => {
   const users = {
     findOne: jest.fn(),
+    find: jest.fn(),
     create: jest.fn((data) => ({ ...data })),
     save: jest.fn(async (entity) => ({
       id: 'user-1',
@@ -116,5 +117,33 @@ describe('AuthService', () => {
       service.login({ email: 'user@example.com', password: 'password123' }),
     ).rejects.toThrow('database unavailable');
     expect(jwtService.signAsync).not.toHaveBeenCalled();
+  });
+
+  describe('searchUsers (#2199)', () => {
+    it('returns [] without querying when the query is empty or shorter than 2 characters', async () => {
+      await expect(service.searchUsers('')).resolves.toEqual([]);
+      await expect(service.searchUsers('a')).resolves.toEqual([]);
+      await expect(service.searchUsers('%')).resolves.toEqual([]);
+      await expect(service.searchUsers('_')).resolves.toEqual([]);
+      expect(users.find).not.toHaveBeenCalled();
+    });
+
+    it('escapes %, _, and \\ wildcards and uses ESCAPE in the LIKE clause', async () => {
+      users.find.mockResolvedValueOnce([
+        { id: 'u-1', email: '100%_admin@example.com', role: UserRole.ADMIN },
+      ]);
+
+      const result = await service.searchUsers('100%_\\test');
+
+      expect(result).toEqual([
+        { id: 'u-1', email: '100%_admin@example.com', role: UserRole.ADMIN },
+      ]);
+      expect(users.find).toHaveBeenCalledTimes(1);
+      const findArg = users.find.mock.calls[0][0];
+      const rawOperator = findArg.where.email;
+      expect(rawOperator._objectLiteralParameters).toEqual({
+        search: '%100\%\_\\\\test%',
+      });
+    });
   });
 });

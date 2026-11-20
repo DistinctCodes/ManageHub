@@ -58,3 +58,25 @@ export function isOriginAllowed(
 ): boolean {
   return !origin || allowedOrigins.includes(origin);
 }
+
+export const DEFAULT_CORS_METHODS = [
+  'GET',
+  'HEAD',
+  'POST',
+  'PUT',
+  'PATCH',
+  'DELETE',
+  'OPTIONS',
+] as const;
+
+/**
+ * Parse a comma-separated CORS_METHODS value into upper-case HTTP methods,
+ * falling back to DEFAULT_CORS_METHODS (which includes DELETE and HEAD, #2201).
+ */
+export function resolveAllowedMethods(env: NodeJS.ProcessEnv): string[] {
+  const configured = (env.CORS_METHODS ?? '')
+    .split(',')
+    .map((method) => method.trim().toUpperCase())
+    .filter((method) => method.length > 0);
+  return configured.length > 0 ? configured : [...DEFAULT_CORS_METHODS];
+}

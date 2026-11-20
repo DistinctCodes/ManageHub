@@ -16,6 +16,7 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
+import { SearchUsersQueryDto } from './dto/search-users-query.dto';
 import { AuthResponseDto, AuthUserDto } from './dto/auth-response.dto';
 import { Response, CookieOptions } from 'express';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -65,8 +66,10 @@ export class AuthController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Admin: search users by email' })
-  async searchUsers(@Query('email') email = ''): Promise<AuthUserDto[]> {
-    return this.authService.searchUsers(email);
+  async searchUsers(
+    @Query() query: SearchUsersQueryDto,
+  ): Promise<AuthUserDto[]> {
+    return this.authService.searchUsers(query.email ?? '');
   }
 
   @Get('me')

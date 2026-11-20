@@ -16,6 +16,7 @@ import { UserRole } from '../auth/enums/user-role.enum';
 type MockRepository = {
   findOne: jest.Mock;
   find: jest.Mock;
+  findAndCount: jest.Mock;
   create: jest.Mock;
   save: jest.Mock;
 };
@@ -24,6 +25,7 @@ function makeRepository(): MockRepository {
   return {
     findOne: jest.fn(),
     find: jest.fn(),
+    findAndCount: jest.fn().mockResolvedValue([[], 0]),
     create: jest.fn((data) => ({ ...data })),
     save: jest.fn(async (entity) => ({
       id: entity.id ?? 'generated-id',
@@ -376,6 +378,39 @@ describe('PaymentsService', () => {
       repository.find.mockResolvedValueOnce([]);
       await service.findAll({ id: 'admin-1', role: UserRole.ADMIN });
       expect(repository.find).toHaveBeenCalledWith();
+    });
+
+    it('throws BadRequestException on invalid from/to or inverted date ranges (#2200)', async () => {
+      const admin = { id: 'admin-1', role: UserRole.ADMIN };
+      await expect(
+        service.findAll(admin, { from: 'not-a-date' }),
+      ).rejects.toThrow(new BadRequestException('from must be a valid date'));
+
+      await expect(
+        service.findAll(admin, { to: 'not-a-date' }),
+      ).rejects.toThrow(new BadRequestException('to must be a valid date'));
+
+      await expect(
+        service.findAll(admin, {
+          from: '2026-05-10',
+          to: '2026-05-01',
+        }),
+      ).rejects.toThrow(new BadRequestException('from must not be after to'));
+    });
+
+    it('preserves inclusive UTC day bounds for YYYY-MM-DD date-only inputs (#2200)', async () => {
+      const admin = { id: 'admin-1', role: UserRole.ADMIN };
+      await service.findAll(admin, {
+        from: '2026-05-01',
+        to: '2026-05-01',
+      });
+
+      expect(repository.findAndCount).toHaveBeenCalledTimes(1);
+      const where = repository.findAndCount.mock.calls[0][0].where;
+      expect(where.createdAt._value).toEqual([
+        new Date(Date.UTC(2026, 4, 1, 0, 0, 0, 0)),
+        new Date(Date.UTC(2026, 4, 1, 23, 59, 59, 999)),
+      ]);
     });
   });
 });

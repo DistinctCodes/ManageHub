@@ -44,9 +44,13 @@ export interface RequestOptions {
   service: ApiService;
   /**
    * Payments-style retry: one extra attempt for idempotent methods
-   * (GET/HEAD) on network errors or transient status codes.
+   * (GET/HEAD) on network errors, timeouts, or transient 5xx status codes.
    */
   retriable?: boolean;
+  /** Per-request timeout in milliseconds (default 15_000ms) (#2207). */
+  timeoutMs?: number;
+  /** Optional caller-supplied AbortSignal combined with the per-request timeout (#2207). */
+  signal?: AbortSignal;
   /** Builds the message for typed fallbacks keyed by status. */
   fallbackMessage?: (status: number) => string;
   /** Builds a module-specific typed error (e.g. CreditsApiError). */
@@ -63,29 +67,83 @@ export interface RequestOptions {
   credentials?: RequestCredentials;
 }
 
+export const DEFAULT_REQUEST_TIMEOUT_MS = 15_000;
 const TRANSIENT_RETRY_DELAY_MS = 250;
-const RETRYABLE_STATUS_CODES = new Set([408, 425, 429, 500, 502, 503, 504]);
+// #2208: 429 is deliberately excluded from automatic 250ms retry so the
+// server's Retry-After header and rateLimitMessage UX run without burning quota.
+const RETRYABLE_STATUS_CODES = new Set([408, 425, 500, 502, 503, 504]);
 
-function isRetryableMethod(init: RequestInit): boolean {
-  return (init.method ?? "GET").toUpperCase() === "GET";
+function isRetryableMethod(init: RequestInit, idempotencyKey?: string): boolean {
+  if (idempotencyKey) return false;
+  const method = (init.method ?? "GET").toUpperCase();
+  return method === "GET" || method === "HEAD";
 }
 
 function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === "AbortError";
 }
 
+function isTimeoutError(error: unknown): error is ApiError {
+  return error instanceof ApiError && error.code === "TIMEOUT";
+}
+
 function waitForRetry(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, TRANSIENT_RETRY_DELAY_MS));
+}
+
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number,
+  callerSignal?: AbortSignal,
+): Promise<Response> {
+  if (callerSignal?.aborted) {
+    throw callerSignal.reason ?? new DOMException("The operation was aborted.", "AbortError");
+  }
+
+  const controller = new AbortController();
+  let timedOut = false;
+
+  const onCallerAbort = () => {
+    controller.abort(callerSignal?.reason);
+  };
+  callerSignal?.addEventListener("abort", onCallerAbort, { once: true });
+
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+
+  try {
+    return await fetch(url, {
+      ...init,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (timedOut && !callerSignal?.aborted) {
+      throw new ApiError(
+        408,
+        "TIMEOUT",
+        "Request timed out. Please check your connection and try again.",
+      );
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+    callerSignal?.removeEventListener("abort", onCallerAbort);
+  }
 }
 
 async function fetchWithRetry(
   url: string,
   init: RequestInit,
   retriable: boolean,
+  timeoutMs: number,
+  callerSignal?: AbortSignal,
 ): Promise<Response> {
   for (let attempt = 0; ; attempt += 1) {
     try {
-      const response = await fetch(url, init);
+      const response = await fetchWithTimeout(url, init, timeoutMs, callerSignal);
       if (
         !retriable ||
         attempt >= 1 ||
@@ -95,7 +153,11 @@ async function fetchWithRetry(
       }
       await response.body?.cancel();
     } catch (error) {
-      if (!retriable || attempt >= 1 || isAbortError(error)) {
+      if (
+        !retriable ||
+        attempt >= 1 ||
+        (isAbortError(error) && !isTimeoutError(error))
+      ) {
         throw error;
       }
     }
@@ -144,6 +206,8 @@ export async function request<T>(
     idempotencyKey,
     service,
     retriable = false,
+    timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS,
+    signal,
     fallbackMessage,
     makeError,
     report = true,
@@ -166,7 +230,9 @@ export async function request<T>(
   const response = await fetchWithRetry(
     `${getApiBaseUrl()}${path}`,
     init,
-    retriable && isRetryableMethod(init),
+    retriable && isRetryableMethod(init, idempotencyKey),
+    timeoutMs,
+    signal,
   );
 
   if (!response.ok) {

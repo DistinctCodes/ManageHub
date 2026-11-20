@@ -181,6 +181,12 @@ export class AuthService {
 
   async searchUsers(query: string): Promise<AuthUserDto[]> {
     const term = query.trim().toLowerCase();
+    if (term.length < 2) {
+      return [];
+    }
+
+    const escapedTerm = term.replace(/[\\%_]/g, '\\  async searchUsers(query: string): Promise<AuthUserDto[]> {
+    const term = query.trim().toLowerCase();
     if (!term) {
       return [];
     }
@@ -190,6 +196,16 @@ export class AuthService {
       where: {
         email: Raw((alias) => `LOWER(${alias}) LIKE :search`, {
           search: `%${term}%`,
+        }),
+      },
+      order: { email: 'ASC' },
+      take: 20,
+    });');
+    const users = await this.users.find({
+      select: { id: true, email: true, role: true },
+      where: {
+        email: Raw((alias) => `LOWER(${alias}) LIKE :search ESCAPE '\\'`, {
+          search: `%${escapedTerm}%`,
         }),
       },
       order: { email: 'ASC' },

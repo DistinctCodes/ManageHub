@@ -1,7 +1,9 @@
 import {
+  DEFAULT_CORS_METHODS,
   DEVELOPMENT_AND_TEST_CORS_ORIGINS,
   isOriginAllowed,
   parseAllowedOrigins,
+  resolveAllowedMethods,
   resolveAllowedOrigins,
 } from './cors';
 
@@ -51,5 +53,16 @@ describe('CORS origin helpers', () => {
       false,
     );
     expect(isOriginAllowed('https://other.example.com', allowed)).toBe(false);
+  });
+
+  it('includes DELETE and HEAD in the default allowed CORS methods and honours CORS_METHODS (#2201)', () => {
+    const defaults = resolveAllowedMethods({});
+    expect(defaults).toEqual([...DEFAULT_CORS_METHODS]);
+    expect(defaults).toContain('DELETE');
+    expect(defaults).toContain('HEAD');
+
+    expect(
+      resolveAllowedMethods({ CORS_METHODS: ' get, delete , head , options ' }),
+    ).toEqual(['GET', 'DELETE', 'HEAD', 'OPTIONS']);
   });
 });
