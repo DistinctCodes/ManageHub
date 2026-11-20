@@ -192,8 +192,29 @@ export function verifyPaymentReturn(
 
 // ── metered usage (FE-109) ───────────────────────────────────────────────
 
-export function listMyUsage(): Promise<MeteredUsageEvent[]> {
-  return apiFetch<MeteredUsageEvent[]>("/credits/usage");
+export interface MeteredUsagePage {
+  data: MeteredUsageEvent[];
+  nextCursor: string | null;
+}
+
+export interface ListMyUsageOptions {
+  cursor?: string;
+  from?: string;
+  to?: string;
+  limit?: number;
+}
+
+export function listMyUsage({
+  cursor,
+  from,
+  to,
+  limit = 20,
+}: ListMyUsageOptions = {}): Promise<MeteredUsagePage> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (cursor) params.set("cursor", cursor);
+  if (from) params.set("from", from);
+  if (to) params.set("to", to);
+  return apiFetch<MeteredUsagePage>(`/credits/usage?${params.toString()}`);
 }
 
 export function listManualReviewPayments(

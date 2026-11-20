@@ -23,7 +23,11 @@ import { RequestUser } from '../auth/interfaces/authenticated-request.interface'
 import { PaymentsService } from '../payments/payments.service';
 import { CreditsService } from './credits.service';
 import { LedgerService } from './ledger.service';
-import { MeteredUsageService } from './metered-usage.service';
+import {
+  METERED_USAGE_PAGE_DEFAULT_LIMIT,
+  METERED_USAGE_PAGE_MAX_LIMIT,
+  MeteredUsageService,
+} from './metered-usage.service';
 import { PaymentCreditsService } from './payment-credits.service';
 import { ChargeCreditsDto } from './dto/charge-credits.dto';
 import { RecordMeteredUsageDto } from './dto/record-metered-usage.dto';
@@ -33,6 +37,7 @@ import {
   LedgerAccountResponseDto,
   LedgerEntryResponseDto,
   LedgerTransactionResponseDto,
+  MeteredUsagePageResponseDto,
   MeteredUsageResponseDto,
   PaymentCreditApplicationResponseDto,
 } from './dto/credits-response.dto';
@@ -59,6 +64,28 @@ function parsePositiveInt(
     throw new BadRequestException(`${name} must be a positive integer`);
   }
   return Math.min(parsed, max);
+}
+
+function parseUsagePageLimit(limit?: string): number {
+  if (limit === undefined || limit === '') {
+    return METERED_USAGE_PAGE_DEFAULT_LIMIT;
+  }
+  const parsed = Number(limit);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new BadRequestException('limit must be a positive integer');
+  }
+  return Math.min(parsed, METERED_USAGE_PAGE_MAX_LIMIT);
+}
+
+function parseUsageDate(value: string, name: 'from' | 'to'): Date {
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
+  const parsed = new Date(
+    dateOnly && name === 'to' ? `${value}T23:59:59.999Z` : value,
+  );
+  if (Number.isNaN(parsed.getTime())) {
+    throw new BadRequestException(`${name} must be a valid ISO date`);
+  }
+  return parsed;
 }
 
 @ApiTags('credits')
@@ -211,13 +238,50 @@ export class CreditsController {
 
   @Get('usage')
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Your own metered usage history, newest first' })
-  @ApiResponse({ status: 200, type: [MeteredUsageResponseDto] })
+  @ApiOperation({
+    summary: 'Your own metered usage history, newest first',
+    description:
+      'Cursor-paginated: pass `cursor` from the previous page to fetch the ' +
+      'next one, and `nextCursor` is null on the last page. `from`/`to` bound ' +
+      'the inclusive created-at range.',
+  })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({
+    name: 'cursor',
+    required: false,
+    type: String,
+    description: 'Opaque cursor from the previous page',
+  })
+  @ApiQuery({ name: 'from', required: false, description: 'Inclusive ISO start' })
+  @ApiQuery({ name: 'to', required: false, description: 'Inclusive ISO end' })
+  @ApiResponse({ status: 200, type: MeteredUsagePageResponseDto })
   async myUsage(
     @CurrentUser() currentUser: RequestUser,
-  ): Promise<MeteredUsageResponseDto[]> {
-    const events = await this.usage.listForUser(currentUser.id);
-    return events.map((event) => MeteredUsageResponseDto.fromEntity(event));
+    @Query('limit') limit?: string,
+    @Query('cursor') cursor?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ): Promise<MeteredUsagePageResponseDto> {
+    const fromDate = from ? parseUsageDate(from, 'from') : undefined;
+    const toDate = to ? parseUsageDate(to, 'to') : undefined;
+    if (fromDate && toDate && fromDate > toDate) {
+      throw new BadRequestException(
+        '"from" must be earlier than or equal to "to"',
+      );
+    }
+    const page = await this.usage.listForUser({
+      userId: currentUser.id,
+      limit: parseUsagePageLimit(limit),
+      cursor,
+      from: fromDate,
+      to: toDate,
+    });
+    return {
+      data: page.events.map((event) =>
+        MeteredUsageResponseDto.fromEntity(event),
+      ),
+      nextCursor: page.nextCursor,
+    };
   }
 
   /**

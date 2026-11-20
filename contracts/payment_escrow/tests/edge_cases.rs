@@ -1,7 +1,9 @@
 // Edge cases for the escrow contract (issue CT-52): every case asserts the
 // call is rejected with a contract error, not silently accepted.
 
-use payment_escrow::{Error, PaymentEscrowContract, PaymentEscrowContractClient};
+use payment_escrow::{
+    Error, PaymentEscrowContract, PaymentEscrowContractArgs, PaymentEscrowContractClient,
+};
 use soroban_sdk::{
     testutils::{Address as _, MockAuth, MockAuthInvoke},
     token, Address, BytesN, Env, IntoVal,
@@ -18,7 +20,11 @@ struct Fixture {
 fn fixture() -> Fixture {
     let env = Env::default();
     env.mock_all_auths();
-    let contract_id = env.register(PaymentEscrowContract, ());
+    let admin = Address::generate(&env);
+    let contract_id = env.register(
+        PaymentEscrowContract,
+        PaymentEscrowContractArgs::__constructor(&admin,),
+    );
     let payer = Address::generate(&env);
     let beneficiary = Address::generate(&env);
     let token = env

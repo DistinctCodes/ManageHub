@@ -1,7 +1,16 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { MoreThanOrEqual, Repository } from 'typeorm';
+import {
+  And,
+  Equal,
+  FindOperator,
+  FindOptionsWhere,
+  LessThan,
+  LessThanOrEqual,
+  MoreThanOrEqual,
+  Repository,
+} from 'typeorm';
 import { MeteredUsageEvent } from './entities/metered-usage-event.entity';
 import { MeteredResource } from './enums/metered-resource.enum';
 import { CreditsService } from './credits.service';
@@ -12,6 +21,9 @@ import { createTransport } from 'nodemailer';
 import Handlebars from 'handlebars';
 
 const POSTGRES_UNIQUE_VIOLATION = '23505';
+
+export const METERED_USAGE_PAGE_DEFAULT_LIMIT = 50;
+export const METERED_USAGE_PAGE_MAX_LIMIT = 100;
 
 export interface RecordUsageInput {
   userId: string;
@@ -30,6 +42,43 @@ export interface RecordUsageResult {
   event: MeteredUsageEvent;
   /** False when this usage event had already been recorded and charged. */
   charged: boolean;
+}
+
+export interface MeteredUsageListOptions {
+  userId: string;
+  limit?: number;
+  cursor?: string;
+  from?: Date;
+  to?: Date;
+}
+
+/** A page of a member's usage plus the cursor that resumes after the last row. */
+export interface MeteredUsagePage {
+  events: MeteredUsageEvent[];
+  nextCursor: string | null;
+}
+
+function encodeUsageCursor(event: MeteredUsageEvent): string {
+  return Buffer.from(
+    `${event.createdAt.toISOString()}|${event.id}`,
+    'utf8',
+  ).toString('base64url');
+}
+
+function decodeUsageCursor(cursor: string): { createdAt: Date; id: string } {
+  const decoded = Buffer.from(cursor, 'base64url').toString('utf8');
+  const separator = decoded.lastIndexOf('|');
+  const rawCreatedAt = separator === -1 ? '' : decoded.slice(0, separator);
+  const id = separator === -1 ? '' : decoded.slice(separator + 1);
+  const createdAt = new Date(rawCreatedAt);
+  if (!id || Number.isNaN(createdAt.getTime())) {
+    throw new BadRequestException('cursor is not a valid pagination cursor');
+  }
+  return { createdAt, id };
+}
+
+function combineDateFilters(filters: FindOperator<Date>[]): FindOperator<Date> {
+  return filters.length === 1 ? filters[0] : And(...filters);
 }
 
 /**
@@ -357,12 +406,62 @@ export class MeteredUsageService {
     return Math.floor(this.readPositiveNumberConfig(key, fallback));
   }
 
-  async listForUser(userId: string, limit = 100): Promise<MeteredUsageEvent[]> {
-    return this.usageRepository.find({
-      where: { userId },
-      order: { createdAt: 'DESC' },
-      take: limit,
+  /**
+   * One page of a member's usage, newest first. The cursor pins the
+   * (createdAt, id) position so pages stay stable when new events arrive;
+   * `nextCursor` is null on the final page.
+   */
+  async listForUser(options: MeteredUsageListOptions): Promise<MeteredUsagePage> {
+    const limit = Math.min(
+      Math.max(
+        1,
+        Math.floor(options.limit ?? METERED_USAGE_PAGE_DEFAULT_LIMIT),
+      ),
+      METERED_USAGE_PAGE_MAX_LIMIT,
+    );
+
+    const dateFilters: FindOperator<Date>[] = [];
+    if (options.from) {
+      dateFilters.push(MoreThanOrEqual(options.from));
+    }
+    if (options.to) {
+      dateFilters.push(LessThanOrEqual(options.to));
+    }
+
+    type UsageWhere = FindOptionsWhere<MeteredUsageEvent>;
+    const base: UsageWhere = { userId: options.userId };
+    if (dateFilters.length > 0) {
+      base.createdAt = combineDateFilters(dateFilters);
+    }
+
+    let where: UsageWhere | UsageWhere[] = base;
+    if (options.cursor) {
+      const { createdAt, id } = decodeUsageCursor(options.cursor);
+      where = [
+        {
+          ...base,
+          createdAt: combineDateFilters([...dateFilters, LessThan(createdAt)]),
+        },
+        {
+          ...base,
+          createdAt: combineDateFilters([...dateFilters, Equal(createdAt)]),
+          id: LessThan(id),
+        },
+      ];
+    }
+
+    const rows = await this.usageRepository.find({
+      where,
+      order: { createdAt: 'DESC', id: 'DESC' },
+      take: limit + 1,
     });
+    const hasMore = rows.length > limit;
+    const events = hasMore ? rows.slice(0, limit) : rows;
+    const last = events[events.length - 1];
+    return {
+      events,
+      nextCursor: hasMore && last ? encodeUsageCursor(last) : null,
+    };
   }
 
   private isUniqueViolation(error: unknown): boolean {

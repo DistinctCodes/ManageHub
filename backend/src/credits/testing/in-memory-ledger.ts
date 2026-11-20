@@ -48,6 +48,11 @@ function valueMatches(actual: unknown, expected: unknown): boolean {
         );
       case 'equal':
         return toComparable(actual) === toComparable(expected.value);
+      case 'and': {
+        const operands = expected.child ?? expected.value;
+        const list = Array.isArray(operands) ? operands : [operands];
+        return list.every((candidate) => valueMatches(actual, candidate));
+      }
       case 'lessThanOrEqual':
         return toComparable(actual) <= toComparable(expected.value);
       case 'lessThan':
