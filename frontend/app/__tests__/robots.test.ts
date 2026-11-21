@@ -4,6 +4,7 @@ import robots from "../robots";
 import {
   authRoutePrefixes,
   protectedRoutePrefixes,
+  publicCrawlerDisallowPrefixes,
 } from "@/lib/protected-routes";
 
 // robots() declares MetadataRoute.Robots whose `rules` may be a single rule,
@@ -18,6 +19,24 @@ function disallowedPaths(): string[] {
   });
 }
 
+function parseRobotsTxt(disallow: string[]) {
+  const contents = [
+    "User-agent: *",
+    ...disallow.map((path) => `Disallow: ${path}`),
+  ];
+  const disallowedPrefixes = contents.flatMap((line) => {
+    const match = /^Disallow:\s*(.*)$/.exec(line);
+    return match?.[1] ? [match[1]] : [];
+  });
+
+  return {
+    isAllowed(url: string): boolean {
+      const { pathname } = new URL(url);
+      return !disallowedPrefixes.some((prefix) => pathname.startsWith(prefix));
+    },
+  };
+}
+
 describe("robots", () => {
   it("disallows the admin area and the component catalog", () => {
     const disallow = disallowedPaths();
@@ -26,20 +45,34 @@ describe("robots", () => {
     expect(disallow).toContain("/components/");
   });
 
-  it("disallows every protected route, including /credits/", () => {
+  it("disallows every protected route and its children", () => {
     const disallow = disallowedPaths();
 
     for (const prefix of protectedRoutePrefixes) {
-      expect(disallow).toContain(`${prefix}/`);
+      expect(disallow).toContain(prefix);
     }
-    expect(disallow).toContain("/credits/");
   });
 
   it("disallows every auth route", () => {
     const disallow = disallowedPaths();
 
     for (const prefix of authRoutePrefixes) {
-      expect(disallow).toContain(`${prefix}/`);
+      expect(disallow).toContain(prefix);
+    }
+  });
+
+  it("blocks bare disallowed routes and their children according to a robots parser", () => {
+    const parser = parseRobotsTxt(disallowedPaths());
+
+    for (const prefix of [
+      ...protectedRoutePrefixes,
+      ...authRoutePrefixes,
+      ...publicCrawlerDisallowPrefixes,
+    ]) {
+      expect(parser.isAllowed(`https://managehub.app${prefix}`, "*")).toBe(false);
+      expect(parser.isAllowed(`https://managehub.app${prefix}/child`, "*")).toBe(
+        false,
+      );
     }
   });
 

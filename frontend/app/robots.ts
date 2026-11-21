@@ -11,7 +11,7 @@ export default function robots(): MetadataRoute.Robots {
     ...protectedRoutePrefixes,
     ...authRoutePrefixes,
     ...publicCrawlerDisallowPrefixes,
-  ].map((prefix) => `${prefix}/`);
+  ];
 
   return {
     rules: {
